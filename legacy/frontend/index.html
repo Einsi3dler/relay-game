@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Relay MVP</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="global-dashboard">
+        <div>
+          <h1>The Relay</h1>
+          <p id="matchLabel">No match connected</p>
+        </div>
+        <div id="track" class="track"></div>
+      </header>
+
+      <aside class="team-panel">
+        <div class="panel-title">Team Status</div>
+        <div id="teamStatus" class="team-status"></div>
+      </aside>
+
+      <section class="workspace">
+        <section id="joinPanel" class="join-panel">
+          <div class="join-grid">
+            <button id="createMatchBtn" class="primary">Create Match</button>
+            <label>
+              Match ID
+              <input id="matchIdInput" placeholder="auto after create" />
+            </label>
+            <label>
+              Name
+              <input id="nameInput" placeholder="Runner" />
+            </label>
+            <label>
+              Team
+              <select id="teamSelect">
+                <option value="">Auto-balance</option>
+              </select>
+            </label>
+            <label>
+              Role
+              <select id="roleSelect">
+                <option value="">Auto-role</option>
+              </select>
+            </label>
+            <button id="joinMatchBtn" class="primary">Join Relay</button>
+          </div>
+        </section>
+
+        <section id="playPanel" class="play-panel hidden">
+          <div class="role-strip">
+            <div>
+              <span id="roleName">Role</span>
+              <strong id="playerStatus">active</strong>
+            </div>
+            <div id="difficultyBadge">x1.00</div>
+          </div>
+          <div id="puzzleCard" class="puzzle-card"></div>
+          <form id="answerForm" class="answer-form">
+            <input id="answerInput" autocomplete="off" placeholder="Enter answer" />
+            <button type="submit" class="primary">Submit</button>
+          </form>
+          <div id="feedback" class="feedback"></div>
+        </section>
+      </section>
+
+      <aside class="action-panel">
+        <div class="panel-title">Action Center</div>
+        <div class="bank">
+          <span>Team Bank</span>
+          <strong id="pointBank">0</strong>
+        </div>
+        <div id="powerups" class="powerups"></div>
+        <div class="panel-title">Event Log</div>
+        <div id="eventLog" class="event-log"></div>
+      </aside>
+    </main>
+    <div id="sabotageOverlay" class="sabotage-overlay"></div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

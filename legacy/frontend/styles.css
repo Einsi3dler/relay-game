@@ -1,0 +1,456 @@
+:root {
+  color-scheme: dark;
+  --bg: #111318;
+  --panel: #1b2028;
+  --panel-strong: #222936;
+  --text: #f2f5f9;
+  --muted: #9da8b8;
+  --line: #303948;
+  --accent: #22c55e;
+  --warn: #facc15;
+  --danger: #ef4444;
+  --blue: #38bdf8;
+  --violet: #a78bfa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 40% 0%, #263142 0, #111318 34rem);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-strong);
+  color: var(--text);
+  min-height: 42px;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--blue);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.primary {
+  background: #0f7b4a;
+  border-color: #21a365;
+  font-weight: 700;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0f131a;
+  color: var(--text);
+  padding: 0 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: minmax(190px, 240px) minmax(0, 1fr) minmax(240px, 310px);
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+.global-dashboard {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) 1fr;
+  gap: 20px;
+  align-items: center;
+  min-height: 88px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(17, 19, 24, 0.88);
+  backdrop-filter: blur(14px);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.7rem);
+  letter-spacing: 0;
+}
+
+.global-dashboard p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.track {
+  display: grid;
+  gap: 10px;
+}
+
+.track-row {
+  display: grid;
+  grid-template-columns: 82px 1fr 64px;
+  gap: 10px;
+  align-items: center;
+}
+
+.track-bar {
+  height: 12px;
+  border-radius: 999px;
+  background: #0c1016;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.track-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue), var(--accent));
+}
+
+.team-panel,
+.action-panel {
+  padding: 18px;
+  background: rgba(27, 32, 40, 0.92);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+
+.action-panel {
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+
+.panel-title {
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+
+.team-status {
+  display: grid;
+  gap: 10px;
+}
+
+.team-block {
+  display: grid;
+  gap: 8px;
+}
+
+.team-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.player-row {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  gap: 9px;
+  align-items: center;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #141922;
+}
+
+.status-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+
+.status-grinding .status-dot {
+  background: var(--accent);
+}
+
+.status-stuck .status-dot {
+  background: var(--danger);
+  animation: pulse 900ms infinite;
+}
+
+.status-dormant .status-dot {
+  background: #6b7280;
+}
+
+.status-backlog .status-dot {
+  background: var(--violet);
+}
+
+.player-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-role {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.workspace {
+  min-width: 0;
+  padding: 22px;
+  display: grid;
+  align-content: center;
+}
+
+.join-panel,
+.play-panel {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+.join-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.join-grid button {
+  align-self: end;
+}
+
+.play-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.hidden {
+  display: none;
+}
+
+.role-strip,
+.bank {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+#roleName {
+  color: var(--muted);
+  display: block;
+}
+
+#playerStatus {
+  font-size: 1.2rem;
+}
+
+#difficultyBadge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #0c1016;
+  border: 1px solid var(--line);
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.puzzle-card {
+  min-height: 260px;
+  display: grid;
+  align-content: center;
+  gap: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: clamp(20px, 4vw, 40px);
+  background: linear-gradient(135deg, #1c2430, #121720);
+}
+
+.puzzle-kind {
+  color: var(--blue);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+}
+
+.puzzle-prompt {
+  margin: 0;
+  font-size: clamp(1.4rem, 3vw, 2.3rem);
+  line-height: 1.15;
+}
+
+.puzzle-hint {
+  color: var(--muted);
+}
+
+.answer-form {
+  display: grid;
+  grid-template-columns: 1fr 130px;
+  gap: 10px;
+}
+
+.feedback {
+  min-height: 24px;
+  color: var(--warn);
+}
+
+.bank {
+  margin-bottom: 18px;
+}
+
+.bank strong {
+  font-size: 2rem;
+  color: var(--accent);
+}
+
+.powerups {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.powerup-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.powerup-row span {
+  color: var(--muted);
+}
+
+.event-log {
+  display: grid;
+  gap: 8px;
+  max-height: 42vh;
+  overflow-y: auto;
+}
+
+.event {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #141922;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.event.sabotage,
+.event.fail {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.event.pass,
+.event.points,
+.event.advance {
+  border-color: rgba(34, 197, 94, 0.5);
+}
+
+.sabotage-overlay {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  background: rgba(239, 68, 68, 0.16);
+  transition: opacity 180ms ease;
+  z-index: 20;
+}
+
+body.effect-dim .sabotage-overlay,
+body.effect-blur .sabotage-overlay,
+body.effect-scramble .sabotage-overlay {
+  opacity: 1;
+}
+
+body.effect-blur .workspace {
+  filter: blur(7px);
+}
+
+body.effect-shake .workspace {
+  animation: shake 150ms infinite;
+}
+
+body.effect-scramble .puzzle-prompt,
+body.effect-scramble input {
+  filter: blur(2px);
+}
+
+@keyframes pulse {
+  from {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8);
+  }
+  to {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes shake {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(7px);
+  }
+  100% {
+    transform: translateX(-7px);
+  }
+}
+
+@media (max-width: 920px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto;
+  }
+
+  .global-dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .team-panel,
+  .action-panel {
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    max-height: none;
+  }
+
+  .workspace {
+    order: 2;
+    padding: 16px;
+  }
+
+  .action-panel {
+    order: 3;
+  }
+
+  .team-panel {
+    order: 1;
+  }
+
+  .join-grid,
+  .answer-form {
+    grid-template-columns: 1fr;
+  }
+}

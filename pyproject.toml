@@ -1,0 +1,26 @@
+[project]
+name = "relay-mvp"
+version = "0.1.0"
+description = "Playable MVP for The Relay multiplayer puzzle game."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111.0,<0.116.0",
+  "uvicorn[standard]>=0.30.0,<0.35.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.2.0",
+  "httpx>=0.27.0,<0.29.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[build-system]
+requires = ["setuptools>=70.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["backend*"]
