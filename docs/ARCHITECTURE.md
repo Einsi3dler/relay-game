@@ -22,7 +22,9 @@ this with [GAME_DESIGN.md](GAME_DESIGN.md) (the rules) and
 
 - **One Python process, in-memory state.** No database, no external services.
   A match lives in a dict keyed by match id and disappears when the process stops.
-  That is fine for the MVP.
+  That is fine for the MVP. To keep the dict from growing forever, matches that
+  are `finished` or idle (no messages) for `MATCH_TTL_SECONDS` are **evicted**
+  (see [TASK_LIST.md](TASK_LIST.md) T3.6).
 - **Server-authoritative.** All correctness checks, status transitions, and timer
   expiries happen on the server. The client renders state and submits intents.
 - **The engine is pure and synchronous.** It takes a `Match` + an action and
@@ -59,8 +61,9 @@ backend/
 
 - **`config.py`** — single home for `REST_SECONDS=15`, `HOLDING_SECONDS=20`,
   `MAIN_PUZZLE_SECONDS=0`, `PLAYERS_PER_TEAM=4`, `MIN_PLAYERS_PER_TEAM=4`,
-  `STAGE_COUNT=4`, and the ordered list of game module ids. Nothing else in the
-  codebase should contain these literals.
+  `STAGE_COUNT=4`, `SUBMIT_MIN_INTERVAL_MS=300`, `MATCH_TTL_SECONDS=1800`, and the
+  ordered list of game module ids. Nothing else in the codebase should contain
+  these literals.
 - **`models.py`** — plain dataclasses with `.public()` methods that return the
   JSON-safe dict the client sees. **`.public()` must never include puzzle
   answers.** See [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) for exact shapes.
@@ -99,9 +102,11 @@ Team
   finished: bool
 
 Player
-  id, name, team_id
+  id, name, team_id                        # id is long + random — it is the WS credential
   status: "lobby"|"solving"|"resting"|"holding"|"finished"
   connected: bool
+  attempt: int                             # counts main-puzzle instances this stage;
+                                           #   feeds seed derivation (see "Seeds")
   current_main: PuzzleInstance | None      # server-only answer stripped in public()
   current_holding: PuzzleInstance | None
   timer_deadline: str | None               # UTC ISO; drives client countdown
@@ -114,6 +119,23 @@ PuzzleInstance   (produced by a GameModule; see GAME_MODULE_SPEC)
 ```
 
 `green(player)` is a derived helper: `player.status in {"resting","holding"}`.
+
+### Seeds
+
+Game modules are deterministic in their `seed` (see
+[GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md)), so a **predictable seed would let a
+player precompute their board**. Rules:
+
+- Seeds are generated **server-side** and are **never sent to the client** (not in
+  payloads, snapshots, or logs the client can see).
+- Derive them unguessably, e.g.
+  `seed = int.from_bytes(hmac_sha256(SERVER_SEED_SECRET, f"{match_id}:{player_id}:{stage}:{attempt}")[:8])`
+  where `SERVER_SEED_SECRET` is a per-process random value created at startup —
+  or simply draw each seed from `secrets` and store it on the `PuzzleInstance`.
+  Never use sequential counters or timestamps alone.
+- `Player.attempt` increments every time a fresh main instance is served (stage
+  start, wrong answer, lost green, reconnect-while-solving), which is what makes
+  every attempt a genuinely new puzzle.
 
 ## 4. Timers (the tricky part)
 

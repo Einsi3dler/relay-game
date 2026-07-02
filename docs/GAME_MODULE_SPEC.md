@@ -51,7 +51,7 @@ from uuid import uuid4
 @dataclass
 class PuzzleInstance:
     """One puzzle handed to one player. Created by a GameModule."""
-    game_id: str                       # e.g. "cipher_lock"
+    game_id: str                       # e.g. "rewire"
     kind: str                          # "main" | "holding"
     prompt: str                        # human-readable question the client shows
     answer: str                        # SERVER ONLY — never sent to the client
@@ -72,8 +72,8 @@ class PuzzleInstance:
 class GameModule(Protocol):
     """Every game implements this. The engine only ever talks to this interface."""
 
-    id: str            # unique, stable, snake_case. e.g. "cipher_lock"
-    name: str          # display name. e.g. "Cipher Lock"
+    id: str            # unique, stable, snake_case. e.g. "rewire"
+    name: str          # display name. e.g. "Rewire"
 
     def generate_main(self, seed: int) -> PuzzleInstance: ...
     def generate_holding(self, seed: int) -> PuzzleInstance: ...
@@ -86,7 +86,11 @@ class GameModule(Protocol):
 - **`generate_main(seed)`** — return a `PuzzleInstance` with `kind="main"`. Must be
   **deterministic in `seed`**: the same seed always yields the same puzzle
   (prompt + answer). The engine passes a per-player, per-attempt seed so every
-  player gets a different-but-reproducible puzzle. Set `game_id` to `self.id`.
+  player gets a different-but-reproducible puzzle. (Seeds are server-generated and
+  unguessable — see [ARCHITECTURE.md](ARCHITECTURE.md) §"Seeds"; your module just
+  consumes them.) Set `game_id` to `self.id`. **Difficulty is a module constant in
+  the MVP** — never derive board size/difficulty from `seed` (that would randomise
+  fairness between players); difficulty scaling is a stretch knob.
 - **`generate_holding(seed)`** — same, with `kind="holding"`. Keep it solvable in a
   few seconds.
 - **`check(puzzle, answer)`** — return `True`/`False`. Two valid styles:
@@ -105,12 +109,13 @@ class GameModule(Protocol):
 2. **Stateless between calls** wherever possible. If you must cache, see §4.
 3. **No answer leakage:** `public()` strips `PuzzleInstance.answer`. The `payload`
    may carry the puzzle **state** needed to render it (a board, tubes, clues) — that
-   is not leakage — but it must **not** carry the *solution* (mine positions, the
-   correct rotations, the pour sequence). The one sanctioned exception is a
-   transient-content game like ECHO whose content *is* the solution (the flash
-   sequence must be sent to be animated); that exception is documented in
-   [GAMES_SPEC.md](GAMES_SPEC.md) §Game 4 with its threat model. If in doubt, keep
-   the solution server-side and **recompute** in `check`.
+   is not leakage — but it must **not** carry the *solution* (the correct rotations,
+   the pour sequence). There are exactly **two sanctioned exceptions**, each
+   documented in [GAMES_SPEC.md](GAMES_SPEC.md) with its threat model: ECHO's flash
+   `sequence` (the content *is* the solution and must be sent to be animated) and
+   SWEEP's full `clues` grid (needed for client-side reveals; mines are derivable
+   as its complement). If in doubt, keep the solution server-side and **recompute**
+   in `check`.
 4. **No engine/other-game imports.** Import only from `backend.games.base` (and the
    stdlib). You do not know or care about teams, timers, or statuses.
 5. **Self-contained answers:** a puzzle must be checkable purely from
@@ -233,29 +238,29 @@ Put them in `tests/games/test_gameN_<name>.py`. Minimum bar:
    casing/whitespace, e.g. `check(p, f"  {p.answer.upper()} ")` is `True`).
 4. **Wrong answer fails:** `check(p, "definitely-wrong")` is `False`.
 5. **No answer leakage:** `p.answer` (normalised) is **not** a substring of
-   `p.public()` serialised to text.
+   `p.public()` serialised to text. (Documented exceptions — ECHO's `sequence`,
+   SWEEP's `clues` grid — assert their documented shape instead; see
+   [GAMES_SPEC.md](GAMES_SPEC.md).)
 6. **Holding is quick:** `generate_holding` returns `kind="holding"` and a puzzle;
    same determinism/correctness checks.
 7. **`reset()` is safe:** calling it doesn't raise and doesn't change future
    deterministic output.
 
-## 9. The four MVP games (starter themes — owners may refine)
+## 9. The four MVP games
 
-Each owner takes one. Themes are **suggestions** drawn from the legacy prototype;
-refine the exact puzzle with your Core lead, but keep them **short** (main ≈
-15–40s, holding ≈ a few seconds) and text/multiple-choice so no frontend work is
-needed.
+The four concrete games are fully specified in [GAMES_SPEC.md](GAMES_SPEC.md) —
+that document is the gameplay / validation / anti-cheat truth for each. Keep them
+**short** (main ≈ 15–40s, holding ≈ a few seconds).
 
-| Stage | Suggested game | Idea | Answer shape |
+| Stage | Game | Category | Owner |
 | --- | --- | --- | --- |
-| 1 | **Cipher Lock** | Decode a short shifted/substituted string, or fix a broken token. | short string |
-| 2 | **Signal Sequence** | Show a sequence; player repeats it or supplies the missing element. | sequence / number |
-| 3 | **Grid Router** | Order/route grid anchors (e.g. sort labels, pick the valid path). | ordered string |
-| 4 | **Number Forge** | Find the anomaly / complete the arithmetic pattern. | number |
+| 1 | **REWIRE** — rotate tiles to route power from source to sinks | Puzzle | [G1] |
+| 2 | **SWEEP** — flag every mine from the number clues | Logical | [G2] |
+| 3 | **DECANT** — pour colours between tubes until each is uniform | Sorting | [G3] |
+| 4 | **ECHO** — watch the flash sequence, repeat it by tapping | Reflex/Memory | [G4] |
 
-These deliberately mirror the legacy `puzzles.py` generators — mine those for
-inspiration, but reimplement against **this** contract (do not import from
-`legacy/`).
+The legacy `puzzles.py` generators are inspiration only — reimplement against
+**this** contract (do not import from `legacy/`).
 
 ## 10. Interactive (action) games — the frontend half
 

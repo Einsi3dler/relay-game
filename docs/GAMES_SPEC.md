@@ -28,13 +28,24 @@ Every game obeys these rules:
    word or number that an LLM "knows."
 3. **State is visual/spatial, not textual.** To hand a board to an LLM you must
    transcribe a grid/tube layout by hand, wait for a reply, and translate it back
-   into clicks — under a ~15–40s timer, for a state nobody else shares. That round
-   trip is slower than solving it.
-4. **Time-boxed.** The main-puzzle window and the holding window (see
-   [GAME_DESIGN.md](GAME_DESIGN.md) §5) are short enough that tool-assist doesn't pay.
+   into clicks — against a ~15–40s expected solve time, for a state nobody else
+   shares. That round trip is slower than solving it.
+4. **Time-boxed where it counts.** Holding questions are hard-timed
+   (`HOLDING_SECONDS`). The main puzzle has **no hard limit in the MVP**
+   (`MAIN_PUZZLE_SECONDS = 0` — see [GAME_DESIGN.md](GAME_DESIGN.md) §5): the only
+   main-puzzle pressure is the race itself, which is *soft* — a player already
+   behind loses little by taking minutes with a solver. Accept this for the MVP;
+   the stretch main-puzzle limit is the hardening, and it matters most for
+   search-friendly games (esp. DECANT).
 5. **Server-authoritative validation.** The server never trusts a "yes I solved it"
    flag; it **replays/recomputes** correctness from the submitted interaction (§ per
    game). The client cannot fake a win.
+6. **Submission rate limit.** Some answer spaces are tiny (SWEEP holding: 9
+   candidates; ECHO holding: 64) and a wrong main answer costs nothing beyond a
+   fresh board, so the server enforces a minimum interval between submissions per
+   player (`SUBMIT_MIN_INTERVAL_MS`, default 300, in `backend/config.py`). A
+   too-fast submission gets an `error` and is ignored. This closes scripted
+   brute-force without touching honest play.
 
 **Threat model & honesty:** these defend against *casual tool-assist* (paste into
 ChatGPT, search the answer). They do **not** defend against a determined player
@@ -65,7 +76,10 @@ Common `payload` fields every game includes:
 ```jsonc
 {
   "variant": "main" | "holding",   // convenience mirror of PuzzleInstance.kind
-  "difficulty": 1,                  // integer knob the generator scaled from seed
+  "difficulty": 1,                  // per-game MODULE CONSTANT in the MVP (echoed
+                                    //   for display/telemetry). Never derive it
+                                    //   from `seed` — that would randomise
+                                    //   fairness. Difficulty scaling is a stretch.
   "time_hint_seconds": 30           // suggested solve budget (display only; the
                                     //   authoritative timer is the engine's)
   // ...plus game-specific state (below)
@@ -106,8 +120,12 @@ another open end).
 2. Fill remaining cells with decoy tiles wired into the network or as dead stubs.
 3. **Scramble**: set every tile to a random orientation. If the scramble happens to
    already be solved, re-roll one tile.
-4. Difficulty scales grid size (3×3 → 5×5), number of sinks (1 → 2), and
-   T-junction count.
+4. **Self-check before serving**: run the module's own `check()` against the
+   recorded reference orientations. The decoy fill (step 2) can violate the
+   no-dangling-wire rule, so a failing self-check means the board is unwinnable —
+   re-roll and regenerate. Every served board must pass its own validator.
+5. (Stretch) difficulty scaling: grid size (3×3 → 5×5), number of sinks (1 → 2),
+   T-junction count. For the MVP, use the fixed sizes below.
 
 ### Main vs Holding
 - **Main:** 4×4, 1–2 sinks.
@@ -168,8 +186,9 @@ cells revealed).
 
 ### Rules
 - A revealed number = count of mines in the 8 neighbours.
-- Revealing a mine = **instant fail of this attempt** (they go back to a new board via
-  the normal lose-green / re-solve path — see below).
+- Revealing a mine = **instant fail of this attempt** — the client submits the
+  `"BOOM"` sentinel, `check` returns `False`, and the normal wrong-answer rule
+  ([GAME_DESIGN.md](GAME_DESIGN.md) §4) serves a **fresh board**.
 - The board is generated to be **logically solvable with no guessing** from the
   opening.
 
@@ -180,7 +199,8 @@ cells revealed).
    flags its remaining neighbours" and (b) subset elimination between adjacent
    number constraints. If the board is *not* fully solvable without guessing, **re-roll
    the seed** and retry (cap ~50 tries; log and fall back to an easier board).
-3. Difficulty scales grid size (5×5 → 7×7) and mine density.
+3. (Stretch) difficulty scaling: grid size (5×5 → 7×7) and mine density. For the
+   MVP, use the fixed sizes below.
 
 > If no-guess generation proves too costly, an acceptable MVP fallback is **Lights
 > Out** (toggle cells to turn all lights off) with identical contract shape — but
@@ -200,28 +220,42 @@ Order-independent.
 2. Return `True` iff the flagged set **exactly equals** the true mine set
    (`PuzzleInstance.answer` holds the mine coordinates, server-only).
    - No missing mines, no over-flagging safe cells.
-> Reveal actions during play are handled client-side for UX; only the final flag set
-> is validated. (Optionally the client refuses to submit until #flags == #mines.)
+> Reveal actions during play are handled **client-side** for UX; only the final flag
+> set is validated. To make that possible the payload carries the clue number for
+> **every safe cell** (the client can't compute reveal numbers without the mine
+> layout, and reveals can't round-trip to the server in the one-shot `check`
+> contract). See the anti-cheat caveat below. (Optionally the client refuses to
+> submit until #flags == #mines.)
 
 ### payload schema
 ```jsonc
 {
   "variant": "main", "difficulty": 2, "time_hint_seconds": 40,
   "rows": 6, "cols": 6, "mine_count": 6,
-  "revealed": [ { "r": 0, "c": 0, "n": 0 }, { "r": 0, "c": 1, "n": 1 }, ... ]  // opening clues
+  "revealed": [ { "r": 0, "c": 0, "n": 0 }, { "r": 0, "c": 1, "n": 1 }, ... ],  // opening reveal
+  "clues":    [ { "r": 0, "c": 2, "n": 2 }, ... ]  // number for EVERY safe cell;
+                                                   //   client reveals from this locally
 }
 ```
-Mine positions are **never** in the payload — only in `answer` (stripped from `public()`).
+Mine coordinates are never listed in the payload — only in `answer` (stripped from
+`public()`). **Caveat:** they are *derivable* from it (mines = the cells missing
+from `clues`), the same exception class as ECHO's sequence.
 
-### Anti-cheat notes
+### Anti-cheat notes (caveat)
 A multimodal LLM *could* solve a screenshot, but the per-player board, the ~40s
-timer, and the screenshot→upload→read-back→click loop (×4 teammates) make it slower
+target, and the screenshot→upload→read-back→click loop (×4 teammates) make it slower
 than deducing. No static board exists to search.
 
+**Caveat:** because reveals are client-side, the full clue grid is in the payload —
+a player inspecting their own WebSocket traffic can read the mine set as the
+complement of `clues`. Like ECHO's sequence, that defeats no LLM/Google user, only a
+dev sniffing their own client, and is **out of scope for the MVP** (§0 threat
+model). *Stretch hardening:* server round-trip per reveal.
+
 ### Edge cases
-Player reveals a mine → treat the attempt as failed: server can accept an explicit
-`"BOOM"` sentinel submission (client sends it on detonation) → `check` returns
-`False` → normal re-solve. Never let a fake "solved" pass; only an exact flag-set match wins.
+Player reveals a mine → the client submits the `"BOOM"` sentinel → `check` returns
+`False` → normal wrong-answer path (fresh board). Never let a fake "solved" pass;
+only an exact flag-set match wins.
 
 ---
 
@@ -250,7 +284,8 @@ filled with one colour.
 1. Start from the **solved** state (each colour tube full, plus the empty tubes).
 2. Apply `N` random **legal pours** (a reverse-scramble) driven by `seed`. Because
    every scramble step is a legal move, the reverse is always solvable.
-3. Difficulty scales colours (3 → 5), tubes, and scramble depth `N`.
+3. (Stretch) difficulty scaling: colours (3 → 5), tubes, and scramble depth `N`.
+   For the MVP, use the fixed sizes below.
 
 ### Main vs Holding
 - **Main:** 5 tubes / 3–4 colours / capacity 4.
@@ -309,7 +344,8 @@ order exactly.
 
 ### Procedural generation (seeded)
 1. From `seed`, generate a sequence of pad indices of length `L`
-   (main `L≈4–6`, holding `L=3`), scaling `L` and pad count with difficulty.
+   (main `L≈4–6`, holding `L=3`). (Stretch: scale `L` and pad count with
+   difficulty; MVP uses the fixed sizes below.)
 2. Include flash/gap timing so the client animates consistently.
 
 ### Main vs Holding
@@ -347,7 +383,11 @@ timed message instead of sending the whole sequence at once, and/or validate tap
 
 ### Edge cases
 A wrong tap mid-sequence → client submits the (wrong) partial/complete list → `check`
-returns `False`. Empty submission → `False`. Cap sequence length (≤ 12).
+returns `False` → the normal wrong-answer path serves a **fresh sequence**. This is
+load-bearing for ECHO: retrying a sequence you've already watched is no longer a
+memory test. (Same reason a `solving` player gets a fresh instance on reconnect —
+see [GAME_DESIGN.md](GAME_DESIGN.md) §9; a page refresh must not replay the same
+flashes.) Empty submission → `False`. Cap sequence length (≤ 12).
 
 ---
 
@@ -370,7 +410,8 @@ For your game, ship all of:
 3. Tests (`tests/games/test_gameN_<name>.py`) — the module-spec §8 suite **plus**:
    a solvable generated board is actually solvable (feed a known-good interaction →
    `check` True), an illegal/short interaction → `check` False, no solution data
-   leaks in `public()` (except ECHO's documented sequence).
+   leaks in `public()` (documented exceptions: ECHO's `sequence`, SWEEP's `clues`
+   grid).
 4. A playtest note with rough solve times (main & holding) for timer tuning.
 
 Related: [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) · [GAME_DESIGN.md](GAME_DESIGN.md) · [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) · [TASK_LIST.md](TASK_LIST.md)

@@ -19,7 +19,8 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
 | `POST` | `/api/matches/{id}/join` | `{ "name": str, "team_id": "alpha"\|"bravo"\|null }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` |
 | `GET` | `/api/matches/{id}` | — | `{ "match": <MatchPublic> }` (spectate / rejoin lookup) |
 
-- `team_id: null` → auto-balance to the emptier team.
+- `team_id: null` → auto-balance to the emptier team (tie → `alpha`, so tests are
+  deterministic).
 - Join fails with `400` if the chosen team is full (`players_per_team` reached) or
   the match has already started/finished. Body: `{ "detail": "<reason>" }`.
 - After joining, the client opens the WebSocket (below) using the returned
@@ -31,7 +32,15 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 
 - Server rejects with close code `4404` if the match or player is unknown.
 - On connect the server marks the player `connected`, sends a `state_snapshot` to
-  the new socket, and broadcasts an updated snapshot to everyone.
+  the new socket, and broadcasts an updated snapshot to everyone. If the player
+  reconnects while `solving`, the server serves a **fresh** main puzzle instance
+  first (see [GAME_DESIGN.md](GAME_DESIGN.md) §9 — prevents replay-to-rewatch).
+- **One socket per player.** A new connection with the same `player_id`
+  **supersedes** the old one: the server closes the previous socket (close code
+  `4001`) and continues with the new. Two tabs never share a player.
+- `player_id` is the socket's **only credential** — treat it like a session token.
+  Ids must be long, random, and unguessable (≥ 12 hex chars from a CSPRNG); never
+  sequential, never logged in chat/URLs players share.
 
 ### 2.1 Client → Server messages
 
@@ -46,6 +55,9 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
   `error` ("Puzzle is no longer active") and ignores it. This prevents a stale
   client from answering a puzzle it has already lost.
 - Submitting the wrong *kind* (e.g. `submit_holding` while `solving`) → `error`.
+- Submissions arriving faster than `SUBMIT_MIN_INTERVAL_MS` (config, default 300)
+  per player → `error` ("Too fast.") and are ignored — see
+  [GAMES_SPEC.md](GAMES_SPEC.md) §0 rule 6 (anti brute-force).
 - Unknown `type` → `error` ("Unknown message type.").
 
 ### 2.2 Server → Client messages
@@ -108,7 +120,7 @@ These are exactly what `.public()` returns. **No answers ever appear here.**
 
 ```jsonc
 {
-  "id": "p_1a2b",
+  "id": "p_9f3c2e7b81aa04d6",           // long + unguessable — it's the credential (§2)
   "name": "Ada",
   "team_id": "alpha",
   "status": "solving | resting | holding | lobby | finished",
@@ -140,10 +152,12 @@ These are exactly what `.public()` returns. **No answers ever appear here.**
 ```jsonc
 {
   "id": "9f8e7d6c5b4a",
-  "game_id": "cipher_lock",
+  "game_id": "rewire",
   "kind": "main | holding",
-  "prompt": "Fix the boolean token: {\"ok\": tru}",
-  "payload": { "hint": "Return the corrected token only." }   // see GAME_MODULE_SPEC §6
+  "prompt": "Rotate the tiles so power reaches every sink.",
+  "payload": { "rows": 4, "cols": 4, "tiles": [ /* ... */ ] }  // game state, never the
+                                                               //   solution — see
+                                                               //   GAME_MODULE_SPEC §6
 }
 ```
 

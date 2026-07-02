@@ -25,6 +25,7 @@ Status boxes are for you to tick in PRs.
 - [ ] **T0.2 `backend/config.py`** — single source of tunables:
   `REST_SECONDS=15`, `HOLDING_SECONDS=20`, `MAIN_PUZZLE_SECONDS=0`,
   `PLAYERS_PER_TEAM=4`, `MIN_PLAYERS_PER_TEAM=4`, `STAGE_COUNT=4`,
+  `SUBMIT_MIN_INTERVAL_MS=300`, `MATCH_TTL_SECONDS=1800`,
   `TEAM_IDS=("alpha","bravo")`, and `GAME_ORDER: list[str]` (game ids per stage,
   initially placeholders). **AC:** imported by other modules; no gameplay literal
   exists anywhere else (grep for `15`, `20`, `4` in engine returns nothing
@@ -44,8 +45,9 @@ Status boxes are for you to tick in PRs.
   `require` on missing id raises.
 - [ ] **T1.3 `games/base.py`** — the `GameModule` Protocol, `PuzzleInstance`
   dataclass, and `normalize_answer` **exactly** as in
-  [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §2 & §5. This unblocks all game owners.
-  **AC:** template game from spec §7 imports and type-checks against it.
+  [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §2 & §5, plus the spec §7 template
+  saved as `backend/games/template.py`. This unblocks all game owners.
+  **AC:** `games/template.py` imports and type-checks against the Protocol.
 - [ ] **T1.4 `registry.py`** — `GameRegistry` built from `config.GAME_ORDER`;
   `for_stage(n)` (1-based) returns the module for that stage; `reset_all()` calls
   `reset()` on every module. **AC:** with placeholder/fake games registered,
@@ -65,9 +67,11 @@ Status boxes are for you to tick in PRs.
   each player gets a distinct seeded main puzzle.
 - [ ] **T2.2 `submit_main`** — validate puzzle id & status; on correct answer:
   `solving→resting`, start a `rest` timer (deadline = now + `REST_SECONDS`), then run
-  the **advance check**. On wrong answer: stay `solving` (MVP: no penalty).
-  **AC:** correct → `resting` + deadline set; wrong → unchanged; stale/foreign
-  `puzzle_id` → rejected result.
+  the **advance check**. On wrong answer: stay `solving` but serve a **fresh main
+  puzzle** (new seed, `attempt` incremented — see
+  [GAME_DESIGN.md](GAME_DESIGN.md) §4); no other penalty.
+  **AC:** correct → `resting` + deadline set; wrong → still `solving` with a *new*
+  puzzle id; stale/foreign `puzzle_id` → rejected result.
 - [ ] **T2.3 Advance check + win** — when all of a team's `roster_size` players are
   green: if stage `== STAGE_COUNT` → team wins (`finished`, match `finished`,
   `winner_team_id` set, cancel team timers); else advance the team's `stage`, reset
@@ -87,9 +91,11 @@ Status boxes are for you to tick in PRs.
   (lose green → `solving`). **AC:** holding timer expiry → `solving` + new main puzzle.
 - [ ] **T2.7 Reconnect/disconnect (minimal)** — mark `connected` false/true; **do not**
   change status or timers on disconnect (green persists; server timers keep running).
-  On reconnect, resume current status/puzzle. **AC:** disconnect while `resting`
-  keeps player green and the team can still advance; reconnect resumes the same
-  puzzle. (Follow [GAME_DESIGN.md](GAME_DESIGN.md) §9.)
+  On reconnect: `resting`/`holding` resume the current state and timer; a `solving`
+  player is served a **fresh** main puzzle (prevents replay-to-rewatch, esp. ECHO).
+  **AC:** disconnect while `resting` keeps player green and the team can still
+  advance; reconnect while `holding` resumes the same holding puzzle; reconnect
+  while `solving` yields a new puzzle id. (Follow [GAME_DESIGN.md](GAME_DESIGN.md) §9.)
 - [ ] **T2.8 Engine unit tests** — cover T2.1–T2.7 including: advance blocked until
   all green; advance on 4th green mid-rest; lose-green-then-cannot-advance; win on
   Stage 4 only; independent team stages. **AC:** all pass; the design §7 example is
@@ -111,13 +117,21 @@ Status boxes are for you to tick in PRs.
   [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) §1. **AC:** join returns player+match;
   full/started join → 400 with `detail`.
 - [ ] **T3.4 WebSocket endpoint + `ConnectionManager`** — accept, register, snapshot
-  on connect, broadcast on change; dispatch `submit_answer`/`submit_holding`/
-  `request_state`/`heartbeat` into the engine; send `error` on invalid input; emit
-  `state_snapshot` after every change and the nudge messages (`event`,
-  `stage_advanced`, `match_won`). **AC:** protocol §2 behaviours hold; closing a
-  socket doesn't crash the match; snapshots never contain answers.
+  on connect, broadcast on change; a second socket for the same `player_id`
+  supersedes the first (close code `4001`); dispatch `submit_answer`/`submit_holding`/
+  `request_state`/`heartbeat` into the engine; send `error` on invalid input and on
+  submissions faster than `SUBMIT_MIN_INTERVAL_MS`; emit `state_snapshot` after
+  every change and the nudge messages (`event`, `stage_advanced`, `match_won`).
+  Message (de)serialisation helpers live in `protocol.py`. **AC:** protocol §2
+  behaviours hold; closing a socket doesn't crash the match; a duplicate connect
+  closes the old socket; snapshots never contain answers.
 - [ ] **T3.5 WebSocket integration tests** — with FastAPI `TestClient`: two full teams
   play to a win over the socket. **AC:** a scripted match reaches `match_won`.
+- [ ] **T3.6 Match eviction** — evict matches that are `finished` or idle (no
+  messages, no timer activity) for `MATCH_TTL_SECONDS` so the in-memory store
+  doesn't grow forever; cancel their timers on eviction. **AC:** an evicted match
+  id returns 404 on lookup; an active match is untouched; no timer fires for an
+  evicted match.
 
 ## Phase 4 — The four games (parallel)  ·  owners: [G1][G2][G3][G4]  ·  depends: T1.3 (`games/base.py`)
 
@@ -151,7 +165,8 @@ For **each** of Game 1–4 (`[G1]`…`[G4]`):
   [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §8 **plus** the game-specific cases in
   [GAMES_SPEC.md](GAMES_SPEC.md) "Per-game deliverables", in
   `tests/games/test_gameN_<name>.py`. **AC:** all pass, including no-solution-leak
-  (except ECHO's documented sequence) and solvable-board.
+  (documented exceptions: ECHO's `sequence`, SWEEP's `clues` grid) and
+  solvable-board.
 - [ ] **T4.x.5 Playtest note** — record rough solve times for main & holding in your
   PR so Core can tune `REST_SECONDS`/`HOLDING_SECONDS`. **AC:** main ≈ 15–40s,
   holding ≈ a few seconds; times noted.

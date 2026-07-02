@@ -74,8 +74,11 @@ WHILE a team has not advanced:
      >>> run ADVANCE CHECK for that team   (a 4th green may advance now)
 
   ── Player answers main puzzle incorrectly ───────────────────────────
-     stays solving. (MVP: unlimited attempts, no penalty. Optional attempt
-     cap is a stretch goal, see §8.)
+     stays solving, but is assigned a FRESH main puzzle (new seed).
+     (MVP: unlimited attempts, no other penalty. A fresh instance per
+     attempt keeps retry fair for state-revealing games — a failed SWEEP
+     board or a watched ECHO sequence must not be retried. Optional
+     attempt cap is a stretch goal, see §8.)
 
   ── REST timer expires for a resting player ──────────────────────────
      if team is ALL green  → (advance already happened / will happen; stay green)
@@ -184,7 +187,7 @@ Cut on purpose — **do not add these** without a design decision:
 
 | Situation | MVP ruling |
 | --- | --- |
-| A player disconnects mid-stage | They keep their status server-side. If they were green, their green **persists** (the team can still advance) for a grace period; if they were `solving`, the team simply can't complete until they return or a host ends the match. Keep it simple — no auto-kick in MVP. Reconnect just resumes their current puzzle/status. |
+| A player disconnects mid-stage | They keep their status server-side and timers keep running — **no special grace period, no auto-kick**. A green player's green decays via the normal cascade (rest expires → holding → holding expires → green lost), i.e. within `REST_SECONDS + HOLDING_SECONDS` of going absent. If they were `solving`, the team simply can't complete until they return or a host ends the match. On reconnect: `resting`/`holding` resume the current state and timer; a `solving` player is served a **fresh** main puzzle (prevents replay-to-rewatch, esp. ECHO — see [GAMES_SPEC.md](GAMES_SPEC.md)). |
 | A player disconnects while `holding` and the timer expires | Server applies the normal rule: they lose green and go to `solving`. When they reconnect they see the main puzzle. |
 | Team is all green but one player's socket is dead | Advancement still fires (server-authoritative). The dead client catches up via `state_snapshot` on reconnect. |
 | Both teams could win on the same engine tick | Impossible — one match is processed one message at a time; first green-transition to complete a team wins. |
