@@ -22,7 +22,7 @@ Status boxes are for you to tick in PRs.
   uvicorn, pytest, httpx; package name `relay-mvp`; `pythonpath=["."]`).
   **AC:** `pip install -e ".[test]"` succeeds; `python -c "import backend"` works;
   `pytest` runs (0 tests OK).
-- [ ] **T0.2 `backend/config.py`** — single source of tunables:
+- [x] **T0.2 `backend/config.py`** — single source of tunables:
   `REST_SECONDS=15`, `HOLDING_SECONDS=20`, `MAIN_PUZZLE_SECONDS=0`,
   `PLAYERS_PER_TEAM=4`, `MIN_PLAYERS_PER_TEAM=4`, `STAGE_COUNT=4`,
   `SUBMIT_MIN_INTERVAL_MS=300`, `MATCH_TTL_SECONDS=1800`,
