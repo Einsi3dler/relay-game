@@ -48,7 +48,7 @@ Status boxes are for you to tick in PRs.
   [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §2 & §5, plus the spec §7 template
   saved as `backend/games/template.py`. This unblocks all game owners.
   **AC:** `games/template.py` imports and type-checks against the Protocol.
-- [ ] **T1.4 `registry.py`** — `GameRegistry` built from `config.GAME_ORDER`;
+- [x] **T1.4 `registry.py`** — `GameRegistry` built from `config.GAME_ORDER`;
   `for_stage(n)` (1-based) returns the module for that stage; `reset_all()` calls
   `reset()` on every module. **AC:** with placeholder/fake games registered,
   `for_stage(1..4)` returns the right ids; `for_stage(5)` raises.
