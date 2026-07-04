@@ -30,7 +30,7 @@ Status boxes are for you to tick in PRs.
   initially placeholders). **AC:** imported by other modules; no gameplay literal
   exists anywhere else (grep for `15`, `20`, `4` in engine returns nothing
   meaningful).
-- [ ] **T0.3 CI (optional but recommended)** — GitHub Actions running `pytest` on PRs.
+- [x] **T0.3 CI (optional but recommended)** — GitHub Actions running `pytest` on PRs.
   **AC:** red/green check appears on PRs.
 
 ## Phase 1 — Data model & state  ·  owner: [C]  ·  depends: T0.1–T0.2
