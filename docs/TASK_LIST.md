@@ -35,7 +35,7 @@ Status boxes are for you to tick in PRs.
 
 ## Phase 1 — Data model & state  ·  owner: [C]  ·  depends: T0.1–T0.2
 
-- [ ] **T1.1 `models.py`** — dataclasses `Match`, `Team`, `Player`, `Event` per
+- [x] **T1.1 `models.py`** — dataclasses `Match`, `Team`, `Player`, `Event` per
   [ARCHITECTURE.md](ARCHITECTURE.md) §3, each with `.public()` returning exactly the
   shapes in [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) §3. Include the derived
   `green(player)` helper. **AC:** `.public()` output validates against the protocol
