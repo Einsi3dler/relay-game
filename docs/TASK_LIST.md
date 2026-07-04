@@ -16,7 +16,7 @@ Status boxes are for you to tick in PRs.
 
 ## Phase 0 — Project setup (blocks everything)  ·  owner: [C]
 
-- [ ] **T0.1 Scaffold the package** — create the `backend/` layout from
+- [x] **T0.1 Scaffold the package** — create the `backend/` layout from
   [ARCHITECTURE.md](ARCHITECTURE.md) §2 with empty/stub modules and `__init__.py`s.
   Restore a `pyproject.toml` at repo root (mirror `legacy/pyproject.toml`: FastAPI,
   uvicorn, pytest, httpx; package name `relay-mvp`; `pythonpath=["."]`).
