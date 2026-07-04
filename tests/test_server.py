@@ -44,13 +44,22 @@ def join(client, match_id: str, name: str, team_id: str | None = None):
 
 
 def fill_match(client, match_id: str) -> dict[str, list[str]]:
-    """Join 4+4 players; returns player ids per team. Last join starts it."""
+    """Join 4+4 players onto teams, then the host (first joiner) starts the
+    match over the socket. Returns player ids per team."""
     ids: dict[str, list[str]] = {"alpha": [], "bravo": []}
     for team_id in ("alpha", "bravo"):
         for i in range(4):
             response = join(client, match_id, f"{team_id[0]}{i}", team_id)
             assert response.status_code == 200
             ids[team_id].append(response.json()["player"]["id"])
+    with client.websocket_connect(
+        f"/ws/matches/{match_id}?player_id={ids['alpha'][0]}"
+    ) as ws:
+        ws.receive_json()
+        ws.receive_json()
+        ws.send_json({"type": "lobby_action", "action": "start"})
+        snapshot = ws.receive_json()
+        assert snapshot["state"]["status"] == "active"
     return ids
 
 
@@ -110,18 +119,83 @@ def test_join_full_and_started_rejected_with_detail(client, fake_games):
         join(client, match_id, f"A{i}", "alpha")
     response = join(client, match_id, "A4", "alpha")
     assert response.status_code == 400 and "full" in response.json()["detail"]
-    for i in range(4):
-        join(client, match_id, f"B{i}", "bravo")  # starts the match
+    fill_match(client, create_match(client))  # separate match, started by host
+    started_id = client.get("/api/matches/" + match_id).json()["match"]["id"]
+    assert started_id == match_id  # original is still joinable (lobby)
+
+
+def test_join_started_match_rejected(client, fake_games):
+    match_id = create_match(client)
+    fill_match(client, match_id)
     response = join(client, match_id, "late", None)
     assert response.status_code == 400 and "started" in response.json()["detail"]
 
 
-def test_join_autobalance_ties_to_alpha(client, fake_games):
+def test_join_lands_unassigned_with_host(client, fake_games):
     match_id = create_match(client)
-    body = join(client, match_id, "First", None).json()
-    assert body["player"]["team_id"] == "alpha"
-    body = join(client, match_id, "Second", None).json()
-    assert body["player"]["team_id"] == "bravo"
+    first = join(client, match_id, "First", None).json()
+    assert first["player"]["team_id"] is None
+    assert first["match"]["host_player_id"] == first["player"]["id"]
+    second = join(client, match_id, "Second", None).json()
+    names = [p["name"] for p in second["match"]["unassigned"]]
+    assert names == ["First", "Second"]
+
+
+def test_lobby_flow_pick_move_kick_start(client, fake_games):
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", None).json()["player"]["id"]
+    guest_id = join(client, match_id, "Guest", None).json()["player"]["id"]
+    with connect(client, match_id, host_id) as (host_ws, _):
+        with connect(client, match_id, guest_id) as (guest_ws, _):
+            # guest picks a team themselves
+            guest_ws.send_json({"type": "lobby_action", "action": "set_team",
+                                "team_id": "bravo"})
+            snapshot = guest_ws.receive_json()["state"]
+            assert snapshot["teams"]["bravo"]["players"][0]["name"] == "Guest"
+            # guest cannot use host powers
+            guest_ws.send_json({"type": "lobby_action", "action": "start"})
+            guest_ws.receive_json()  # own broadcast of set_team event
+            assert "host" in guest_ws.receive_json()["error"]
+            # host assigns themself, drops the threshold, starts
+            host_ws.send_json({"type": "lobby_action", "action": "set_team",
+                               "team_id": "alpha"})
+            host_ws.send_json({"type": "lobby_action", "action": "set_min_players",
+                               "value": 1})
+            host_ws.send_json({"type": "lobby_action", "action": "start"})
+            # drain until the active snapshot arrives
+            for _ in range(20):
+                message = host_ws.receive_json()
+                if (message["type"] == "state_snapshot"
+                        and message["state"]["status"] == "active"):
+                    break
+            else:
+                raise AssertionError("match never started")
+    state = client.get(f"/api/matches/{match_id}").json()["match"]
+    assert state["status"] == "active" and state["min_players"] == 1
+
+
+def test_kick_closes_socket_and_removes_player(client, fake_games):
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", None).json()["player"]["id"]
+    victim_id = join(client, match_id, "Victim", None).json()["player"]["id"]
+    with connect(client, match_id, host_id) as (host_ws, _):
+        with connect(client, match_id, victim_id) as (victim_ws, _):
+            host_ws.send_json({"type": "lobby_action", "action": "kick",
+                               "target_id": victim_id})
+            with pytest.raises(WebSocketDisconnect) as exc:
+                for _ in range(5):
+                    victim_ws.receive_json()
+            assert exc.value.code == 4403
+    state = client.get(f"/api/matches/{match_id}").json()["match"]
+    names = [p["name"] for p in state["unassigned"]]
+    assert names == ["Host"]
+    # the kicked player's old credential is dead
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect(
+            f"/ws/matches/{match_id}?player_id={victim_id}"
+        ) as ws:
+            ws.receive_json()
+    assert exc.value.code == 4404
 
 
 # --- T3.4 WebSocket ---

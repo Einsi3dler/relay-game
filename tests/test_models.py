@@ -76,12 +76,14 @@ def test_no_answer_anywhere_in_public_output():
 
 def test_match_public_shape():
     out = make_match().public()
-    assert set(out) == {"id", "status", "winner_team_id", "config", "teams",
+    assert set(out) == {"id", "status", "host_player_id", "min_players",
+                        "winner_team_id", "config", "teams", "unassigned",
                         "events", "me"}
     assert out["status"] == "active"
     assert out["winner_team_id"] is None
     assert out["config"]["rest_seconds"] == 15
     assert set(out["teams"]) == {"alpha", "bravo"}
+    assert out["unassigned"] == []  # everyone in the fixture has a team
     assert out["me"] is None  # no requesting player
 
 

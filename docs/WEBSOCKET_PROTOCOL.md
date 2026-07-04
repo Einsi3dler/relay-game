@@ -19,10 +19,15 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
 | `POST` | `/api/matches/{id}/join` | `{ "name": str, "team_id": "alpha"\|"bravo"\|null }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` |
 | `GET` | `/api/matches/{id}` | — | `{ "match": <MatchPublic> }` (spectate / rejoin lookup) |
 
-- `team_id: null` → auto-balance to the emptier team (tie → `alpha`, so tests are
-  deterministic).
-- Join fails with `400` if the chosen team is full (`players_per_team` reached) or
-  the match has already started/finished. Body: `{ "detail": "<reason>" }`.
+- `team_id: null` (the normal client flow) → the player joins **unassigned** and
+  picks a team in the lobby (or the host assigns one). Passing a team id assigns
+  directly (used by tests/scripts).
+- The **first joiner becomes the match host** (see
+  [GAME_DESIGN.md](GAME_DESIGN.md) §2 "Lobby / start").
+- Join fails with `400` if the chosen team is full (`players_per_team` reached),
+  the match is full (`2 × players_per_team`), or the match has already
+  started/finished. Body: `{ "detail": "<reason>" }`.
+- Invite links: `/?match={id}` routes the visitor straight to the join flow.
 - After joining, the client opens the WebSocket (below) using the returned
   `player.id`.
 
@@ -38,6 +43,8 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 - **One socket per player.** A new connection with the same `player_id`
   **supersedes** the old one: the server closes the previous socket (close code
   `4001`) and continues with the new. Two tabs never share a player.
+- A player kicked by the host is closed with code `4403`; their `player_id` is
+  dead from then on (`4404` on reconnect attempts).
 - `player_id` is the socket's **only credential** — treat it like a session token.
   Ids must be long, random, and unguessable (≥ 12 hex chars from a CSPRNG); never
   sequential, never logged in chat/URLs players share.
@@ -50,6 +57,7 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 | `submit_holding` | `puzzle_id: str`, `answer: str` | Submit the **holding** puzzle answer. |
 | `request_state` | — | Ask for a fresh `state_snapshot` (e.g. after reconnect). |
 | `heartbeat` | — | Keep-alive; server replies with a `state_snapshot`. |
+| `lobby_action` | `action: str` + action fields | Lobby-only. `set_team {team_id}` (self); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `start`; `claim_host` (allowed only while the host is disconnected/missing). Invalid or unauthorised actions → `error`. A kicked player's socket closes with `4403`. |
 
 - `puzzle_id` **must** match the player's current puzzle id, or the server replies
   `error` ("Puzzle is no longer active") and ignores it. This prevents a stale
@@ -86,6 +94,8 @@ These are exactly what `.public()` returns. **No answers ever appear here.**
 {
   "id": "a1b2c3d4",
   "status": "lobby | active | finished",
+  "host_player_id": "p_9f3c2e7b81aa04d6",  // lobby controller (first joiner)
+  "min_players": 4,                      // host-set start threshold per team
   "winner_team_id": null,               // or "alpha" / "bravo" when finished
   "config": {                            // frozen at match start
     "rest_seconds": 15,
@@ -97,6 +107,7 @@ These are exactly what `.public()` returns. **No answers ever appear here.**
     "alpha": <TeamPublic>,
     "bravo": <TeamPublic>
   },
+  "unassigned": [ <PlayerPublic>, ... ], // lobby players without a team yet
   "events": [ <Event>, ... ],           // last ~30
   "me": <PlayerPrivate> | null           // only present for the requesting player
 }
@@ -122,7 +133,7 @@ These are exactly what `.public()` returns. **No answers ever appear here.**
 {
   "id": "p_9f3c2e7b81aa04d6",           // long + unguessable — it's the credential (§2)
   "name": "Ada",
-  "team_id": "alpha",
+  "team_id": "alpha",                    // null while unassigned in the lobby
   "status": "solving | resting | holding | lobby | finished",
   "green": true,                         // derived: status in {resting, holding}
   "connected": true

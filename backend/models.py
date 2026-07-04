@@ -44,7 +44,7 @@ class Event:
 class Player:
     id: str  # long + random — it is the WS credential
     name: str
-    team_id: str
+    team_id: str | None = None  # None while unassigned in the lobby
     status: str = "lobby"  # "lobby" | "solving" | "resting" | "holding" | "finished"
     connected: bool = False
     attempt: int = 0  # main-puzzle instances served this stage; feeds seed derivation
@@ -110,9 +110,15 @@ class Match:
     status: str = "lobby"  # "lobby" | "active" | "finished"
     teams: dict[str, Team] = field(default_factory=dict)
     players: dict[str, Player] = field(default_factory=dict)
+    host_player_id: str | None = None  # first joiner; lobby control (see docs)
+    min_players: int = 0  # per-match start threshold, host-adjustable in lobby
     winner_team_id: str | None = None
     events: list[Event] = field(default_factory=list)
     config_snapshot: dict[str, Any] = field(default_factory=dict)  # frozen at start
+
+    def unassigned(self) -> list[Player]:
+        """Lobby players who haven't picked (or been given) a team yet."""
+        return [p for p in self.players.values() if p.team_id is None]
 
     def public(self, player_id: str | None = None) -> dict[str, Any]:
         """MatchPublic; `me` is filled only for the requesting player."""
@@ -120,12 +126,15 @@ class Match:
         return {
             "id": self.id,
             "status": self.status,
+            "host_player_id": self.host_player_id,
+            "min_players": self.min_players,
             "winner_team_id": self.winner_team_id,
             "config": dict(self.config_snapshot),
             "teams": {
                 team_id: team.public(self.players)
                 for team_id, team in self.teams.items()
             },
+            "unassigned": [player.public() for player in self.unassigned()],
             "events": [event.public() for event in self.events[-PUBLIC_EVENT_LIMIT:]],
             "me": me.private() if me else None,
         }

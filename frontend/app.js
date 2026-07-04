@@ -1,16 +1,16 @@
-// The Relay — frontend shell (T5.1–T5.5).
-// One page, three views, everything driven by state_snapshot (protocol §2.2:
+// The Relay — frontend shell (T5.1–T5.5, host-controlled lobby).
+// One page, four views, everything driven by state_snapshot (protocol §2.2:
 // the snapshot alone must be enough to be correct; nudges are polish).
 (function () {
   "use strict";
 
   var $ = function (id) { return document.getElementById(id); };
 
-  var session = null;   // { matchId, playerId, name }
-  var serverConfig = null; // /api/config — team sizes before the match starts
+  var session = null;      // { matchId, playerId, name }
+  var serverConfig = null; // /api/config — caps and defaults pre-start
   var socket = null;
   var lastState = null;
-  var mounted = null;   // { puzzleId, renderer }
+  var mounted = null;      // { puzzleId, renderer }
   var timerHandle = null;
   var toastHandle = null;
   var overlayHandle = null;
@@ -27,6 +27,7 @@
   }
   function clearSession() {
     try { sessionStorage.removeItem("relay"); } catch (e) {}
+    session = null;
   }
 
   // --- tiny ui helpers ---
@@ -50,42 +51,77 @@
     return Date.parse(iso.replace(/(\.\d{3})\d+/, "$1"));
   }
 
-  // --- join flow (T5.1) ---
+  function inviteParam() {
+    try {
+      return new URLSearchParams(window.location.search).get("match") || "";
+    } catch (e) { return ""; }
+  }
 
-  function bindJoin() {
-    document.querySelectorAll(".team-pick .btn").forEach(function (button) {
-      button.addEventListener("click", function () {
-        joinFlow(button.getAttribute("data-team") || null);
-      });
+  function sendAction(fields) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    fields.type = "lobby_action";
+    socket.send(JSON.stringify(fields));
+  }
+
+  // --- landing: host or join (T5.1) ---
+
+  function bindLanding() {
+    $("host-btn").addEventListener("click", function () {
+      var name = requireName();
+      if (!name) return;
+      fetch("/api/matches", { method: "POST" })
+        .then(function (r) { return r.json(); })
+        .then(function (body) { joinMatch(body.match.id, name); })
+        .catch(function () { showJoinError("Could not create a match."); });
+    });
+    $("join-btn").addEventListener("click", function () {
+      $("join-code-row").hidden = false;
+      $("match-input").focus();
+    });
+    $("join-go").addEventListener("click", function () {
+      var name = requireName();
+      var code = $("match-input").value.trim();
+      if (!name) return;
+      if (!code) { showJoinError("Enter a match code."); return; }
+      joinMatch(code, name);
     });
     $("play-again").addEventListener("click", function () {
       clearSession();
-      window.location.reload();
+      window.location.href = "/";
     });
+
+    // Invite link (?match=CODE) routes straight to the join flow.
+    var invited = inviteParam();
+    if (invited) {
+      $("host-btn").hidden = true;
+      $("join-btn").hidden = true;
+      $("join-code-row").hidden = false;
+      $("match-input").value = invited;
+      $("name-input").focus();
+    }
   }
 
-  function joinFlow(teamId) {
+  function requireName() {
     var name = $("name-input").value.trim();
-    if (!name) { showJoinError("Pick a name first!"); return; }
-    var matchId = $("match-input").value.trim();
-    var start = matchId
-      ? Promise.resolve(matchId)
-      : fetch("/api/matches", { method: "POST" })
-          .then(function (r) { return r.json(); })
-          .then(function (body) { return body.match.id; });
-    start
-      .then(function (id) {
-        return fetch("/api/matches/" + encodeURIComponent(id) + "/join", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: name, team_id: teamId }),
-        }).then(function (response) {
-          return response.json().then(function (body) {
-            if (!response.ok) throw new Error(body.detail || "Could not join.");
-            session = { matchId: id, playerId: body.player.id, name: name };
-            saveSession();
-            connect();
-          });
+    if (!name) { showJoinError("Pick a name first!"); return null; }
+    return name;
+  }
+
+  function joinMatch(matchId, name) {
+    fetch("/api/matches/" + encodeURIComponent(matchId) + "/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name }),
+    })
+      .then(function (response) {
+        return response.json().then(function (body) {
+          if (!response.ok) throw new Error(body.detail || "Could not join.");
+          session = { matchId: matchId, playerId: body.player.id, name: name };
+          saveSession();
+          try {
+            window.history.replaceState(null, "", "/?match=" + matchId);
+          } catch (e) {}
+          connect();
         });
       })
       .catch(function (error) { showJoinError(error.message); });
@@ -110,6 +146,12 @@
     socket.onclose = function (event) {
       if (finished) return;
       if (event.code === 4001) return; // superseded by another tab — stand down
+      if (event.code === 4403) {       // kicked by the host
+        clearSession();
+        show("view-join");
+        toast("You were kicked from the lobby.");
+        return;
+      }
       if (event.code === 4404) { clearSession(); show("view-join"); return; }
       setTimeout(connect, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, 5000);
@@ -134,23 +176,135 @@
     else renderPlay(state);
   }
 
+  // --- lobby (T5.1 + host controls) ---
+
+  function playerRow(state, player) {
+    var me = player.id === session.playerId;
+    var isHost = player.id === state.host_player_id;
+    var iAmHost = state.host_player_id === session.playerId;
+    var row = document.createElement("li");
+    var label = document.createElement("span");
+    label.textContent =
+      player.name + (isHost ? " 🎛️" : "") + (me ? " (you)" : "") +
+      (player.connected ? "" : " 💤");
+    row.appendChild(label);
+    if (iAmHost && !me) {
+      var controls = document.createElement("span");
+      controls.className = "host-controls";
+      [["alpha", "🔥"], ["bravo", "🌊"]].forEach(function (pair) {
+        if (player.team_id === pair[0]) return;
+        var move = document.createElement("button");
+        move.className = "mini-btn";
+        move.title = "Move to " + pair[0];
+        move.textContent = "→" + pair[1];
+        move.addEventListener("click", function () {
+          sendAction({ action: "move", target_id: player.id, team_id: pair[0] });
+        });
+        controls.appendChild(move);
+      });
+      var kick = document.createElement("button");
+      kick.className = "mini-btn kick";
+      kick.title = "Kick";
+      kick.textContent = "✕";
+      kick.addEventListener("click", function () {
+        sendAction({ action: "kick", target_id: player.id });
+      });
+      controls.appendChild(kick);
+      row.appendChild(controls);
+    }
+    return row;
+  }
+
   function renderLobby(state) {
     show("view-lobby");
     $("lobby-code").textContent = state.id;
+    var me = state.me;
+    var iAmHost = state.host_player_id === session.playerId;
+
+    var unassignedBox = $("lobby-unassigned");
+    var list = unassignedBox.querySelector("ul");
+    list.innerHTML = "";
+    state.unassigned.forEach(function (player) {
+      list.appendChild(playerRow(state, player));
+    });
+    unassignedBox.hidden = state.unassigned.length === 0;
+
     ["alpha", "bravo"].forEach(function (teamId) {
-      var list = $("lobby-" + teamId);
-      list.innerHTML = "";
-      state.teams[teamId].players.forEach(function (player) {
-        var item = document.createElement("li");
-        item.textContent = player.name + (player.id === session.playerId ? " (you)" : "");
-        list.appendChild(item);
+      var box = $("lobby-team-" + teamId);
+      var teamList = box.querySelector("ul");
+      teamList.innerHTML = "";
+      var team = state.teams[teamId];
+      team.players.forEach(function (player) {
+        teamList.appendChild(playerRow(state, player));
+      });
+      var joinButton = box.querySelector(".join-team-btn");
+      var cap = (serverConfig && serverConfig.players_per_team) || 4;
+      var full = team.players.length >= cap;
+      joinButton.hidden = !me || me.team_id === teamId || full;
+      joinButton.onclick = function () {
+        sendAction({ action: "set_team", team_id: teamId });
+      };
+    });
+
+    var panel = $("host-panel");
+    panel.hidden = !iAmHost;
+    if (iAmHost) {
+      $("min-value").textContent = state.min_players;
+      $("min-down").onclick = function () {
+        sendAction({ action: "set_min_players", value: state.min_players - 1 });
+      };
+      $("min-up").onclick = function () {
+        sendAction({ action: "set_min_players", value: state.min_players + 1 });
+      };
+      var blocker = startBlocker(state);
+      $("start-btn").disabled = !!blocker;
+      $("start-blocker").textContent = blocker || "All set — go!";
+      $("start-btn").onclick = function () { sendAction({ action: "start" }); };
+    }
+
+    // Host went missing? Anyone can claim the seat.
+    var host = findPlayer(state, state.host_player_id);
+    var hostGone = !host || !host.connected;
+    $("claim-host").hidden = !hostGone || iAmHost;
+    $("claim-host").onclick = function () { sendAction({ action: "claim_host" }); };
+  }
+
+  function findPlayer(state, playerId) {
+    var found = null;
+    state.unassigned.forEach(function (p) { if (p.id === playerId) found = p; });
+    ["alpha", "bravo"].forEach(function (teamId) {
+      state.teams[teamId].players.forEach(function (p) {
+        if (p.id === playerId) found = p;
       });
     });
-    var need = state.config.players_per_team ||
-      (serverConfig && serverConfig.players_per_team) || 4;
-    var have = state.teams.alpha.players.length + state.teams.bravo.players.length;
-    $("lobby-count").textContent = have + " joined — first to " + need + " a side starts the race.";
+    return found;
   }
+
+  function startBlocker(state) {
+    if (state.unassigned.length) {
+      var names = state.unassigned.map(function (p) { return p.name; }).join(", ");
+      return "Everyone needs a team — waiting on " + names + ".";
+    }
+    var short = null;
+    ["alpha", "bravo"].forEach(function (teamId) {
+      if (state.teams[teamId].players.length < state.min_players) {
+        short = "Team " + state.teams[teamId].name + " needs " +
+          state.min_players + " player(s).";
+      }
+    });
+    return short;
+  }
+
+  $("copy-link") && $("copy-link").addEventListener("click", function () {
+    var link = window.location.origin + "/?match=" + (lastState ? lastState.id : "");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(function () { toast("Invite link copied!"); });
+    } else {
+      window.prompt("Copy the invite link:", link);
+    }
+  });
+
+  // --- play (T5.2/T5.3) ---
 
   function renderPlay(state) {
     show("view-play");
@@ -296,9 +450,12 @@
     .then(function (r) { return r.json(); })
     .then(function (body) { serverConfig = body; })
     .catch(function () {});
-  bindJoin();
+  bindLanding();
   var saved = loadSession();
-  if (saved && saved.matchId && saved.playerId) {
+  var invited = inviteParam();
+  // An invite for a *different* match beats a stale saved session.
+  if (saved && saved.matchId && saved.playerId &&
+      (!invited || invited === saved.matchId)) {
     session = saved;
     connect(); // T5.5: snapshot on connect restores the right view
   } else {
