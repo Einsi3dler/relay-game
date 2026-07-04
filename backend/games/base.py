@@ -1,14 +1,13 @@
 """GameModule Protocol, PuzzleInstance dataclass, and answer normalisation.
 
-Verbatim from docs/GAME_MODULE_SPEC.md §2 & §5. `PuzzleInstance` landed with
-T1.1 (models need it); the `GameModule` Protocol and `normalize_answer` follow
-in T1.3.
+Verbatim from docs/GAME_MODULE_SPEC.md §2 & §5. Provided by Core; do not edit
+to suit one game.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 from uuid import uuid4
 
 
@@ -32,3 +31,19 @@ class PuzzleInstance:
             "prompt": self.prompt,
             "payload": self.payload,
         }
+
+
+class GameModule(Protocol):
+    """Every game implements this. The engine only ever talks to this interface."""
+
+    id: str            # unique, stable, snake_case. e.g. "rewire"
+    name: str          # display name. e.g. "Rewire"
+
+    def generate_main(self, seed: int) -> PuzzleInstance: ...
+    def generate_holding(self, seed: int) -> PuzzleInstance: ...
+    def check(self, puzzle: PuzzleInstance, answer: str) -> bool: ...
+    def reset(self) -> None: ...
+
+
+def normalize_answer(value: object) -> str:
+    return " ".join(str(value).strip().lower().replace("/", " ").split())

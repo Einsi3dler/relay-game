@@ -43,7 +43,7 @@ Status boxes are for you to tick in PRs.
 - [x] **T1.2 `state.py`** — `InMemoryStateStore` with async `add/get/require/all`
   (port from legacy, it's fine as-is). **AC:** create → get returns same match;
   `require` on missing id raises.
-- [ ] **T1.3 `games/base.py`** — the `GameModule` Protocol, `PuzzleInstance`
+- [x] **T1.3 `games/base.py`** — the `GameModule` Protocol, `PuzzleInstance`
   dataclass, and `normalize_answer` **exactly** as in
   [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §2 & §5, plus the spec §7 template
   saved as `backend/games/template.py`. This unblocks all game owners.
