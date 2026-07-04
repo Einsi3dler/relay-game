@@ -63,7 +63,7 @@ def test_reset_all_resets_every_module():
 
 
 def test_defaults_come_from_config():
-    registry = GameRegistry()  # no modules registered yet; order from config
+    registry = GameRegistry()  # real games registered (T4.x.3); order from config
     assert registry._order == config.GAME_ORDER
-    with pytest.raises(KeyError):  # placeholder ids have no modules yet
-        registry.for_stage(1)
+    for stage, game_id in enumerate(config.GAME_ORDER, start=1):
+        assert registry.for_stage(stage).id == game_id

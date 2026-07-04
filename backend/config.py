@@ -21,11 +21,10 @@ TEAM_IDS = ("alpha", "bravo")
 SUBMIT_MIN_INTERVAL_MS = 300     # reject submissions arriving faster than this
 MATCH_TTL_SECONDS = 1800         # evict finished/idle matches after this long
 
-# Game module id per stage (index 0 = Stage 1). Placeholders until each game
-# owner registers their real id here (task T4.x.3, one-line edit).
+# Game module id per stage (index 0 = Stage 1). Registered per T4.x.3.
 GAME_ORDER: list[str] = [
-    "placeholder_stage_1",
-    "placeholder_stage_2",
-    "placeholder_stage_3",
-    "placeholder_stage_4",
+    "rewire",
+    "sweep",
+    "decant",
+    "echo",
 ]

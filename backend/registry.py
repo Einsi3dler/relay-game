@@ -10,10 +10,19 @@ from typing import Iterable, Sequence
 
 from backend import config
 from backend.games.base import GameModule
+from backend.games.game1_rewire import RewireGame
+from backend.games.game2_sweep import SweepGame
+from backend.games.game3_decant import DecantGame
+from backend.games.game4_echo import EchoGame
 
 # Game owners register their module instance here (task T4.x.3 — the
 # sanctioned one-line edit, alongside their id in config.GAME_ORDER).
-REGISTERED_MODULES: list[GameModule] = []
+REGISTERED_MODULES: list[GameModule] = [
+    RewireGame(),
+    SweepGame(),
+    DecantGame(),
+    EchoGame(),
+]
 
 
 class GameRegistry:
