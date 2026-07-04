@@ -103,13 +103,13 @@ Status boxes are for you to tick in PRs.
 
 ## Phase 3 — Timers & server wiring  ·  owner: [C]  ·  depends: Phase 2
 
-- [ ] **T3.1 `timers.py` `TimerService`** — schedule/cancel a single pending deadline
+- [x] **T3.1 `timers.py` `TimerService`** — schedule/cancel a single pending deadline
   per `(match_id, player_id)`; on fire, call the engine hook and hand the result back
   to the broadcast layer. Per [ARCHITECTURE.md](ARCHITECTURE.md) §4. **AC:** a
   scheduled `rest` timer fires `on_rest_expired` at the deadline; scheduling a new
   timer cancels the old; advancing cancels team timers (no ghost holding questions
   after advance).
-- [ ] **T3.2 Per-match serialization** — an `asyncio.Lock`/queue per match so messages
+- [x] **T3.2 Per-match serialization** — an `asyncio.Lock`/queue per match so messages
   and timer callbacks mutate a match one at a time. **AC:** concurrent submits don't
   interleave; "who won first" is deterministic in a test.
 - [ ] **T3.3 `main.py` REST routes** — `/`, `/api/config`, `POST /api/matches`,
