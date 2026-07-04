@@ -16,13 +16,13 @@ Status boxes are for you to tick in PRs.
 
 ## Phase 0 — Project setup (blocks everything)  ·  owner: [C]
 
-- [ ] **T0.1 Scaffold the package** — create the `backend/` layout from
+- [x] **T0.1 Scaffold the package** — create the `backend/` layout from
   [ARCHITECTURE.md](ARCHITECTURE.md) §2 with empty/stub modules and `__init__.py`s.
   Restore a `pyproject.toml` at repo root (mirror `legacy/pyproject.toml`: FastAPI,
   uvicorn, pytest, httpx; package name `relay-mvp`; `pythonpath=["."]`).
   **AC:** `pip install -e ".[test]"` succeeds; `python -c "import backend"` works;
   `pytest` runs (0 tests OK).
-- [ ] **T0.2 `backend/config.py`** — single source of tunables:
+- [x] **T0.2 `backend/config.py`** — single source of tunables:
   `REST_SECONDS=15`, `HOLDING_SECONDS=20`, `MAIN_PUZZLE_SECONDS=0`,
   `PLAYERS_PER_TEAM=4`, `MIN_PLAYERS_PER_TEAM=4`, `STAGE_COUNT=4`,
   `SUBMIT_MIN_INTERVAL_MS=300`, `MATCH_TTL_SECONDS=1800`,
@@ -30,7 +30,7 @@ Status boxes are for you to tick in PRs.
   initially placeholders). **AC:** imported by other modules; no gameplay literal
   exists anywhere else (grep for `15`, `20`, `4` in engine returns nothing
   meaningful).
-- [ ] **T0.3 CI (optional but recommended)** — GitHub Actions running `pytest` on PRs.
+- [x] **T0.3 CI (optional but recommended)** — GitHub Actions running `pytest` on PRs.
   **AC:** red/green check appears on PRs.
 
 ## Phase 1 — Data model & state  ·  owner: [C]  ·  depends: T0.1–T0.2
