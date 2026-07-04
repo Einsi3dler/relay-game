@@ -59,44 +59,44 @@ Status boxes are for you to tick in PRs.
 > The engine is pure/synchronous and returns an `EngineResult` describing what
 > changed and which timers to (re)schedule/cancel — it never sleeps or does I/O.
 
-- [ ] **T2.1 Join & lobby** — `create_match`, `join_match(name, team_id)` with
+- [x] **T2.1 Join & lobby** — `create_match`, `join_match(name, team_id)` with
   auto-balance, team-full/started rejection, and `start_match` when both teams hit
   `MIN_PLAYERS_PER_TEAM`. On start, freeze `roster_size` per team and config
   snapshot, set everyone to `solving` with a Stage-1 main puzzle.
   **AC:** joining past `PLAYERS_PER_TEAM` raises; match flips `lobby→active` at start;
   each player gets a distinct seeded main puzzle.
-- [ ] **T2.2 `submit_main`** — validate puzzle id & status; on correct answer:
+- [x] **T2.2 `submit_main`** — validate puzzle id & status; on correct answer:
   `solving→resting`, start a `rest` timer (deadline = now + `REST_SECONDS`), then run
   the **advance check**. On wrong answer: stay `solving` but serve a **fresh main
   puzzle** (new seed, `attempt` incremented — see
   [GAME_DESIGN.md](GAME_DESIGN.md) §4); no other penalty.
   **AC:** correct → `resting` + deadline set; wrong → still `solving` with a *new*
   puzzle id; stale/foreign `puzzle_id` → rejected result.
-- [ ] **T2.3 Advance check + win** — when all of a team's `roster_size` players are
+- [x] **T2.3 Advance check + win** — when all of a team's `roster_size` players are
   green: if stage `== STAGE_COUNT` → team wins (`finished`, match `finished`,
   `winner_team_id` set, cancel team timers); else advance the team's `stage`, reset
   every team member to `solving` with a fresh next-stage main puzzle, cancel their
   timers. **Runs on every green transition, not just timer fires.**
   **AC:** the §7 worked example reproduces step-by-step in a unit test; win fires
   only on Stage 4; teams advance independently.
-- [ ] **T2.4 `on_rest_expired`** — when a `resting` player's timer fires: if team all
+- [x] **T2.4 `on_rest_expired`** — when a `resting` player's timer fires: if team all
   green, no-op; else `resting→holding`, assign a holding puzzle, start `holding`
   timer. **AC:** rest expiry with team not-ready → `holding` + holding puzzle +
   deadline; with team ready → no change.
-- [ ] **T2.5 `submit_holding`** — correct: `holding→resting`, new `rest` timer, run
+- [x] **T2.5 `submit_holding`** — correct: `holding→resting`, new `rest` timer, run
   advance check. Wrong: **lose green** → `holding→solving`, fresh main puzzle, cancel
   timer. **AC:** correct holding keeps green and can trigger advance; wrong holding
   returns to `solving` with a *new* main puzzle id.
-- [ ] **T2.6 `on_holding_expired`** — same consequence as a wrong holding answer
+- [x] **T2.6 `on_holding_expired`** — same consequence as a wrong holding answer
   (lose green → `solving`). **AC:** holding timer expiry → `solving` + new main puzzle.
-- [ ] **T2.7 Reconnect/disconnect (minimal)** — mark `connected` false/true; **do not**
+- [x] **T2.7 Reconnect/disconnect (minimal)** — mark `connected` false/true; **do not**
   change status or timers on disconnect (green persists; server timers keep running).
   On reconnect: `resting`/`holding` resume the current state and timer; a `solving`
   player is served a **fresh** main puzzle (prevents replay-to-rewatch, esp. ECHO).
   **AC:** disconnect while `resting` keeps player green and the team can still
   advance; reconnect while `holding` resumes the same holding puzzle; reconnect
   while `solving` yields a new puzzle id. (Follow [GAME_DESIGN.md](GAME_DESIGN.md) §9.)
-- [ ] **T2.8 Engine unit tests** — cover T2.1–T2.7 including: advance blocked until
+- [x] **T2.8 Engine unit tests** — cover T2.1–T2.7 including: advance blocked until
   all green; advance on 4th green mid-rest; lose-green-then-cannot-advance; win on
   Stage 4 only; independent team stages. **AC:** all pass; the design §7 example is
   a named test.
