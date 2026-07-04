@@ -112,11 +112,11 @@ Status boxes are for you to tick in PRs.
 - [x] **T3.2 Per-match serialization** — an `asyncio.Lock`/queue per match so messages
   and timer callbacks mutate a match one at a time. **AC:** concurrent submits don't
   interleave; "who won first" is deterministic in a test.
-- [ ] **T3.3 `main.py` REST routes** — `/`, `/api/config`, `POST /api/matches`,
+- [x] **T3.3 `main.py` REST routes** — `/`, `/api/config`, `POST /api/matches`,
   `POST /api/matches/{id}/join`, `GET /api/matches/{id}` per
   [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) §1. **AC:** join returns player+match;
   full/started join → 400 with `detail`.
-- [ ] **T3.4 WebSocket endpoint + `ConnectionManager`** — accept, register, snapshot
+- [x] **T3.4 WebSocket endpoint + `ConnectionManager`** — accept, register, snapshot
   on connect, broadcast on change; a second socket for the same `player_id`
   supersedes the first (close code `4001`); dispatch `submit_answer`/`submit_holding`/
   `request_state`/`heartbeat` into the engine; send `error` on invalid input and on
@@ -125,9 +125,9 @@ Status boxes are for you to tick in PRs.
   Message (de)serialisation helpers live in `protocol.py`. **AC:** protocol §2
   behaviours hold; closing a socket doesn't crash the match; a duplicate connect
   closes the old socket; snapshots never contain answers.
-- [ ] **T3.5 WebSocket integration tests** — with FastAPI `TestClient`: two full teams
+- [x] **T3.5 WebSocket integration tests** — with FastAPI `TestClient`: two full teams
   play to a win over the socket. **AC:** a scripted match reaches `match_won`.
-- [ ] **T3.6 Match eviction** — evict matches that are `finished` or idle (no
+- [x] **T3.6 Match eviction** — evict matches that are `finished` or idle (no
   messages, no timer activity) for `MATCH_TTL_SECONDS` so the in-memory store
   doesn't grow forever; cancel their timers on eviction. **AC:** an evicted match
   id returns 404 on lookup; an active match is untouched; no timer fires for an
@@ -145,23 +145,23 @@ Status boxes are for you to tick in PRs.
 
 For **each** of Game 1–4 (`[G1]`…`[G4]`):
 
-- [ ] **T4.x.1 Implement the module** — `backend/games/gameN_<name>.py`: `id`,
+- [x] **T4.x.1 Implement the module** — `backend/games/gameN_<name>.py`: `id`,
   `name`, `generate_main`, `generate_holding`, `check`, `reset`. Deterministic by
   `seed`, stateless, guaranteed-solvable generation, **no solution in `payload`**
   (recompute in `check` where many solutions are valid — see your game's validation
   in [GAMES_SPEC.md](GAMES_SPEC.md)). **AC:** matches your game's spec; a generated
   board is provably solvable; illegal/short interactions → `check` False.
-- [ ] **T4.x.2 Frontend renderer** — `frontend/games/<id>.js` implementing the
+- [x] **T4.x.2 Frontend renderer** — `frontend/games/<id>.js` implementing the
   `mount/unmount` interface in [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §10:
   draw the state from `payload`, handle the clicks/drags/taps, build the answer
   encoding, call `api.submit(...)`. Vanilla JS, self-registers on
   `window.RelayGames["<id>"]`. **AC:** mounts into the shell by `game_id`, submits a
   valid encoding, `unmount()` fully cleans up before the next puzzle.
-- [ ] **T4.x.3 Register it** — add your `id` at your stage index in
+- [x] **T4.x.3 Register it** — add your `id` at your stage index in
   `config.GAME_ORDER` and your class in `registry.py` (the sanctioned one-line
   cross-slice edits; call them out in your PR). **AC:** `registry.for_stage(x)`
   returns your module; a full match reaches your stage and serves your puzzle.
-- [ ] **T4.x.4 Tests** — the 7-point suite in
+- [x] **T4.x.4 Tests** — the 7-point suite in
   [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §8 **plus** the game-specific cases in
   [GAMES_SPEC.md](GAMES_SPEC.md) "Per-game deliverables", in
   `tests/games/test_gameN_<name>.py`. **AC:** all pass, including no-solution-leak

@@ -33,6 +33,10 @@ class InMemoryStateStore:
     async def all(self) -> list[Match]:
         return list(self._matches.values())
 
+    async def remove(self, match_id: str) -> None:
+        """Drop a match (T3.6 eviction). Missing ids are ignored."""
+        self._matches.pop(match_id, None)
+
 
 class MatchLocks:
     """One asyncio.Lock per match so WebSocket messages and timer callbacks
