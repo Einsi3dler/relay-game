@@ -68,6 +68,17 @@ def connect(client, match_id: str, player_id: str):
 
 # --- T3.3 REST ---
 
+def test_index_serves_frontend(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "The Relay" in response.text
+
+
+def test_static_assets_served(client):
+    for path in ("/static/app.js", "/static/style.css", "/static/games/fallback.js"):
+        assert client.get(path).status_code == 200, path
+
+
 def test_get_config(client):
     body = client.get("/api/config").json()
     assert body == {

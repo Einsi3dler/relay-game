@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fffaf3">
+  <title>The Relay</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <span class="logo">🏁 The Relay</span>
+    <span id="match-chip" class="chip" hidden></span>
+  </header>
+
+  <!-- T5.1 join -->
+  <section id="view-join" class="view card">
+    <h1>Ready to race?</h1>
+    <p class="sub">Two teams of four. First team through all four games wins.</p>
+    <label for="name-input">Your name</label>
+    <input id="name-input" maxlength="16" placeholder="Ada" autocomplete="off">
+    <label for="match-input">Match code <span class="muted">(blank = new match)</span></label>
+    <input id="match-input" maxlength="12" placeholder="e.g. a1b2c3d4" autocomplete="off">
+    <div class="team-pick">
+      <button class="btn team-alpha" data-team="alpha">Join Alpha</button>
+      <button class="btn team-bravo" data-team="bravo">Join Bravo</button>
+      <button class="btn team-auto" data-team="">Auto</button>
+    </div>
+    <p id="join-error" class="error-line" hidden></p>
+  </section>
+
+  <!-- T5.1 lobby -->
+  <section id="view-lobby" class="view card" hidden>
+    <h1>Waiting for players…</h1>
+    <p class="sub">Share the match code: <strong id="lobby-code"></strong></p>
+    <div class="lobby-teams">
+      <div class="team-box team-alpha-box"><h2>🔥 Alpha</h2><ul id="lobby-alpha"></ul></div>
+      <div class="team-box team-bravo-box"><h2>🌊 Bravo</h2><ul id="lobby-bravo"></ul></div>
+    </div>
+    <p class="sub" id="lobby-count"></p>
+  </section>
+
+  <!-- T5.2/T5.3 play -->
+  <section id="view-play" class="view" hidden>
+    <div id="team-strip" class="card strip"></div>
+    <div id="timer-bar" class="timer-bar" hidden><div id="timer-fill"></div></div>
+    <div id="timer-label" class="timer-label" hidden></div>
+    <div id="puzzle-card" class="card">
+      <p id="puzzle-prompt" class="prompt"></p>
+      <div id="puzzle-mount"></div>
+    </div>
+    <div id="rest-card" class="card rest" hidden>
+      <div class="rest-big">✅ You're green!</div>
+      <p>Stay sharp — a holding question drops when your rest runs out.</p>
+    </div>
+    <ul id="event-feed" class="feed"></ul>
+  </section>
+
+  <!-- T5.4 result -->
+  <section id="view-result" class="view card" hidden>
+    <div id="result-emoji" class="result-emoji"></div>
+    <h1 id="result-title"></h1>
+    <p id="result-sub" class="sub"></p>
+    <button id="play-again" class="btn team-auto">Back to start</button>
+  </section>
+
+  <div id="stage-overlay" class="stage-overlay" hidden><span id="stage-overlay-text"></span></div>
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/static/games/fallback.js" defer></script>
+  <script src="/static/games/rewire.js" defer></script>
+  <script src="/static/games/sweep.js" defer></script>
+  <script src="/static/games/decant.js" defer></script>
+  <script src="/static/games/echo.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
