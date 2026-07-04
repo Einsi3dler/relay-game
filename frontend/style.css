@@ -17,6 +17,10 @@
 
 * { box-sizing: border-box; }
 
+/* The hidden attribute must always win, even over classes that set display
+   (e.g. .stage-overlay's flex — without this the overlay covers the page). */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);
