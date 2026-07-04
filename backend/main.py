@@ -15,6 +15,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from backend import config, protocol
@@ -154,6 +155,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="The Relay", lifespan=lifespan)
+
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 
 # --- REST (T3.3) ---

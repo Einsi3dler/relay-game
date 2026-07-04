@@ -173,10 +173,10 @@ For **each** of Game 1–4 (`[G1]`…`[G4]`):
 
 ## Phase 5 — Frontend  ·  owner: [F]  ·  depends: T3.3–T3.4 (can stub against protocol earlier)
 
-- [ ] **T5.1 Join / lobby view** — fetch `/api/config`, create/join a match, pick
+- [x] **T5.1 Join / lobby view** — fetch `/api/config`, create/join a match, pick
   team/name, show a lobby that lists players and waits for match start. **AC:**
   two browsers can join opposing teams and see each other in the lobby.
-- [ ] **T5.2 Play view shell + renderer registry** — mount the correct game
+- [x] **T5.2 Play view shell + renderer registry** — mount the correct game
   renderer by `me.current_puzzle.game_id` from `window.RelayGames` into the play
   container, `unmount()` the previous one on change, and provide `api.submit()`
   wiring (picks `submit_answer`/`submit_holding` from `current_puzzle.kind`). Ship
@@ -184,15 +184,15 @@ For **each** of Game 1–4 (`[G1]`…`[G4]`):
   `payload.options` puzzles. **AC:** an action game (or the fallback) mounts and
   submits; switching puzzles cleanly unmounts the old renderer; wrong submits show
   the `error` toast. (Game renderers themselves are T4.x.2, owned by game devs.)
-- [ ] **T5.3 Readiness + countdown** — a team strip showing each player's status
+- [x] **T5.3 Readiness + countdown** — a team strip showing each player's status
   (green when `resting`/`holding`) and `green_count/roster_size`; a countdown driven
   by `timer_deadline` for rest and holding. **AC:** countdown matches server within
   ~1s; going green flips the indicator; holding question appears when the server
   sends it.
-- [ ] **T5.4 Stage transition + result** — animate `stage_advanced`; show a win/loss
+- [x] **T5.4 Stage transition + result** — animate `stage_advanced`; show a win/loss
   screen on `match_won`. **AC:** the winning team sees "You won", the other "You lost";
   no further input accepted.
-- [ ] **T5.5 Reconnect** — on socket drop, reconnect and re-sync purely from
+- [x] **T5.5 Reconnect** — on socket drop, reconnect and re-sync purely from
   `state_snapshot`. **AC:** refreshing the page mid-match restores the correct view.
 
 ## Phase 6 — Integration, tuning, polish  ·  owner: [ALL]  ·  depends: Phases 2–5
