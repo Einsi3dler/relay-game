@@ -40,10 +40,10 @@ Status boxes are for you to tick in PRs.
   shapes in [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) §3. Include the derived
   `green(player)` helper. **AC:** `.public()` output validates against the protocol
   shapes; **no `answer` field is ever present** in any `.public()` output (unit test).
-- [ ] **T1.2 `state.py`** — `InMemoryStateStore` with async `add/get/require/all`
+- [x] **T1.2 `state.py`** — `InMemoryStateStore` with async `add/get/require/all`
   (port from legacy, it's fine as-is). **AC:** create → get returns same match;
   `require` on missing id raises.
-- [ ] **T1.3 `games/base.py`** — the `GameModule` Protocol, `PuzzleInstance`
+- [x] **T1.3 `games/base.py`** — the `GameModule` Protocol, `PuzzleInstance`
   dataclass, and `normalize_answer` **exactly** as in
   [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §2 & §5, plus the spec §7 template
   saved as `backend/games/template.py`. This unblocks all game owners.
