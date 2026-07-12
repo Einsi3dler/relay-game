@@ -30,13 +30,22 @@ It rewards a team that is *evenly* fast, not one carried by a single star player
 - **No roles.** Every player on a team plays the same game each stage. (Roles were
   a legacy concept; cut for the MVP.)
 
-### Lobby / start
+### Lobby / start (host-controlled)
 
-- Players join a match, pick a team (or auto-balance), and enter a **lobby**.
-- A match **starts** when both teams have reached the required player count.
-  - MVP default: start when **each team has `PLAYERS_PER_TEAM` (4)** players.
-  - For local testing, `MIN_PLAYERS_PER_TEAM` (default 4) can be lowered so a match
-    can start with fewer players. Document any override in the PR.
+- The **first player to join a match is its host**. Players join **unassigned**
+  (no team) and pick a team from inside the lobby — or the host assigns them.
+- The **host controls the lobby**: move any player between teams, kick players
+  (kicked sockets close with code `4403`; the kicked id is dead, but the person
+  may rejoin as a new player), set the **minimum players per team**
+  (1..`PLAYERS_PER_TEAM`, default `MIN_PLAYERS_PER_TEAM`), and **start** the
+  match. There is no auto-start.
+- Start is allowed only when **every player has a team** and **both teams have at
+  least the minimum**. Host powers exist only while the match is in the lobby —
+  the roster freezes at start.
+- If the host disconnects, any player can **claim host** (only while the host is
+  actually gone, so a host page-refresh keeps the seat).
+- Sharing: the lobby exposes an invite URL (`/?match=<id>`) that routes a visitor
+  straight to the join flow for that match.
 
 ## 3. Player status model
 

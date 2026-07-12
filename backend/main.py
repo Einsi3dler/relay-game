@@ -222,6 +222,23 @@ async def get_match(match_id: str) -> dict:
 
 # --- WebSocket (T3.4) ---
 
+def _run_lobby_action(match: Match, player_id: str, fields: dict) -> EngineResult:
+    action = fields["action"]
+    if action == "set_team":
+        return engine.set_team(match, player_id, fields.get("team_id", ""))
+    if action == "move":
+        return engine.host_move(
+            match, player_id, fields.get("target_id", ""), fields.get("team_id", "")
+        )
+    if action == "kick":
+        return engine.host_kick(match, player_id, fields.get("target_id", ""))
+    if action == "set_min_players":
+        return engine.host_set_min_players(match, player_id, fields.get("value", 0))
+    if action == "start":
+        return engine.host_start(match, player_id)
+    return engine.claim_host(match, player_id)  # claim_host
+
+
 def _too_fast(match_id: str, player_id: str) -> bool:
     now = time.monotonic()
     last = _last_submit.get((match_id, player_id), 0.0)
@@ -266,7 +283,23 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
                 continue
             msg_type, fields = parsed
 
-            if msg_type in protocol.SUBMIT_TYPES:
+            if msg_type == protocol.LOBBY_ACTION:
+                async with locks.for_match(match_id):
+                    touch(match_id)
+                    result = _run_lobby_action(match, player_id, fields)
+                    if not result.ok:
+                        await manager.send(
+                            socket, protocol.error_message(result.error or "Rejected.")
+                        )
+                        continue
+                    for kicked_id in result.kicked_player_ids:
+                        kicked_socket = manager.get(match_id, kicked_id)
+                        if kicked_socket is not None:
+                            manager.unregister(match_id, kicked_id, kicked_socket)
+                            with contextlib.suppress(Exception):
+                                await kicked_socket.close(code=protocol.CLOSE_KICKED)
+                    await apply_and_broadcast(match, result)
+            elif msg_type in protocol.SUBMIT_TYPES:
                 if _too_fast(match_id, player_id):
                     await manager.send(socket, protocol.error_message("Too fast."))
                     continue

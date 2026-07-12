@@ -53,13 +53,15 @@ def engine() -> RelayEngine:
 
 
 def full_match(engine: RelayEngine) -> tuple[Match, dict[str, list]]:
-    """8 players join; the last join starts the match. Returns members per team."""
+    """8 players join with explicit teams; the host starts the match."""
     match = engine.create_match()
     members: dict[str, list] = {"alpha": [], "bravo": []}
     for team_id in ("alpha", "bravo"):
         for i in range(4):
             player, _ = engine.join_match(match, f"{team_id[0].upper()}{i}", team_id, now=NOW)
             members[team_id].append(player)
+    result = engine.host_start(match, match.host_player_id, now=NOW)
+    assert result.match_started
     return match, members
 
 
@@ -73,15 +75,15 @@ def make_all_green_except(engine, match, members, holdout):
             assert solve_main(engine, match, player).correct is True
 
 
-# --- T2.1 join & lobby ---
+# --- T2.1 join & lobby (host-controlled) ---
 
-def test_join_autobalance_alternates_teams(engine):
+def test_join_lands_unassigned_and_first_joiner_hosts(engine):
     match = engine.create_match()
-    sides = []
-    for i in range(4):
-        player, _ = engine.join_match(match, f"P{i}")
-        sides.append(player.team_id)
-    assert sides.count("alpha") == 2 and sides.count("bravo") == 2
+    first, _ = engine.join_match(match, "Ada")
+    second, _ = engine.join_match(match, "Bob")
+    assert first.team_id is None and second.team_id is None
+    assert match.host_player_id == first.id
+    assert {p.id for p in match.unassigned()} == {first.id, second.id}
 
 
 def test_join_full_team_raises(engine):
@@ -92,6 +94,14 @@ def test_join_full_team_raises(engine):
         engine.join_match(match, "A4", "alpha")
 
 
+def test_join_full_match_raises(engine):
+    match = engine.create_match()
+    for i in range(8):
+        engine.join_match(match, f"P{i}")
+    with pytest.raises(ValueError):
+        engine.join_match(match, "ninth")
+
+
 def test_join_after_start_raises(engine):
     match, _ = full_match(engine)
     assert match.status == "active"
@@ -99,7 +109,7 @@ def test_join_after_start_raises(engine):
         engine.join_match(match, "late", "alpha")
 
 
-def test_match_starts_when_both_teams_full(engine):
+def test_host_start_freezes_and_serves(engine):
     match, members = full_match(engine)
     assert match.status == "active"
     assert match.config_snapshot["rest_seconds"] == 15
@@ -111,11 +121,106 @@ def test_match_starts_when_both_teams_full(engine):
     assert len({p.prompt for p in puzzles}) == 8  # distinct seeds
 
 
-def test_lobby_not_started_before_min(engine):
+def test_start_blocked_until_teams_ready(engine):
+    match = engine.create_match()
+    host, _ = engine.join_match(match, "Host", "alpha")
+    for i in range(3):
+        engine.join_match(match, f"A{i}", "alpha")
+    result = engine.host_start(match, host.id)
+    assert result.ok is False and "bravo" in result.error.lower()
+    assert match.status == "lobby"
+    loner, _ = engine.join_match(match, "Loner")  # unassigned blocks too
+    for i in range(3):
+        engine.join_match(match, f"B{i}", "bravo")
+    engine.host_set_min_players(match, host.id, 3)
+    result = engine.host_start(match, host.id)
+    assert result.ok is False and "Loner" in result.error
+    engine.host_kick(match, host.id, loner.id)
+    assert engine.host_start(match, host.id).match_started
+
+
+def test_set_team_and_switch(engine):
+    match = engine.create_match()
+    player, _ = engine.join_match(match, "Ada")
+    result = engine.set_team(match, player.id, "alpha")
+    assert result.ok and player.team_id == "alpha"
+    assert player.id in match.teams["alpha"].player_ids
+    result = engine.set_team(match, player.id, "bravo")  # switching is fine
+    assert result.ok and player.team_id == "bravo"
+    assert player.id not in match.teams["alpha"].player_ids
+    assert engine.set_team(match, player.id, "bravo").ok is False  # already there
+    assert engine.set_team(match, player.id, "ghost").ok is False
+
+
+def test_set_team_rejects_full_team(engine):
     match = engine.create_match()
     for i in range(4):
         engine.join_match(match, f"A{i}", "alpha")
-    assert match.status == "lobby"  # bravo still empty
+    late, _ = engine.join_match(match, "Late")
+    result = engine.set_team(match, late.id, "alpha")
+    assert result.ok is False and "full" in result.error
+
+
+def test_host_move_and_permissions(engine):
+    match = engine.create_match()
+    host, _ = engine.join_match(match, "Host")
+    other, _ = engine.join_match(match, "Other")
+    assert engine.host_move(match, other.id, host.id, "alpha").ok is False  # not host
+    result = engine.host_move(match, host.id, other.id, "bravo")
+    assert result.ok and other.team_id == "bravo"
+
+
+def test_host_kick(engine):
+    match = engine.create_match()
+    host, _ = engine.join_match(match, "Host")
+    victim, _ = engine.join_match(match, "Victim", "alpha")
+    assert engine.host_kick(match, victim.id, host.id).ok is False  # not host
+    assert engine.host_kick(match, host.id, host.id).ok is False  # not yourself
+    result = engine.host_kick(match, host.id, victim.id)
+    assert result.ok and result.kicked_player_ids == [victim.id]
+    assert victim.id not in match.players
+    assert victim.id not in match.teams["alpha"].player_ids
+
+
+def test_host_set_min_players_bounds(engine):
+    match = engine.create_match()
+    host, _ = engine.join_match(match, "Host")
+    assert engine.host_set_min_players(match, host.id, 0).ok is False
+    assert engine.host_set_min_players(match, host.id, 5).ok is False
+    assert engine.host_set_min_players(match, host.id, 1).ok is True
+    assert match.min_players == 1
+
+
+def test_min_players_one_allows_1v1(engine):
+    match = engine.create_match()
+    host, _ = engine.join_match(match, "Host", "alpha")
+    engine.join_match(match, "Rival", "bravo")
+    engine.host_set_min_players(match, host.id, 1)
+    result = engine.host_start(match, host.id)
+    assert result.match_started
+    for team in match.teams.values():
+        assert team.roster_size == 1  # advance check uses the frozen roster
+
+
+def test_claim_host_only_when_host_gone(engine):
+    match = engine.create_match()
+    host, _ = engine.join_match(match, "Host")
+    other, _ = engine.join_match(match, "Other")
+    assert engine.claim_host(match, other.id).ok is False  # host still here
+    engine.on_disconnect(match, host.id)
+    result = engine.claim_host(match, other.id)
+    assert result.ok and match.host_player_id == other.id
+
+
+def test_host_actions_rejected_after_start(engine):
+    match, members = full_match(engine)
+    host_id = match.host_player_id
+    target = members["bravo"][0]
+    assert engine.host_kick(match, host_id, target.id).ok is False
+    assert engine.host_move(match, host_id, target.id, "alpha").ok is False
+    assert engine.set_team(match, target.id, "alpha").ok is False
+    assert engine.host_set_min_players(match, host_id, 1).ok is False
+    assert engine.host_start(match, host_id).ok is False
 
 
 # --- T2.2 submit_main ---

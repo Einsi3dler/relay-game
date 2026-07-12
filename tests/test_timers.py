@@ -109,6 +109,7 @@ def test_advance_cancels_team_timers_no_ghost_holding():
             for i in range(4):
                 player, result = engine.join_match(match, f"{team_id[0]}{i}", team_id)
                 members.append(player)
+        engine.start_match(match)
         match.config_snapshot["rest_seconds"] = 0.05  # fast rest for the test
 
         async def on_fire(match_id, player_id, kind):
@@ -144,6 +145,7 @@ def test_rest_timer_fires_engine_hook_and_serves_holding():
             for i in range(4):
                 player, _ = engine.join_match(match, f"{team_id[0]}{i}", team_id)
                 players.append(player)
+        engine.start_match(match)
         match.config_snapshot["rest_seconds"] = 0.05
         match.config_snapshot["holding_seconds"] = 5
 
@@ -178,6 +180,7 @@ def test_concurrent_final_submits_are_serialized_and_deterministic():
             for i in range(4):
                 player, _ = engine.join_match(match, f"{team_id[0]}{i}", team_id)
                 members[team_id].append(player)
+        engine.start_match(match)
         # Both teams to Stage 4, all but one player green on each.
         for _ in range(3):
             for team_id in ("alpha", "bravo"):

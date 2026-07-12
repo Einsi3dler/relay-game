@@ -48,6 +48,7 @@ class EngineResult:
     match_started: bool = False
     advanced_team_ids: list[str] = field(default_factory=list)
     winner_team_id: str | None = None
+    kicked_player_ids: list[str] = field(default_factory=list)  # sockets to close
     events: list[Event] = field(default_factory=list)
     schedule: list[TimerRequest] = field(default_factory=list)
     cancel: list[str] = field(default_factory=list)  # player_ids to cancel
@@ -61,14 +62,18 @@ class RelayEngine:
     def __init__(self, registry: GameRegistry) -> None:
         self.registry = registry
 
-    # --- lobby (T2.1) ---
+    # --- lobby (T2.1, host-controlled — see GAME_DESIGN §2) ---
 
     def create_match(self) -> Match:
         teams = {
             team_id: Team(id=team_id, name=team_id.title())
             for team_id in config.TEAM_IDS
         }
-        return Match(id=uuid4().hex[:8], teams=teams)
+        return Match(
+            id=uuid4().hex[:8],
+            teams=teams,
+            min_players=config.MIN_PLAYERS_PER_TEAM,
+        )
 
     def join_match(
         self,
@@ -77,38 +82,158 @@ class RelayEngine:
         team_id: str | None = None,
         now: datetime | None = None,
     ) -> tuple[Player, EngineResult]:
-        """Add a player; auto-balance when no team given. Starts the match
-        once both teams reach MIN_PLAYERS_PER_TEAM."""
+        """Add a player to the lobby — unassigned unless a team is given
+        explicitly. The first joiner becomes host; the host starts the match."""
         if match.status != "lobby":
             raise ValueError("match already started")
-        if team_id is None:
-            team = min(match.teams.values(), key=lambda t: len(t.player_ids))
-        else:
+        if len(match.players) >= config.PLAYERS_PER_TEAM * len(match.teams):
+            raise ValueError("match is full")
+        team: Team | None = None
+        if team_id is not None:
             if team_id not in match.teams:
                 raise ValueError(f"unknown team {team_id!r}")
             team = match.teams[team_id]
-        if len(team.player_ids) >= config.PLAYERS_PER_TEAM:
-            raise ValueError(f"team {team.id!r} is full")
+            if len(team.player_ids) >= config.PLAYERS_PER_TEAM:
+                raise ValueError(f"team {team.id!r} is full")
 
         player = Player(
             id=f"p_{secrets.token_hex(8)}",  # long + random — the WS credential
             name=name,
-            team_id=team.id,
+            team_id=team.id if team else None,
             status="lobby",
             connected=True,
         )
         match.players[player.id] = player
-        team.player_ids.append(player.id)
+        if team is not None:
+            team.player_ids.append(player.id)
 
         result = EngineResult(changed=True)
-        self._add_event(match, result, f"{player.name} joined team {team.name}.", "join")
-
-        if all(
-            len(t.player_ids) >= config.MIN_PLAYERS_PER_TEAM
-            for t in match.teams.values()
-        ):
-            self._merge(result, self.start_match(match, now=now))
+        if match.host_player_id is None:
+            match.host_player_id = player.id
+            self._add_event(match, result, f"{player.name} is hosting.", "join")
+        else:
+            self._add_event(match, result, f"{player.name} joined.", "join")
         return player, result
+
+    def set_team(
+        self, match: Match, player_id: str, team_id: str
+    ) -> EngineResult:
+        """A lobby player picks (or switches) their own team."""
+        if match.status != "lobby":
+            return EngineResult.rejected("match already started")
+        player = match.players.get(player_id)
+        if player is None:
+            return EngineResult.rejected("unknown player")
+        return self._assign_team(match, player, team_id)
+
+    def host_move(
+        self, match: Match, host_id: str, target_id: str, team_id: str
+    ) -> EngineResult:
+        """Host drags any lobby player onto a team."""
+        guard = self._host_guard(match, host_id)
+        if guard is not None:
+            return guard
+        target = match.players.get(target_id)
+        if target is None:
+            return EngineResult.rejected("unknown player")
+        return self._assign_team(match, target, team_id)
+
+    def host_kick(self, match: Match, host_id: str, target_id: str) -> EngineResult:
+        guard = self._host_guard(match, host_id)
+        if guard is not None:
+            return guard
+        if target_id == host_id:
+            return EngineResult.rejected("the host cannot kick themselves")
+        target = match.players.get(target_id)
+        if target is None:
+            return EngineResult.rejected("unknown player")
+        if target.team_id is not None:
+            match.teams[target.team_id].player_ids.remove(target.id)
+        del match.players[target.id]
+        result = EngineResult(changed=True, kicked_player_ids=[target.id])
+        self._add_event(match, result, f"{target.name} was kicked.", "info")
+        return result
+
+    def host_set_min_players(
+        self, match: Match, host_id: str, value: int
+    ) -> EngineResult:
+        guard = self._host_guard(match, host_id)
+        if guard is not None:
+            return guard
+        if not isinstance(value, int) or not 1 <= value <= config.PLAYERS_PER_TEAM:
+            return EngineResult.rejected(
+                f"min players must be 1..{config.PLAYERS_PER_TEAM}"
+            )
+        match.min_players = value
+        result = EngineResult(changed=True)
+        self._add_event(
+            match, result, f"Minimum players per team set to {value}.", "info"
+        )
+        return result
+
+    def host_start(
+        self, match: Match, host_id: str, now: datetime | None = None
+    ) -> EngineResult:
+        guard = self._host_guard(match, host_id)
+        if guard is not None:
+            return guard
+        reason = self.start_blocker(match)
+        if reason is not None:
+            return EngineResult.rejected(reason)
+        return self.start_match(match, now=now)
+
+    def claim_host(self, match: Match, player_id: str) -> EngineResult:
+        """Take over a lobby whose host is gone (kick-proof: only claimable
+        while the current host is disconnected or missing)."""
+        if match.status != "lobby":
+            return EngineResult.rejected("match already started")
+        player = match.players.get(player_id)
+        if player is None:
+            return EngineResult.rejected("unknown player")
+        host = match.players.get(match.host_player_id or "")
+        if host is not None and host.connected:
+            return EngineResult.rejected("the host is still here")
+        match.host_player_id = player.id
+        result = EngineResult(changed=True)
+        self._add_event(match, result, f"{player.name} is now hosting.", "info")
+        return result
+
+    def start_blocker(self, match: Match) -> str | None:
+        """Why the match can't start yet, or None when it can."""
+        if match.unassigned():
+            names = ", ".join(p.name for p in match.unassigned())
+            return f"everyone needs a team (waiting on {names})"
+        for team in match.teams.values():
+            if len(team.player_ids) < match.min_players:
+                return f"team {team.name} needs {match.min_players} player(s)"
+        return None
+
+    def _assign_team(
+        self, match: Match, player: Player, team_id: str
+    ) -> EngineResult:
+        if team_id not in match.teams:
+            return EngineResult.rejected(f"unknown team {team_id!r}")
+        team = match.teams[team_id]
+        if player.team_id == team_id:
+            return EngineResult.rejected(f"already on team {team.name}")
+        if len(team.player_ids) >= config.PLAYERS_PER_TEAM:
+            return EngineResult.rejected(f"team {team.name} is full")
+        if player.team_id is not None:
+            match.teams[player.team_id].player_ids.remove(player.id)
+        player.team_id = team_id
+        team.player_ids.append(player.id)
+        result = EngineResult(changed=True)
+        self._add_event(
+            match, result, f"{player.name} joined team {team.name}.", "join"
+        )
+        return result
+
+    def _host_guard(self, match: Match, player_id: str) -> EngineResult | None:
+        if match.status != "lobby":
+            return EngineResult.rejected("match already started")
+        if player_id != match.host_player_id:
+            return EngineResult.rejected("only the host can do that")
+        return None
 
     def start_match(self, match: Match, now: datetime | None = None) -> EngineResult:
         """Freeze roster sizes and config, set everyone solving Stage 1."""
@@ -338,6 +463,7 @@ class RelayEngine:
         result.match_started = result.match_started or other.match_started
         result.advanced_team_ids.extend(other.advanced_team_ids)
         result.winner_team_id = result.winner_team_id or other.winner_team_id
+        result.kicked_player_ids.extend(other.kicked_player_ids)
         result.events.extend(other.events)
         result.schedule.extend(other.schedule)
         result.cancel.extend(other.cancel)
