@@ -95,6 +95,10 @@ input:focus { border-color: var(--sun); }
 
 .error-line { color: var(--alpha); font-weight: 700; }
 
+.games-link-row { margin: 18px 0 0; text-align: center; }
+.games-link { color: var(--violet); font-weight: 700; text-decoration: none; }
+.games-link:hover { text-decoration: underline; }
+
 .lobby-teams { display: flex; gap: 12px; flex-wrap: wrap; }
 .team-box {
   flex: 1 1 240px;

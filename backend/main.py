@@ -175,6 +175,14 @@ async def index():
     return HTMLResponse("<h1>The Relay</h1><p>Frontend lands in Phase 5.</p>")
 
 
+@app.get("/games", response_model=None)
+async def games_page():
+    games_file = FRONTEND_DIR / "games.html"
+    if games_file.exists():
+        return FileResponse(games_file)
+    return HTMLResponse("<h1>The Relay</h1><p>Game guide not found.</p>")
+
+
 @app.get("/api/config")
 async def get_config() -> dict:
     return {
