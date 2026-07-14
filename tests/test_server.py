@@ -88,6 +88,13 @@ def test_static_assets_served(client):
         assert client.get(path).status_code == 200, path
 
 
+def test_games_page_served(client):
+    response = client.get("/games")
+    assert response.status_code == 200
+    for name in ("REWIRE", "SWEEP", "DECANT", "ECHO"):
+        assert name in response.text
+
+
 def test_get_config(client):
     body = client.get("/api/config").json()
     assert body == {

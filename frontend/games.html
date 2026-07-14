@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fffaf3">
+  <title>The Relay — How to play</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* games.html only — everything shared lives in style.css */
+    .game-card h2 { display: flex; align-items: center; gap: 8px; font-size: 1.25rem; }
+    .stage-chip {
+      color: #fff; font-size: 0.75rem; font-weight: 800;
+      border-radius: 999px; padding: 3px 10px; letter-spacing: 0.4px;
+    }
+    .stage-1 { background: var(--sun); }
+    .stage-2 { background: var(--violet); }
+    .stage-3 { background: var(--bravo); }
+    .stage-4 { background: var(--alpha); }
+    .cat { color: var(--muted); font-weight: 700; font-size: 0.85rem; margin: 0 0 10px; }
+    .game-card h3 { margin: 14px 0 4px; font-size: 0.95rem; }
+    .game-card p, .game-card li { margin: 0 0 6px; font-size: 0.95rem; }
+    .game-card ul { margin: 0 0 6px; padding-left: 20px; }
+    .sizes { color: var(--muted); font-size: 0.85rem; }
+    .tip { border-left: 4px solid var(--sun); padding: 6px 10px; background: var(--bg); border-radius: 8px; }
+    .flow ol { margin: 0; padding-left: 22px; }
+    .flow li { margin-bottom: 6px; }
+    .back-row { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <span class="logo">🏁 The Relay</span>
+    <a href="/" class="chip" style="text-decoration:none">← Back to the race</a>
+  </header>
+
+  <section class="view card flow">
+    <h1>How a race works</h1>
+    <p class="sub">Two teams of four race through four stages. Each stage is a different game.</p>
+    <ol>
+      <li><strong>Solve your puzzle</strong> — everyone on your team gets their <em>own</em> board. Solving it turns you <strong style="color:var(--green)">green</strong>.</li>
+      <li><strong>Rest</strong> — after going green you get a short breather (<span data-config="rest_seconds">15</span>s).</li>
+      <li><strong>Holding questions</strong> — if your rest runs out before the whole team is green, you get quick-fire mini-puzzles (<span data-config="holding_seconds">20</span>s each). Answer right to stay green; answer wrong (or too slow) and you <strong>lose green</strong> and get a fresh main puzzle.</li>
+      <li><strong>Advance together</strong> — the moment all four of you are green, the team jumps to the next stage.</li>
+      <li><strong>Win</strong> — first team through Stage 4 takes the race.</li>
+    </ol>
+    <p class="tip">💡 A wrong answer on your main puzzle never costs you anything except time — you just get a fresh board. Speed <em>and</em> steadiness win relays.</p>
+  </section>
+
+  <section class="view card game-card">
+    <h2><span class="stage-chip stage-1">Stage 1</span> ⚡ REWIRE</h2>
+    <p class="cat">Puzzle · spatial reasoning</p>
+    <h3>What you see</h3>
+    <p>A 4×4 grid of wire tiles — straights, elbows, T-junctions and endpoints — scrambled into random rotations. One tile glows: the <strong>source</strong>. Two tiles are <strong>sinks</strong>.</p>
+    <h3>How to play</h3>
+    <ul>
+      <li>Tap a tile to rotate it 90° clockwise. Tiles never move, only turn.</li>
+      <li>Powered wires light up live as you work, so you can see the current spread.</li>
+      <li>You win when power reaches <strong>every sink</strong> and no live wire dangles into a wall or a closed tile.</li>
+    </ul>
+    <p class="sizes">Main: 4×4 grid, 2 sinks · Holding: 2×2 grid, 1 sink</p>
+    <p class="tip">💡 Trace a path backwards from each sink to the source first — then rotate along the route.</p>
+  </section>
+
+  <section class="view card game-card">
+    <h2><span class="stage-chip stage-2">Stage 2</span> 💣 SWEEP</h2>
+    <p class="cat">Logical · deduction</p>
+    <h3>What you see</h3>
+    <p>A 6×6 minesweeper board hiding 6 mines, with a safe opening region already revealed. Every number counts the mines in its eight neighbours.</p>
+    <h3>How to play</h3>
+    <ul>
+      <li>Tap a cell you've deduced is <strong>safe</strong> to reveal it.</li>
+      <li>Right-click (or long-press on touch) a cell you've deduced is a <strong>mine</strong> to flag it.</li>
+      <li>Flag all 6 mines, then submit. Revealing a mine is an instant 💥 — you get a fresh board.</li>
+    </ul>
+    <p class="sizes">Main: 6×6, 6 mines · Holding: 3×3, 1 mine</p>
+    <p class="tip">💡 Every board is solvable with pure logic — no guessing is ever required. If you're guessing, there's a deduction you haven't spotted.</p>
+  </section>
+
+  <section class="view card game-card">
+    <h2><span class="stage-chip stage-3">Stage 3</span> 🧪 DECANT</h2>
+    <p class="cat">Sorting · planning</p>
+    <h3>What you see</h3>
+    <p>Five tubes holding stacks of three colours (plus empties), each tube holding up to four segments.</p>
+    <h3>How to play</h3>
+    <ul>
+      <li>Tap a source tube, then a destination tube, to pour.</li>
+      <li>A pour moves the whole run of the top colour — and it's only legal into an empty tube or onto a matching colour with room.</li>
+      <li>You win when every tube is empty or completely one colour. Undo is there if you paint yourself into a corner.</li>
+    </ul>
+    <p class="sizes">Main: 5 tubes, 3 colours, capacity 4 · Holding: 3 tubes, 2 colours (~2 pours)</p>
+    <p class="tip">💡 Keep an empty tube free as workspace as long as you can — burying a colour under two others is what costs you.</p>
+  </section>
+
+  <section class="view card game-card">
+    <h2><span class="stage-chip stage-4">Stage 4</span> 🔊 ECHO</h2>
+    <p class="cat">Reflex / memory</p>
+    <h3>What you see</h3>
+    <p>A 3×3 grid of pads. They flash one at a time in a sequence of five — and the sequence plays <strong>only once</strong>.</p>
+    <h3>How to play</h3>
+    <ul>
+      <li>Watch the whole sequence. Don't tap while it plays.</li>
+      <li>Then tap the pads back in exactly the same order.</li>
+      <li>One wrong tap fails the attempt — and you get a <strong>brand-new sequence</strong>, so there's no second viewing.</li>
+    </ul>
+    <p class="sizes">Main: 3×3 pads, sequence of 5 · Holding: 2×2 pads, sequence of 3</p>
+    <p class="tip">💡 Chunk it: remember "corner, centre, top…" as a shape traced across the grid, not as nine separate positions.</p>
+  </section>
+
+  <section class="view card">
+    <h2>⚖️ Fair play, by design</h2>
+    <p>Every player gets a different, randomly generated board — your teammate's answer is useless to you, and there's nothing to Google. The server re-checks every move you submit, so the only way through is to actually play.</p>
+  </section>
+
+  <script>
+    // Fill live timer values from the server config; the defaults in the
+    // markup are the fallback if the fetch fails.
+    fetch("/api/config").then(function (r) { return r.json(); }).then(function (cfg) {
+      document.querySelectorAll("[data-config]").forEach(function (el) {
+        var v = cfg[el.getAttribute("data-config")];
+        if (v !== undefined) el.textContent = v;
+      });
+    }).catch(function () {});
+  </script>
+</body>
+</html>
