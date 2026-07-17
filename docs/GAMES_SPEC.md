@@ -284,11 +284,16 @@ filled with one colour.
 1. Start from the **solved** state (each colour tube full, plus the empty tubes).
 2. Apply `N` random **legal pours** (a reverse-scramble) driven by `seed`. Because
    every scramble step is a legal move, the reverse is always solvable.
-3. (Stretch) difficulty scaling: colours (3 → 5), tubes, and scramble depth `N`.
+3. **Difficulty gate (main only):** a reverse-scramble can collapse into a
+   near-solved board, so reject any board a bounded BFS can solve in fewer than
+   `MAIN_MIN_POURS` pours and re-roll (cap the attempts; fall back to the
+   deepest board seen). Every served main board has a guaranteed minimum
+   solve depth.
+4. (Stretch) difficulty scaling: colours (4 → 5), tubes, and scramble depth `N`.
    For the MVP, use the fixed sizes below.
 
 ### Main vs Holding
-- **Main:** 5 tubes / 3–4 colours / capacity 4.
+- **Main:** 6 tubes / 4 colours / capacity 4 / min solve depth ≥ 7 pours.
 - **Holding:** 3 tubes / 2 colours / solvable in ~2 pours.
 
 ### Answer encoding
