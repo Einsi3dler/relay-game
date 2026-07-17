@@ -3,8 +3,11 @@
 Per docs/GAMES_SPEC.md Game 3. Boards start from the solved state and are
 scrambled by reverse-pours (the inverse of a legal pour), each constrained so
 its undo is itself a legal pour — the reversed scramble is therefore a valid
-solution, making every board provably solvable. `check` replays the submitted
-move list under the pour rules; `answer` is unused.
+solution, making every board provably solvable. A reverse-scramble alone can
+still collapse into a near-solved board, so main generation additionally
+rejects any board a bounded BFS can solve in fewer than MAIN_MIN_POURS pours.
+`check` replays the submitted move list under the pour rules; `answer` is
+unused.
 """
 
 from __future__ import annotations
@@ -13,7 +16,9 @@ import random
 
 from backend.games.base import PuzzleInstance
 
-MAIN_COLOURS, MAIN_TUBES, MAIN_SCRAMBLE = 3, 5, 14
+MAIN_COLOURS, MAIN_TUBES, MAIN_SCRAMBLE = 4, 6, 20
+MAIN_MIN_POURS = 7        # reject main boards solvable in fewer pours
+MAIN_GEN_ATTEMPTS = 30    # scrambles tried before accepting the deepest seen
 HOLD_COLOURS, HOLD_TUBES, HOLD_SCRAMBLE = 2, 3, 2
 CAPACITY = 4
 MAX_MOVES = 60
@@ -51,6 +56,42 @@ def _solved(tubes: Tubes, capacity: int) -> bool:
     return all(
         not tube or (len(tube) == capacity and len(set(tube)) == 1) for tube in tubes
     )
+
+
+def _canonical(tubes: Tubes) -> tuple[tuple[int, ...], ...]:
+    """Tubes are interchangeable, so sort them — collapses symmetric states."""
+    return tuple(sorted(tuple(tube) for tube in tubes))
+
+
+def _min_pours(tubes: Tubes, capacity: int, cap: int) -> int | None:
+    """Fewest pours to solve, or None if not solvable within `cap` pours.
+
+    Plain BFS over canonicalised states; only ever called with a small `cap`
+    (the generation gate), which bounds the search regardless of board size.
+    """
+    if _solved(tubes, capacity):
+        return 0
+    frontier = [[list(tube) for tube in tubes]]
+    seen = {_canonical(tubes)}
+    for depth in range(1, cap + 1):
+        next_frontier: list[Tubes] = []
+        for state in frontier:
+            for src in range(len(state)):
+                for dst in range(len(state)):
+                    clone = [list(tube) for tube in state]
+                    if not _pour(clone, src, dst, capacity):
+                        continue
+                    key = _canonical(clone)
+                    if key in seen:
+                        continue
+                    if _solved(clone, capacity):
+                        return depth
+                    seen.add(key)
+                    next_frontier.append(clone)
+        if not next_frontier:
+            return None
+        frontier = next_frontier
+    return None
 
 
 def _scramble(
@@ -110,7 +151,23 @@ class DecantGame:
         """Board + a known-good solution (used by generation self-check and tests)."""
         rng = random.Random(seed)
         if kind == "main":
-            tubes, solution = _scramble(rng, MAIN_COLOURS, MAIN_TUBES, MAIN_SCRAMBLE)
+            # Difficulty gate: a reverse-scramble is always solvable but can
+            # land near-solved, so re-roll until no solution exists within
+            # MAIN_MIN_POURS - 1 pours. If every attempt is shallow (rare),
+            # serve the deepest board seen — still solvable, just easier.
+            deepest: tuple[int, Tubes, list[tuple[int, int]]] | None = None
+            for _ in range(MAIN_GEN_ATTEMPTS):
+                tubes, solution = _scramble(
+                    rng, MAIN_COLOURS, MAIN_TUBES, MAIN_SCRAMBLE
+                )
+                shallow = _min_pours(tubes, CAPACITY, MAIN_MIN_POURS - 1)
+                if shallow is None:
+                    break
+                if deepest is None or shallow > deepest[0]:
+                    deepest = (shallow, tubes, solution)
+            else:
+                assert deepest is not None
+                _, tubes, solution = deepest
         else:
             tubes, solution = _scramble(rng, HOLD_COLOURS, HOLD_TUBES, HOLD_SCRAMBLE)
         # Self-check: replaying the recorded solution must solve the board.

@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from backend.games.game3_decant import CAPACITY, DecantGame, _pour, _solved
+from backend.games.game3_decant import (
+    CAPACITY,
+    MAIN_MIN_POURS,
+    DecantGame,
+    _min_pours,
+    _pour,
+    _solved,
+)
 
 game = DecantGame()
 
@@ -35,6 +42,20 @@ def test_holding_solvable_in_couple_of_pours():
         assert puzzle.kind == "holding"
         assert len(solution.split(";")) <= 4
         assert game.check(puzzle, solution) is True
+
+
+def test_main_boards_meet_difficulty_floor():
+    # The generation gate must reject boards solvable in < MAIN_MIN_POURS pours.
+    for seed in range(15):
+        tubes = [list(t) for t in game.generate_main(seed).payload["tubes"]]
+        assert _min_pours(tubes, CAPACITY, MAIN_MIN_POURS - 1) is None
+
+
+def test_min_pours_solver():
+    assert _min_pours([[1, 1, 1, 1], []], 4, 3) == 0  # already solved
+    assert _min_pours([[1, 1, 1], [1]], 4, 3) == 1
+    assert _min_pours([[1, 1, 2, 2], [2, 2], [1, 1]], 4, 3) == 2
+    assert _min_pours([[1, 2], [2, 1], []], 2, 2) is None  # needs 3 > cap
 
 
 def test_boards_are_not_served_solved():
