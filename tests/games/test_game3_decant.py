@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from backend.games.game3_decant import (
     CAPACITY,
+    MAIN_COLOURS,
     MAIN_MIN_POURS,
     DecantGame,
-    _min_pours,
+    _colour_runs,
     _pour,
     _solved,
 )
@@ -45,17 +46,17 @@ def test_holding_solvable_in_couple_of_pours():
 
 
 def test_main_boards_meet_difficulty_floor():
-    # The generation gate must reject boards solvable in < MAIN_MIN_POURS pours.
-    for seed in range(15):
-        tubes = [list(t) for t in game.generate_main(seed).payload["tubes"]]
-        assert _min_pours(tubes, CAPACITY, MAIN_MIN_POURS - 1) is None
+    # runs - colours is a hard lower bound on pours to solve; the generation
+    # gate must guarantee it for every served main board.
+    for seed in range(25):
+        tubes = game.generate_main(seed).payload["tubes"]
+        assert _colour_runs(tubes) - MAIN_COLOURS >= MAIN_MIN_POURS
 
 
-def test_min_pours_solver():
-    assert _min_pours([[1, 1, 1, 1], []], 4, 3) == 0  # already solved
-    assert _min_pours([[1, 1, 1], [1]], 4, 3) == 1
-    assert _min_pours([[1, 1, 2, 2], [2, 2], [1, 1]], 4, 3) == 2
-    assert _min_pours([[1, 2], [2, 1], []], 2, 2) is None  # needs 3 > cap
+def test_colour_runs():
+    assert _colour_runs([[1, 1, 1, 1], []]) == 1
+    assert _colour_runs([[1, 2, 1], [2, 2]]) == 4
+    assert _colour_runs([[], []]) == 0
 
 
 def test_boards_are_not_served_solved():
@@ -71,12 +72,26 @@ def test_illegal_and_malformed_moves_fail():
     assert game.check(puzzle, "0>0") is False  # src == dst
     assert game.check(puzzle, "0>99") is False  # bad index
     assert game.check(puzzle, "9>1") is False  # bad index
-    # pour onto a mismatched colour: find one and try it
+    # pour into a full tube is illegal even under free-stacking rules
+    tubes = [list(t) for t in puzzle.payload["tubes"]]
+    for src in range(len(tubes)):
+        for dst in range(len(tubes)):
+            if src != dst and tubes[src] and len(tubes[dst]) == CAPACITY:
+                assert game.check(puzzle, f"{src}>{dst}") is False
+                return
+
+
+def test_mismatched_pour_is_legal_but_non_solving_sequence_fails():
+    # Free-stacking: pouring onto a different colour is allowed, but a single
+    # pour never solves a gated main board, so check still returns False.
+    puzzle = game.generate_main(1)
     tubes = [list(t) for t in puzzle.payload["tubes"]]
     for src in range(len(tubes)):
         for dst in range(len(tubes)):
             if src != dst and tubes[src] and tubes[dst]:
                 if tubes[dst][-1] != tubes[src][-1] and len(tubes[dst]) < CAPACITY:
+                    clone = [list(t) for t in tubes]
+                    assert _pour(clone, src, dst, CAPACITY) is True
                     assert game.check(puzzle, f"{src}>{dst}") is False
                     return
 
@@ -104,11 +119,20 @@ def test_no_solution_in_payload():
 
 def test_pour_rules():
     tubes = [[1, 1, 2, 2], [1], [], []]
-    assert _pour(tubes, 0, 1, 4) is False  # 2 onto 1 mismatch
-    assert _pour(tubes, 0, 2, 4) is True  # run of two 2s to empty
-    assert tubes[0] == [1, 1] and tubes[2] == [2, 2]
-    assert _pour(tubes, 0, 1, 4) is True  # 1s onto 1
-    assert tubes[1] == [1, 1, 1] and tubes[0] == []
+    assert _pour(tubes, 0, 1, 4) is True  # free-stacking: 2s onto 1 is legal
+    assert tubes[0] == [1, 1] and tubes[1] == [1, 2, 2]
+    assert _pour(tubes, 1, 2, 4) is True  # run of two 2s to empty
+    assert tubes[1] == [1] and tubes[2] == [2, 2]
+    assert _pour(tubes, 1, 0, 4) is True  # 1 onto 1s merges
+    assert tubes[0] == [1, 1, 1] and tubes[1] == []
+    assert _pour(tubes, 2, 2, 4) is False  # src == dst
+    full = [[1, 1, 2, 2], [3, 3, 3, 3], []]
+    assert _pour(full, 0, 1, 4) is False  # destination full
+    assert _pour(full, 2, 0, 4) is False  # source empty
+    # a pour bigger than the room pours only what fits
+    tight = [[1, 2, 2, 2], [3, 3, 3], []]
+    assert _pour(tight, 0, 1, 4) is True
+    assert tight[0] == [1, 2, 2] and tight[1] == [3, 3, 3, 2]
 
 
 def test_reset_safe_and_deterministic_after():
