@@ -274,10 +274,10 @@ each partly filled with stacked coloured segments. The player **clicks a source 
 then a destination tube** to pour. Solve = every tube is either empty or completely
 filled with one colour.
 
-### Rules (pour legality — free-stacking variant)
-- A pour moves the **contiguous run of the top colour** from source to destination.
+### Rules (pour legality — free-stacking, single-block variant)
+- A pour moves **exactly one block** — the source tube's top block.
 - Legal into **any tube with room** — the destination's top colour does **not**
-  need to match. Only as much as fits is poured.
+  need to match.
 - The only illegal pours: source empty, destination full, or source == destination.
   Illegal pours are rejected (client should also prevent them; server enforces).
 - Because any placement is legal, the board can never deadlock — the challenge
