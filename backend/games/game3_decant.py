@@ -1,14 +1,15 @@
 """DECANT (Stage 3, sorting): pour colours between tubes until each is uniform.
 
-Per docs/GAMES_SPEC.md Game 3, free-stacking variant: a pour may target ANY
-tube with room — the destination's top colour does not need to match — so the
-puzzle can never deadlock and the challenge is planning efficiency under the
-race clock. Boards start from the solved state and are scrambled by
-reverse-pours whose undo is itself a legal pour; the reversed scramble is a
-valid solution, making every board provably solvable. A reverse-scramble can
-still collapse into a near-solved board, so main generation re-rolls until the
-colour-run lower bound guarantees at least MAIN_MIN_POURS pours. `check`
-replays the submitted move list under the pour rules; `answer` is unused.
+Per docs/GAMES_SPEC.md Game 3, free-stacking single-block variant: a pour
+moves exactly ONE block (the source's top) and may target ANY tube with room —
+the destination's top colour does not need to match — so the puzzle can never
+deadlock and the challenge is planning efficiency under the race clock.
+Boards start from the solved state and are scrambled by reverse-pours whose
+undo is itself a legal pour; the reversed scramble is a valid solution, making
+every board provably solvable. A reverse-scramble can still collapse into a
+near-solved board, so main generation re-rolls until the colour-run lower
+bound guarantees at least MAIN_MIN_POURS pours. `check` replays the submitted
+move list under the pour rules; `answer` is unused.
 """
 
 from __future__ import annotations
@@ -27,32 +28,20 @@ MAX_MOVES = 60
 Tubes = list[list[int]]
 
 
-def _top_run(tube: list[int]) -> int:
-    """Length of the contiguous top-colour run."""
-    if not tube:
-        return 0
-    run = 1
-    while run < len(tube) and tube[-run - 1] == tube[-1]:
-        run += 1
-    return run
-
-
 def _pour(tubes: Tubes, src: int, dst: int, capacity: int) -> bool:
     """Apply one legal pour in place; False if the pour is illegal.
 
-    Free-stacking variant: the destination's top colour does NOT need to
-    match — any tube with room is a legal target. The poured amount is the
-    contiguous top-colour run of the source, capped by the room available.
+    Free-stacking, single-block variant: a pour moves exactly ONE block (the
+    source's top) onto ANY tube with room — the destination's top colour does
+    not need to match. Illegal only if the source is empty, the destination is
+    full, or src == dst.
     """
     if src == dst or not (0 <= src < len(tubes) and 0 <= dst < len(tubes)):
         return False
     source, dest = tubes[src], tubes[dst]
     if not source or len(dest) >= capacity:
         return False
-    colour = source[-1]
-    amount = min(_top_run(source), capacity - len(dest))
-    del source[len(source) - amount:]
-    dest.extend([colour] * amount)
+    dest.append(source.pop())
     return True
 
 
@@ -82,10 +71,10 @@ def _scramble(
 ) -> tuple[Tubes, list[tuple[int, int]]]:
     """Reverse-pour scramble from solved. Returns (tubes, solution pours).
 
-    A reverse-pour takes j segments of the top colour from tube X onto any
-    tube Y with room whose top differs (or is empty). Constraining j to leave
-    the same colour on X's top — or empty X entirely — makes the undo (pour
-    Y→X) legal, so the reversed move list is a valid solution.
+    Each scramble step moves one block from a random tube X onto a random
+    tube Y with room. Because a pour moves exactly one block, the undo (pour
+    Y→X) restores exactly that block, so the reversed move list is always a
+    valid solution — every board is provably solvable.
     """
     tubes: Tubes = [[colour + 1] * CAPACITY for colour in range(colours)]
     tubes += [[] for _ in range(tube_count - colours)]
@@ -96,24 +85,14 @@ def _scramble(
         x = rng.randrange(tube_count)
         if not tubes[x]:
             continue
-        colour = tubes[x][-1]
-        run = _top_run(tubes[x])
-        # j < run keeps colour on X's top; j == len(tube) empties X.
-        max_j = run if run == len(tubes[x]) else run - 1
-        if max_j < 1:
-            continue
         targets = [
-            y for y in range(tube_count)
-            if y != x and len(tubes[y]) < CAPACITY
-            and (not tubes[y] or tubes[y][-1] != colour)
+            y for y in range(tube_count) if y != x and len(tubes[y]) < CAPACITY
         ]
         if not targets:
             continue
         y = rng.choice(targets)
-        j = rng.randint(1, min(max_j, CAPACITY - len(tubes[y])))
-        del tubes[x][len(tubes[x]) - j:]
-        tubes[y].extend([colour] * j)
-        solution.append((y, x))  # the undo: pour Y back onto X
+        tubes[y].append(tubes[x].pop())
+        solution.append((y, x))  # the undo: pour Y's top block back onto X
     solution.reverse()
     return tubes, solution
 

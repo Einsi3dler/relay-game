@@ -1,4 +1,5 @@
 // DECANT renderer — click a source tube, then a destination, to pour.
+// A pour moves exactly ONE block (the top) onto any tube with room.
 // Answer = the ordered move list "src>dst;src>dst;...". The client blocks
 // illegal pours for UX; the server replays and enforces them anyway.
 (function () {
@@ -7,13 +8,6 @@
   var COLOURS = ["#e15759", "#4e79a7", "#f2b418", "#59a14f", "#b07aa1"];
   var state = null;
 
-  function topRun(tube) {
-    if (!tube.length) return 0;
-    var run = 1;
-    while (run < tube.length && tube[tube.length - run - 1] === tube[tube.length - 1]) run++;
-    return run;
-  }
-
   // Free-stacking rules: any tube with room is a legal target — the
   // destination's top colour does not need to match (mirrors the server).
   function legalPour(tubes, src, dst, capacity) {
@@ -21,10 +15,7 @@
   }
 
   function applyPour(tubes, src, dst, capacity) {
-    var colour = tubes[src][tubes[src].length - 1];
-    var amount = Math.min(topRun(tubes[src]), capacity - tubes[dst].length);
-    tubes[src].length -= amount;
-    for (var i = 0; i < amount; i++) tubes[dst].push(colour);
+    tubes[dst].push(tubes[src].pop());
   }
 
   function currentTubes() {
@@ -92,7 +83,7 @@
       state.row.style.cssText =
         "display:flex;gap:10px;justify-content:center;align-items:flex-end;margin:8px 0;";
       var hint = document.createElement("p");
-      hint.textContent = "Click a tube to pick it up, another to pour. Sort every colour.";
+      hint.textContent = "Click a tube to lift its top block, another to drop it. Sort every colour.";
       var undo = document.createElement("button");
       undo.type = "button";
       undo.textContent = "Undo";

@@ -119,20 +119,16 @@ def test_no_solution_in_payload():
 
 def test_pour_rules():
     tubes = [[1, 1, 2, 2], [1], [], []]
-    assert _pour(tubes, 0, 1, 4) is True  # free-stacking: 2s onto 1 is legal
-    assert tubes[0] == [1, 1] and tubes[1] == [1, 2, 2]
-    assert _pour(tubes, 1, 2, 4) is True  # run of two 2s to empty
-    assert tubes[1] == [1] and tubes[2] == [2, 2]
-    assert _pour(tubes, 1, 0, 4) is True  # 1 onto 1s merges
-    assert tubes[0] == [1, 1, 1] and tubes[1] == []
+    assert _pour(tubes, 0, 1, 4) is True  # one block, mismatched top is legal
+    assert tubes[0] == [1, 1, 2] and tubes[1] == [1, 2]
+    assert _pour(tubes, 0, 2, 4) is True  # one block to an empty tube
+    assert tubes[0] == [1, 1] and tubes[2] == [2]
+    assert _pour(tubes, 0, 1, 4) is True  # exactly one block moves, never a run
+    assert tubes[0] == [1] and tubes[1] == [1, 2, 1]
     assert _pour(tubes, 2, 2, 4) is False  # src == dst
     full = [[1, 1, 2, 2], [3, 3, 3, 3], []]
     assert _pour(full, 0, 1, 4) is False  # destination full
     assert _pour(full, 2, 0, 4) is False  # source empty
-    # a pour bigger than the room pours only what fits
-    tight = [[1, 2, 2, 2], [3, 3, 3], []]
-    assert _pour(tight, 0, 1, 4) is True
-    assert tight[0] == [1, 2, 2] and tight[1] == [3, 3, 3, 2]
 
 
 def test_reset_safe_and_deterministic_after():
