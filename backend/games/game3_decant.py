@@ -1,13 +1,14 @@
 """DECANT (Stage 3, sorting): pour colours between tubes until each is uniform.
 
-Per docs/GAMES_SPEC.md Game 3. Boards start from the solved state and are
-scrambled by reverse-pours (the inverse of a legal pour), each constrained so
-its undo is itself a legal pour — the reversed scramble is therefore a valid
-solution, making every board provably solvable. A reverse-scramble alone can
-still collapse into a near-solved board, so main generation additionally
-rejects any board a bounded BFS can solve in fewer than MAIN_MIN_POURS pours.
-`check` replays the submitted move list under the pour rules; `answer` is
-unused.
+Per docs/GAMES_SPEC.md Game 3, free-stacking variant: a pour may target ANY
+tube with room — the destination's top colour does not need to match — so the
+puzzle can never deadlock and the challenge is planning efficiency under the
+race clock. Boards start from the solved state and are scrambled by
+reverse-pours whose undo is itself a legal pour; the reversed scramble is a
+valid solution, making every board provably solvable. A reverse-scramble can
+still collapse into a near-solved board, so main generation re-rolls until the
+colour-run lower bound guarantees at least MAIN_MIN_POURS pours. `check`
+replays the submitted move list under the pour rules; `answer` is unused.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import random
 from backend.games.base import PuzzleInstance
 
 MAIN_COLOURS, MAIN_TUBES, MAIN_SCRAMBLE = 4, 6, 20
-MAIN_MIN_POURS = 7        # reject main boards solvable in fewer pours
+MAIN_MIN_POURS = 7        # provable floor (run-count bound) on pours to solve
 MAIN_GEN_ATTEMPTS = 30    # scrambles tried before accepting the deepest seen
 HOLD_COLOURS, HOLD_TUBES, HOLD_SCRAMBLE = 2, 3, 2
 CAPACITY = 4
@@ -37,15 +38,18 @@ def _top_run(tube: list[int]) -> int:
 
 
 def _pour(tubes: Tubes, src: int, dst: int, capacity: int) -> bool:
-    """Apply one legal pour in place; False if the pour is illegal."""
+    """Apply one legal pour in place; False if the pour is illegal.
+
+    Free-stacking variant: the destination's top colour does NOT need to
+    match — any tube with room is a legal target. The poured amount is the
+    contiguous top-colour run of the source, capped by the room available.
+    """
     if src == dst or not (0 <= src < len(tubes) and 0 <= dst < len(tubes)):
         return False
     source, dest = tubes[src], tubes[dst]
     if not source or len(dest) >= capacity:
         return False
     colour = source[-1]
-    if dest and dest[-1] != colour:
-        return False
     amount = min(_top_run(source), capacity - len(dest))
     del source[len(source) - amount:]
     dest.extend([colour] * amount)
@@ -58,40 +62,19 @@ def _solved(tubes: Tubes, capacity: int) -> bool:
     )
 
 
-def _canonical(tubes: Tubes) -> tuple[tuple[int, ...], ...]:
-    """Tubes are interchangeable, so sort them — collapses symmetric states."""
-    return tuple(sorted(tuple(tube) for tube in tubes))
+def _colour_runs(tubes: Tubes) -> int:
+    """Total contiguous same-colour runs across all tubes.
 
-
-def _min_pours(tubes: Tubes, capacity: int, cap: int) -> int | None:
-    """Fewest pours to solve, or None if not solvable within `cap` pours.
-
-    Plain BFS over canonicalised states; only ever called with a small `cap`
-    (the generation gate), which bounds the search regardless of board size.
+    A pour reduces the run count by at most 1, and a solved board has exactly
+    one run per colour — so `_colour_runs(t) - colours` is a hard lower bound
+    on the number of pours needed to solve `t`. Used as the generation gate
+    (search-based depth checks are intractable under free-stacking rules).
     """
-    if _solved(tubes, capacity):
-        return 0
-    frontier = [[list(tube) for tube in tubes]]
-    seen = {_canonical(tubes)}
-    for depth in range(1, cap + 1):
-        next_frontier: list[Tubes] = []
-        for state in frontier:
-            for src in range(len(state)):
-                for dst in range(len(state)):
-                    clone = [list(tube) for tube in state]
-                    if not _pour(clone, src, dst, capacity):
-                        continue
-                    key = _canonical(clone)
-                    if key in seen:
-                        continue
-                    if _solved(clone, capacity):
-                        return depth
-                    seen.add(key)
-                    next_frontier.append(clone)
-        if not next_frontier:
-            return None
-        frontier = next_frontier
-    return None
+    return sum(
+        1 + sum(1 for i in range(1, len(tube)) if tube[i] != tube[i - 1])
+        for tube in tubes
+        if tube
+    )
 
 
 def _scramble(
@@ -152,19 +135,20 @@ class DecantGame:
         rng = random.Random(seed)
         if kind == "main":
             # Difficulty gate: a reverse-scramble is always solvable but can
-            # land near-solved, so re-roll until no solution exists within
-            # MAIN_MIN_POURS - 1 pours. If every attempt is shallow (rare),
-            # serve the deepest board seen — still solvable, just easier.
+            # land near-solved, so re-roll until the run-count lower bound
+            # guarantees at least MAIN_MIN_POURS pours. If every attempt is
+            # shallow (rare), serve the deepest board seen — still solvable,
+            # just easier.
             deepest: tuple[int, Tubes, list[tuple[int, int]]] | None = None
             for _ in range(MAIN_GEN_ATTEMPTS):
                 tubes, solution = _scramble(
                     rng, MAIN_COLOURS, MAIN_TUBES, MAIN_SCRAMBLE
                 )
-                shallow = _min_pours(tubes, CAPACITY, MAIN_MIN_POURS - 1)
-                if shallow is None:
+                runs = _colour_runs(tubes)
+                if runs - MAIN_COLOURS >= MAIN_MIN_POURS:
                     break
-                if deepest is None or shallow > deepest[0]:
-                    deepest = (shallow, tubes, solution)
+                if deepest is None or runs > deepest[0]:
+                    deepest = (runs, tubes, solution)
             else:
                 assert deepest is not None
                 _, tubes, solution = deepest

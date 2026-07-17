@@ -14,10 +14,10 @@
     return run;
   }
 
+  // Free-stacking rules: any tube with room is a legal target — the
+  // destination's top colour does not need to match (mirrors the server).
   function legalPour(tubes, src, dst, capacity) {
-    if (src === dst || !tubes[src].length || tubes[dst].length >= capacity) return false;
-    var colour = tubes[src][tubes[src].length - 1];
-    return !tubes[dst].length || tubes[dst][tubes[dst].length - 1] === colour;
+    return src !== dst && tubes[src].length > 0 && tubes[dst].length < capacity;
   }
 
   function applyPour(tubes, src, dst, capacity) {

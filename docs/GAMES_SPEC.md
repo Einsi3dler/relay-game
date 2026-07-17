@@ -274,21 +274,26 @@ each partly filled with stacked coloured segments. The player **clicks a source 
 then a destination tube** to pour. Solve = every tube is either empty or completely
 filled with one colour.
 
-### Rules (pour legality)
+### Rules (pour legality — free-stacking variant)
 - A pour moves the **contiguous run of the top colour** from source to destination.
-- Legal only if the destination is **empty**, or its **top colour matches** the
-  poured colour **and** it has room. Only as much as fits is poured.
-- Illegal pours are rejected (client should also prevent them; server enforces).
+- Legal into **any tube with room** — the destination's top colour does **not**
+  need to match. Only as much as fits is poured.
+- The only illegal pours: source empty, destination full, or source == destination.
+  Illegal pours are rejected (client should also prevent them; server enforces).
+- Because any placement is legal, the board can never deadlock — the challenge
+  is planning an efficient pour sequence under the race clock, and the
+  generation difficulty floor (below) guarantees boards are never trivial.
 
 ### Procedural generation (seeded, guaranteed solvable)
 1. Start from the **solved** state (each colour tube full, plus the empty tubes).
 2. Apply `N` random **legal pours** (a reverse-scramble) driven by `seed`. Because
    every scramble step is a legal move, the reverse is always solvable.
 3. **Difficulty gate (main only):** a reverse-scramble can collapse into a
-   near-solved board, so reject any board a bounded BFS can solve in fewer than
-   `MAIN_MIN_POURS` pours and re-roll (cap the attempts; fall back to the
-   deepest board seen). Every served main board has a guaranteed minimum
-   solve depth.
+   near-solved board, so re-roll until the colour-run lower bound
+   (`total contiguous runs - colours`, which no pour can reduce by more than 1)
+   guarantees at least `MAIN_MIN_POURS` pours (cap the attempts; fall back to
+   the deepest board seen). Every served main board has a provable minimum
+   solve depth, at zero search cost.
 4. (Stretch) difficulty scaling: colours (4 → 5), tubes, and scramble depth `N`.
    For the MVP, use the fixed sizes below.
 
