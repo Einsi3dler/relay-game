@@ -77,10 +77,23 @@ def connect(client, match_id: str, player_id: str):
 
 # --- T3.3 REST ---
 
-def test_index_serves_frontend(client):
+def test_index_serves_landing(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "The Relay" in response.text
+
+
+def test_play_serves_app(client):
+    response = client.get("/play")
+    assert response.status_code == 200
+    assert "view-join" in response.text
+
+
+def test_explore_page_served(client):
+    response = client.get("/explore")
+    assert response.status_code == 200
+    for game_id in ("rewire", "sweep", "decant", "echo"):
+        assert game_id in response.text
 
 
 def test_static_assets_served(client):
@@ -93,6 +106,49 @@ def test_games_page_served(client):
     assert response.status_code == 200
     for name in ("REWIRE", "SWEEP", "DECANT", "ECHO"):
         assert name in response.text
+
+
+# --- Practice mode (/explore) ---
+
+def test_practice_new_puzzle_all_games(client):
+    for game_id in ("rewire", "sweep", "decant", "echo"):
+        for kind in ("main", "holding"):
+            response = client.post(f"/api/practice/{game_id}?kind={kind}")
+            assert response.status_code == 200, (game_id, kind)
+            body = response.json()
+            assert isinstance(body["seed"], int)
+            puzzle = body["puzzle"]
+            assert puzzle["game_id"] == game_id
+            assert puzzle["kind"] == kind
+            assert "answer" not in puzzle
+
+
+def test_practice_check_correct_and_wrong(client):
+    # ECHO's payload legitimately carries the sequence (documented exception),
+    # so the test can construct the right answer without server internals.
+    body = client.post("/api/practice/echo?kind=main").json()
+    right = ",".join(str(pad) for pad in body["puzzle"]["payload"]["sequence"])
+    check = {"seed": body["seed"], "kind": "main", "answer": right}
+    assert client.post("/api/practice/echo/check", json=check).json()["correct"] is True
+    check["answer"] = "not,a,sequence"
+    assert client.post("/api/practice/echo/check", json=check).json()["correct"] is False
+
+
+def test_practice_same_seed_regenerates_same_puzzle(client):
+    body = client.post("/api/practice/sweep?kind=main").json()
+    again = client.post("/api/practice/sweep?kind=main").json()
+    assert body["seed"] != again["seed"] or body["puzzle"]["payload"] == again["puzzle"]["payload"]
+    # Deterministic regeneration is what makes the stateless check sound: a
+    # wrong flag set for this seed must be judged against the same board.
+    check = {"seed": body["seed"], "kind": "main", "answer": "0,0"}
+    response = client.post("/api/practice/sweep/check", json=check)
+    assert response.status_code == 200
+    assert response.json()["correct"] is False
+
+
+def test_practice_rejects_unknown_game_and_kind(client):
+    assert client.post("/api/practice/tetris").status_code == 404
+    assert client.post("/api/practice/echo?kind=bogus").status_code == 400
 
 
 def test_get_config(client):

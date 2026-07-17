@@ -87,7 +87,7 @@
     });
     $("play-again").addEventListener("click", function () {
       clearSession();
-      window.location.href = "/";
+      window.location.href = "/play";
     });
 
     // Invite link (?match=CODE) routes straight to the join flow.
@@ -119,7 +119,7 @@
           session = { matchId: matchId, playerId: body.player.id, name: name };
           saveSession();
           try {
-            window.history.replaceState(null, "", "/?match=" + matchId);
+            window.history.replaceState(null, "", "/play?match=" + matchId);
           } catch (e) {}
           connect();
         });
@@ -296,7 +296,7 @@
   }
 
   $("copy-link") && $("copy-link").addEventListener("click", function () {
-    var link = window.location.origin + "/?match=" + (lastState ? lastState.id : "");
+    var link = window.location.origin + "/play?match=" + (lastState ? lastState.id : "");
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(link).then(function () { toast("Invite link copied!"); });
     } else {

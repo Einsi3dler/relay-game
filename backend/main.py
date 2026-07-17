@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import random
 import time
 from pathlib import Path
 
@@ -21,7 +22,7 @@ from pydantic import BaseModel
 from backend import config, protocol
 from backend.engine import EngineResult, RelayEngine
 from backend.models import Match
-from backend.registry import GameRegistry
+from backend.registry import REGISTERED_MODULES, GameRegistry
 from backend.state import InMemoryStateStore, MatchLocks
 from backend.timers import TimerService
 
@@ -167,20 +168,31 @@ class JoinBody(BaseModel):
     team_id: str | None = None
 
 
+def _serve_page(filename: str):
+    page = FRONTEND_DIR / filename
+    if page.exists():
+        return FileResponse(page)
+    return HTMLResponse(f"<h1>The Relay</h1><p>{filename} not found.</p>")
+
+
 @app.get("/", response_model=None)
-async def index():
-    index_file = FRONTEND_DIR / "index.html"
-    if index_file.exists():
-        return FileResponse(index_file)
-    return HTMLResponse("<h1>The Relay</h1><p>Frontend lands in Phase 5.</p>")
+async def landing():
+    return _serve_page("landing.html")
+
+
+@app.get("/play", response_model=None)
+async def play_app():
+    return _serve_page("index.html")
+
+
+@app.get("/explore", response_model=None)
+async def explore_page():
+    return _serve_page("explore.html")
 
 
 @app.get("/games", response_model=None)
 async def games_page():
-    games_file = FRONTEND_DIR / "games.html"
-    if games_file.exists():
-        return FileResponse(games_file)
-    return HTMLResponse("<h1>The Relay</h1><p>Game guide not found.</p>")
+    return _serve_page("games.html")
 
 
 @app.get("/api/config")
@@ -192,6 +204,43 @@ async def get_config() -> dict:
         "players_per_team": config.PLAYERS_PER_TEAM,
         "stage_count": config.STAGE_COUNT,
     }
+
+
+# --- Practice mode (/explore) ---
+# Stateless: the client keeps the seed and sends it back with the answer; the
+# server regenerates the (deterministic) puzzle to validate. Nothing is stored,
+# and `public()` still strips the answer from what the client sees.
+
+PRACTICE_MODULES = {module.id: module for module in REGISTERED_MODULES}
+
+
+class PracticeCheckBody(BaseModel):
+    seed: int
+    kind: str = "main"
+    answer: str
+
+
+def _practice_puzzle(game_id: str, kind: str, seed: int):
+    module = PRACTICE_MODULES.get(game_id)
+    if module is None:
+        raise HTTPException(status_code=404, detail=f"unknown game '{game_id}'")
+    if kind not in ("main", "holding"):
+        raise HTTPException(status_code=400, detail="kind must be 'main' or 'holding'")
+    generate = module.generate_main if kind == "main" else module.generate_holding
+    return module, generate(seed)
+
+
+@app.post("/api/practice/{game_id}")
+async def practice_new(game_id: str, kind: str = "main") -> dict:
+    seed = random.randrange(2**31)
+    _, puzzle = _practice_puzzle(game_id, kind, seed)
+    return {"seed": seed, "kind": kind, "puzzle": puzzle.public()}
+
+
+@app.post("/api/practice/{game_id}/check")
+async def practice_check(game_id: str, body: PracticeCheckBody) -> dict:
+    module, puzzle = _practice_puzzle(game_id, body.kind, body.seed)
+    return {"correct": module.check(puzzle, body.answer)}
 
 
 @app.post("/api/matches")
