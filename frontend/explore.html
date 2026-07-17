@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fffaf3">
+  <title>The Relay — Explore the games</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* explore.html only — shared styles live in style.css */
+    .game-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .game-tabs button {
+      flex: 1 1 20%; min-width: 110px; padding: 10px 8px; min-height: 46px;
+      font-weight: 800; font-size: 0.95rem; cursor: pointer;
+      border: 2px solid var(--line); background: var(--card); color: var(--muted);
+      border-radius: 12px; transition: transform 0.08s ease;
+    }
+    .game-tabs button:active { transform: scale(0.96); }
+    .game-tabs button.active { border-color: var(--violet); color: var(--violet); }
+    .kind-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .kind-row .label { font-weight: 700; font-size: 0.9rem; color: var(--muted); }
+    .kind-row button {
+      border: 2px solid var(--line); background: var(--card); color: var(--muted);
+      border-radius: 999px; font-weight: 800; font-size: 0.85rem;
+      padding: 6px 14px; cursor: pointer;
+    }
+    .kind-row button.active { border-color: var(--sun); color: var(--ink); background: var(--bg); }
+    .kind-row .spacer { flex: 1; }
+    .result-card { text-align: center; }
+    .result-card .big { font-size: 2.6rem; }
+    .result-card h2 { font-size: 1.3rem; margin: 6px 0; }
+    .solve-time { color: var(--muted); font-weight: 700; }
+    .practice-note { color: var(--muted); font-size: 0.85rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <span class="logo">🏁 The Relay</span>
+    <a href="/" class="chip" style="text-decoration:none">← Home</a>
+  </header>
+
+  <section class="view">
+    <div class="card">
+      <h1>🎮 Explore the games</h1>
+      <p class="sub">Solo practice — same puzzles, same server checking, no race pressure.
+        Wrong answers serve a fresh board, exactly like in a match.</p>
+      <div class="game-tabs" id="game-tabs">
+        <button data-game="rewire">⚡ REWIRE</button>
+        <button data-game="sweep">💣 SWEEP</button>
+        <button data-game="decant">🧪 DECANT</button>
+        <button data-game="echo">🔊 ECHO</button>
+      </div>
+      <div class="kind-row">
+        <span class="label">Puzzle type:</span>
+        <button id="kind-main" class="active">Main</button>
+        <button id="kind-holding">Holding (quick-fire)</button>
+        <span class="spacer"></span>
+        <button id="new-puzzle" class="mini-btn">🔄 New puzzle</button>
+      </div>
+    </div>
+
+    <div id="puzzle-card" class="card">
+      <p id="puzzle-prompt" class="prompt"></p>
+      <div id="puzzle-mount"></div>
+    </div>
+
+    <div id="result-card" class="card result-card" hidden>
+      <div class="big" id="result-big">🎉</div>
+      <h2 id="result-heading">Solved!</h2>
+      <p class="solve-time" id="result-time"></p>
+      <div class="team-pick">
+        <button id="again-btn" class="btn team-auto">Another one</button>
+      </div>
+    </div>
+
+    <p class="practice-note">Timings here are a good warm-up — in a real race the holding
+      questions are on a hard timer. <a href="/games" style="color:var(--violet);font-weight:700">Read the full rules</a>
+      or <a href="/play" style="color:var(--violet);font-weight:700">host a race</a>.</p>
+  </section>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/static/games/fallback.js" defer></script>
+  <script src="/static/games/rewire.js" defer></script>
+  <script src="/static/games/sweep.js" defer></script>
+  <script src="/static/games/decant.js" defer></script>
+  <script src="/static/games/echo.js" defer></script>
+  <script defer>
+    document.addEventListener("DOMContentLoaded", function () {
+      "use strict";
+      var $ = function (id) { return document.getElementById(id); };
+      var GAMES = ["rewire", "sweep", "decant", "echo"];
+
+      var current = { game: "rewire", kind: "main", seed: null, puzzle: null };
+      var mounted = null;
+      var startedAt = null;
+      var loading = false;
+
+      var param = new URLSearchParams(window.location.search).get("game");
+      if (GAMES.indexOf(param) !== -1) current.game = param;
+
+      function toast(message) {
+        var el = $("toast");
+        el.textContent = message;
+        el.hidden = false;
+        clearTimeout(el._t);
+        el._t = setTimeout(function () { el.hidden = true; }, 2600);
+      }
+
+      function unmount() {
+        if (mounted) { mounted.unmount(); mounted = null; }
+        $("puzzle-mount").innerHTML = "";
+      }
+
+      function syncControls() {
+        var tabs = $("game-tabs").querySelectorAll("button");
+        tabs.forEach(function (tab) {
+          tab.classList.toggle("active", tab.getAttribute("data-game") === current.game);
+        });
+        $("kind-main").classList.toggle("active", current.kind === "main");
+        $("kind-holding").classList.toggle("active", current.kind === "holding");
+      }
+
+      function loadPuzzle() {
+        if (loading) return;
+        loading = true;
+        $("result-card").hidden = true;
+        $("puzzle-card").hidden = false;
+        syncControls();
+        try {
+          window.history.replaceState(null, "", "/explore?game=" + current.game);
+        } catch (e) {}
+        fetch("/api/practice/" + current.game + "?kind=" + current.kind, { method: "POST" })
+          .then(function (r) {
+            if (!r.ok) throw new Error("Could not fetch a puzzle.");
+            return r.json();
+          })
+          .then(function (body) {
+            current.seed = body.seed;
+            current.puzzle = body.puzzle;
+            unmount();
+            $("puzzle-prompt").textContent = body.puzzle.prompt;
+            var renderer = window.RelayGames[body.puzzle.game_id] || window.RelayGames.fallback;
+            renderer.mount($("puzzle-mount"), body.puzzle, {
+              submit: submitAnswer,
+              setReady: function () {},
+            });
+            mounted = renderer;
+            startedAt = Date.now();
+          })
+          .catch(function (error) { toast("😵 " + error.message); })
+          .finally(function () { loading = false; });
+      }
+
+      function submitAnswer(answer) {
+        var elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+        fetch("/api/practice/" + current.game + "/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seed: current.seed, kind: current.kind, answer: String(answer) }),
+        })
+          .then(function (r) {
+            if (!r.ok) throw new Error("Could not check the answer.");
+            return r.json();
+          })
+          .then(function (body) {
+            if (body.correct) {
+              unmount();
+              $("puzzle-card").hidden = true;
+              $("result-card").hidden = false;
+              $("result-big").textContent = ["🎉", "🙌", "🔥", "🏆", "💪"][Math.floor(Math.random() * 5)];
+              $("result-heading").textContent = "Solved!";
+              $("result-time").textContent = "⏱️ " + elapsed + "s — in a race you'd be green now.";
+            } else {
+              // Same rule as a real match: a wrong answer serves a fresh board.
+              toast("❌ Not quite — here's a fresh board!");
+              loadPuzzle();
+            }
+          })
+          .catch(function (error) { toast("😵 " + error.message); });
+      }
+
+      $("game-tabs").addEventListener("click", function (e) {
+        var game = e.target.getAttribute && e.target.getAttribute("data-game");
+        if (!game || game === current.game) return;
+        current.game = game;
+        loadPuzzle();
+      });
+      $("kind-main").addEventListener("click", function () {
+        if (current.kind === "main") return;
+        current.kind = "main";
+        loadPuzzle();
+      });
+      $("kind-holding").addEventListener("click", function () {
+        if (current.kind === "holding") return;
+        current.kind = "holding";
+        loadPuzzle();
+      });
+      $("new-puzzle").addEventListener("click", loadPuzzle);
+      $("again-btn").addEventListener("click", loadPuzzle);
+
+      loadPuzzle();
+    });
+  </script>
+</body>
+</html>
