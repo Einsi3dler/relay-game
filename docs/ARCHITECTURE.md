@@ -193,7 +193,8 @@ frontend/
   games/
     registry.js     # optional helper; renderers self-register on window.RelayGames
     rewire.js       # owned by Game 1 dev
-    mirror_run.js   # owned by Game 2 dev
+    sweep.js        # owned by Game 2 dev
+    mirror_run.js   # owned by Game 5 dev
     decant.js       # owned by Game 3 dev
     echo.js         # owned by Game 4 dev
     fallback.js     # text / multiple-choice (shell/Frontend owner)

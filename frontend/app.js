@@ -441,7 +441,7 @@
     $("result-emoji").textContent = won ? "🏆🎉" : "😵💨";
     $("result-title").textContent = won ? "You won!" : "You lost!";
     $("result-sub").textContent =
-      "Team " + state.teams[state.winner_team_id].name + " cleared all four games first.";
+      "Team " + state.teams[state.winner_team_id].name + " cleared all five games first.";
   }
 
   // --- boot ---

@@ -15,8 +15,9 @@
     }
     .stage-1 { background: var(--sun); }
     .stage-2 { background: var(--violet); }
-    .stage-3 { background: var(--bravo); }
-    .stage-4 { background: var(--alpha); }
+    .stage-3 { background: var(--green); }
+    .stage-4 { background: var(--bravo); }
+    .stage-5 { background: var(--alpha); }
     .cat { color: var(--muted); font-weight: 700; font-size: 0.85rem; margin: 0 0 10px; }
     .game-card h3 { margin: 14px 0 4px; font-size: 0.95rem; }
     .game-card p, .game-card li { margin: 0 0 6px; font-size: 0.95rem; }
@@ -36,13 +37,13 @@
 
   <section class="view card flow">
     <h1>How a race works</h1>
-    <p class="sub">Two teams of four race through four stages. Each stage is a different game.</p>
+    <p class="sub">Two teams of four race through five stages. Each stage is a different game.</p>
     <ol>
       <li><strong>Solve your puzzle</strong> — everyone on your team gets their <em>own</em> board. Solving it turns you <strong style="color:var(--green)">green</strong>.</li>
       <li><strong>Rest</strong> — after going green you get a short breather (<span data-config="rest_seconds">15</span>s).</li>
       <li><strong>Holding questions</strong> — if your rest runs out before the whole team is green, you get quick-fire mini-puzzles (<span data-config="holding_seconds">20</span>s each). Answer right to stay green; answer wrong (or too slow) and you <strong>lose green</strong> and get a fresh main puzzle.</li>
       <li><strong>Advance together</strong> — the moment all four of you are green, the team jumps to the next stage.</li>
-      <li><strong>Win</strong> — first team through Stage 4 takes the race.</li>
+      <li><strong>Win</strong> — first team through Stage 5 takes the race.</li>
     </ol>
     <p class="tip">💡 A wrong answer on your main puzzle never costs you anything except time — you just get a fresh board. Speed <em>and</em> steadiness win relays.</p>
   </section>
@@ -63,7 +64,22 @@
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-2">Stage 2</span> 🪞 MIRROR RUN</h2>
+    <h2><span class="stage-chip stage-2">Stage 2</span> 💣 SWEEP</h2>
+    <p class="cat">Logical · deduction</p>
+    <h3>What you see</h3>
+    <p>A 6×6 minesweeper board hiding 6 mines, with a safe opening region already revealed. Every number counts the mines in its eight neighbours.</p>
+    <h3>How to play</h3>
+    <ul>
+      <li>Tap a cell you've deduced is <strong>safe</strong> to reveal it.</li>
+      <li>Right-click (or long-press on touch) a cell you've deduced is a <strong>mine</strong> to flag it.</li>
+      <li>Flag all 6 mines, then submit. Revealing a mine is an instant 💥 — you get a fresh board.</li>
+    </ul>
+    <p class="sizes">Main: 6×6, 6 mines · Holding: 3×3, 1 mine</p>
+    <p class="tip">💡 Every board is solvable with pure logic — no guessing is ever required. If you're guessing, there's a deduction you haven't spotted.</p>
+  </section>
+
+  <section class="view card game-card">
+    <h2><span class="stage-chip stage-3">Stage 3</span> 🪞 MIRROR RUN</h2>
     <p class="cat">Divided attention · mazes</p>
     <h3>What you see</h3>
     <p>Two small mazes side by side, each with a runner and a flagged exit. A badge between them tells you how Runner B twists your controls — mirrored, rotated, or fully inverted.</p>
@@ -79,7 +95,7 @@
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-3">Stage 3</span> 🧪 DECANT</h2>
+    <h2><span class="stage-chip stage-4">Stage 4</span> 🧪 DECANT</h2>
     <p class="cat">Sorting · planning</p>
     <h3>What you see</h3>
     <p>Six tubes holding stacks of four colours (plus empties), each tube holding up to four segments.</p>
@@ -94,7 +110,7 @@
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-4">Stage 4</span> 🔊 ECHO</h2>
+    <h2><span class="stage-chip stage-5">Stage 5</span> 🔊 ECHO</h2>
     <p class="cat">Reflex / memory</p>
     <h3>What you see</h3>
     <p>A 3×3 grid of pads. They flash one at a time in a sequence of five — and the sequence plays <strong>only once</strong>.</p>

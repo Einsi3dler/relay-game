@@ -11,6 +11,7 @@ from typing import Iterable, Sequence
 from backend import config
 from backend.games.base import GameModule
 from backend.games.game1_rewire import RewireGame
+from backend.games.game2_sweep import SweepGame
 from backend.games.game3_decant import DecantGame
 from backend.games.game4_echo import EchoGame
 from backend.games.game5_mirror_run import MirrorRunGame
@@ -19,6 +20,7 @@ from backend.games.game5_mirror_run import MirrorRunGame
 # sanctioned one-line edit, alongside their id in config.GAME_ORDER).
 REGISTERED_MODULES: list[GameModule] = [
     RewireGame(),
+    SweepGame(),
     MirrorRunGame(),
     DecantGame(),
     EchoGame(),

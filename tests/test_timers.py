@@ -5,6 +5,9 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
+from backend import config
 from backend.engine import EngineResult, RelayEngine, TimerRequest
 from backend.registry import GameRegistry
 from backend.state import MatchLocks
@@ -15,6 +18,12 @@ from tests.test_engine import MAIN_OK, ORDER, FakeGame
 
 def in_ms(ms: float) -> str:
     return (datetime.now(timezone.utc) + timedelta(milliseconds=ms)).isoformat()
+
+
+@pytest.fixture(autouse=True)
+def four_stage_matches(monkeypatch):
+    # Fake matches are 4 stages regardless of the real roster size.
+    monkeypatch.setattr(config, "STAGE_COUNT", len(ORDER))
 
 
 def make_engine() -> RelayEngine:

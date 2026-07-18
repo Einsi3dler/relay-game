@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#fffaf3">
-  <title>The Relay — the four-game team race</title>
+  <title>The Relay — the five-game team race</title>
   <link rel="stylesheet" href="/static/style.css">
   <style>
     /* landing.html only — shared styles live in style.css */
@@ -36,6 +36,7 @@
     .float.f2 { right: 8%; top: 12%; animation-delay: 0.6s; }
     .float.f3 { left: 14%; bottom: 8%; animation-delay: 1.1s; }
     .float.f4 { right: 14%; bottom: 14%; animation-delay: 1.7s; }
+    .float.f5 { left: 48%; top: 6%;  animation-delay: 2.2s; }
     @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-14px) rotate(6deg); } }
     @media (prefers-reduced-motion: reduce) { .float, .runner { animation: none !important; } }
 
@@ -75,8 +76,9 @@
     .game-tile:hover { transform: translateY(-4px) rotate(-0.5deg); box-shadow: 0 10px 24px rgba(43,43,51,0.14); }
     .game-tile.g1 { border-top-color: var(--sun); }
     .game-tile.g2 { border-top-color: var(--violet); }
-    .game-tile.g3 { border-top-color: var(--bravo); }
-    .game-tile.g4 { border-top-color: var(--alpha); }
+    .game-tile.g3 { border-top-color: var(--green); }
+    .game-tile.g4 { border-top-color: var(--bravo); }
+    .game-tile.g5 { border-top-color: var(--alpha); }
     .game-tile .emoji { font-size: 2.4rem; }
     .game-tile h3 { margin: 6px 0 2px; font-size: 1.15rem; }
     .game-tile .kind { color: var(--muted); font-weight: 700; font-size: 0.8rem; margin: 0 0 8px; }
@@ -135,11 +137,12 @@
     <span class="float f2">💣</span>
     <span class="float f3">🧪</span>
     <span class="float f4">🔊</span>
+    <span class="float f5">🪞</span>
     <h1>The Relay</h1>
-    <p class="tag">Four games. Two teams. One frantic race.</p>
-    <p class="sub">Grab three friends, face off against a rival team of four, and sprint through four
+    <p class="tag">Five games. Two teams. One frantic race.</p>
+    <p class="sub">Grab three friends, face off against a rival team of four, and sprint through five
       mini-games — you only advance when <em>everyone</em> on your team goes green. First team through
-      Stage&nbsp;4 wins the bragging rights.</p>
+      Stage&nbsp;5 wins the bragging rights.</p>
     <div class="hero-ctas">
       <a href="/play" class="btn team-auto" style="text-decoration:none">🚦 Host a race</a>
       <a href="/explore" class="btn ghost" style="text-decoration:none">🎮 Try the games solo</a>
@@ -174,12 +177,12 @@
         <span class="step-n">4</span>
         <div class="big">🚀</div>
         <h3>Advance together</h3>
-        <p>All four green → next stage. First team through Stage 4 wins.</p>
+        <p>All four green → next stage. First team through Stage 5 wins.</p>
       </div>
     </div>
   </section>
 
-  <h2 class="section-title">Meet the four games</h2>
+  <h2 class="section-title">Meet the five games</h2>
   <p class="section-sub">Play any of them right now, solo, no signup — just to get a feel.</p>
   <section class="view wide">
     <div class="games-grid">
@@ -195,6 +198,16 @@
       </div>
       <div class="card game-tile g2">
         <span class="stage-num">STAGE 2</span>
+        <div class="emoji">💣</div>
+        <h3>SWEEP</h3>
+        <p class="kind">Logical · deduction</p>
+        <p class="blurb">Pure-logic minesweeper: read the numbers, flag every mine, never guess.</p>
+        <div class="actions">
+          <a class="btn team-auto" href="/explore?game=sweep">▶ Try it</a>
+        </div>
+      </div>
+      <div class="card game-tile g3">
+        <span class="stage-num">STAGE 3</span>
         <div class="emoji">🪞</div>
         <h3>MIRROR RUN</h3>
         <p class="kind">Divided attention · mazes</p>
@@ -203,8 +216,8 @@
           <a class="btn team-auto" href="/explore?game=mirror_run">▶ Try it</a>
         </div>
       </div>
-      <div class="card game-tile g3">
-        <span class="stage-num">STAGE 3</span>
+      <div class="card game-tile g4">
+        <span class="stage-num">STAGE 4</span>
         <div class="emoji">🧪</div>
         <h3>DECANT</h3>
         <p class="kind">Sorting · planning</p>
@@ -213,8 +226,8 @@
           <a class="btn team-auto" href="/explore?game=decant">▶ Try it</a>
         </div>
       </div>
-      <div class="card game-tile g4">
-        <span class="stage-num">STAGE 4</span>
+      <div class="card game-tile g5">
+        <span class="stage-num">STAGE 5</span>
         <div class="emoji">🔊</div>
         <h3>ECHO</h3>
         <p class="kind">Reflex · memory</p>

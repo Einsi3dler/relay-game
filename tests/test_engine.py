@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from backend import config
 from backend.engine import RelayEngine
 from backend.games.base import PuzzleInstance
 from backend.models import Match, green
@@ -45,7 +46,10 @@ ORDER = ["g1", "g2", "g3", "g4"]
 
 
 @pytest.fixture
-def engine() -> RelayEngine:
+def engine(monkeypatch) -> RelayEngine:
+    # Fake matches are 4 stages regardless of the real roster size, so the
+    # scripted win-on-stage-4 flows stay stable as real games are added.
+    monkeypatch.setattr(config, "STAGE_COUNT", len(ORDER))
     registry = GameRegistry(
         modules=[FakeGame(game_id) for game_id in ORDER], game_order=ORDER
     )

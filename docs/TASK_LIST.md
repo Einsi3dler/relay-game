@@ -136,7 +136,7 @@ Status boxes are for you to tick in PRs.
 ## Phase 4 — The four games (parallel)  ·  owners: [G1][G2][G3][G4]  ·  depends: T1.3 (`games/base.py`)
 
 > The four MVP games are fully specified in [GAMES_SPEC.md](GAMES_SPEC.md):
-> **G1 = REWIRE** (puzzle), **G2 = MIRROR RUN** (divided attention; replaced SWEEP), **G3 = DECANT** (sorting),
+> **G1 = REWIRE** (puzzle), **G2 = SWEEP** (logical), **G3 = DECANT** (sorting),
 > **G4 = ECHO** (reflex/memory). They are **action** games, so each owner delivers
 > **both** a backend module and a frontend renderer. Games are independent of each
 > other and of the engine — build and test the module with **no server running**.
@@ -165,7 +165,7 @@ For **each** of Game 1–4 (`[G1]`…`[G4]`):
   [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §8 **plus** the game-specific cases in
   [GAMES_SPEC.md](GAMES_SPEC.md) "Per-game deliverables", in
   `tests/games/test_gameN_<name>.py`. **AC:** all pass, including no-solution-leak
-  (documented exception: ECHO's `sequence`) and
+  (documented exceptions: ECHO's `sequence`, SWEEP's `clues` grid) and
   solvable-board.
 - [ ] **T4.x.5 Playtest note** — record rough solve times for main & holding in your
   PR so Core can tune `REST_SECONDS`/`HOLDING_SECONDS`. **AC:** main ≈ 15–40s,
@@ -256,7 +256,7 @@ or pair on Core. It's a starting point, not a fence.
 | --- | --- | --- |
 | **[C]** Core | Phase 0 → 1 → 2 → 3 (unblocks everyone) | If solo-heavy, Core can also take a game or two after Phase 3. |
 | **[G1]** REWIRE (puzzle) | Read specs, then T4.1.* once `games/base.py` lands (T1.3) | Any game dev can hold 2 games. |
-| **[G2]** MIRROR RUN (divided attention) | same, T4.2.* | " |
+| **[G2]** SWEEP (logical) | same, T4.2.* | " |
 | **[G3]** DECANT (sorting) | same, T4.3.* | " |
 | **[G4]** ECHO (reflex/memory) | same, T4.4.* | " |
 | **[F]** Frontend | Stub against [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md), then T5.* | Split T5.1–T5.5 across two people, or fold into Core if needed. |

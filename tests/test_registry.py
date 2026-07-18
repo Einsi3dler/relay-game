@@ -28,7 +28,7 @@ class FakeGame:
         self.reset_calls += 1
 
 
-ORDER = ["rewire", "mirror_run", "decant", "echo"]
+ORDER = ["rewire", "sweep", "mirror_run", "decant", "echo"]
 
 
 def make_registry() -> tuple[GameRegistry, list[FakeGame]]:
@@ -45,7 +45,7 @@ def test_for_stage_returns_right_module_per_stage():
 def test_for_stage_out_of_range_raises():
     registry, _ = make_registry()
     with pytest.raises(ValueError):
-        registry.for_stage(5)
+        registry.for_stage(len(ORDER) + 1)
     with pytest.raises(ValueError):
         registry.for_stage(0)
 
@@ -59,7 +59,7 @@ def test_unregistered_game_id_raises_keyerror():
 def test_reset_all_resets_every_module():
     registry, games = make_registry()
     registry.reset_all()
-    assert [game.reset_calls for game in games] == [1, 1, 1, 1]
+    assert [game.reset_calls for game in games] == [1] * len(ORDER)
 
 
 def test_defaults_come_from_config():

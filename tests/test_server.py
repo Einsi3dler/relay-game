@@ -31,6 +31,8 @@ def fake_games(monkeypatch):
     )
     monkeypatch.setattr(server.engine, "registry", registry)
     monkeypatch.setattr(config, "SUBMIT_MIN_INTERVAL_MS", 0)
+    # Fake matches are 4 stages regardless of the real roster size.
+    monkeypatch.setattr(config, "STAGE_COUNT", len(ORDER))
 
 
 def create_match(client) -> str:
@@ -92,7 +94,7 @@ def test_play_serves_app(client):
 def test_explore_page_served(client):
     response = client.get("/explore")
     assert response.status_code == 200
-    for game_id in ("rewire", "mirror_run", "decant", "echo"):
+    for game_id in ("rewire", "sweep", "mirror_run", "decant", "echo"):
         assert game_id in response.text
 
 
@@ -111,7 +113,7 @@ def test_games_page_served(client):
 # --- Practice mode (/explore) ---
 
 def test_practice_new_puzzle_all_games(client):
-    for game_id in ("rewire", "mirror_run", "decant", "echo"):
+    for game_id in ("rewire", "sweep", "mirror_run", "decant", "echo"):
         for kind in ("main", "holding"):
             response = client.post(f"/api/practice/{game_id}?kind={kind}")
             assert response.status_code == 200, (game_id, kind)
@@ -336,10 +338,10 @@ def test_snapshots_never_contain_answers_real_games(client):
         assert team["green_count"] == greens
 
 
-def test_real_registry_covers_all_four_stages():
+def test_real_registry_covers_all_five_stages():
     registry = GameRegistry()
-    assert [registry.for_stage(n).id for n in (1, 2, 3, 4)] == [
-        "rewire", "mirror_run", "decant", "echo",
+    assert [registry.for_stage(n).id for n in (1, 2, 3, 4, 5)] == [
+        "rewire", "sweep", "mirror_run", "decant", "echo",
     ]
 
 
