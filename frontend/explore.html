@@ -46,7 +46,7 @@
         Wrong answers serve a fresh board, exactly like in a match.</p>
       <div class="game-tabs" id="game-tabs">
         <button data-game="rewire">⚡ REWIRE</button>
-        <button data-game="sweep">💣 SWEEP</button>
+        <button data-game="mirror_run">🪞 MIRROR RUN</button>
         <button data-game="decant">🧪 DECANT</button>
         <button data-game="echo">🔊 ECHO</button>
       </div>
@@ -82,14 +82,14 @@
 
   <script src="/static/games/fallback.js" defer></script>
   <script src="/static/games/rewire.js" defer></script>
-  <script src="/static/games/sweep.js" defer></script>
+  <script src="/static/games/mirror_run.js" defer></script>
   <script src="/static/games/decant.js?v=3" defer></script>
   <script src="/static/games/echo.js" defer></script>
   <script defer>
     document.addEventListener("DOMContentLoaded", function () {
       "use strict";
       var $ = function (id) { return document.getElementById(id); };
-      var GAMES = ["rewire", "sweep", "decant", "echo"];
+      var GAMES = ["rewire", "mirror_run", "decant", "echo"];
 
       var current = { game: "rewire", kind: "main", seed: null, puzzle: null };
       var mounted = null;

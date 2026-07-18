@@ -85,8 +85,8 @@ WHILE a team has not advanced:
   ── Player answers main puzzle incorrectly ───────────────────────────
      stays solving, but is assigned a FRESH main puzzle (new seed).
      (MVP: unlimited attempts, no other penalty. A fresh instance per
-     attempt keeps retry fair for state-revealing games — a failed SWEEP
-     board or a watched ECHO sequence must not be retried. Optional
+     attempt keeps retry fair for state-revealing games — a watched ECHO
+     sequence or a studied MIRROR RUN maze must not be retried. Optional
      attempt cap is a stretch goal, see §8.)
 
   ── REST timer expires for a resting player ──────────────────────────

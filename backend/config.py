@@ -24,7 +24,7 @@ MATCH_TTL_SECONDS = 1800         # evict finished/idle matches after this long
 # Game module id per stage (index 0 = Stage 1). Registered per T4.x.3.
 GAME_ORDER: list[str] = [
     "rewire",
-    "sweep",
+    "mirror_run",
     "decant",
     "echo",
 ]

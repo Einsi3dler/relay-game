@@ -92,7 +92,7 @@ def test_play_serves_app(client):
 def test_explore_page_served(client):
     response = client.get("/explore")
     assert response.status_code == 200
-    for game_id in ("rewire", "sweep", "decant", "echo"):
+    for game_id in ("rewire", "mirror_run", "decant", "echo"):
         assert game_id in response.text
 
 
@@ -104,14 +104,14 @@ def test_static_assets_served(client):
 def test_games_page_served(client):
     response = client.get("/games")
     assert response.status_code == 200
-    for name in ("REWIRE", "SWEEP", "DECANT", "ECHO"):
+    for name in ("REWIRE", "MIRROR RUN", "DECANT", "ECHO"):
         assert name in response.text
 
 
 # --- Practice mode (/explore) ---
 
 def test_practice_new_puzzle_all_games(client):
-    for game_id in ("rewire", "sweep", "decant", "echo"):
+    for game_id in ("rewire", "mirror_run", "decant", "echo"):
         for kind in ("main", "holding"):
             response = client.post(f"/api/practice/{game_id}?kind={kind}")
             assert response.status_code == 200, (game_id, kind)
@@ -135,13 +135,13 @@ def test_practice_check_correct_and_wrong(client):
 
 
 def test_practice_same_seed_regenerates_same_puzzle(client):
-    body = client.post("/api/practice/sweep?kind=main").json()
-    again = client.post("/api/practice/sweep?kind=main").json()
+    body = client.post("/api/practice/decant?kind=main").json()
+    again = client.post("/api/practice/decant?kind=main").json()
     assert body["seed"] != again["seed"] or body["puzzle"]["payload"] == again["puzzle"]["payload"]
     # Deterministic regeneration is what makes the stateless check sound: a
-    # wrong flag set for this seed must be judged against the same board.
-    check = {"seed": body["seed"], "kind": "main", "answer": "0,0"}
-    response = client.post("/api/practice/sweep/check", json=check)
+    # wrong move list for this seed must be judged against the same board.
+    check = {"seed": body["seed"], "kind": "main", "answer": "0>1"}
+    response = client.post("/api/practice/decant/check", json=check)
     assert response.status_code == 200
     assert response.json()["correct"] is False
 
@@ -339,7 +339,7 @@ def test_snapshots_never_contain_answers_real_games(client):
 def test_real_registry_covers_all_four_stages():
     registry = GameRegistry()
     assert [registry.for_stage(n).id for n in (1, 2, 3, 4)] == [
-        "rewire", "sweep", "decant", "echo",
+        "rewire", "mirror_run", "decant", "echo",
     ]
 
 
