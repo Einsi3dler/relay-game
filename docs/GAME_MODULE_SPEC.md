@@ -110,11 +110,9 @@ class GameModule(Protocol):
 3. **No answer leakage:** `public()` strips `PuzzleInstance.answer`. The `payload`
    may carry the puzzle **state** needed to render it (a board, tubes, clues) — that
    is not leakage — but it must **not** carry the *solution* (the correct rotations,
-   the pour sequence). There are exactly **two sanctioned exceptions**, each
-   documented in [GAMES_SPEC.md](GAMES_SPEC.md) with its threat model: ECHO's flash
-   `sequence` (the content *is* the solution and must be sent to be animated) and
-   SWEEP's full `clues` grid (needed for client-side reveals; mines are derivable
-   as its complement). If in doubt, keep the solution server-side and **recompute**
+   the pour sequence). There is exactly **one sanctioned exception**, documented in
+   [GAMES_SPEC.md](GAMES_SPEC.md) with its threat model: ECHO's flash `sequence`
+   (the content *is* the solution and must be sent to be animated). If in doubt, keep the solution server-side and **recompute**
    in `check`.
 4. **No engine/other-game imports.** Import only from `backend.games.base` (and the
    stdlib). You do not know or care about teams, timers, or statuses.
@@ -238,8 +236,8 @@ Put them in `tests/games/test_gameN_<name>.py`. Minimum bar:
    casing/whitespace, e.g. `check(p, f"  {p.answer.upper()} ")` is `True`).
 4. **Wrong answer fails:** `check(p, "definitely-wrong")` is `False`.
 5. **No answer leakage:** `p.answer` (normalised) is **not** a substring of
-   `p.public()` serialised to text. (Documented exceptions — ECHO's `sequence`,
-   SWEEP's `clues` grid — assert their documented shape instead; see
+   `p.public()` serialised to text. (Documented exception — ECHO's `sequence`
+   — assert its documented shape instead; see
    [GAMES_SPEC.md](GAMES_SPEC.md).)
 6. **Holding is quick:** `generate_holding` returns `kind="holding"` and a puzzle;
    same determinism/correctness checks.
@@ -255,7 +253,7 @@ that document is the gameplay / validation / anti-cheat truth for each. Keep the
 | Stage | Game | Category | Owner |
 | --- | --- | --- | --- |
 | 1 | **REWIRE** — rotate tiles to route power from source to sinks | Puzzle | [G1] |
-| 2 | **SWEEP** — flag every mine from the number clues | Logical | [G2] |
+| 2 | **MIRROR RUN** — steer two runners, one with twisted controls, onto both exits | Divided attention | [G2] |
 | 3 | **DECANT** — pour colours between tubes until each is uniform | Sorting | [G3] |
 | 4 | **ECHO** — watch the flash sequence, repeat it by tapping | Reflex/Memory | [G4] |
 

@@ -28,7 +28,7 @@ class FakeGame:
         self.reset_calls += 1
 
 
-ORDER = ["rewire", "sweep", "decant", "echo"]
+ORDER = ["rewire", "mirror_run", "decant", "echo"]
 
 
 def make_registry() -> tuple[GameRegistry, list[FakeGame]]:

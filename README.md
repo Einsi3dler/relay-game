@@ -36,7 +36,7 @@ the relay.
 | Doc | What it covers |
 | --- | --- |
 | [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) | The rules: relay loop, green status, timers, win condition. Read first. |
-| [docs/GAMES_SPEC.md](docs/GAMES_SPEC.md) | **The four games** (REWIRE / SWEEP / DECANT / ECHO): rules, generation, validation, anti-cheat. |
+| [docs/GAMES_SPEC.md](docs/GAMES_SPEC.md) | **The four games** (REWIRE / MIRROR RUN / DECANT / ECHO): rules, generation, validation, anti-cheat. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the system is built: backend engine, state, timers, frontend. |
 | [docs/GAME_MODULE_SPEC.md](docs/GAME_MODULE_SPEC.md) | **The contract every game must implement** (incl. action-game renderer interface). |
 | [docs/WEBSOCKET_PROTOCOL.md](docs/WEBSOCKET_PROTOCOL.md) | Every client↔server message and the state snapshot schema. |

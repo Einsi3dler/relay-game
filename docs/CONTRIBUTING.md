@@ -38,7 +38,7 @@ things at once?".)
 | --- | --- | --- |
 | **Core / Engine** | Rules, timers, state, protocol | `backend/config.py`, `models.py`, `state.py`, `engine.py`, `timers.py`, `registry.py`, `protocol.py`, `main.py`, `games/base.py` |
 | **Game 1 — REWIRE** | Stage-1 game (module + renderer) | `backend/games/game1_*.py`, `frontend/games/rewire.js`, `tests/games/test_game1_*.py` |
-| **Game 2 — SWEEP** | Stage-2 game (module + renderer) | `backend/games/game2_*.py`, `frontend/games/sweep.js`, `tests/games/test_game2_*.py` |
+| **Game 2 — MIRROR RUN** | Stage-2 game (module + renderer) | `backend/games/game5_mirror_run.py`, `frontend/games/mirror_run.js`, `tests/games/test_game5_*.py` |
 | **Game 3 — DECANT** | Stage-3 game (module + renderer) | `backend/games/game3_*.py`, `frontend/games/decant.js`, `tests/games/test_game3_*.py` |
 | **Game 4 — ECHO** | Stage-4 game (module + renderer) | `backend/games/game4_*.py`, `frontend/games/echo.js`, `tests/games/test_game4_*.py` |
 | **Frontend** | App shell + renderer registry + fallback | `frontend/index.html`, `frontend/app.js`, `frontend/styles.css`, `frontend/games/registry.js`, `frontend/games/fallback.js` |
