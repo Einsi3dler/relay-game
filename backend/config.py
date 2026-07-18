@@ -14,7 +14,7 @@ MAIN_PUZZLE_SECONDS = 0      # main-puzzle time limit (0 = none in the MVP)
 # --- Teams & stages ---
 PLAYERS_PER_TEAM = 4
 MIN_PLAYERS_PER_TEAM = 4     # both teams need this many players to start
-STAGE_COUNT = 4
+STAGE_COUNT = 5
 TEAM_IDS = ("alpha", "bravo")
 
 # --- Server behaviour ---
@@ -24,6 +24,7 @@ MATCH_TTL_SECONDS = 1800         # evict finished/idle matches after this long
 # Game module id per stage (index 0 = Stage 1). Registered per T4.x.3.
 GAME_ORDER: list[str] = [
     "rewire",
+    "sweep",
     "mirror_run",
     "decant",
     "echo",

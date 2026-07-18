@@ -71,7 +71,7 @@ Rules:
   type hints). Keep functions small and pure where you can.
 - **All timers, team size, and stage config live in one config module**
   (`backend/config.py`) — no magic numbers scattered in the engine. Defaults:
-  `REST_SECONDS = 15`, `PLAYERS_PER_TEAM = 4`, `STAGE_COUNT = 4`.
+  `REST_SECONDS = 15`, `PLAYERS_PER_TEAM = 4`, `STAGE_COUNT = 5`.
 - Every new engine rule and every game module ships with **pytest tests**. A PR
   that changes gameplay without a test will be sent back.
 

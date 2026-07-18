@@ -1,6 +1,6 @@
-# The Relay — The Four Games (detailed spec)
+# The Relay — The Five Games (detailed spec)
 
-The concrete design for the four MVP games. Each game owner ([G1]–[G4]) builds one
+The concrete design for the five active games. Stage order (config.GAME_ORDER): REWIRE → SWEEP → MIRROR RUN → DECANT → ECHO. Each game owner ([G1]–[G4]) builds one
 of these against the [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) contract. This
 document is the **gameplay + validation + anti-cheat** truth for each game; the
 module spec is the **code interface**.
@@ -40,8 +40,8 @@ Every game obeys these rules:
 5. **Server-authoritative validation.** The server never trusts a "yes I solved it"
    flag; it **replays/recomputes** correctness from the submitted interaction (§ per
    game). The client cannot fake a win.
-6. **Submission rate limit.** Some answer spaces are tiny (ECHO holding: 64
-   candidates) and a wrong main answer costs nothing beyond a
+6. **Submission rate limit.** Some answer spaces are tiny (SWEEP holding: 9
+   candidates; ECHO holding: 64) and a wrong main answer costs nothing beyond a
    fresh board, so the server enforces a minimum interval between submissions per
    player (`SUBMIT_MIN_INTERVAL_MS`, default 300, in `backend/config.py`). A
    too-fast submission gets an `error` and is ignored. This closes scripted
@@ -168,44 +168,97 @@ unpowered are allowed. Reject submissions that don't cover every cell.
 
 ---
 
-# Game 2 — MIRROR RUN  ·  Divided attention  ·  owner [G2]
-
-> Replaced **SWEEP** (minesweeper) in July 2026. The full prescriptive spec for
-> MIRROR RUN lives in [`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md) §1
-> — that document is the source of truth; this section is the summary.
+# Game 2 — SWEEP  ·  Logical  ·  owner [G2]
 
 ### One-liner
-Steer **two runners through two mazes at once** with one set of controls —
-Runner B interprets every command through a visible transformation
-(mirror, rotate, or invert).
+Classic minesweeper deduction: from the revealed number clues, **flag every mine**
+without detonating one.
 
 ### Skills
-Divided attention, spatial transformation, planning.
+Logical deduction, constraint reasoning, careful reading of state.
 
-### Rules (summary)
-- One command (U/R/D/L) moves **both** runners in the same turn; B applies the
-  puzzle's fixed mapping first (`mirror_x`, `mirror_y`, `rotate_cw`,
-  `rotate_ccw`, `invert`).
-- A runner whose move would hit a wall or leave the board **stays still** —
-  legal, and the key trick for de-synchronising the runners.
-- Solved only when **both** runners occupy their own exits after the same turn.
+### What the player sees & does
+A small grid (e.g. **6×6 with 6 mines**) with an **opening safe region already
+revealed** (numbers showing adjacent-mine counts). The player **left-clicks to
+reveal** a cell they've deduced is safe and **right-clicks / long-press to flag** a
+cell they've deduced is a mine. Solve = all mines flagged (equivalently, all safe
+cells revealed).
+
+### Rules
+- A revealed number = count of mines in the 8 neighbours.
+- Revealing a mine = **instant fail of this attempt** — the client submits the
+  `"BOOM"` sentinel, `check` returns `False`, and the normal wrong-answer rule
+  ([GAME_DESIGN.md](GAME_DESIGN.md) §4) serves a **fresh board**.
+- The board is generated to be **logically solvable with no guessing** from the
+  opening.
+
+### Procedural generation (seeded, no-guess)
+1. Place `mines` from `seed`. Pick an opening cell with a 0-count and flood its
+   zero-region as the initial reveal.
+2. Run a **deducibility check**: a simple solver applying (a) "a satisfied number
+   flags its remaining neighbours" and (b) subset elimination between adjacent
+   number constraints. If the board is *not* fully solvable without guessing, **re-roll
+   the seed** and retry (cap ~50 tries; log and fall back to an easier board).
+3. (Stretch) difficulty scaling: grid size (5×5 → 7×7) and mine density. For the
+   MVP, use the fixed sizes below.
+
+> If no-guess generation proves too costly, an acceptable MVP fallback is **Lights
+> Out** (toggle cells to turn all lights off) with identical contract shape — but
+> ship SWEEP if you can; it is the stronger "logical" game. Coordinate with Core
+> before switching.
 
 ### Main vs Holding
-- **Main:** two 6×6 mazes, shortest solution 10–18 moves, move cap 30.
-- **Holding:** two 4×4 mazes, 3–6 moves, simple mapping only, move cap 10.
+- **Main:** 6×6, 6 mines.
+- **Holding:** 3×3, 1 mine, opening reveal makes the mine trivially deducible.
 
-### Generation & validation
-Product-state `(posA, posB)` BFS proves solvability and shortest-path depth;
-boards are re-rolled until the depth band is met and **both** boards matter
-(each runner moves on ≥40% of a shortest path). `check` parses
-`{"v":1,"moves":"URDL..."}`, replays every command server-side, and accepts
-only if both final positions equal the exits. A reference path is server-only.
+### Answer encoding
+Semicolon-separated flagged coordinates: `"r,c;r,c;..."`, e.g. `"0,4;2,1;5,5"`.
+Order-independent.
 
-### Anti-cheat notes
-Per-player mazes; the answer is a move sequence over a spatial state that is
-tedious to transcribe. Normal play is faster than tool-assisted transcription.
+### Server validation (`check`)
+1. Parse coordinate set; reject out-of-range/malformed.
+2. Return `True` iff the flagged set **exactly equals** the true mine set
+   (`PuzzleInstance.answer` holds the mine coordinates, server-only).
+   - No missing mines, no over-flagging safe cells.
+> Reveal actions during play are handled **client-side** for UX; only the final flag
+> set is validated. To make that possible the payload carries the clue number for
+> **every safe cell** (the client can't compute reveal numbers without the mine
+> layout, and reveals can't round-trip to the server in the one-shot `check`
+> contract). See the anti-cheat caveat below. (Optionally the client refuses to
+> submit until #flags == #mines.)
+
+### payload schema
+```jsonc
+{
+  "variant": "main", "difficulty": 2, "time_hint_seconds": 40,
+  "rows": 6, "cols": 6, "mine_count": 6,
+  "revealed": [ { "r": 0, "c": 0, "n": 0 }, { "r": 0, "c": 1, "n": 1 }, ... ],  // opening reveal
+  "clues":    [ { "r": 0, "c": 2, "n": 2 }, ... ]  // number for EVERY safe cell;
+                                                   //   client reveals from this locally
+}
+```
+Mine coordinates are never listed in the payload — only in `answer` (stripped from
+`public()`). **Caveat:** they are *derivable* from it (mines = the cells missing
+from `clues`), the same exception class as ECHO's sequence.
+
+### Anti-cheat notes (caveat)
+A multimodal LLM *could* solve a screenshot, but the per-player board, the ~40s
+target, and the screenshot→upload→read-back→click loop (×4 teammates) make it slower
+than deducing. No static board exists to search.
+
+**Caveat:** because reveals are client-side, the full clue grid is in the payload —
+a player inspecting their own WebSocket traffic can read the mine set as the
+complement of `clues`. Like ECHO's sequence, that defeats no LLM/Google user, only a
+dev sniffing their own client, and is **out of scope for the MVP** (§0 threat
+model). *Stretch hardening:* server round-trip per reveal.
+
+### Edge cases
+Player reveals a mine → the client submits the `"BOOM"` sentinel → `check` returns
+`False` → normal wrong-answer path (fresh board). Never let a fake "solved" pass;
+only an exact flag-set match wins.
 
 ---
+
 # Game 3 — DECANT  ·  Sorting  ·  owner [G3]
 
 ### One-liner
@@ -348,11 +401,51 @@ flashes.) Empty submission → `False`. Cap sequence length (≤ 12).
 
 ---
 
+# Game 5 — MIRROR RUN  ·  Divided attention  ·  owner [G2]  ·  Stage 3
+
+> Added July 2026 from the expansion library (briefly replaced SWEEP before the
+> roster grew to five). The full prescriptive spec lives in
+> [`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md) §1
+> — that document is the source of truth; this section is the summary.
+
+### One-liner
+Steer **two runners through two mazes at once** with one set of controls —
+Runner B interprets every command through a visible transformation
+(mirror, rotate, or invert).
+
+### Skills
+Divided attention, spatial transformation, planning.
+
+### Rules (summary)
+- One command (U/R/D/L) moves **both** runners in the same turn; B applies the
+  puzzle's fixed mapping first (`mirror_x`, `mirror_y`, `rotate_cw`,
+  `rotate_ccw`, `invert`).
+- A runner whose move would hit a wall or leave the board **stays still** —
+  legal, and the key trick for de-synchronising the runners.
+- Solved only when **both** runners occupy their own exits after the same turn.
+
+### Main vs Holding
+- **Main:** two 6×6 mazes, shortest solution 10–18 moves, move cap 30.
+- **Holding:** two 4×4 mazes, 3–6 moves, simple mapping only, move cap 10.
+
+### Generation & validation
+Product-state `(posA, posB)` BFS proves solvability and shortest-path depth;
+boards are re-rolled until the depth band is met and **both** boards matter
+(each runner moves on ≥40% of a shortest path). `check` parses
+`{"v":1,"moves":"URDL..."}`, replays every command server-side, and accepts
+only if both final positions equal the exits. A reference path is server-only.
+
+### Anti-cheat notes
+Per-player mazes; the answer is a move sequence over a spatial state that is
+tedious to transcribe. Normal play is faster than tool-assisted transcription.
+
+---
 ## Summary table
 
 | Game | Category | Interaction | Answer encoding | Validation |
 | --- | --- | --- | --- | --- |
 | **REWIRE** | Puzzle | Click-rotate tiles | orientations `"1,0,3,..."` | recompute source→sink connectivity |
+| **SWEEP** | Logical | Reveal / flag cells | flagged coords `"r,c;r,c"` | flag set == mine set |
 | **MIRROR RUN** | Divided attention | One D-pad, two runners | `{"v":1,"moves":"URDL..."}` | replay both runners → both exits |
 | **DECANT** | Sorting | Click source→dest pours | moves `"0>3;4>0"` | replay pours → all tubes uniform |
 | **ECHO** | Reflex/Memory | Tap pads in order | taps `"4,0,8,3,1"` | taps == flashed sequence |
@@ -367,7 +460,7 @@ For your game, ship all of:
 3. Tests (`tests/games/test_gameN_<name>.py`) — the module-spec §8 suite **plus**:
    a solvable generated board is actually solvable (feed a known-good interaction →
    `check` True), an illegal/short interaction → `check` False, no solution data
-   leaks in `public()` (documented exception: ECHO's `sequence`).
+   leaks in `public()` (documented exceptions: ECHO's `sequence`, SWEEP's `clues` grid).
 4. A playtest note with rough solve times (main & holding) for timer tuning.
 
 Related: [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) · [GAME_DESIGN.md](GAME_DESIGN.md) · [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) · [TASK_LIST.md](TASK_LIST.md)
