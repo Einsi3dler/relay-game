@@ -34,19 +34,21 @@ above again. It is cheap; a merge disaster is not.
 
 ## What this project is
 
-The Relay: a two-team (4 players each) synchronous relay puzzle race. Read
-[docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) for the rules and
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the shape of the system. We are
-**rebuilding from scratch**; the old prototype is frozen in
-[`legacy/`](legacy/README_LEGACY.md).
+The Relay: a two-team synchronous relay puzzle race. Each team = 4 playing
+members + 1 non-playing **leader** who assigns games, banks currency, and buys
+perks. Teams climb 10 levels together; fast solvers choose wait-or-bonus. Read
+[docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) for the rules,
+[docs/REDESIGN_PLAN.md](docs/REDESIGN_PLAN.md) for the v2 build plan, and
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the shape of the system. The
+old prototype is frozen in [`legacy/`](legacy/README_LEGACY.md).
 
 ## Ownership — do not edit code you don't own
 
 Contributors each own a slice (see [docs/TASK_LIST.md](docs/TASK_LIST.md)):
 
-- **Core/engine** — match state, relay gating, timers, WebSocket protocol.
-- **Game 1 / Game 2 / Game 3 / Game 4** — one owner per game module.
-- **Frontend** — the browser client.
+- **Core/engine** — match state, level gating, timers, economy/perks, WebSocket protocol.
+- **Game modules** (REWIRE, SWEEP, MIRROR RUN, DECANT, ECHO, OVERPRINT, …) — one owner per game.
+- **Frontend** — the browser client (play view + leader dashboard).
 
 A person (or agent) can hold **more than one** slice — lanes exist to stop two
 people editing the same file at once, not to cap how much you take on. Drive each
@@ -69,9 +71,10 @@ Rules:
 - Frontend is vanilla HTML/CSS/JS — **no build step, no framework** for the MVP.
 - Match the style already in the file you're editing (naming, comment density,
   type hints). Keep functions small and pure where you can.
-- **All timers, team size, and stage config live in one config module**
-  (`backend/config.py`) — no magic numbers scattered in the engine. Defaults:
-  `REST_SECONDS = 15`, `PLAYERS_PER_TEAM = 4`, `STAGE_COUNT = 6`.
+- **All timers, team size, level, currency, and perk config live in one config
+  module** (`backend/config.py`) — no magic numbers scattered in the engine.
+  Defaults: `WAIT_SECONDS = 180`, `PLAYERS_PER_TEAM = 4` (+1 leader per team),
+  `LEVEL_COUNT = 10`, currency/perk amounts in `PERKS`/`CURRENCY_*`.
 - Every new engine rule and every game module ships with **pytest tests**. A PR
   that changes gameplay without a test will be sent back.
 
@@ -81,8 +84,11 @@ Rules:
 2. You did a manual smoke check if you touched runtime behaviour (see
    [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)).
 3. You rebased on the latest `main` and pushed.
-4. You did **not** invent scope that isn't in [docs/TASK_LIST.md](docs/TASK_LIST.md)
-   (no power-ups, economy, sabotage, extra roles — those were cut on purpose).
+4. You did **not** invent scope beyond [docs/TASK_LIST.md](docs/TASK_LIST.md) and
+   [docs/REDESIGN_PLAN.md](docs/REDESIGN_PLAN.md). The v2 design **includes**
+   team leaders, currency, and perks — but real role definitions, per-game
+   difficulty curves, and new perks beyond the placeholder catalogue are
+   follow-up work, not free-for-all additions.
 
 ## Where to start reading
 

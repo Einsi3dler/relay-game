@@ -1,11 +1,15 @@
-# The Relay — The Five Games (detailed spec)
+# The Relay — The Game Library (detailed spec)
 
-The concrete design for the five active games. Stage order (config.GAME_ORDER): REWIRE → SWEEP → MIRROR RUN → DECANT → ECHO. Each game owner ([G1]–[G4]) builds one
-of these against the [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) contract. This
-document is the **gameplay + validation + anti-cheat** truth for each game; the
-module spec is the **code interface**.
+The concrete design for the library games: REWIRE, SWEEP, MIRROR RUN, DECANT,
+ECHO (this doc), plus OVERPRINT and the expansion candidates in
+[`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md).
+In v2 there is no stage order — the **team leader assigns one game per player**
+(see [GAME_DESIGN.md](GAME_DESIGN.md) §2). Each game owner builds against the
+[GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) contract. This document is the
+**gameplay + validation + anti-cheat** truth for each game; the module spec is
+the **code interface**.
 
-> All four are **action games**: the player produces the answer by *doing*
+> All of them are **action games**: the player produces the answer by *doing*
 > something (rotating, flagging, pouring, tapping), not by typing a fact. That is
 > deliberate — see §0.
 
@@ -21,7 +25,7 @@ timers and the fact that every player has a *different* puzzle.
 Every game obeys these rules:
 
 1. **Per-player, per-attempt randomization.** The board/state is generated from a
-   seed unique to `(player, stage, attempt)`. There is no shared, static, or
+   seed unique to `(player, level, attempt)`. There is no shared, static, or
    Google-able answer. A teammate's answer is useless to you.
 2. **The answer is an *interaction*, not a *fact*.** You submit a set of rotations,
    flagged cells, pour moves, or taps — the result of manipulating state — not a
@@ -30,13 +34,12 @@ Every game obeys these rules:
    transcribe a grid/tube layout by hand, wait for a reply, and translate it back
    into clicks — against a ~15–40s expected solve time, for a state nobody else
    shares. That round trip is slower than solving it.
-4. **Time-boxed where it counts.** Holding questions are hard-timed
-   (`HOLDING_SECONDS`). The main puzzle has **no hard limit in the MVP**
-   (`MAIN_PUZZLE_SECONDS = 0` — see [GAME_DESIGN.md](GAME_DESIGN.md) §5): the only
-   main-puzzle pressure is the race itself, which is *soft* — a player already
-   behind loses little by taking minutes with a solver. Accept this for the MVP;
-   the stretch main-puzzle limit is the hardening, and it matters most for
-   search-friendly games (esp. DECANT).
+4. **Time-boxed where it counts.** The bonus board runs against the remaining
+   wait deadline (`WAIT_SECONDS` — see [GAME_DESIGN.md](GAME_DESIGN.md) §5). The
+   level puzzle has **no hard limit**: the only pressure is the race itself,
+   which is *soft* — a player already behind loses little by taking minutes
+   with a solver. Accept this for now; a hard per-puzzle limit is the stretch
+   hardening, and it matters most for search-friendly games (esp. DECANT).
 5. **Server-authoritative validation.** The server never trusts a "yes I solved it"
    flag; it **replays/recomputes** correctness from the submitted interaction (§ per
    game). The client cannot fake a win.
@@ -401,7 +404,7 @@ flashes.) Empty submission → `False`. Cap sequence length (≤ 12).
 
 ---
 
-# Game 5 — MIRROR RUN  ·  Divided attention  ·  owner [G2]  ·  Stage 3
+# Game 5 — MIRROR RUN  ·  Divided attention  ·  owner [G2]
 
 > Added July 2026 from the expansion library (briefly replaced SWEEP before the
 > roster grew to five). The full prescriptive spec lives in

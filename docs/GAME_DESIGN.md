@@ -1,51 +1,58 @@
-# The Relay — Game Design (MVP)
+# The Relay — Game Design (v2)
 
 This is the source of truth for **what the game does**. If code and this document
 disagree, this document wins until it is updated by agreement. Keep it current.
+(The approved redesign rationale lives in [REDESIGN_PLAN.md](REDESIGN_PLAN.md);
+this document is the durable rulebook it produced.)
 
 ---
 
 ## 1. The pitch
 
-Two teams of four race through four puzzle games. The twist is the **relay rule**:
-a team only moves to the next game when **all four teammates are simultaneously
-"green" (ready)** — and staying green while you wait for slower teammates takes
-active effort. The **first team to finish all four games wins.**
+Two teams race to clear **ten levels**. Each team has a non-playing **leader**
+who assigns every teammate their own game, watches the board, and spends the
+team's earned **currency** on attack and defense **perks**. The relay rule
+still bites: a team only moves to the next level when **every playing member is
+simultaneously "cleared"** — and a fast solver must choose between **holding
+their cleared status on a timer** or **gambling it on a bonus round** for extra
+currency. The **first team to clear level `LEVEL_COUNT` wins.**
 
-It rewards a team that is *evenly* fast, not one carried by a single star player.
+It rewards a team that is *evenly* fast — and a leader who plays the meta well.
 
 ## 2. Match structure
 
-| Concept | MVP value | Notes |
+| Concept | Value | Notes |
 | --- | --- | --- |
-| Teams per match | 2 (Alpha, Bravo) | Fixed for MVP. |
-| Players per team | 4 | `PLAYERS_PER_TEAM`. |
-| Stages per match | 4 | `STAGE_COUNT`. One game per stage. |
-| Games | Game 1 → Game 2 → Game 3 → Game 4 | Fixed order for MVP. |
-| Win condition | First team to complete Stage 4 | See §6. |
+| Teams per match | 2 (Alpha, Bravo) | Fixed. |
+| Playing members per team | `PLAYERS_PER_TEAM` (default 4) | Plus **one leader** each — 5 people per team by default. |
+| Levels per match | `LEVEL_COUNT` (default 10) | Whole team advances together. |
+| Game per player | Chosen by the leader from the library | **No two teammates play the same game.** |
+| Win condition | First team to clear level `LEVEL_COUNT` | See §6. |
 
-- Both teams play the **same four games in the same order**. Each player solves
-  their **own instance** of the current stage's game (same game, independent
-  puzzle so nobody can copy an answer).
-- **No roles.** Every player on a team plays the same game each stage. (Roles were
-  a legacy concept; cut for the MVP.)
+- Every playing member plays **their own assigned game** for the whole match,
+  level by level, on their **own puzzle instances** (nobody can copy answers).
+- Games are grouped under **roles** (`config.ROLES`) — currently a placeholder
+  mapping used to organise the leader's assignment picker. Real role design is
+  future work.
+- The **leader does not play**. They observe from a dashboard (see §10).
 
-### Lobby / start (host-controlled)
+### Lobby / start (host + leaders)
 
 - The **first player to join a match is its host**. Players join **unassigned**
-  (no team) and pick a team from inside the lobby — or the host assigns them.
-- The **host controls the lobby**: move any player between teams, kick players
-  (kicked sockets close with code `4403`; the kicked id is dead, but the person
-  may rejoin as a new player), set the **minimum players per team**
-  (1..`PLAYERS_PER_TEAM`, default `MIN_PLAYERS_PER_TEAM`), and **start** the
-  match. There is no auto-start.
-- Start is allowed only when **every player has a team** and **both teams have at
-  least the minimum**. Host powers exist only while the match is in the lobby —
-  the roster freezes at start.
-- If the host disconnects, any player can **claim host** (only while the host is
-  actually gone, so a host page-refresh keeps the seat).
-- Sharing: the lobby exposes an invite URL (`/?match=<id>`) that routes a visitor
-  straight to the join flow for that match.
+  and pick a team in the lobby — or the host assigns them.
+- Each team's **leader seat is claimed in the lobby** ("claim leader"). The seat
+  can be claimed while empty or while its holder is disconnected, and a leader
+  can **hand the seat to a teammate** at any time (see §11).
+- The **leader assigns one game per teammate** from the library; a game already
+  taken by a teammate can't be assigned twice. Re-assigning a player frees
+  their old game.
+- The **host** still controls the lobby: move players, kick (`4403`), set the
+  **minimum playing members per team** (1..`PLAYERS_PER_TEAM`), and **start**.
+- Start is allowed only when every player has a team, **each team has a
+  leader**, each team's playing count is within bounds, and **every playing
+  member has an assigned game**.
+- If the host disconnects, any player can **claim host** while they're gone.
+- Sharing: the lobby exposes an invite URL (`/play?match=<id>`).
 
 ## 3. Player status model
 
@@ -53,158 +60,197 @@ Each player has exactly one status at any time. This is the heart of the engine.
 
 | Status | Meaning | Player sees |
 | --- | --- | --- |
-| `lobby` | Joined, match not started. | Waiting screen. |
-| `solving` | Working on the current stage's **main puzzle**. | The game puzzle + answer box. |
-| `resting` | Just went green; in the **rest window**. | "Ready ✅" + a rest countdown. No task. |
-| `holding` | Rest window ended, team not all green yet; answering a **holding question**. | A quick holding puzzle + countdown. |
-| `finished` | Team has cleared Stage 4 (match over for them). | Result screen. |
+| `lobby` | Joined, match not started. | Lobby screen. |
+| `solving` | Working on their game's **level puzzle**. | Their game + controls. |
+| `cleared` | Solved the level; holding cleared status on the **wait timer**. | "Cleared ✅" + countdown, plus the wait-or-bonus choice if still pending. |
+| `bonus` | Gambling cleared status on a **bonus board**. | A harder instance of their game + the same countdown. |
+| `leading` | The team's leader, observing. | The leader dashboard. |
+| `finished` | Match over for this team. | Result screen. |
 
-**"Green" = the player counts as ready for advancement.** A player is green while
-in `resting` **or** `holding`. A player is *not* green while `solving`.
+**"Green" = the player counts as ready for advancement.** A player is green
+only while `cleared`. A `bonus` player is **not** green — taking the bonus
+puts their readiness on the line until they solve it.
 
 ```
-green(player) := player.status in {"resting", "holding"}
+green(player) := player.status == "cleared"
 ```
 
-## 4. The relay loop (per stage)
+Leaders are excluded from readiness entirely: they are never green, never
+counted in `roster_size` or `green_count`, and never served puzzles.
+
+## 4. The level loop
 
 This is the exact lifecycle. Implement it precisely; it is covered by tests.
 
 ```
-STAGE N BEGINS
-  └─ every player on both teams: status = solving,
-     assigned a fresh main puzzle from Game N.
+LEVEL N BEGINS (for a team)
+  └─ every playing member: status = solving, a fresh instance of THEIR
+     assigned game at level N. The leader stays `leading`.
 
-WHILE a team has not advanced:
+WHILE the team has not advanced:
 
-  ── Player solves main puzzle correctly ──────────────────────────────
-     status: solving → resting
-     start REST timer (REST_SECONDS, default 15s)
-     >>> run ADVANCE CHECK for that team   (a 4th green may advance now)
+  ── Player solves their puzzle correctly ─────────────────────────────
+     status: solving → cleared, choice_pending = true
+     start WAIT timer (WAIT_SECONDS, default 180s)
+     +CURRENCY_PER_CLEAR to the team — ONLY on the first clear of this
+      level by this player (re-clears after a lapse pay nothing)
+     >>> run ADVANCE CHECK for that team
 
-  ── Player answers main puzzle incorrectly ───────────────────────────
-     stays solving, but is assigned a FRESH main puzzle (new seed).
-     (MVP: unlimited attempts, no other penalty. A fresh instance per
-     attempt keeps retry fair for state-revealing games — a failed SWEEP board, a watched ECHO
-     sequence, or a studied MIRROR RUN maze must not be retried. Optional
-     attempt cap is a stretch goal, see §8.)
+  ── Player answers incorrectly ───────────────────────────────────────
+     stays solving, but is assigned a FRESH instance (new seed).
+     (Unlimited attempts, no other penalty; a fresh instance per attempt
+      keeps retry fair for state-revealing games like ECHO.)
 
-  ── REST timer expires for a resting player ──────────────────────────
-     if team is ALL green  → (advance already happened / will happen; stay green)
-     else:
-        status: resting → holding
-        assign a HOLDING puzzle from Game N
-        start HOLDING timer (HOLDING_SECONDS, default 20s)
+  ── Cleared player chooses WAIT ──────────────────────────────────────
+     choice_pending = false; the wait timer keeps running.
 
-  ── Player answers HOLDING puzzle correctly ──────────────────────────
-     status: holding → resting
-     start a new REST timer (REST_SECONDS)
+  ── Cleared player chooses BONUS ─────────────────────────────────────
+     status: cleared → bonus  (loses green!)
+     bonus board = THEIR game at level N + BONUS_LEVEL_OFFSET (capped)
+     the running wait deadline becomes the bonus deadline (no new timer)
+
+  ── Bonus solved ─────────────────────────────────────────────────────
+     +bonus pay to the team: CURRENCY_BONUS_FIRST for the first bonus
+      this level, CURRENCY_BONUS_REPEAT for each one after (diminishing)
+     status: bonus → cleared, choice_pending = true, FRESH wait timer
+     (bonuses chain — wait or gamble again)
      >>> run ADVANCE CHECK
 
-  ── Player answers HOLDING puzzle incorrectly, OR HOLDING timer expires ─
-     >>> player LOSES GREEN
-     status: holding → solving
-     assign a fresh main puzzle from Game N   (must re-qualify)
+  ── Bonus failed (wrong answer OR deadline expiry) ───────────────────
+     >>> FORFEIT all bonus currency earned this level (base pay stays;
+         the team balance clamps at 0)
+     status: bonus → solving, fresh instance (must re-clear)
+
+  ── WAIT timer expires for a cleared player ──────────────────────────
+     >>> player LOSES CLEARED STATUS
+     status: cleared → solving, fresh instance (must re-clear;
+         currency already earned is kept, nothing new is paid)
 
 ADVANCE CHECK (for a team):
-  if all PLAYERS_PER_TEAM players on the team are green (resting or holding):
-     if N == STAGE_COUNT (last stage):
-        team wins → every player on team status = finished; MATCH ENDS.
+  if ALL playing members are green (cleared):
+     cancel the team's timers
+     if N == LEVEL_COUNT (last level):
+        team wins → everyone incl. the leader status = finished; MATCH ENDS.
      else:
-        team advances → STAGE N+1 BEGINS for that team (see top).
+        team advances → LEVEL N+1 BEGINS (bonus streak/forfeit counters reset).
 ```
 
 ### Key rules to get right
 
-1. **Advancement is checked the instant a player becomes green** (solving→resting
-   or holding→resting), not only when a timer fires. If the 4th teammate goes green
-   while the other three are resting, the team advances immediately.
-2. **The rest window is a grace period, not a requirement.** A team can advance
-   during anyone's rest window. The window only matters if the team is *not* all
-   green — then it decides *when* the waiting player gets a holding question.
-3. **Losing green** sends you back to a **fresh main puzzle**, not the holding
-   puzzle. Holding questions never advance the stage; they only keep/lose green.
-4. Each team advances **independently** — Alpha can be on Stage 3 while Bravo is on
-   Stage 1. There is no shared stage clock.
-5. All state is **server-authoritative.** Timers, correctness, and status live on
-   the server. The client only displays and submits.
+1. **Advancement is checked the instant a player becomes cleared** (including
+   bonus success), not only when a timer fires.
+2. **The wait timer starts at the moment of clearing**, not when the player
+   makes their wait-or-bonus choice — stalling the choice can't hold green.
+3. **A bonus player blocks the team** exactly like a solving player: they must
+   finish the bonus (or fail back to solving and re-clear) before the team can
+   advance past them.
+4. **Losing cleared status** (wait expiry, bonus failure) sends you back to a
+   **fresh instance of your own game** at the current level.
+5. Each team advances **independently** — no shared level clock.
+6. All state is **server-authoritative.** Timers, correctness, currency, and
+   perk effects live on the server. The client only displays and submits.
 
 ## 5. Timers
 
 | Timer | Config key | Default | Behaviour |
 | --- | --- | --- | --- |
-| Rest window | `REST_SECONDS` | 15 | After going green, before a holding question can appear. |
-| Holding question | `HOLDING_SECONDS` | 20 | Time to answer a holding question; expiry = fail = lose green. |
-| Main puzzle | `MAIN_PUZZLE_SECONDS` | `0` (off) | MVP: no time limit on the main puzzle. Non-zero enables a limit (stretch). |
+| Wait / bonus deadline | `WAIT_SECONDS` | 180 | Holds cleared status; doubles as the bonus deadline. Expiry = lose cleared / fail the bonus. |
+| Freeze (perk) | `PERKS["freeze"]["seconds"]` | 10 | Not a scheduled timer — a `frozen_until` deadline checked lazily on submit. |
 
-- Timers are **server-authoritative**. The server stores an absolute
-  **`deadline`** (UTC ISO timestamp) for each active timer and sends it in the
-  state snapshot; the client renders a countdown from `deadline - now`.
-- When a timer expires the **server** applies the consequence (holding starts, or
-  green lost). Do **not** rely on the client to report expiry — a client may be
-  closed. See [ARCHITECTURE.md](ARCHITECTURE.md) §"Timers" for the mechanism.
-- All durations are **tunable** via config. Expect these numbers to change during
-  playtesting; never hard-code them in the engine or a game module.
+- Timers are **server-authoritative**: the server stores an absolute
+  **`deadline`** (UTC ISO) and sends it in the snapshot; the client renders the
+  countdown. Expiry consequences are applied by the server.
+- The wait deadline is the **only** scheduled timer per player. Any future
+  second concurrent deadline must be lazy (like freeze) or the timer key must
+  grow — see [ARCHITECTURE.md](ARCHITECTURE.md) §4.
+- All durations are tunable via config; never hard-code them.
 
 ## 6. Winning and ending
 
-- The **first team** to pass the Stage 4 advance check **wins immediately**. The
-  match transitions to a terminal `finished` state.
-- The losing team is shown the result; the match no longer accepts answers.
-- MVP has no draw handling beyond "first check to fire wins" — the engine is
-  single-threaded per match, so ties resolve to whichever team's green transition
-  the engine processed first.
+- The **first team** to pass the last-level advance check **wins immediately**;
+  the match transitions to `finished` and stops accepting input.
+- Ties are impossible: one match is processed one message at a time.
 
-## 7. Worked example
+## 7. The economy
 
-Team Alpha on Stage 2. Players: A, B, C, D.
+| Event | Pay | Config key |
+| --- | --- | --- |
+| First clear of a level (per player) | +1 | `CURRENCY_PER_CLEAR` |
+| First successful bonus of a level (per player) | +3 | `CURRENCY_BONUS_FIRST` |
+| Each later bonus that level (per player) | +1 | `CURRENCY_BONUS_REPEAT` |
+| Bonus failure / bonus deadline expiry | **forfeit that level's bonus pay** | — |
 
-1. All four are `solving` Game 2.
-2. A solves → `resting`, 15s rest starts. Advance check: B,C,D not green → no.
-3. B solves → `resting`. Advance check: C,D not green → no.
-4. A's 15s rest ends; team still not all green → A → `holding`, gets a holding
-   question, 20s timer.
-5. C solves → `resting`. Advance check: D not green → no.
-6. A answers the holding question correctly → `resting`, new 15s rest. Advance
-   check: D not green → no.
-7. D solves → `resting`. Advance check: **A,B,C,D all green → advance to Stage 3.**
-   Everyone resets to `solving` with Game 3.
+Currency is a **team pool** spent only by the leader. Anti-farming rules:
+re-clearing a lapsed level pays nothing (first clear only), chained bonuses pay
+diminishing returns, and a bonus failure claws back the level's bonus winnings
+(clamped so the team balance never goes negative — yes, that means the leader
+can spend loot the solver later forfeits).
 
-Alternate branch at step 6: A's holding **timer expires** → A loses green,
-back to `solving` Game 2. Now even if D solves, the team is not all green (A isn't),
-so it does not advance until A re-solves.
+### Perks (placeholder catalogue, `config.PERKS`)
 
-## 8. Explicitly out of scope for the MVP
+| Perk | Kind | Effect |
+| --- | --- | --- |
+| Freeze | attack | A **random** opponent who is solving or in a bonus can't submit for ~10s (lazy `frozen_until` check). |
+| Scramble | attack | A **random** solving opponent gets a forced fresh instance. |
+| Shield | defense | Blocks the **next** incoming attack, then is consumed. One at a time. |
+| Extend Wait | defense | +60s on a chosen cleared teammate's wait timer. |
+
+Attack targets are picked by the **server at random** among valid opponents
+(fog of war — the leader can't see opponent detail). A blocked attack still
+costs the attacker; an attack with **no valid target is rejected and not
+charged**. Purchases are leader-only, during an active match only.
+
+## 8. Explicitly out of scope
 
 Cut on purpose — **do not add these** without a design decision:
 
-- Power-ups, sabotage, or any cross-team interference.
-- Points / economy / grind mode.
-- Roles or per-player puzzle specialisation.
-- More than 2 teams or team sizes other than 4.
-- Persistence / database / accounts (matches are in-memory and ephemeral).
-- Reconnect "backlog" puzzles (see §9 for the simple MVP reconnect rule).
+- Real role definitions and role-based assignment constraints (the `ROLES`
+  mapping is a placeholder; see [REDESIGN_PLAN.md](REDESIGN_PLAN.md) follow-ups).
+- Per-game difficulty curves for `level` (the contract knob exists; each game
+  owner ships their curve as follow-up work).
+- More than 2 teams; persistence / database / accounts.
+- Mid-match joining; reconnect "backlog" puzzles.
 
-### Stretch goals (only after the MVP loop is solid and tested)
+## 9. Edge cases and their rulings
 
-- Attempt cap on main puzzles (e.g. 3 misses → short lockout).
-- Main-puzzle time limit (`MAIN_PUZZLE_SECONDS > 0`).
-- Spectator view / bigger dashboard.
-- Randomised game order or a 5th game.
-
-## 9. Edge cases and their MVP rulings
-
-| Situation | MVP ruling |
+| Situation | Ruling |
 | --- | --- |
-| A player disconnects mid-stage | They keep their status server-side and timers keep running — **no special grace period, no auto-kick**. A green player's green decays via the normal cascade (rest expires → holding → holding expires → green lost), i.e. within `REST_SECONDS + HOLDING_SECONDS` of going absent. If they were `solving`, the team simply can't complete until they return or a host ends the match. On reconnect: `resting`/`holding` resume the current state and timer; a `solving` player is served a **fresh** main puzzle (prevents replay-to-rewatch, esp. ECHO — see [GAMES_SPEC.md](GAMES_SPEC.md)). |
-| A player disconnects while `holding` and the timer expires | Server applies the normal rule: they lose green and go to `solving`. When they reconnect they see the main puzzle. |
-| Team is all green but one player's socket is dead | Advancement still fires (server-authoritative). The dead client catches up via `state_snapshot` on reconnect. |
-| Both teams could win on the same engine tick | Impossible — one match is processed one message at a time; first green-transition to complete a team wins. |
-| Fewer than 4 players (local testing) | Allowed only when `MIN_PLAYERS_PER_TEAM` is lowered; advance check uses the **actual** connected roster size at match start (frozen at start), not a hard-coded 4. |
+| A player disconnects mid-level | Status and timers are untouched — no grace period, no auto-kick. A cleared player's status decays via the normal wait-expiry rule. On reconnect: `cleared` resumes status and timer; a `solving` or `bonus` player is served a **fresh** instance (prevents replay-to-rewatch, esp. ECHO). |
+| The leader disconnects mid-match | The team plays on but can't buy perks or receive a handoff until the leader returns. There is no mid-match leader *claim* — only the leader can give the seat away (§11). |
+| Team is all cleared but one player's socket is dead | Advancement still fires (server-authoritative). |
+| A frozen player's freeze lapses | Cleared lazily on their next submit; no timer fires. |
+| Fewer players (local testing) | Lower `min_players`; the advance check uses the **frozen playing roster** from match start. |
 
-> Reconnect handling is intentionally minimal. The legacy "backlog sync" puzzle is
-> **not** part of the MVP.
+## 10. The leader dashboard
+
+Progress information is **leader-exclusive**. Playing members see only their
+own game, status, and their team's current level — teams are expected to be on
+a voice call, so human relaying is the design, not a gap.
+
+The leader sees:
+
+- Own team: every member's status (who is cleared / in bonus / solving), their
+  assigned games, `green_count`, team level, currency, shield state.
+- Opponent: **current level and cleared-count only** — never per-player detail.
+- The perk shop, and the leadership-handoff control.
+- The event feed, including the leader-only "X cleared / X lost cleared"
+  events (players don't receive those).
+
+## 11. Leader handoff
+
+The leader can give the seat to a teammate at any time:
+
+- **In the lobby**: the flag moves; the new leader's game assignment is
+  cleared; the old leader becomes assignable.
+- **Mid-match** (**once per team per level**): a **full swap** —
+  - the recipient stops playing: puzzles and timer cleared, any cleared status
+    **lost** (handoff has a real cost);
+  - the old leader takes over the recipient's assigned game with a **fresh,
+    un-cleared instance** at the team's current level;
+  - the recipient's economy counters (`earned_level`, bonus streak, forfeitable
+    bonus pay) transfer to the old leader, so a level can't pay base currency
+    twice.
 
 ---
 
-Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) · [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md)
+Related: [REDESIGN_PLAN.md](REDESIGN_PLAN.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) · [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md)
