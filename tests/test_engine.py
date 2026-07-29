@@ -72,6 +72,8 @@ def full_match(engine: RelayEngine) -> tuple[Match, dict[str, list], dict]:
                 match, f"{team_id[0].upper()}{i}", team_id, now=NOW
             )
             members[team_id].append(player)
+            # Generalist keeps the fake game ids assignable (any game fits).
+            assert engine.assign_role(match, leader.id, player.id, "generalist").ok
             assert engine.assign_game(match, leader.id, player.id, GAMES[i]).ok
     result = engine.host_start(match, match.host_player_id, now=NOW)
     assert result.match_started
@@ -158,6 +160,10 @@ def test_assign_game_rules(engine):
     assert engine.assign_game(match, lead.id, rival.id, "g1").ok is False  # not teammate
     assert engine.assign_game(match, lead.id, lead.id, "g1").ok is False  # leader doesn't play
     assert engine.assign_game(match, lead.id, a0.id, "ghost").ok is False  # unknown game
+    result = engine.assign_game(match, lead.id, a0.id, "g1")  # no role yet
+    assert result.ok is False and "role" in result.error
+    assert engine.assign_role(match, lead.id, a0.id, "generalist").ok
+    assert engine.assign_role(match, lead.id, a1.id, "generalist").ok
     assert engine.assign_game(match, lead.id, a0.id, "g1").ok
     assert a0.assigned_game == "g1"
     result = engine.assign_game(match, lead.id, a1.id, "g1")  # duplicate in team
@@ -168,25 +174,83 @@ def test_assign_game_rules(engine):
     assert engine.assign_game(match, lead.id, a1.id, "g1").ok  # g1 freed up
 
 
+def test_assign_role_rules(engine):
+    match = engine.create_match()
+    lead, _ = engine.join_match(match, "Lead", "alpha")
+    engine.claim_leader(match, lead.id)
+    a0, _ = engine.join_match(match, "A0", "alpha")
+    rival, _ = engine.join_match(match, "Rival", "bravo")
+    assert engine.assign_role(match, a0.id, a0.id, "generalist").ok is False  # not leader
+    assert engine.assign_role(match, lead.id, rival.id, "generalist").ok is False  # not teammate
+    assert engine.assign_role(match, lead.id, lead.id, "generalist").ok is False  # seat has no role
+    assert engine.assign_role(match, lead.id, a0.id, "ghost").ok is False  # unknown role
+    result = engine.assign_role(match, lead.id, a0.id, "lexicon")  # reserved
+    assert result.ok is False and "no games" in result.error
+    result = engine.assign_role(match, lead.id, a0.id, "generalist")
+    assert result.ok and a0.role == "generalist"
+    assert any("Generalist" in event.message for event in result.events)
+    # Duplicate roles are legal — game uniqueness is the real constraint.
+    a1, _ = engine.join_match(match, "A1", "alpha")
+    assert engine.assign_role(match, lead.id, a1.id, "generalist").ok
+
+
+def test_roles_gate_game_assignment(engine, monkeypatch):
+    monkeypatch.setattr(config, "ROLES", {
+        "solo": {"name": "Solo", "games": ["g1"]},
+        "pair": {"name": "Pair", "games": ["g2", "g3"]},
+        "generalist": {"name": "Generalist", "games": None},
+    })
+    match = engine.create_match()
+    lead, _ = engine.join_match(match, "Lead", "alpha")
+    engine.claim_leader(match, lead.id)
+    a0, _ = engine.join_match(match, "A0", "alpha")
+    a1, _ = engine.join_match(match, "A1", "alpha")
+    assert engine.assign_role(match, lead.id, a0.id, "solo").ok
+    result = engine.assign_game(match, lead.id, a0.id, "g2")  # out of role
+    assert result.ok is False and "role" in result.error
+    assert engine.assign_game(match, lead.id, a0.id, "g1").ok
+    # A multi-game role may take either of its games.
+    assert engine.assign_role(match, lead.id, a1.id, "pair").ok
+    assert engine.assign_game(match, lead.id, a1.id, "g3").ok
+    # A role change that no longer fits the current game clears it...
+    assert engine.assign_role(match, lead.id, a1.id, "solo").ok
+    assert a1.assigned_game is None
+    # ...but a change that still fits keeps it.
+    engine.assign_role(match, lead.id, a1.id, "pair")
+    engine.assign_game(match, lead.id, a1.id, "g2")
+    assert engine.assign_role(match, lead.id, a1.id, "generalist").ok
+    assert a1.assigned_game == "g2"
+    # The Generalist takes anything not already taken.
+    assert engine.assign_game(match, lead.id, a1.id, "g5").ok
+    result = engine.assign_game(match, lead.id, a1.id, "g1")
+    assert result.ok is False and "A0" in result.error  # duplicate rule intact
+
+
 def test_give_leader_in_lobby(engine):
     match = engine.create_match()
     lead, _ = engine.join_match(match, "Lead", "alpha")
     engine.claim_leader(match, lead.id)
     a0, _ = engine.join_match(match, "A0", "alpha")
+    engine.assign_role(match, lead.id, a0.id, "generalist")
     engine.assign_game(match, lead.id, a0.id, "g1")
     result = engine.give_leader(match, lead.id, a0.id)
     assert result.ok
     assert a0.is_leader and not lead.is_leader
-    assert a0.assigned_game is None  # leaders don't play
+    assert a0.role is None and a0.assigned_game is None  # leaders don't play
     assert match.teams["alpha"].leader_id == a0.id
     assert lead.assigned_game is None  # old leader now needs an assignment
 
 
-def test_switching_team_clears_leadership_and_assignment(engine):
+def test_switching_team_clears_leadership_role_and_assignment(engine):
     match = engine.create_match()
     lead, _ = engine.join_match(match, "Lead", "alpha")
     engine.claim_leader(match, lead.id)
-    engine.join_match(match, "A0", "alpha")
+    a0, _ = engine.join_match(match, "A0", "alpha")
+    engine.assign_role(match, lead.id, a0.id, "generalist")
+    engine.assign_game(match, lead.id, a0.id, "g1")
+    result = engine.set_team(match, a0.id, "bravo")
+    assert result.ok
+    assert a0.role is None and a0.assigned_game is None
     result = engine.set_team(match, lead.id, "bravo")
     assert result.ok
     assert not lead.is_leader and lead.assigned_game is None
@@ -211,14 +275,19 @@ def test_start_blockers(engine):
     lead_b, _ = engine.join_match(match, "LeadB", "bravo")
     b0, _ = engine.join_match(match, "B0", "bravo")
     engine.host_set_min_players(match, lead_a.id, 1)
+    engine.assign_role(match, lead_a.id, a0.id, "generalist")
     engine.assign_game(match, lead_a.id, a0.id, "g1")
 
     result = engine.host_start(match, lead_a.id)
-    assert result.ok is False and "leader" in result.error  # bravo has no leader
+    assert result.ok is False and "Grandmaster" in result.error  # bravo has none
     engine.claim_leader(match, lead_b.id)
 
     result = engine.host_start(match, lead_a.id)
-    assert result.ok is False and "assign" in result.error  # B0's game missing
+    assert result.ok is False and "role" in result.error  # B0's role missing
+    engine.assign_role(match, lead_b.id, b0.id, "generalist")
+
+    result = engine.host_start(match, lead_a.id)
+    assert result.ok is False and "game" in result.error  # B0's game missing
     engine.assign_game(match, lead_b.id, b0.id, "g1")
 
     assert engine.host_start(match, lead_a.id).match_started
@@ -249,6 +318,8 @@ def test_min_players_counts_playing_members_only(engine):
     lead_b, _ = engine.join_match(match, "LeadB", "bravo")
     engine.claim_leader(match, lead_b.id)
     b0, _ = engine.join_match(match, "B0", "bravo")
+    engine.assign_role(match, lead_a.id, a0.id, "generalist")
+    engine.assign_role(match, lead_b.id, b0.id, "generalist")
     engine.assign_game(match, lead_a.id, a0.id, "g1")
     engine.assign_game(match, lead_b.id, b0.id, "g1")
     engine.host_set_min_players(match, lead_a.id, 1)
@@ -656,6 +727,7 @@ def test_give_leader_full_swap(engine):
     assert target.current_puzzle() is None and target.timer_deadline is None
     assert target.id in result.cancel  # their wait timer dies
     assert not leader.is_leader and leader.status == "solving"
+    assert leader.role == "generalist" and target.role is None  # role moves too
     assert leader.assigned_game == GAMES[0]  # took over the target's game
     assert leader.current_main.game_id == GAMES[0]
     assert "L1" in leader.current_main.prompt  # fresh puzzle at the team level

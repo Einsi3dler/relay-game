@@ -221,21 +221,25 @@ class RelayEngine:
         if player is None:
             return EngineResult.rejected("unknown player")
         if player.team_id is None:
-            return EngineResult.rejected("pick a team before claiming leader")
+            return EngineResult.rejected("pick a team before claiming the Grandmaster seat")
         team = match.teams[player.team_id]
         current = match.players.get(team.leader_id or "")
         if current is player:
             return EngineResult.rejected("you already lead this team")
         if current is not None and current.connected:
-            return EngineResult.rejected(f"team {team.name} already has a leader")
+            return EngineResult.rejected(f"team {team.name} already has a Grandmaster")
         if current is not None:
             current.is_leader = False
         player.is_leader = True
+        player.role = None  # the Grandmaster seat has no playing role
         player.assigned_game = None  # leaders don't play
         team.leader_id = player.id
         result = EngineResult(changed=True)
         self._add_event(
-            match, result, f"{player.name} now leads team {team.name}.", "info"
+            match,
+            result,
+            f"{player.name} is now team {team.name}'s Grandmaster.",
+            "info",
         )
         return result
 
@@ -246,18 +250,19 @@ class RelayEngine:
         target_id: str,
         now: datetime | None = None,
     ) -> EngineResult:
-        """The leader hands the seat to a teammate.
+        """The Grandmaster hands the seat to a teammate.
 
-        Lobby: just moves the flag (the new leader's assignment is cleared; the
-        old leader becomes assignable). Active match: full swap — the recipient
-        stops playing, the old leader takes over their game at the current
-        level with a fresh, un-cleared puzzle. Once per team per level.
+        Lobby: just moves the flag (the new leader's role and assignment are
+        cleared; the old leader becomes assignable). Active match: full swap —
+        the recipient stops playing, the old leader takes over their role and
+        game at the current level with a fresh, un-cleared puzzle. Once per
+        team per level.
         """
         if match.status == "finished":
             return EngineResult.rejected("match is over")
         leader = match.players.get(leader_id)
         if leader is None or not leader.is_leader:
-            return EngineResult.rejected("only the team leader can do that")
+            return EngineResult.rejected("only the Grandmaster can do that")
         target = match.players.get(target_id)
         if target is None or target.team_id != leader.team_id:
             return EngineResult.rejected("target must be a teammate")
@@ -269,19 +274,20 @@ class RelayEngine:
         if match.status == "lobby":
             leader.is_leader = False
             target.is_leader = True
+            target.role = None
             target.assigned_game = None
             team.leader_id = target.id
             self._add_event(
                 match,
                 result,
-                f"{leader.name} handed leadership of team {team.name} to {target.name}.",
+                f"{leader.name} handed team {team.name}'s Grandmaster seat to {target.name}.",
                 "info",
             )
             return result
 
         # Active match: full swap, once per level.
         if team.handoff_used_level == team.level:
-            return EngineResult.rejected("leadership already changed this level")
+            return EngineResult.rejected("the Grandmaster seat already changed this level")
         game_id = target.assigned_game
         if game_id is None:  # defensive: every playing member is assigned at start
             return EngineResult.rejected("target has no assigned game")
@@ -292,6 +298,7 @@ class RelayEngine:
         # Old leader becomes the player, inheriting the seat's economy counters
         # so the same level can't pay base currency twice.
         leader.is_leader = False
+        leader.role = target.role
         leader.assigned_game = game_id
         leader.earned_level = target.earned_level
         leader.bonus_streak = target.bonus_streak
@@ -301,6 +308,7 @@ class RelayEngine:
         # Recipient stops playing: any cleared status/timer is gone.
         target.is_leader = True
         target.status = "leading"
+        target.role = None
         target.assigned_game = None
         target.current_main = None
         target.current_bonus = None
@@ -315,29 +323,72 @@ class RelayEngine:
         self._add_event(
             match,
             result,
-            f"{leader.name} handed leadership of team {team.name} to {target.name}.",
+            f"{leader.name} handed team {team.name}'s Grandmaster seat to {target.name}.",
             "info",
         )
         self._advance_check(match, team, result, now)
         return result
 
-    def assign_game(
-        self, match: Match, leader_id: str, target_id: str, game_id: str
+    def assign_role(
+        self, match: Match, leader_id: str, target_id: str, role_id: str
     ) -> EngineResult:
-        """The leader assigns a game to a teammate (lobby only). No two
-        teammates may play the same game."""
+        """The Grandmaster gives a teammate a role (lobby only). The role
+        gates which games the player may be assigned; an out-of-role game
+        assignment is cleared so lobby state stays consistent."""
         if match.status != "lobby":
             return EngineResult.rejected("match already started")
         leader = match.players.get(leader_id)
         if leader is None or not leader.is_leader:
-            return EngineResult.rejected("only the team leader can assign games")
+            return EngineResult.rejected("only the Grandmaster can assign roles")
         target = match.players.get(target_id)
         if target is None or target.team_id != leader.team_id:
             return EngineResult.rejected("target must be a teammate")
         if target.is_leader:
-            return EngineResult.rejected("the leader doesn't play")
+            return EngineResult.rejected("the Grandmaster doesn't take a role")
+        if role_id not in config.ROLES:
+            return EngineResult.rejected(f"unknown role {role_id!r}")
+        if not config.role_assignable(role_id):
+            return EngineResult.rejected(
+                f"{config.ROLES[role_id]['name']} has no games yet"
+            )
+        target.role = role_id
+        if target.assigned_game is not None and not config.role_allows(
+            role_id, target.assigned_game
+        ):
+            target.assigned_game = None
+        result = EngineResult(changed=True)
+        self._add_event(
+            match,
+            result,
+            f"{target.name} is now the {config.ROLES[role_id]['name']}.",
+            "info",
+        )
+        return result
+
+    def assign_game(
+        self, match: Match, leader_id: str, target_id: str, game_id: str
+    ) -> EngineResult:
+        """The Grandmaster assigns a game to a teammate (lobby only). The game
+        must fit the target's role, and no two teammates may play the same
+        game."""
+        if match.status != "lobby":
+            return EngineResult.rejected("match already started")
+        leader = match.players.get(leader_id)
+        if leader is None or not leader.is_leader:
+            return EngineResult.rejected("only the Grandmaster can assign games")
+        target = match.players.get(target_id)
+        if target is None or target.team_id != leader.team_id:
+            return EngineResult.rejected("target must be a teammate")
+        if target.is_leader:
+            return EngineResult.rejected("the Grandmaster doesn't play")
         if not self.registry.has(game_id):
             return EngineResult.rejected(f"unknown game {game_id!r}")
+        if target.role is None:
+            return EngineResult.rejected(f"assign {target.name} a role first")
+        if not config.role_allows(target.role, game_id):
+            return EngineResult.rejected(
+                f"{target.name}'s role can't play {game_id}"
+            )
         team = match.teams[leader.team_id]
         for member_id in team.player_ids:
             member = match.players[member_id]
@@ -361,12 +412,17 @@ class RelayEngine:
         for team in match.teams.values():
             leader = match.players.get(team.leader_id or "")
             if leader is None or not leader.is_leader:
-                return f"team {team.name} needs a leader"
+                return f"team {team.name} needs a Grandmaster"
             playing = self._playing_members(match, team)
             if len(playing) < match.min_players:
                 return f"team {team.name} needs {match.min_players} player(s)"
             if len(playing) > config.PLAYERS_PER_TEAM:
                 return f"team {team.name} has too many players"
+            unroled = [p.name for p in playing if p.role is None]
+            if unroled:
+                return (
+                    f"team {team.name}: assign a role to {', '.join(unroled)}"
+                )
             unassigned = [p.name for p in playing if p.assigned_game is None]
             if unassigned:
                 return (
@@ -389,8 +445,9 @@ class RelayEngine:
             old_team.player_ids.remove(player.id)
             if old_team.leader_id == player.id:
                 old_team.leader_id = None
-        # Leadership and assignments don't cross teams.
+        # Leadership, roles, and assignments don't cross teams.
         player.is_leader = False
+        player.role = None
         player.assigned_game = None
         player.team_id = team_id
         team.player_ids.append(player.id)
@@ -581,7 +638,7 @@ class RelayEngine:
             return EngineResult.rejected("match is not active")
         leader = match.players.get(leader_id)
         if leader is None or not leader.is_leader:
-            return EngineResult.rejected("only the team leader can buy perks")
+            return EngineResult.rejected("only the Grandmaster can buy perks")
         perk = match.config_snapshot["perks"].get(perk_id)
         if perk is None:
             return EngineResult.rejected(f"unknown perk {perk_id!r}")

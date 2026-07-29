@@ -50,15 +50,24 @@ def test_has():
     assert not registry.has("ghost_game")
 
 
-def test_library_lists_all_games_with_roles():
+def test_library_lists_all_games_with_specialist_roles():
     registry = GameRegistry()  # real games + config.ROLES
     library = registry.library()
-    role_ids = {game_id for ids in config.ROLES.values() for game_id in ids}
-    assert {entry["id"] for entry in library} == role_ids
+    specialist_ids = {
+        game_id
+        for role in config.ROLES.values()
+        if role["games"]
+        for game_id in role["games"]
+    }
+    # Every registered game belongs to exactly one specialist role; catch-all
+    # (games=None) and reserved (games=[]) roles never claim a game.
+    assert {entry["id"] for entry in library} == specialist_ids
     roles = {entry["id"]: entry["role"] for entry in library}
-    for role, game_ids in config.ROLES.items():
-        for game_id in game_ids:
-            assert roles[game_id] == role
+    for role_id, role in config.ROLES.items():
+        for game_id in role["games"] or []:
+            assert roles[game_id] == role_id
+    assert "generalist" not in roles.values()
+    assert "lexicon" not in roles.values()
     for entry in library:
         assert entry["name"]
 
