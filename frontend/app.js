@@ -72,6 +72,23 @@
     return gameNames[gameId] || gameId || "?";
   }
 
+  function roleName(roleId) {
+    var roles = (serverConfig && serverConfig.roles) || {};
+    return (roles[roleId] && roles[roleId].name) || roleId || "?";
+  }
+
+  // Games a role may be assigned: null means the whole library (Generalist).
+  function roleGames(roleId) {
+    var roles = (serverConfig && serverConfig.roles) || {};
+    var games = roles[roleId] ? roles[roleId].games : [];
+    if (games === null) {
+      return ((serverConfig && serverConfig.library) || []).map(function (entry) {
+        return entry.id;
+      });
+    }
+    return games || [];
+  }
+
   // --- landing: host or join ---
 
   function bindLanding() {
@@ -212,7 +229,8 @@
     var label = document.createElement("span");
     label.textContent =
       player.name + (isHost ? " 🎛️" : "") + (player.is_leader ? " 🎖️" : "") +
-      (me ? " (you)" : "") + (player.connected ? "" : " 💤");
+      (me ? " (you)" : "") + (player.connected ? "" : " 💤") +
+      (player.role ? " · " + roleName(player.role) : "");
     row.appendChild(label);
     var controls = document.createElement("span");
     controls.className = "host-controls";
@@ -220,7 +238,7 @@
     if (myself && myself.is_leader && !me && player.team_id === myself.team_id) {
       var hand = document.createElement("button");
       hand.className = "mini-btn";
-      hand.title = "Hand over leadership";
+      hand.title = "Hand over the Grandmaster seat";
       hand.textContent = "🎖️→";
       hand.addEventListener("click", function () {
         send({ type: "give_leader", target_id: player.id });
@@ -316,7 +334,8 @@
     $("claim-host").onclick = function () { sendAction({ action: "claim_host" }); };
   }
 
-  // The leader's assignment panel: one row per playing teammate.
+  // The Grandmaster's assignment panel: one row per playing teammate, a role
+  // select first, then a game select filtered to that role's games.
   function renderAssignPanel(state) {
     var me = state.me;
     var panel = $("assign-panel");
@@ -336,30 +355,49 @@
       var label = document.createElement("span");
       label.textContent = player.name;
       row.appendChild(label);
+
+      var roleSelect = document.createElement("select");
+      roleSelect.className = "assign-select";
+      var rolePlaceholder = document.createElement("option");
+      rolePlaceholder.value = "";
+      rolePlaceholder.textContent = "— pick a role —";
+      roleSelect.appendChild(rolePlaceholder);
+      var roles = (serverConfig && serverConfig.roles) || {};
+      Object.keys(roles).forEach(function (roleId) {
+        var games = roles[roleId].games;
+        if (games !== null && !games.length) return; // reserved (no games yet)
+        var option = document.createElement("option");
+        option.value = roleId;
+        option.textContent = roles[roleId].name;
+        roleSelect.appendChild(option);
+      });
+      roleSelect.value = player.role || "";
+      roleSelect.onchange = function () {
+        if (!roleSelect.value) return;
+        sendAction({
+          action: "assign_role", target_id: player.id, role_id: roleSelect.value,
+        });
+      };
+      row.appendChild(roleSelect);
+
       var select = document.createElement("select");
       select.className = "assign-select";
       var placeholder = document.createElement("option");
       placeholder.value = "";
-      placeholder.textContent = "— pick a game —";
+      placeholder.textContent = player.role
+        ? "— pick a game —" : "— assign a role first —";
       select.appendChild(placeholder);
-      var byRole = {};
+      select.disabled = !player.role;
+      var allowed = player.role ? roleGames(player.role) : [];
       ((serverConfig && serverConfig.library) || []).forEach(function (entry) {
-        var role = entry.role || "other";
-        (byRole[role] = byRole[role] || []).push(entry);
-      });
-      Object.keys(byRole).forEach(function (role) {
-        var group = document.createElement("optgroup");
-        group.label = role;
-        byRole[role].forEach(function (entry) {
-          var option = document.createElement("option");
-          option.value = entry.id;
-          option.textContent = entry.name;
-          if (taken[entry.id] && taken[entry.id] !== player.id) {
-            option.disabled = true; // no two teammates on one game
-          }
-          group.appendChild(option);
-        });
-        select.appendChild(group);
+        if (allowed.indexOf(entry.id) === -1) return; // outside the role
+        var option = document.createElement("option");
+        option.value = entry.id;
+        option.textContent = entry.name;
+        if (taken[entry.id] && taken[entry.id] !== player.id) {
+          option.disabled = true; // no two teammates on one game
+        }
+        select.appendChild(option);
       });
       select.value = player.assigned_game || "";
       select.onchange = function () {
@@ -401,14 +439,20 @@
         else playing.push(p);
       });
       if (!leader) {
-        blocker = "Team " + team.name + " needs a leader.";
+        blocker = "Team " + team.name + " needs a Grandmaster.";
       } else if (playing.length < state.min_players) {
         blocker = "Team " + team.name + " needs " + state.min_players +
-          " player(s) besides the leader.";
+          " player(s) besides the Grandmaster.";
       } else {
         playing.forEach(function (p) {
-          if (!p.assigned_game && !blocker) {
-            blocker = team.name + "'s leader still needs to assign a game to " +
+          if (!p.role && !blocker) {
+            blocker = team.name + "'s Grandmaster still needs to assign a role to " +
+              p.name + ".";
+          }
+        });
+        playing.forEach(function (p) {
+          if (p.role && !p.assigned_game && !blocker) {
+            blocker = team.name + "'s Grandmaster still needs to assign a game to " +
               p.name + ".";
           }
         });
@@ -566,6 +610,7 @@
       var row = document.createElement("li");
       var name = document.createElement("span");
       name.textContent = player.name + (player.connected ? "" : " 💤") +
+        (player.role ? " · " + roleName(player.role) : "") +
         " · " + gameName(player.assigned_game);
       row.appendChild(name);
       var pill = document.createElement("span");
@@ -644,14 +689,16 @@
       if (player.is_leader) return;
       var option = document.createElement("option");
       option.value = player.id;
-      option.textContent = player.name + " (" + gameName(player.assigned_game) + ")";
+      option.textContent = player.name +
+        (player.role ? " · " + roleName(player.role) : "") +
+        " (" + gameName(player.assigned_game) + ")";
       select.appendChild(option);
     });
     $("handoff-btn").onclick = function () {
       if (!select.value) return;
       var pick = select.options[select.selectedIndex].textContent;
-      if (window.confirm("Hand leadership to " + pick +
-          "? You take over their game; their cleared status is lost.")) {
+      if (window.confirm("Hand the Grandmaster seat to " + pick +
+          "? You take over their role and game; their cleared status is lost.")) {
         send({ type: "give_leader", target_id: select.value });
       }
     };
