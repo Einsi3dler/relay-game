@@ -201,6 +201,69 @@ input:focus { border-color: var(--sun); }
   animation: pop-in 0.2s ease;
 }
 
+/* v2: cleared card, wait-or-bonus choice, freeze, leader dashboard */
+.bonus-badge {
+  display: inline-block; margin-bottom: 8px;
+  background: var(--alpha); color: #fff; font-weight: 800;
+  border-radius: 999px; padding: 4px 12px; font-size: 0.8rem;
+}
+
+.choice-overlay {
+  position: fixed; inset: 0; z-index: 45;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(43, 43, 51, 0.55);
+}
+.choice-box { max-width: 340px; text-align: center; }
+.choice-box .btn { width: 100%; margin: 6px 0; }
+
+.frozen-overlay {
+  position: fixed; inset: 0; z-index: 46;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(46, 196, 182, 0.85); color: #fff;
+  font-size: clamp(1.6rem, 7vw, 3rem); font-weight: 900;
+  animation: pop-in 0.2s ease;
+}
+
+.claim-leader-btn { width: 100%; margin-top: 6px; }
+
+.assign-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 6px 0; font-weight: 600;
+}
+.assign-select {
+  font-size: 0.9rem; padding: 8px 10px; border-radius: 10px;
+  border: 2px solid var(--line); background: var(--bg); font-weight: 700;
+}
+
+.leader-head { display: flex; align-items: center; justify-content: space-between; }
+.currency-chip { background: var(--sun); color: var(--ink); }
+.leader-roster { list-style: none; margin: 0 0 12px; padding: 0; }
+.leader-roster li {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0; font-weight: 600; border-bottom: 1px dashed var(--line);
+}
+.pill {
+  font-size: 0.75rem; font-weight: 800; border-radius: 999px;
+  padding: 2px 10px; background: var(--line); color: var(--muted);
+}
+.pill.green { background: var(--green); color: #fff; }
+.pill.bonus { background: var(--alpha); color: #fff; }
+.leader-opponent { font-weight: 700; color: var(--muted); }
+
+.perk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.perk-card {
+  border: 2px solid var(--line); border-radius: 14px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
+}
+.perk-card.attack { border-color: var(--alpha); }
+.perk-card.defense { border-color: var(--bravo); }
+.perk-name { font-weight: 800; }
+.perk-card .mini-btn { align-self: stretch; }
+.perk-card .mini-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.handoff-row { display: flex; gap: 10px; align-items: center; }
+.handoff-row select { flex: 1; }
+
 @media (max-width: 480px) {
   .card { padding: 14px; }
   h1 { font-size: 1.25rem; }

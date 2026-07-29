@@ -13,10 +13,10 @@
     <span id="match-chip" class="chip" hidden></span>
   </header>
 
-  <!-- T5.1 landing: host or join -->
+  <!-- landing: host or join -->
   <section id="view-join" class="view card">
     <h1>Ready to race?</h1>
-    <p class="sub">Two teams race through five games. Host a match or join with a code.</p>
+    <p class="sub">Two teams, ten levels. A leader calls the plays; the squad clears the games. Host a match or join with a code.</p>
     <label for="name-input">Your name</label>
     <input id="name-input" maxlength="16" placeholder="Ada" autocomplete="off">
     <div class="team-pick">
@@ -31,10 +31,10 @@
       </div>
     </div>
     <p id="join-error" class="error-line" hidden></p>
-    <p class="sub games-link-row"><a href="/games" class="games-link">📖 New here? Meet the five games</a></p>
+    <p class="sub games-link-row"><a href="/games" class="games-link">📖 New here? Meet the games</a></p>
   </section>
 
-  <!-- T5.1 lobby: pick teams, host controls -->
+  <!-- lobby: pick teams, claim the leader seat, leader assigns games -->
   <section id="view-lobby" class="view" hidden>
     <div class="card">
       <h1 id="lobby-title">Lobby</h1>
@@ -48,12 +48,19 @@
         <div id="lobby-team-alpha" class="team-box team-alpha-box">
           <h2>🔥 Alpha</h2><ul></ul>
           <button class="btn team-alpha join-team-btn" data-team="alpha">Join Alpha</button>
+          <button class="mini-btn claim-leader-btn" data-team="alpha" hidden>🎖️ Claim leader</button>
         </div>
         <div id="lobby-team-bravo" class="team-box team-bravo-box">
           <h2>🌊 Bravo</h2><ul></ul>
           <button class="btn team-bravo join-team-btn" data-team="bravo">Join Bravo</button>
+          <button class="mini-btn claim-leader-btn" data-team="bravo" hidden>🎖️ Claim leader</button>
         </div>
       </div>
+    </div>
+    <div id="assign-panel" class="card" hidden>
+      <h2>🎖️ Assign games</h2>
+      <p class="sub">Give every teammate their own game — no two the same.</p>
+      <div id="assign-rows"></div>
     </div>
     <div id="host-panel" class="card" hidden>
       <h2>🎛️ Host controls</h2>
@@ -73,23 +80,50 @@
     </div>
   </section>
 
-  <!-- T5.2/T5.3 play -->
+  <!-- play (players) -->
   <section id="view-play" class="view" hidden>
     <div id="team-strip" class="card strip"></div>
     <div id="timer-bar" class="timer-bar" hidden><div id="timer-fill"></div></div>
     <div id="timer-label" class="timer-label" hidden></div>
     <div id="puzzle-card" class="card">
       <p id="puzzle-prompt" class="prompt"></p>
+      <span id="bonus-badge" class="bonus-badge" hidden>🔥 BONUS — solve it or forfeit your bonus loot!</span>
       <div id="puzzle-mount"></div>
     </div>
-    <div id="rest-card" class="card rest" hidden>
-      <div class="rest-big">✅ You're green!</div>
-      <p>Stay sharp — a holding question drops when your rest runs out.</p>
+    <div id="cleared-card" class="card rest" hidden>
+      <div class="rest-big">✅ Level cleared!</div>
+      <p>Hold on for your team — if the timer runs out, you'll have to clear it again.</p>
     </div>
     <ul id="event-feed" class="feed"></ul>
   </section>
 
-  <!-- T5.4 result -->
+  <!-- leader dashboard -->
+  <section id="view-leader" class="view" hidden>
+    <div class="card">
+      <div class="leader-head">
+        <h1 id="leader-team-title"></h1>
+        <span id="leader-currency" class="chip currency-chip"></span>
+      </div>
+      <p class="sub" id="leader-status-line"></p>
+      <ul id="leader-roster" class="leader-roster"></ul>
+      <div class="leader-opponent" id="leader-opponent"></div>
+    </div>
+    <div class="card">
+      <h2>🛒 Perk shop</h2>
+      <div id="perk-grid" class="perk-grid"></div>
+    </div>
+    <div class="card">
+      <h2>🎖️ Hand over leadership</h2>
+      <p class="sub">Full swap: they step out to lead, you take over their game — once per level.</p>
+      <div class="handoff-row">
+        <select id="handoff-select"></select>
+        <button id="handoff-btn" class="mini-btn">Hand over</button>
+      </div>
+    </div>
+    <ul id="leader-feed" class="feed"></ul>
+  </section>
+
+  <!-- result -->
   <section id="view-result" class="view card" hidden>
     <div id="result-emoji" class="result-emoji"></div>
     <h1 id="result-title"></h1>
@@ -97,6 +131,17 @@
     <button id="play-again" class="btn team-auto">Back to start</button>
   </section>
 
+  <div id="choice-overlay" class="choice-overlay" hidden>
+    <div class="choice-box card">
+      <h2>Level cleared — your call:</h2>
+      <button id="choice-wait" class="btn team-bravo">⏳ Wait it out</button>
+      <button id="choice-bonus" class="btn team-alpha">🔥 Bonus round</button>
+      <p class="sub">The bonus is a harder board for extra currency — but you lose your cleared status until you solve it.</p>
+    </div>
+  </div>
+  <div id="frozen-overlay" class="frozen-overlay" hidden>
+    <span id="frozen-text">🧊 Frozen!</span>
+  </div>
   <div id="stage-overlay" class="stage-overlay" hidden><span id="stage-overlay-text"></span></div>
   <div id="toast" class="toast" hidden></div>
 
@@ -107,6 +152,6 @@
   <script src="/static/games/decant.js?v=3" defer></script>
   <script src="/static/games/echo.js" defer></script>
   <script src="/static/games/overprint.js" defer></script>
-  <script src="/static/app.js" defer></script>
+  <script src="/static/app.js?v=2" defer></script>
 </body>
 </html>
