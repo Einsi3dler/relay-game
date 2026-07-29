@@ -259,11 +259,13 @@ incl. `current_bonus`), `test_timers.py` (kinds → `wait`), `test_server.py`
    mid-match in each state (fresh puzzle when solving/bonus; preserved wait
    timer when cleared).
 
-## Follow-ups (explicitly out of this build)
+## Follow-ups
 
-- Per-game difficulty curves for `level` (six one-per-owner tasks; until then
-  the bonus is mechanically real but not actually harder).
-- Real role definitions (the placeholder `ROLES` mapping ships now).
-- More games for the library; perk balance and economy tuning from playtests.
-- Role-based assignment constraints (e.g. one game per role per team) once
-  real roles are defined.
+- ~~Per-game difficulty curves for `level`~~ — **shipped (V5)**: every game
+  scales its main board with `level` via a `MAIN_LEVEL_PARAMS` table.
+- ~~Real role definitions~~ — **shipped (V8)**: the designed role catalogue
+  replaces the placeholder, the leader is themed as the **Grandmaster**, and
+  roles gate game assignment (Generalist = any). Lexicon is reserved for a
+  future word game.
+- More games for the library; perk balance and economy tuning from playtests
+  (V6/V7 — see [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md)).

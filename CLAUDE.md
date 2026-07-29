@@ -85,10 +85,12 @@ Rules:
    [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)).
 3. You rebased on the latest `main` and pushed.
 4. You did **not** invent scope beyond [docs/TASK_LIST.md](docs/TASK_LIST.md) and
-   [docs/REDESIGN_PLAN.md](docs/REDESIGN_PLAN.md). The v2 design **includes**
-   team leaders, currency, and perks — but real role definitions, per-game
-   difficulty curves, and new perks beyond the placeholder catalogue are
-   follow-up work, not free-for-all additions.
+   [docs/REDESIGN_PLAN.md](docs/REDESIGN_PLAN.md). The v2 design **includes** the
+   Grandmaster (team leader), currency, perks, the designed **roles** catalogue,
+   and per-game **level difficulty curves** (all shipped). Economy/perk values
+   are **provisional pending the V6 playtest** (see
+   [docs/PLAYTEST_GUIDE.md](docs/PLAYTEST_GUIDE.md)); new perks beyond the
+   catalogue and new roles/games remain follow-up work, not free-for-all additions.
 
 ## Where to start reading
 

@@ -24,25 +24,34 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   handoff. · [F]
 - [x] **V4 Docs sync** — GAME_DESIGN / ARCHITECTURE / WEBSOCKET_PROTOCOL /
   GAME_MODULE_SPEC / CLAUDE.md / README rewritten for v2. · [C]
-- [ ] **V5 Level difficulty curves** — each game scales `generate_main` with
+- [x] **V5 Level difficulty curves** — each game scales `generate_main` with
   `level` (1..`LEVEL_COUNT` + `BONUS_LEVEL_OFFSET`), deterministic per
-  `(seed, level)`, still guaranteed-solvable; ship tests per level band.
-  **Six parallel tasks, one per game owner.** · [G1..G6]
+  `(seed, level)`, still guaranteed-solvable; tests per level band shipped.
+  Each game reads a per-level `MAIN_LEVEL_PARAMS` table (or `_params_for_level`);
+  the curve is moderate — level 1 == the original board, level 10 clearly
+  harder but still calm. · [G1..G6]
   **AC:** level 1 ≈ today's difficulty; level 10 clearly harder; the bonus
   board is genuinely harder than the current level.
-- [ ] **V6 Full playtest** — two full teams + leaders in real browsers, play to
-  a win; file bugs. **AC:** a match completes with no server errors. · [ALL]
-- [ ] **V7 Economy & perk tuning** — set `WAIT_SECONDS`, currency amounts, and
-  perk costs from playtest data. **AC:** bonuses feel worth the risk; perks
+- [ ] **V6 Full playtest** — two full teams + Grandmasters in real browsers,
+  play to a win; file bugs. Run it with [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md).
+  **AC:** a match completes with no server errors. · [ALL]
+- [x] **V7 Economy & perk tuning** — `WAIT_SECONDS`, currency amounts, and perk
+  costs are set as **provisional** values (reasoned, marked in
+  `backend/config.py`); [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md) captures what to
+  measure. Re-tune from V6 data. **AC:** bonuses feel worth the risk; perks
   get bought but don't dominate. · [ALL]
-- [ ] **V8 Real roles** — replace the placeholder `config.ROLES` grouping with
-  designed roles (and decide whether roles constrain assignment). Needs a
-  design decision first. · [ALL]
+- [x] **V8 Real roles** — the placeholder `config.ROLES` grouping is replaced by
+  the designed catalogue (Logician, Technocrat, Spatial Reasoner, Puzzle
+  Master, Spymaster, Generalist, and the reserved Lexicon); the team leader is
+  themed as the **Grandmaster**, who assigns each player a role that gates
+  which games they may be given (Generalist = any). Duplicate roles per team
+  are allowed. · [ALL]
 
 ### v2 stretch (only after V5–V7)
 
-- [ ] More games for the library (see `game/RELAY_EXPANSION_GAMES_README.md`).
-- [ ] Mid-match leader *claim* when the leader is long-disconnected.
+- [ ] More games for the library (see `game/RELAY_EXPANSION_GAMES_README.md`) —
+  a **word game** would also unlock the reserved **Lexicon** role.
+- [ ] Mid-match Grandmaster *claim* when the Grandmaster is long-disconnected.
 - [ ] Spectator/dashboard view for non-players.
 
 ---

@@ -93,9 +93,12 @@ class GameModule(Protocol):
   unguessable — see [ARCHITECTURE.md](ARCHITECTURE.md) §"Seeds"; your module just
   consumes them.) Set `game_id` to `self.id`. **Never derive board size/difficulty
   from `seed`** (that would randomise fairness between players). `level` (1-based,
-  see [REDESIGN_PLAN.md](REDESIGN_PLAN.md)) is the sanctioned difficulty knob:
-  scale deterministically with it or ignore it until your game's curve lands —
-  same seed + same level must always yield the same puzzle.
+  1..`LEVEL_COUNT`) is the sanctioned difficulty knob and every shipped game now
+  **scales with it**: level 1 == the game's original board, difficulty rising to
+  level 10, deterministic per `(seed, level)`. Each game reads a per-level
+  `MAIN_LEVEL_PARAMS` table (or `_params_for_level`); the same generator serves
+  the harder bonus board when the engine passes a higher `level`. Same seed +
+  same level must always yield the same puzzle.
 - **`generate_holding(seed)`** — same, with `kind="holding"`; a quick few-second
   variant. **v2 uses it only for practice mode** (`/api/practice`) — it no longer
   appears in the match loop.
@@ -130,8 +133,9 @@ class GameModule(Protocol):
 ## 3. How it gets wired in (you do the tiny registration; Core owns the engine)
 
 1. Put your class in `backend/games/gameN_<yourname>.py`.
-2. Add your class to `REGISTERED_MODULES` in `backend/registry.py`, and put your
-   `id` in a `config.ROLES` group so the leader's assignment picker can offer it.
+2. Add your class to `REGISTERED_MODULES` in `backend/registry.py`, and add your
+   `id` to a role's `games` list in `config.ROLES` (or leave it for the
+   Generalist) so the Grandmaster's assignment picker can offer it.
    (Coordinate the one-line edits to shared files via your PR — see
    [CLAUDE.md](CLAUDE.md) ownership rules.)
 3. That's it. The engine calls `generate_main(seed, level)` for whichever player
@@ -201,7 +205,7 @@ from backend.games.base import GameModule, PuzzleInstance, normalize_answer
 class TemplateGame:
     """One-line description of the puzzle idea and what a correct answer looks like."""
 
-    id = "template_game"      # unique snake_case; also goes in a config.ROLES group
+    id = "template_game"      # unique snake_case; also add to a config.ROLES games list
     name = "Template Game"    # display name
 
     def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
@@ -252,9 +256,11 @@ Put them in `tests/games/test_gameN_<name>.py`. Minimum bar:
    same determinism/correctness checks (practice mode uses it).
 7. **`reset()` is safe:** calling it doesn't raise and doesn't change future
    deterministic output.
-8. **Level param accepted:** `generate_main(seed, level=5)` returns a valid
-   puzzle (scaling deterministically with `level` once your difficulty curve
-   lands; until then, ignoring it is fine).
+8. **Level scaling:** `generate_main(seed, level)` scales difficulty
+   deterministically with `level` — level 1 == your original board, harder by
+   level 10, guaranteed-solvable at every level, same `(seed, level)` → same
+   puzzle. Ship tests per level band (determinism, monotonic knobs,
+   level-1-equals-original, solvable at all levels).
 
 ## 9. The game library
 

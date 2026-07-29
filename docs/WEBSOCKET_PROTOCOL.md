@@ -14,18 +14,21 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
 | Method | Path | Body | Returns |
 | --- | --- | --- | --- |
 | `GET` | `/` | — | landing page (`/play` serves the app) |
-| `GET` | `/api/config` | — | `{ "teams": ["alpha","bravo"], "players_per_team": 4, "level_count": 10, "wait_seconds": 180, "perks": { ... }, "roles": { ... }, "library": [ {"id","name","role"}, ... ] }` |
+| `GET` | `/api/config` | — | `{ "teams": ["alpha","bravo"], "players_per_team": 4, "level_count": 10, "wait_seconds": 180, "perks": { ... }, "roles": { "<role_id>": {"name": str, "games": [<game_id>, ...] \| null}, ... }, "library": [ {"id","name","role"}, ... ] }` |
 | `POST` | `/api/matches` | `{}` | `{ "match": <MatchPublic> }` — creates a match, returns its id |
 | `POST` | `/api/matches/{id}/join` | `{ "name": str, "team_id": "alpha"\|"bravo"\|null }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` |
 | `GET` | `/api/matches/{id}` | — | `{ "match": <MatchPublic> }` (spectate / rejoin lookup) |
 
-- `library` is the registered game catalogue that feeds the leader's assignment
-  picker; `roles` is the placeholder role grouping.
+- `library` is the registered game catalogue that feeds the Grandmaster's
+  assignment picker (each entry's `role` is its specialist role id, or `null`).
+  `roles` is the full role catalogue: `games` is the list a role may be
+  assigned, or `null` for the Generalist (any game); an empty list marks a
+  reserved role (e.g. Lexicon) that can't be assigned yet.
 - `team_id: null` (the normal client flow) → the player joins **unassigned** and
   picks a team in the lobby (or the host assigns one).
 - The **first joiner becomes the match host**.
 - Join fails with `400` if the chosen team is full (`players_per_team + 1`,
-  the extra seat being the leader), the match is full, or the match has already
+  the extra seat being the Grandmaster), the match is full, or the match has already
   started/finished. Body: `{ "detail": "<reason>" }`.
 - Invite links: `/play?match={id}` routes the visitor straight to the join flow.
 - After joining, the client opens the WebSocket (below) using the returned
@@ -53,11 +56,11 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 | `submit_answer` | `puzzle_id: str`, `answer: str` | Submit the current puzzle (level board while `solving`, bonus board while `bonus`). |
 | `choose_wait` | — | Cleared player locks in "wait" (clears `choice_pending`; the wait timer keeps running). |
 | `choose_bonus` | — | Cleared player takes the bonus: status → `bonus`, a harder instance of their game arrives, the running wait deadline becomes the bonus deadline. |
-| `buy_perk` | `perk_id: str`, `target_id?: str` | Leader-only, active match only. `target_id` is required for `extend_wait` (a cleared teammate); attack perks pick a random opponent server-side. |
-| `give_leader` | `target_id: str` | Leader-only. Lobby: moves the seat. Active match: full swap, once per team per level (see [GAME_DESIGN.md](GAME_DESIGN.md) §11). |
+| `buy_perk` | `perk_id: str`, `target_id?: str` | Grandmaster-only, active match only. `target_id` is required for `extend_wait` (a cleared teammate); attack perks pick a random opponent server-side. |
+| `give_leader` | `target_id: str` | Grandmaster-only. Lobby: moves the seat. Active match: full swap, once per team per level (see [GAME_DESIGN.md](GAME_DESIGN.md) §11). |
 | `request_state` | — | Ask for a fresh `state_snapshot` (e.g. after reconnect). |
 | `heartbeat` | — | Keep-alive; server replies with a `state_snapshot`. |
-| `lobby_action` | `action: str` + action fields | Lobby-only. `set_team {team_id}` (self), `claim_leader` (seat empty or holder disconnected), leader-only `assign_game {target_id, game_id}`; host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `start`; `claim_host` (only while the host is gone). |
+| `lobby_action` | `action: str` + action fields | Lobby-only. `set_team {team_id}` (self), `claim_leader` (seat empty or holder disconnected), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `start`; `claim_host` (only while the host is gone). |
 
 - `puzzle_id` **must** match the player's current puzzle id, or the server replies
   `error` ("Puzzle is no longer active") and ignores it.
@@ -76,7 +79,7 @@ lightweight nudges for animations/toasts; never require them for correctness.
 | --- | --- | --- |
 | `state_snapshot` | `state: <MatchPublic>` | After every state change, on connect, and on `request_state`/`heartbeat`. **The source of truth.** |
 | `error` | `error: str` | The last client message was invalid. |
-| `event` | `event: <Event>` | A log line to append. **`green`/`lost_green` events go to leader sockets only** (who cleared is leader-only knowledge); everything else is broadcast. |
+| `event` | `event: <Event>` | A log line to append. **`green`/`lost_green` events go to Grandmaster sockets only** (who cleared is Grandmaster-only knowledge); everything else is broadcast. |
 | `level_advanced` | `team_id: str`, `level: int` | A team advanced — trigger a transition animation. |
 | `perk_used` | `perk_id: str`, `by_team_id: str` | A perk fired — toast/flash material. |
 | `match_won` | `team_id: str` | A team won; match is over. |
@@ -114,14 +117,14 @@ These are exactly what `.public()` returns. **No answers ever appear here.**
 }
 ```
 
-### TeamView — visibility is leader-exclusive
+### TeamView — visibility is Grandmaster-exclusive
 
 Snapshots are personalised. Which team shape a viewer gets:
 
 | Viewer | Own team | Opponent team |
 | --- | --- | --- |
 | anyone, while `status == "lobby"` | **TeamFull** | **TeamFull** (the assignment UI needs rosters) |
-| the team's **leader**, active match | **TeamFull** | **TeamSummary** (with `green_count`) |
+| the team's **Grandmaster**, active match | **TeamFull** | **TeamSummary** (with `green_count`) |
 | a **playing member**, active match | **TeamSummary** (no `green_count`) | `{ "id", "name", "finished" }` only |
 | no viewer (plain REST `GET`) | **TeamSummary** | **TeamSummary** |
 
@@ -130,10 +133,10 @@ Snapshots are personalised. Which team shape a viewer gets:
 {
   "id": "alpha", "name": "Alpha",
   "level": 2,                            // 1..level_count, independent per team
-  "roster_size": 4,                      // PLAYING members (leader excluded)
+  "roster_size": 4,                      // PLAYING members (Grandmaster excluded)
   "finished": false,
   "green_count": 3,                      // cleared players right now
-  "currency": 5,                         // the team pool the leader spends
+  "currency": 5,                         // the team pool the Grandmaster spends
   "shield_active": false,
   "leader_id": "p_...",
   "players": [ <PlayerPublic>, ... ]
@@ -141,7 +144,7 @@ Snapshots are personalised. Which team shape a viewer gets:
 
 // TeamSummary
 { "id": "alpha", "name": "Alpha", "level": 2, "roster_size": 4,
-  "finished": false, "green_count": 3 /* leaders' opponent view only */ }
+  "finished": false, "green_count": 3 /* Grandmasters' opponent view only */ }
 ```
 
 ### PlayerPublic
@@ -155,7 +158,8 @@ Snapshots are personalised. Which team shape a viewer gets:
   "green": true,                         // derived: status == "cleared"
   "connected": true,
   "is_leader": false,
-  "assigned_game": "rewire"              // null for leaders / unassigned
+  "role": "logician",                    // config.ROLES id, or null (unset / Grandmaster)
+  "assigned_game": "rewire"              // null for Grandmasters / unassigned
 }
 ```
 
@@ -209,7 +213,7 @@ Snapshots are personalised. Which team shape a viewer gets:
 2. A `state_snapshot` fully determines the UI; dropping every other message type
    still yields a correct (if less animated) client.
 3. A playing member's snapshot never reveals opponent progress or own-team
-   per-player cleared states — that data appears only in leader snapshots.
+   per-player cleared states — that data appears only in Grandmaster snapshots.
 4. `me.current_puzzle` is non-null exactly while `solving` or `bonus`.
 5. `green_count == number of cleared players` wherever both appear.
 
