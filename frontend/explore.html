@@ -50,6 +50,7 @@
         <button data-game="mirror_run">🪞 MIRROR RUN</button>
         <button data-game="decant">🧪 DECANT</button>
         <button data-game="echo">🔊 ECHO</button>
+        <button data-game="overprint">🖨️ OVERPRINT</button>
       </div>
       <div class="kind-row">
         <span class="label">Puzzle type:</span>
@@ -87,11 +88,12 @@
   <script src="/static/games/mirror_run.js" defer></script>
   <script src="/static/games/decant.js?v=3" defer></script>
   <script src="/static/games/echo.js" defer></script>
+  <script src="/static/games/overprint.js" defer></script>
   <script defer>
     document.addEventListener("DOMContentLoaded", function () {
       "use strict";
       var $ = function (id) { return document.getElementById(id); };
-      var GAMES = ["rewire", "sweep", "mirror_run", "decant", "echo"];
+      var GAMES = ["rewire", "sweep", "mirror_run", "decant", "echo", "overprint"];
 
       var current = { game: "rewire", kind: "main", seed: null, puzzle: null };
       var mounted = null;

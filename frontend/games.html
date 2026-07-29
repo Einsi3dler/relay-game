@@ -18,6 +18,7 @@
     .stage-3 { background: var(--green); }
     .stage-4 { background: var(--bravo); }
     .stage-5 { background: var(--alpha); }
+    .stage-6 { background: var(--ink); }
     .cat { color: var(--muted); font-weight: 700; font-size: 0.85rem; margin: 0 0 10px; }
     .game-card h3 { margin: 14px 0 4px; font-size: 0.95rem; }
     .game-card p, .game-card li { margin: 0 0 6px; font-size: 0.95rem; }
@@ -37,13 +38,13 @@
 
   <section class="view card flow">
     <h1>How a race works</h1>
-    <p class="sub">Two teams of four race through five stages. Each stage is a different game.</p>
+    <p class="sub">Two teams of four race through six stages. Each stage is a different game.</p>
     <ol>
       <li><strong>Solve your puzzle</strong> — everyone on your team gets their <em>own</em> board. Solving it turns you <strong style="color:var(--green)">green</strong>.</li>
       <li><strong>Rest</strong> — after going green you get a short breather (<span data-config="rest_seconds">15</span>s).</li>
       <li><strong>Holding questions</strong> — if your rest runs out before the whole team is green, you get quick-fire mini-puzzles (<span data-config="holding_seconds">20</span>s each). Answer right to stay green; answer wrong (or too slow) and you <strong>lose green</strong> and get a fresh main puzzle.</li>
       <li><strong>Advance together</strong> — the moment all four of you are green, the team jumps to the next stage.</li>
-      <li><strong>Win</strong> — first team through Stage 5 takes the race.</li>
+      <li><strong>Win</strong> — first team through Stage 6 takes the race.</li>
     </ol>
     <p class="tip">💡 A wrong answer on your main puzzle never costs you anything except time — you just get a fresh board. Speed <em>and</em> steadiness win relays.</p>
   </section>
@@ -122,6 +123,21 @@
     </ul>
     <p class="sizes">Main: 3×3 pads, sequence of 5 · Holding: 2×2 pads, sequence of 3</p>
     <p class="tip">💡 Chunk it: remember "corner, centre, top…" as a shape traced across the grid, not as nine separate positions.</p>
+  </section>
+
+  <section class="view card game-card">
+    <h2><span class="stage-chip stage-6">Stage 6</span> 🖨️ OVERPRINT</h2>
+    <p class="cat">Spatial · composition</p>
+    <h3>What you see</h3>
+    <p>A target pattern next to a workspace holding three transparent stamp layers. All layers print onto the same sheet — the combined marks must match the target <strong>exactly</strong>.</p>
+    <h3>How to play</h3>
+    <ul>
+      <li>Pick a layer chip, then slide it with the arrow pad (or tap a cell to drop it there).</li>
+      <li>⟳ rotates a layer a quarter-turn; ⇄ flips the one layer that allows it.</li>
+      <li>Press <strong>CHECK</strong> when your print matches — extra marks fail just like missing ones.</li>
+    </ul>
+    <p class="sizes">Main: 6×6 sheet, 3 layers · Holding: 4×4 sheet, 2 layers (slides, one turn)</p>
+    <p class="tip">💡 Place the biggest stamp first, then fit the small ones into what's left of the target.</p>
   </section>
 
   <section class="view card">
