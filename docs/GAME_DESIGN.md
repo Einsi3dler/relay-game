@@ -9,7 +9,7 @@ this document is the durable rulebook it produced.)
 
 ## 1. The pitch
 
-Two teams race to clear **ten levels**. Each team has a non-playing **leader**
+Two teams race to clear **ten levels**. Each team has a non-playing **Grandmaster**
 who assigns every teammate their own game, watches the board, and spends the
 team's earned **currency** on attack and defense **perks**. The relay rule
 still bites: a team only moves to the next level when **every playing member is
@@ -17,39 +17,71 @@ simultaneously "cleared"** — and a fast solver must choose between **holding
 their cleared status on a timer** or **gambling it on a bonus round** for extra
 currency. The **first team to clear level `LEVEL_COUNT` wins.**
 
-It rewards a team that is *evenly* fast — and a leader who plays the meta well.
+It rewards a team that is *evenly* fast — and a Grandmaster who plays the meta well.
 
 ## 2. Match structure
 
 | Concept | Value | Notes |
 | --- | --- | --- |
 | Teams per match | 2 (Alpha, Bravo) | Fixed. |
-| Playing members per team | `PLAYERS_PER_TEAM` (default 4) | Plus **one leader** each — 5 people per team by default. |
+| Playing members per team | `PLAYERS_PER_TEAM` (default 4) | Plus **one Grandmaster** each — 5 people per team by default. |
 | Levels per match | `LEVEL_COUNT` (default 10) | Whole team advances together. |
-| Game per player | Chosen by the leader from the library | **No two teammates play the same game.** |
+| Game per player | Chosen by the Grandmaster from the library | **No two teammates play the same game.** |
 | Win condition | First team to clear level `LEVEL_COUNT` | See §6. |
 
 - Every playing member plays **their own assigned game** for the whole match,
   level by level, on their **own puzzle instances** (nobody can copy answers).
-- Games are grouped under **roles** (`config.ROLES`) — currently a placeholder
-  mapping used to organise the leader's assignment picker. Real role design is
-  future work.
-- The **leader does not play**. They observe from a dashboard (see §10).
+- Each player has a **role** that gates which games they can be assigned (see
+  §2a). Games get **harder each level** — every game scales its main board with
+  the team's `level` (see [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md)).
+- The **Grandmaster does not play**. They observe from a dashboard (see §10),
+  bank currency, buy perks, and assign roles + games.
 
-### Lobby / start (host + leaders)
+### 2a. Roles & the Grandmaster
+
+The team's non-playing leader is themed as the **Grandmaster** (the internal
+field is still `is_leader`). In the lobby the Grandmaster assigns every playing
+teammate a **role**, and the game picker then only offers that role's games.
+Roles are defined in `config.ROLES`:
+
+| Role | Games it may be assigned |
+| --- | --- |
+| Logician | Sweep |
+| Technocrat | Rewire |
+| Spatial Reasoner | Mirror Run |
+| Puzzle Master | Decant |
+| Spymaster | Echo, Overprint |
+| Generalist | any registered game |
+| Lexicon | *reserved* — no matching game shipped yet, not assignable |
+
+Rules:
+
+- Only the Grandmaster assigns roles and games, and only in the lobby.
+- A game must fit the target's role; **Generalist** fits everything. The
+  existing "no two teammates play the same game" rule still holds.
+- **Duplicate roles per team are allowed** — game uniqueness already prevents
+  overlap, and two Generalists is a legitimate setup. (Two players locked to
+  the *same* single-game role would leave one unassignable, which `start` will
+  refuse until it's fixed — a visible, self-correcting lobby mistake.)
+- **Lexicon** is reserved for a future word game; until one ships it has no
+  games and cannot be assigned.
+- On a Grandmaster handoff the role moves with the seat's game; switching teams
+  or claiming the seat clears a player's role.
+
+### Lobby / start (host + Grandmasters)
 
 - The **first player to join a match is its host**. Players join **unassigned**
   and pick a team in the lobby — or the host assigns them.
-- Each team's **leader seat is claimed in the lobby** ("claim leader"). The seat
-  can be claimed while empty or while its holder is disconnected, and a leader
+- Each team's **Grandmaster seat is claimed in the lobby** ("claim Grandmaster"). The seat
+  can be claimed while empty or while its holder is disconnected, and a Grandmaster
   can **hand the seat to a teammate** at any time (see §11).
-- The **leader assigns one game per teammate** from the library; a game already
+- The **Grandmaster assigns one game per teammate** from the library; a game already
   taken by a teammate can't be assigned twice. Re-assigning a player frees
   their old game.
 - The **host** still controls the lobby: move players, kick (`4403`), set the
   **minimum playing members per team** (1..`PLAYERS_PER_TEAM`), and **start**.
 - Start is allowed only when every player has a team, **each team has a
-  leader**, each team's playing count is within bounds, and **every playing
+  Grandmaster**, each team's playing count is within bounds, and **every playing
   member has an assigned game**.
 - If the host disconnects, any player can **claim host** while they're gone.
 - Sharing: the lobby exposes an invite URL (`/play?match=<id>`).
@@ -64,7 +96,7 @@ Each player has exactly one status at any time. This is the heart of the engine.
 | `solving` | Working on their game's **level puzzle**. | Their game + controls. |
 | `cleared` | Solved the level; holding cleared status on the **wait timer**. | "Cleared ✅" + countdown, plus the wait-or-bonus choice if still pending. |
 | `bonus` | Gambling cleared status on a **bonus board**. | A harder instance of their game + the same countdown. |
-| `leading` | The team's leader, observing. | The leader dashboard. |
+| `leading` | The team's Grandmaster, observing. | The Grandmaster dashboard. |
 | `finished` | Match over for this team. | Result screen. |
 
 **"Green" = the player counts as ready for advancement.** A player is green
@@ -75,7 +107,7 @@ puts their readiness on the line until they solve it.
 green(player) := player.status == "cleared"
 ```
 
-Leaders are excluded from readiness entirely: they are never green, never
+Grandmasters are excluded from readiness entirely: they are never green, never
 counted in `roster_size` or `green_count`, and never served puzzles.
 
 ## 4. The level loop
@@ -85,7 +117,7 @@ This is the exact lifecycle. Implement it precisely; it is covered by tests.
 ```
 LEVEL N BEGINS (for a team)
   └─ every playing member: status = solving, a fresh instance of THEIR
-     assigned game at level N. The leader stays `leading`.
+     assigned game at level N. The Grandmaster stays `leading`.
 
 WHILE the team has not advanced:
 
@@ -130,7 +162,7 @@ ADVANCE CHECK (for a team):
   if ALL playing members are green (cleared):
      cancel the team's timers
      if N == LEVEL_COUNT (last level):
-        team wins → everyone incl. the leader status = finished; MATCH ENDS.
+        team wins → everyone incl. the Grandmaster status = finished; MATCH ENDS.
      else:
         team advances → LEVEL N+1 BEGINS (bonus streak/forfeit counters reset).
 ```
@@ -180,10 +212,10 @@ ADVANCE CHECK (for a team):
 | Each later bonus that level (per player) | +1 | `CURRENCY_BONUS_REPEAT` |
 | Bonus failure / bonus deadline expiry | **forfeit that level's bonus pay** | — |
 
-Currency is a **team pool** spent only by the leader. Anti-farming rules:
+Currency is a **team pool** spent only by the Grandmaster. Anti-farming rules:
 re-clearing a lapsed level pays nothing (first clear only), chained bonuses pay
 diminishing returns, and a bonus failure claws back the level's bonus winnings
-(clamped so the team balance never goes negative — yes, that means the leader
+(clamped so the team balance never goes negative — yes, that means the Grandmaster
 can spend loot the solver later forfeits).
 
 ### Perks (placeholder catalogue, `config.PERKS`)
@@ -196,18 +228,14 @@ can spend loot the solver later forfeits).
 | Extend Wait | defense | +60s on a chosen cleared teammate's wait timer. |
 
 Attack targets are picked by the **server at random** among valid opponents
-(fog of war — the leader can't see opponent detail). A blocked attack still
+(fog of war — the Grandmaster can't see opponent detail). A blocked attack still
 costs the attacker; an attack with **no valid target is rejected and not
-charged**. Purchases are leader-only, during an active match only.
+charged**. Purchases are Grandmaster-only, during an active match only.
 
 ## 8. Explicitly out of scope
 
 Cut on purpose — **do not add these** without a design decision:
 
-- Real role definitions and role-based assignment constraints (the `ROLES`
-  mapping is a placeholder; see [REDESIGN_PLAN.md](REDESIGN_PLAN.md) follow-ups).
-- Per-game difficulty curves for `level` (the contract knob exists; each game
-  owner ships their curve as follow-up work).
 - More than 2 teams; persistence / database / accounts.
 - Mid-match joining; reconnect "backlog" puzzles.
 
@@ -216,39 +244,39 @@ Cut on purpose — **do not add these** without a design decision:
 | Situation | Ruling |
 | --- | --- |
 | A player disconnects mid-level | Status and timers are untouched — no grace period, no auto-kick. A cleared player's status decays via the normal wait-expiry rule. On reconnect: `cleared` resumes status and timer; a `solving` or `bonus` player is served a **fresh** instance (prevents replay-to-rewatch, esp. ECHO). |
-| The leader disconnects mid-match | The team plays on but can't buy perks or receive a handoff until the leader returns. There is no mid-match leader *claim* — only the leader can give the seat away (§11). |
+| The Grandmaster disconnects mid-match | The team plays on but can't buy perks or receive a handoff until the Grandmaster returns. There is no mid-match Grandmaster *claim* — only the Grandmaster can give the seat away (§11). |
 | Team is all cleared but one player's socket is dead | Advancement still fires (server-authoritative). |
 | A frozen player's freeze lapses | Cleared lazily on their next submit; no timer fires. |
 | Fewer players (local testing) | Lower `min_players`; the advance check uses the **frozen playing roster** from match start. |
 
-## 10. The leader dashboard
+## 10. The Grandmaster dashboard
 
-Progress information is **leader-exclusive**. Playing members see only their
+Progress information is **Grandmaster-exclusive**. Playing members see only their
 own game, status, and their team's current level — teams are expected to be on
 a voice call, so human relaying is the design, not a gap.
 
-The leader sees:
+The Grandmaster sees:
 
 - Own team: every member's status (who is cleared / in bonus / solving), their
   assigned games, `green_count`, team level, currency, shield state.
 - Opponent: **current level and cleared-count only** — never per-player detail.
-- The perk shop, and the leadership-handoff control.
-- The event feed, including the leader-only "X cleared / X lost cleared"
+- The perk shop, and the the Grandmaster-seat handoff control.
+- The event feed, including the Grandmaster-only "X cleared / X lost cleared"
   events (players don't receive those).
 
-## 11. Leader handoff
+## 11. Grandmaster handoff
 
-The leader can give the seat to a teammate at any time:
+The Grandmaster can give the seat to a teammate at any time:
 
-- **In the lobby**: the flag moves; the new leader's game assignment is
-  cleared; the old leader becomes assignable.
+- **In the lobby**: the flag moves; the new Grandmaster's game assignment is
+  cleared; the old Grandmaster becomes assignable.
 - **Mid-match** (**once per team per level**): a **full swap** —
   - the recipient stops playing: puzzles and timer cleared, any cleared status
     **lost** (handoff has a real cost);
-  - the old leader takes over the recipient's assigned game with a **fresh,
+  - the old Grandmaster takes over the recipient's assigned game with a **fresh,
     un-cleared instance** at the team's current level;
   - the recipient's economy counters (`earned_level`, bonus streak, forfeitable
-    bonus pay) transfer to the old leader, so a level can't pay base currency
+    bonus pay) transfer to the old Grandmaster, so a level can't pay base currency
     twice.
 
 ---

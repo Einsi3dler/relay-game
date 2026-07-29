@@ -14,7 +14,7 @@ this with [GAME_DESIGN.md](GAME_DESIGN.md) (the rules) and
  │ index.html / app.js    │ ─────────────▶ │ main.py  (routes + WS + fanout)
  │  - join / lobby        │   WebSocket    │   ├─ ConnectionManager        │
  │  - play view           │ ◀────────────▶ │   ├─ RelayEngine  (rules)     │
- │  - leader dashboard    │                │   ├─ StateStore   (in-memory) │
+ │  - Grandmaster dashboard    │                │   ├─ StateStore   (in-memory) │
  │  - countdowns          │                │   ├─ TimerService (deadlines) │
  │  - result screen       │                │   └─ GameRegistry (library)   │
                                            └──────────────────────────────┘
@@ -62,21 +62,22 @@ backend/
 - **`config.py`** — single home for `WAIT_SECONDS=180`, `LEVEL_COUNT=10`,
   `PLAYERS_PER_TEAM=4`, `MIN_PLAYERS_PER_TEAM=4`, `CURRENCY_PER_CLEAR`,
   `CURRENCY_BONUS_FIRST/REPEAT`, `BONUS_LEVEL_OFFSET`, the `PERKS` catalogue,
-  the placeholder `ROLES` grouping, `SUBMIT_MIN_INTERVAL_MS=300`, and
-  `MATCH_TTL_SECONDS=1800`. Nothing else in the codebase should contain these
-  literals.
+  the `ROLES` catalogue (with the `role_allows`/`role_assignable` helpers),
+  `SUBMIT_MIN_INTERVAL_MS=300`, and `MATCH_TTL_SECONDS=1800`. Nothing else in
+  the codebase should contain these literals. (Per-level game difficulty knobs
+  live in each game module's own `MAIN_LEVEL_PARAMS` table, not here.)
 - **`models.py`** — plain dataclasses with `.public()` methods that return the
   JSON-safe dict the client sees. **`.public()` must never include puzzle
   answers.** See [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) for exact shapes.
 - **`state.py`** — create/get/require/list matches. Async signatures so the store
   could later be swapped for a real backing store without touching callers.
 - **`registry.py`** — the id-indexed library: `by_id(game_id)`, `has(game_id)`,
-  and `library()` (feeds the leader's assignment picker, with roles from
-  `config.ROLES`). Games register themselves here; the engine only ever asks
+  and `library()` (feeds the Grandmaster's assignment picker; each game maps to
+  its specialist role from `config.ROLES`). Games register themselves here; the engine only ever asks
   the registry, never a concrete game. The game a player is served comes from
   **their own `assigned_game`**, not from the team's level.
 - **`engine.py`** — the `RelayEngine`. Pure functions over a `Match`: lobby
-  (`claim_leader`, `assign_game`, `give_leader`, host actions), `start_match`,
+  (`claim_leader`, `assign_role`, `assign_game`, `give_leader`, host actions), `start_match`,
   `submit_answer`, `choose_wait`/`choose_bonus`, `on_wait_expired`, `buy_perk`,
   plus the private advance check. Returns an `EngineResult` describing what
   changed (events, timers to (re)schedule/cancel, perk/win outcomes).
@@ -95,26 +96,26 @@ Match
   status: "lobby" | "active" | "finished"
   teams: { "alpha": Team, "bravo": Team }
   winner_team_id: str | None
-  events: [Event]           # last ~30; green/lost_green entries are leader-only
+  events: [Event]           # last ~30; green/lost_green entries are Grandmaster-only
   config_snapshot: {...}    # timers/levels/economy/perks frozen at match start
 
 Team
   id, name
   level: int                # 1..LEVEL_COUNT, per-team (independent)
   roster_size: int          # PLAYING members, frozen at match start
-  player_ids: [str]         # includes the leader
+  player_ids: [str]         # includes the Grandmaster
   finished: bool
-  currency: int             # team pool, spent only by the leader
+  currency: int             # team pool, spent only by the Grandmaster
   shield_active: bool       # blocks the next incoming attack perk
   leader_id: str | None
-  handoff_used_level: int   # last level a mid-match leader handoff happened
+  handoff_used_level: int   # last level a mid-match Grandmaster handoff happened
 
 Player
   id, name, team_id                        # id is long + random — it is the WS credential
   status: "lobby"|"solving"|"cleared"|"bonus"|"leading"|"finished"
   connected: bool
   is_leader: bool
-  assigned_game: str | None                # game id chosen by the leader
+  assigned_game: str | None                # game id chosen by the Grandmaster
   attempt: int                             # counts instances served this level;
                                            #   feeds seed derivation (see "Seeds")
   current_main: PuzzleInstance | None      # server-only answer stripped in public()
@@ -185,8 +186,8 @@ browser. Approach:
 - Flow: fetch `/api/config` → join via REST → open WebSocket → render every
   `state_snapshot`. The client is a **pure function of the latest snapshot** plus
   local countdown animation derived from `timer_deadline`.
-- Views: **lobby** (teams, leader seats, game assignment), **play** (your own
-  game + level, the wait/bonus choice, freeze overlay), the **leader dashboard**
+- Views: **lobby** (teams, Grandmaster seats, game assignment), **play** (your own
+  game + level, the wait/bonus choice, freeze overlay), the **Grandmaster dashboard**
   (roster status, currency, perk shop, opponent level chip, handoff), and
   **result** (win/lose). Snapshots are personalised per viewer — see
   [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) §3 "TeamView".

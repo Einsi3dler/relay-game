@@ -12,6 +12,9 @@ MIN_PLAYERS_PER_TEAM = 4     # both teams need this many players to start
 TEAM_IDS = ("alpha", "bravo")
 
 # --- Levels, timers & currency (docs/REDESIGN_PLAN.md) ---
+# The timer/currency/perk values below are PROVISIONAL pending the V6 playtest
+# (docs/TASK_LIST.md V7, docs/PLAYTEST_GUIDE.md). They are reasoned starting
+# points, not yet tuned from real play data — adjust them from the playtest.
 LEVEL_COUNT = 10             # levels each team must clear to win
 WAIT_SECONDS = 180           # cleared-status hold before it lapses back to solving
 CURRENCY_PER_CLEAR = 1       # paid once per player per level, on the first clear

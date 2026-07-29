@@ -50,7 +50,8 @@ things at once?".)
   test the backend module with no running server; the renderer mounts into the
   shell (or a tiny local HTML harness) via `window.RelayGames`.
 - Two shared files must be touched to register a game — `backend/config.py`
-  (a `ROLES` group) and `backend/registry.py` (`REGISTERED_MODULES`). Keep those
+  (add the id to a role's `games` list in `ROLES`) and `backend/registry.py`
+  (`REGISTERED_MODULES`). Keep those
   edits to **one line each**, call them out in your PR, and expect the Core owner
   to review them. This is the only sanctioned cross-slice edit.
 - Need something new from another slice (a protocol field, a config value)? **Ask
@@ -89,19 +90,23 @@ python3 -m pytest
 ## 6. Manual smoke check
 
 To exercise the loop without ten people, have the host lower the minimum
-players per team in the lobby (each team still needs a leader + that many
+players per team in the lobby (each team still needs a Grandmaster + that many
 players), open that many tabs per team, and verify:
 
-1. Each team claims a leader; the leader assigns distinct games; start unlocks.
+1. Each team claims a Grandmaster; the Grandmaster assigns each player a role,
+   then a game from that role (distinct per team); start unlocks.
 2. A player who solves goes **cleared**, sees the wait countdown, and gets the
-   wait-or-bonus choice; the team's currency ticks up on the leader dashboard.
+   wait-or-bonus choice; the team's currency ticks up on the Grandmaster dashboard.
 3. Taking the bonus serves a harder board; failing it returns the player to
    solving and claws back the level's bonus pay.
 4. Letting the wait timer lapse drops the player back to a fresh board.
-5. When all playing members are cleared, the team advances a level.
-6. The leader can buy each perk (watch the freeze/scramble land on an opponent)
-   and can hand leadership to a teammate (full swap) once per level.
+5. When all playing members are cleared, the team advances a level (and the
+   boards get harder).
+6. The Grandmaster can buy each perk (watch the freeze/scramble land on an
+   opponent) and can hand the seat to a teammate (full swap) once per level.
 7. The first team to clear the last level sees the win screen; the other the loss.
+
+For a fuller playtest (V6/V7), follow [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md).
 
 For a shorter run, temporarily set `LEVEL_COUNT = 2` in `backend/config.py` —
 revert the config change before committing.
