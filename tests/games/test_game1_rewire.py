@@ -6,15 +6,19 @@ import json
 import random
 
 from backend.games.game1_rewire import (
-    MAIN_COLS, MAIN_ROWS, RewireGame, _build_board, open_edges,
+    MAIN_COLS, MAIN_LEVEL_PARAMS, MAIN_ROWS, RewireGame, _build_board,
+    _params_for_level, open_edges,
 )
 
 game = RewireGame()
 
 
-def reference_solution(seed: int) -> str:
+def reference_solution(seed: int, level: int = 1) -> str:
     """Rebuild the board the way generate_main(seed) does to get the solution."""
-    board = _build_board(random.Random(seed), MAIN_ROWS, MAIN_COLS, 2)
+    params = _params_for_level(level)
+    board = _build_board(
+        random.Random(seed), params["rows"], params["cols"], params["sinks"]
+    )
     return ",".join(str(orient) for orient in board.solution)
 
 
@@ -98,7 +102,44 @@ def test_shape_edge_rotation_math():
     assert open_edges("end", 2) == {2}
 
 
-def test_generate_main_accepts_level():
-    # v2 contract (docs/REDESIGN_PLAN.md): level is accepted; scaling is follow-up.
-    puzzle = game.generate_main(42, level=5)
-    assert puzzle.kind == "main" and puzzle.game_id == game.id
+def test_level_determinism():
+    # V5 contract: same (seed, level) always yields the same puzzle.
+    for level in (1, 5, 10):
+        a = game.generate_main(42, level=level)
+        b = game.generate_main(42, level=level)
+        assert a.payload == b.payload and a.answer == b.answer
+
+
+def test_level_one_matches_original_board():
+    assert _params_for_level(1) == {
+        "rows": MAIN_ROWS, "cols": MAIN_COLS, "sinks": 2,
+        "difficulty": 2, "time_hint": 35,
+    }
+    assert game.generate_main(42, level=1).payload == game.generate_main(42).payload
+
+
+def test_level_params_monotonic():
+    for easier, harder in zip(MAIN_LEVEL_PARAMS, MAIN_LEVEL_PARAMS[1:]):
+        assert easier["rows"] * easier["cols"] <= harder["rows"] * harder["cols"]
+        assert easier["sinks"] <= harder["sinks"]
+        assert easier["difficulty"] <= harder["difficulty"]
+        assert easier["time_hint"] <= harder["time_hint"]
+
+
+def test_every_level_generates_solvable_scaled_boards():
+    for level in range(1, 11):
+        params = _params_for_level(level)
+        for seed in (3, 44, 90):
+            puzzle = game.generate_main(seed, level=level)
+            payload = puzzle.payload
+            assert payload["rows"] == params["rows"]
+            assert payload["cols"] == params["cols"]
+            assert 1 <= len(payload["sinks"]) <= params["sinks"]
+            assert game.check(puzzle, reference_solution(seed, level)) is True
+
+
+def test_level_ten_visibly_harder():
+    top = game.generate_main(42, level=10).payload
+    base = game.generate_main(42, level=1).payload
+    assert top["rows"] * top["cols"] > base["rows"] * base["cols"]
+    assert len(top["sinks"]) > len(base["sinks"])

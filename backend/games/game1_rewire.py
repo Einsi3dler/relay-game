@@ -27,6 +27,28 @@ SHAPE_EDGES = {
 MAIN_ROWS, MAIN_COLS = 4, 4
 HOLDING_ROWS, HOLDING_COLS = 2, 2
 
+# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10,
+# level 1 == the original board. Moderate climb — bigger grids and more sinks,
+# never degree-4 tiles (the builder caps degree at 3; the renderer has no
+# cross tile).
+MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
+    {"rows": 4, "cols": 4, "sinks": 2, "difficulty": 2, "time_hint": 35},  # 1
+    {"rows": 4, "cols": 4, "sinks": 2, "difficulty": 2, "time_hint": 35},  # 2
+    {"rows": 4, "cols": 4, "sinks": 2, "difficulty": 2, "time_hint": 35},  # 3
+    {"rows": 4, "cols": 5, "sinks": 3, "difficulty": 3, "time_hint": 42},  # 4
+    {"rows": 4, "cols": 5, "sinks": 3, "difficulty": 3, "time_hint": 42},  # 5
+    {"rows": 4, "cols": 5, "sinks": 3, "difficulty": 3, "time_hint": 42},  # 6
+    {"rows": 5, "cols": 5, "sinks": 3, "difficulty": 3, "time_hint": 50},  # 7
+    {"rows": 5, "cols": 5, "sinks": 3, "difficulty": 3, "time_hint": 50},  # 8
+    {"rows": 5, "cols": 6, "sinks": 4, "difficulty": 4, "time_hint": 60},  # 9
+    {"rows": 5, "cols": 6, "sinks": 4, "difficulty": 4, "time_hint": 60},  # 10
+)
+
+
+def _params_for_level(level: int) -> dict:
+    """Main-board knobs for `level`, clamped to the 1..10 table."""
+    return MAIN_LEVEL_PARAMS[min(max(level, 1), len(MAIN_LEVEL_PARAMS)) - 1]
+
 
 def open_edges(shape: str, orient: int) -> set[int]:
     return {(edge + orient) % 4 for edge in SHAPE_EDGES[shape]}
@@ -148,16 +170,17 @@ class RewireGame:
     name = "Rewire"
 
     def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
-        return self._generate(seed, kind="main")
+        return self._generate(seed, kind="main", level=level)
 
     def generate_holding(self, seed: int) -> PuzzleInstance:
         return self._generate(seed, kind="holding")
 
-    def _generate(self, seed: int, kind: str) -> PuzzleInstance:
+    def _generate(self, seed: int, kind: str, level: int = 1) -> PuzzleInstance:
         rng = random.Random(seed)
         if kind == "main":
-            rows, cols, sink_count = MAIN_ROWS, MAIN_COLS, 2
-            difficulty, time_hint = 2, 35
+            params = _params_for_level(level)
+            rows, cols, sink_count = params["rows"], params["cols"], params["sinks"]
+            difficulty, time_hint = params["difficulty"], params["time_hint"]
         else:
             rows, cols, sink_count = HOLDING_ROWS, HOLDING_COLS, 1
             difficulty, time_hint = 1, 8

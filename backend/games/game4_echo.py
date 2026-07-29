@@ -16,6 +16,28 @@ MAIN_PADS, MAIN_LENGTH = 9, 5
 HOLD_PADS, HOLD_LENGTH = 4, 3
 FLASH_MS, GAP_MS = 450, 250
 
+# Main-sequence difficulty curve (docs/TASK_LIST.md V5): one row per level
+# 1..10, level 1 == the original puzzle. Length carries the difficulty; the
+# flash speed-up is modest to keep the calm feel. Pads stay 9 — the renderer
+# lays out a sqrt(pads) grid with a 9-colour palette.
+MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
+    {"length": 5, "flash_ms": 450, "gap_ms": 250, "difficulty": 2, "time_hint": 20},  # 1
+    {"length": 5, "flash_ms": 450, "gap_ms": 250, "difficulty": 2, "time_hint": 20},  # 2
+    {"length": 6, "flash_ms": 450, "gap_ms": 250, "difficulty": 2, "time_hint": 22},  # 3
+    {"length": 6, "flash_ms": 450, "gap_ms": 250, "difficulty": 2, "time_hint": 22},  # 4
+    {"length": 7, "flash_ms": 420, "gap_ms": 230, "difficulty": 3, "time_hint": 25},  # 5
+    {"length": 7, "flash_ms": 420, "gap_ms": 230, "difficulty": 3, "time_hint": 25},  # 6
+    {"length": 8, "flash_ms": 390, "gap_ms": 210, "difficulty": 3, "time_hint": 28},  # 7
+    {"length": 8, "flash_ms": 390, "gap_ms": 210, "difficulty": 3, "time_hint": 28},  # 8
+    {"length": 9, "flash_ms": 360, "gap_ms": 200, "difficulty": 4, "time_hint": 30},  # 9
+    {"length": 9, "flash_ms": 360, "gap_ms": 200, "difficulty": 4, "time_hint": 30},  # 10
+)
+
+
+def _params_for_level(level: int) -> dict:
+    """Main-sequence knobs for `level`, clamped to the 1..10 table."""
+    return MAIN_LEVEL_PARAMS[min(max(level, 1), len(MAIN_LEVEL_PARAMS)) - 1]
+
 
 class EchoGame:
     """Repeat the flashed pad sequence by tapping in the same order."""
@@ -24,17 +46,21 @@ class EchoGame:
     name = "Echo"
 
     def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
-        return self._generate(seed, kind="main")
+        return self._generate(seed, kind="main", level=level)
 
     def generate_holding(self, seed: int) -> PuzzleInstance:
         return self._generate(seed, kind="holding")
 
-    def _generate(self, seed: int, kind: str) -> PuzzleInstance:
+    def _generate(self, seed: int, kind: str, level: int = 1) -> PuzzleInstance:
         rng = random.Random(seed)
         if kind == "main":
-            pads, length, difficulty, time_hint = MAIN_PADS, MAIN_LENGTH, 2, 20
+            params = _params_for_level(level)
+            pads, length = MAIN_PADS, params["length"]
+            difficulty, time_hint = params["difficulty"], params["time_hint"]
+            flash_ms, gap_ms = params["flash_ms"], params["gap_ms"]
         else:
             pads, length, difficulty, time_hint = HOLD_PADS, HOLD_LENGTH, 1, 8
+            flash_ms, gap_ms = FLASH_MS, GAP_MS
         sequence = [rng.randrange(pads) for _ in range(length)]
         return PuzzleInstance(
             game_id=self.id,
@@ -47,8 +73,8 @@ class EchoGame:
                 "time_hint_seconds": time_hint,
                 "pads": pads,
                 "sequence": sequence,  # documented exception — must be animated
-                "flash_ms": FLASH_MS,
-                "gap_ms": GAP_MS,
+                "flash_ms": flash_ms,
+                "gap_ms": gap_ms,
             },
         )
 

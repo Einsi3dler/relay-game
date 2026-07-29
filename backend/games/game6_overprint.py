@@ -43,6 +43,27 @@ SCRAMBLE_ATTEMPTS = 60         # per generated target
 MAX_SOLUTIONS = 24             # reject boards more ambiguous than this
 MAX_ANSWER_CHARS = 600
 
+# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10,
+# level 1 == the original board. Layers cap at 4 (the renderer has 4 layer
+# styles); min_misplaced always stays <= layers.
+MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
+    {"size": 6, "layers": 3, "cells": (2, 5), "max_overlap": 2, "min_misplaced": 2, "difficulty": 2, "time_hint": 30},  # 1
+    {"size": 6, "layers": 3, "cells": (2, 5), "max_overlap": 2, "min_misplaced": 2, "difficulty": 2, "time_hint": 30},  # 2
+    {"size": 6, "layers": 3, "cells": (2, 5), "max_overlap": 2, "min_misplaced": 2, "difficulty": 2, "time_hint": 30},  # 3
+    {"size": 6, "layers": 3, "cells": (3, 5), "max_overlap": 2, "min_misplaced": 3, "difficulty": 3, "time_hint": 38},  # 4
+    {"size": 6, "layers": 3, "cells": (3, 5), "max_overlap": 2, "min_misplaced": 3, "difficulty": 3, "time_hint": 38},  # 5
+    {"size": 6, "layers": 3, "cells": (3, 5), "max_overlap": 2, "min_misplaced": 3, "difficulty": 3, "time_hint": 38},  # 6
+    {"size": 7, "layers": 4, "cells": (3, 5), "max_overlap": 3, "min_misplaced": 3, "difficulty": 4, "time_hint": 48},  # 7
+    {"size": 7, "layers": 4, "cells": (3, 5), "max_overlap": 3, "min_misplaced": 3, "difficulty": 4, "time_hint": 48},  # 8
+    {"size": 7, "layers": 4, "cells": (3, 5), "max_overlap": 3, "min_misplaced": 3, "difficulty": 4, "time_hint": 48},  # 9
+    {"size": 7, "layers": 4, "cells": (3, 6), "max_overlap": 3, "min_misplaced": 4, "difficulty": 4, "time_hint": 55},  # 10
+)
+
+
+def _params_for_level(level: int) -> dict:
+    """Main-board knobs for `level`, clamped to the 1..10 table."""
+    return MAIN_LEVEL_PARAMS[min(max(level, 1), len(MAIN_LEVEL_PARAMS)) - 1]
+
 STEPS = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 Cell = tuple[int, int]
@@ -167,20 +188,23 @@ class OverprintGame:
     name = "Overprint"
 
     def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
-        return self._generate(seed, kind="main")
+        return self._generate(seed, kind="main", level=level)
 
     def generate_holding(self, seed: int) -> PuzzleInstance:
         return self._generate(seed, kind="holding")
 
-    def _build(self, seed: int, kind: str) -> tuple[dict, str]:
+    def _build(self, seed: int, kind: str, level: int = 1) -> tuple[dict, str]:
         """Payload + a reference solution (server-only, used by tests)."""
         rng = random.Random(seed)
         if kind == "main":
-            size, layer_count, cell_range = MAIN_SIZE, MAIN_LAYERS, MAIN_CELLS
-            max_overlap, min_misplaced = MAIN_MAX_OVERLAP, MAIN_MIN_MISPLACED
+            params = _params_for_level(level)
+            size, layer_count, cell_range = params["size"], params["layers"], params["cells"]
+            max_overlap, min_misplaced = params["max_overlap"], params["min_misplaced"]
+            difficulty, time_hint = params["difficulty"], params["time_hint"]
         else:
             size, layer_count, cell_range = HOLD_SIZE, HOLD_LAYERS, HOLD_CELLS
             max_overlap, min_misplaced = HOLD_MAX_OVERLAP, HOLD_MIN_MISPLACED
+            difficulty, time_hint = 1, 8
         for _ in range(GEN_ATTEMPTS):
             # Main: every layer rotates, one may flip. Holding: translation
             # only, plus at most one rotatable layer (spec §4).
@@ -230,8 +254,8 @@ class OverprintGame:
 
             payload = {
                 "variant": kind,
-                "difficulty": 2 if kind == "main" else 1,
-                "time_hint_seconds": 30 if kind == "main" else 8,
+                "difficulty": difficulty,
+                "time_hint_seconds": time_hint,
                 "rules_version": RULES_VERSION,
                 "rows": size,
                 "cols": size,
@@ -247,8 +271,8 @@ class OverprintGame:
             return payload, answer
         raise RuntimeError(f"overprint generation failed for seed {seed}")
 
-    def _generate(self, seed: int, kind: str) -> PuzzleInstance:
-        payload, answer = self._build(seed, kind)
+    def _generate(self, seed: int, kind: str, level: int = 1) -> PuzzleInstance:
+        payload, answer = self._build(seed, kind, level)
         return PuzzleInstance(
             game_id=self.id,
             kind=kind,

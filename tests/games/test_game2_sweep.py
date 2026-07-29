@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 
-from backend.games.game2_sweep import SweepGame
+from backend.games.game2_sweep import (
+    MAIN_LEVEL_PARAMS, SweepGame, _params_for_level,
+)
 
 game = SweepGame()
 
@@ -94,7 +96,45 @@ def test_reset_safe_and_deterministic_after():
     assert game.generate_main(9).answer == before
 
 
-def test_generate_main_accepts_level():
-    # v2 contract (docs/REDESIGN_PLAN.md): level is accepted; scaling is follow-up.
-    puzzle = game.generate_main(42, level=5)
-    assert puzzle.kind == "main" and puzzle.game_id == game.id
+def test_level_determinism():
+    # V5 contract: same (seed, level) always yields the same puzzle.
+    for level in (1, 5, 10):
+        a = game.generate_main(42, level=level)
+        b = game.generate_main(42, level=level)
+        assert a.payload == b.payload and a.answer == b.answer
+
+
+def test_level_one_matches_original_board():
+    assert _params_for_level(1) == {
+        "rows": 6, "cols": 6, "mines": 6, "difficulty": 2, "time_hint": 40,
+    }
+    assert game.generate_main(42, level=1).payload == game.generate_main(42).payload
+
+
+def test_level_params_monotonic():
+    for easier, harder in zip(MAIN_LEVEL_PARAMS, MAIN_LEVEL_PARAMS[1:]):
+        assert easier["rows"] * easier["cols"] <= harder["rows"] * harder["cols"]
+        assert easier["mines"] <= harder["mines"]
+        assert easier["difficulty"] <= harder["difficulty"]
+        assert easier["time_hint"] <= harder["time_hint"]
+
+
+def test_every_level_generates_deducible_scaled_boards():
+    # The no-guess gate applies at every level; the easing fallback may only
+    # ever REDUCE the mine count, so assert grid exactly and mines as a cap.
+    for level in range(1, 11):
+        params = _params_for_level(level)
+        for seed in (3, 44, 90):
+            puzzle = game.generate_main(seed, level=level)
+            payload = puzzle.payload
+            assert payload["rows"] == params["rows"]
+            assert payload["cols"] == params["cols"]
+            assert 1 <= payload["mine_count"] <= params["mines"]
+            assert game.check(puzzle, puzzle.answer) is True
+
+
+def test_level_ten_visibly_harder():
+    top = game.generate_main(42, level=10).payload
+    base = game.generate_main(42, level=1).payload
+    assert (top["rows"], top["cols"]) == (8, 8)
+    assert top["mine_count"] > base["mine_count"]

@@ -5,9 +5,11 @@ from __future__ import annotations
 from backend.games.game3_decant import (
     CAPACITY,
     MAIN_COLOURS,
+    MAIN_LEVEL_PARAMS,
     MAIN_MIN_POURS,
     DecantGame,
     _colour_runs,
+    _params_for_level,
     _pour,
     _solved,
 )
@@ -137,7 +139,45 @@ def test_reset_safe_and_deterministic_after():
     assert game.generate_main(5).payload == before
 
 
-def test_generate_main_accepts_level():
-    # v2 contract (docs/REDESIGN_PLAN.md): level is accepted; scaling is follow-up.
-    puzzle = game.generate_main(42, level=5)
-    assert puzzle.kind == "main" and puzzle.game_id == game.id
+def test_level_determinism():
+    # V5 contract: same (seed, level) always yields the same puzzle.
+    for level in (1, 5, 10):
+        a = game.generate_main(42, level=level)
+        b = game.generate_main(42, level=level)
+        assert a.payload == b.payload and a.answer == b.answer
+
+
+def test_level_one_matches_original_board():
+    assert _params_for_level(1) == {
+        "colours": MAIN_COLOURS, "tubes": 6, "scramble": 20,
+        "min_pours": MAIN_MIN_POURS, "difficulty": 3, "time_hint": 40,
+    }
+    assert game.generate_main(42, level=1).payload == game.generate_main(42).payload
+
+
+def test_level_params_monotonic():
+    for easier, harder in zip(MAIN_LEVEL_PARAMS, MAIN_LEVEL_PARAMS[1:]):
+        for knob in ("colours", "tubes", "scramble", "min_pours",
+                     "difficulty", "time_hint"):
+            assert easier[knob] <= harder[knob]
+
+
+def test_every_level_generates_solvable_scaled_boards():
+    for level in range(1, 11):
+        params = _params_for_level(level)
+        for seed in (3, 44, 90):
+            tubes, solution = game._build(seed, "main", level)
+            assert len(tubes) == params["tubes"]
+            colours = {block for tube in tubes for block in tube}
+            assert len(colours) == params["colours"]
+            puzzle = game.generate_main(seed, level=level)
+            answer = ";".join(f"{src}>{dst}" for src, dst in solution)
+            assert game.check(puzzle, answer) is True
+
+
+def test_level_ten_visibly_harder():
+    tubes, _ = game._build(42, "main", 10)
+    params = _params_for_level(10)
+    # The run-count lower bound must clear the level-10 floor (no fallback).
+    assert _colour_runs(tubes) - params["colours"] >= params["min_pours"]
+    assert params["min_pours"] > MAIN_MIN_POURS
