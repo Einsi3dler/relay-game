@@ -217,7 +217,10 @@ async def get_config() -> dict:
         "level_count": config.LEVEL_COUNT,
         "wait_seconds": config.WAIT_SECONDS,
         "perks": {perk_id: dict(perk) for perk_id, perk in config.PERKS.items()},
-        "roles": {role: list(ids) for role, ids in config.ROLES.items()},
+        "roles": {
+            role_id: {"name": role["name"], "games": role["games"]}
+            for role_id, role in config.ROLES.items()
+        },
         "library": engine.registry.library(),
     }
 
@@ -311,6 +314,10 @@ def _run_lobby_action(match: Match, player_id: str, fields: dict) -> EngineResul
         return engine.host_start(match, player_id)
     if action == "claim_leader":
         return engine.claim_leader(match, player_id)
+    if action == "assign_role":
+        return engine.assign_role(
+            match, player_id, fields.get("target_id", ""), fields.get("role_id", "")
+        )
     if action == "assign_game":
         return engine.assign_game(
             match, player_id, fields.get("target_id", ""), fields.get("game_id", "")

@@ -56,6 +56,7 @@ class Player:
     status: str = "lobby"  # "lobby" | "solving" | "cleared" | "bonus" | "leading" | "finished"
     connected: bool = False
     is_leader: bool = False
+    role: str | None = None  # config.ROLES id given by the Grandmaster
     assigned_game: str | None = None  # game id chosen by the team leader
     attempt: int = 0  # main-puzzle instances served this level
     current_main: PuzzleInstance | None = None
@@ -85,6 +86,7 @@ class Player:
             "green": green(self),
             "connected": self.connected,
             "is_leader": self.is_leader,
+            "role": self.role,
             "assigned_game": self.assigned_game,
         }
 

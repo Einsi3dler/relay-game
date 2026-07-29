@@ -31,12 +31,32 @@ PERKS: dict[str, dict] = {
     "extend_wait": {"name": "Extend Wait", "kind": "defense", "cost": 1, "seconds": 60},
 }
 
-# Placeholder role grouping for the game library (real roles are future work).
-ROLES: dict[str, list[str]] = {
-    "builder": ["rewire", "decant"],
-    "scout":   ["sweep", "mirror_run"],
-    "cipher":  ["echo", "overprint"],
+# Role catalogue (docs/TASK_LIST.md V8): the Grandmaster (team leader) assigns
+# each player a role in the lobby; the game picker then only offers that
+# role's games.
+#   games=None  -> any registered game (Generalist).
+#   games=[]    -> reserved, not assignable (no matching game shipped yet).
+ROLES: dict[str, dict] = {
+    "logician":         {"name": "Logician",         "games": ["sweep"]},
+    "technocrat":       {"name": "Technocrat",       "games": ["rewire"]},
+    "spatial_reasoner": {"name": "Spatial Reasoner", "games": ["mirror_run"]},
+    "puzzle_master":    {"name": "Puzzle Master",    "games": ["decant"]},
+    "spymaster":        {"name": "Spymaster",        "games": ["echo", "overprint"]},
+    "generalist":       {"name": "Generalist",       "games": None},
+    "lexicon":          {"name": "Lexicon",          "games": []},  # reserved: no word game yet
 }
+
+
+def role_allows(role_id: str, game_id: str) -> bool:
+    """True if the role may be assigned `game_id` (Generalist allows all)."""
+    games = ROLES[role_id]["games"]
+    return games is None or game_id in games
+
+
+def role_assignable(role_id: str) -> bool:
+    """True if the role can be given to a player at all (reserved roles can't)."""
+    games = ROLES[role_id]["games"]
+    return games is None or bool(games)
 
 # --- Server behaviour ---
 SUBMIT_MIN_INTERVAL_MS = 300     # reject submissions arriving faster than this

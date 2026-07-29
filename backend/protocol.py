@@ -39,6 +39,7 @@ LOBBY_ACTIONS = (
     "start",
     "claim_host",
     "claim_leader",
+    "assign_role",
     "assign_game",
 )
 
@@ -113,7 +114,7 @@ def parse_client_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
         if action not in LOBBY_ACTIONS:
             return "Unknown lobby action."
         fields = {"action": action}
-        for key in ("target_id", "team_id", "game_id"):
+        for key in ("target_id", "team_id", "game_id", "role_id"):
             if key in raw:
                 if not isinstance(raw[key], str):
                     return "Malformed message."

@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 import backend.main as server
-from backend import config
+from backend import config, protocol
 from backend.registry import GameRegistry
 
 from tests.test_engine import GAMES, LEVELS, MAIN_OK, FakeGame
@@ -67,6 +67,10 @@ def fill_match(client, match_id: str, games=None) -> dict[str, list[str]]:
             ws.receive_json()
             ws.send_json({"type": "lobby_action", "action": "claim_leader"})
             for i, player_id in enumerate(ids[team_id]):
+                ws.send_json({
+                    "type": "lobby_action", "action": "assign_role",
+                    "target_id": player_id, "role_id": "generalist",
+                })
                 ws.send_json({
                     "type": "lobby_action", "action": "assign_game",
                     "target_id": player_id, "game_id": games[i],
@@ -175,9 +179,27 @@ def test_get_config(client):
     assert body["level_count"] == config.LEVEL_COUNT
     assert body["wait_seconds"] == config.WAIT_SECONDS
     assert set(body["perks"]) == set(config.PERKS)
-    assert body["roles"] == {r: list(ids) for r, ids in config.ROLES.items()}
+    assert set(body["roles"]) == set(config.ROLES)
+    for role_id, role in config.ROLES.items():
+        assert body["roles"][role_id] == {"name": role["name"], "games": role["games"]}
+    assert body["roles"]["generalist"]["games"] is None  # any game
+    assert body["roles"]["lexicon"]["games"] == []  # reserved
     library_ids = {entry["id"] for entry in body["library"]}
     assert {"rewire", "sweep", "mirror_run", "decant", "echo", "overprint"} <= library_ids
+
+
+def test_protocol_parses_assign_role():
+    parsed = protocol.parse_client_message({
+        "type": "lobby_action", "action": "assign_role",
+        "target_id": "p1", "role_id": "logician",
+    })
+    assert parsed == ("lobby_action", {
+        "action": "assign_role", "target_id": "p1", "role_id": "logician",
+    })
+    malformed = protocol.parse_client_message({
+        "type": "lobby_action", "action": "assign_role", "role_id": 7,
+    })
+    assert isinstance(malformed, str)  # non-string role_id is rejected
 
 
 def test_create_and_get_match(client):
@@ -245,7 +267,7 @@ def test_lobby_leader_and_start_blockers(client, fake_games):
             # start still blocked: alpha's leader has no playing teammates
             host_ws.send_json({"type": "lobby_action", "action": "start"})
             error = drain_for_error(host_ws)
-            assert "player" in error or "leader" in error
+            assert "player" in error or "Grandmaster" in error
     state = client.get(f"/api/matches/{match_id}").json()["match"]
     assert state["status"] == "lobby" and state["min_players"] == 1
 
@@ -349,7 +371,7 @@ def test_choice_and_perk_flow_over_websocket(client, fake_games):
         assert snapshot["state"]["me"]["status"] == "bonus"
         assert snapshot["state"]["me"]["current_puzzle"] is not None
         ws.send_json({"type": "buy_perk", "perk_id": "shield"})
-        assert "leader" in ws.receive_json()["error"]  # players can't buy
+        assert "Grandmaster" in ws.receive_json()["error"]  # players can't buy
 
 
 def test_give_leader_over_websocket(client, fake_games):

@@ -51,11 +51,16 @@ class GameRegistry:
         return game_id in self._by_id
 
     def library(self) -> list[dict[str, str | None]]:
-        """All registered games as `{id, name, role}` for the assignment UI."""
+        """All registered games as `{id, name, role}` for the assignment UI.
+
+        `role` is the game's specialist role id — catch-all roles (games=None)
+        and reserved roles (games=[]) never claim a game.
+        """
         role_of = {
-            game_id: role
-            for role, game_ids in config.ROLES.items()
-            for game_id in game_ids
+            game_id: role_id
+            for role_id, role in config.ROLES.items()
+            if role["games"]
+            for game_id in role["games"]
         }
         return [
             {"id": module.id, "name": module.name, "role": role_of.get(module.id)}
