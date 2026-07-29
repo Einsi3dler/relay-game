@@ -13,10 +13,10 @@ from backend.games.base import GameModule, PuzzleInstance, normalize_answer
 class TemplateGame:
     """One-line description of the puzzle idea and what a correct answer looks like."""
 
-    id = "template_game"      # unique snake_case; also goes in config.GAME_ORDER
+    id = "template_game"      # unique snake_case; also goes in a config.ROLES group
     name = "Template Game"    # display name
 
-    def generate_main(self, seed: int) -> PuzzleInstance:
+    def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
         rng = random.Random(seed)          # seed everything from `seed` — no bare random
         a, b = rng.randint(2, 9), rng.randint(2, 9)
         return PuzzleInstance(

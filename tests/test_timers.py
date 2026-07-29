@@ -1,4 +1,4 @@
-"""T3.1 TimerService + T3.2 per-match serialization."""
+"""TimerService + per-match serialization, against the v2 wait-timer loop."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from backend.registry import GameRegistry
 from backend.state import MatchLocks
 from backend.timers import TimerService
 
-from tests.test_engine import MAIN_OK, ORDER, FakeGame
+from tests.test_engine import GAMES, LEVELS, MAIN_OK, FakeGame, full_match, solve
 
 
 def in_ms(ms: float) -> str:
@@ -21,19 +21,17 @@ def in_ms(ms: float) -> str:
 
 
 @pytest.fixture(autouse=True)
-def four_stage_matches(monkeypatch):
-    # Fake matches are 4 stages regardless of the real roster size.
-    monkeypatch.setattr(config, "STAGE_COUNT", len(ORDER))
+def short_matches(monkeypatch):
+    # Fake matches are LEVELS levels regardless of the real config.
+    monkeypatch.setattr(config, "LEVEL_COUNT", LEVELS)
 
 
 def make_engine() -> RelayEngine:
-    registry = GameRegistry(
-        modules=[FakeGame(game_id) for game_id in ORDER], game_order=ORDER
-    )
+    registry = GameRegistry(modules=[FakeGame(game_id) for game_id in GAMES])
     return RelayEngine(registry)
 
 
-# --- T3.1 TimerService ---
+# --- TimerService ---
 
 def test_timer_fires_at_deadline_with_args():
     async def scenario():
@@ -43,11 +41,11 @@ def test_timer_fires_at_deadline_with_args():
             fired.append((match_id, player_id, kind))
 
         service = TimerService(on_fire)
-        service.schedule("m1", "p1", "rest", in_ms(50))
+        service.schedule("m1", "p1", "wait", in_ms(50))
         await asyncio.sleep(0.02)
         assert fired == []  # not yet
         await asyncio.sleep(0.06)
-        assert fired == [("m1", "p1", "rest")]
+        assert fired == [("m1", "p1", "wait")]
         assert service.pending("m1") == set()
 
     asyncio.run(scenario())
@@ -61,10 +59,10 @@ def test_scheduling_new_timer_cancels_old():
             fired.append(kind)
 
         service = TimerService(on_fire)
-        service.schedule("m1", "p1", "rest", in_ms(30))
-        service.schedule("m1", "p1", "holding", in_ms(60))  # replaces the rest timer
+        service.schedule("m1", "p1", "wait", in_ms(30))
+        service.schedule("m1", "p1", "wait-2", in_ms(60))  # replaces the first
         await asyncio.sleep(0.1)
-        assert fired == ["holding"]  # old timer never fired
+        assert fired == ["wait-2"]  # old timer never fired
 
     asyncio.run(scenario())
 
@@ -77,9 +75,9 @@ def test_cancel_and_cancel_match():
             fired.append(player_id)
 
         service = TimerService(on_fire)
-        service.schedule("m1", "p1", "rest", in_ms(30))
-        service.schedule("m1", "p2", "rest", in_ms(30))
-        service.schedule("m2", "p3", "rest", in_ms(30))
+        service.schedule("m1", "p1", "wait", in_ms(30))
+        service.schedule("m1", "p2", "wait", in_ms(30))
+        service.schedule("m2", "p3", "wait", in_ms(30))
         service.cancel("m1", "p1")
         service.cancel_match("m2")
         assert service.pending("m1") == {"p2"} and service.pending("m2") == set()
@@ -95,10 +93,10 @@ def test_apply_result_schedules_and_cancels():
             pass
 
         service = TimerService(on_fire)
-        service.schedule("m1", "p1", "rest", in_ms(500))
+        service.schedule("m1", "p1", "wait", in_ms(500))
         result = EngineResult(
             cancel=["p1"],
-            schedule=[TimerRequest(player_id="p2", kind="rest", deadline=in_ms(500))],
+            schedule=[TimerRequest(player_id="p2", kind="wait", deadline=in_ms(500))],
         )
         service.apply_result("m1", result)
         assert service.pending("m1") == {"p2"}
@@ -107,105 +105,87 @@ def test_apply_result_schedules_and_cancels():
     asyncio.run(scenario())
 
 
-def test_advance_cancels_team_timers_no_ghost_holding():
-    """AC: rest timers die with the advance — nobody gets a holding question
-    after their team moved on."""
+def test_advance_cancels_team_timers():
+    """AC: wait timers die with the advance — nobody loses cleared status for a
+    level their team already finished."""
     async def scenario():
         engine = make_engine()
-        match = engine.create_match()
-        members = []
-        for team_id in ("alpha", "bravo"):
-            for i in range(4):
-                player, result = engine.join_match(match, f"{team_id[0]}{i}", team_id)
-                members.append(player)
-        engine.start_match(match)
-        match.config_snapshot["rest_seconds"] = 0.05  # fast rest for the test
+        match, members, _ = full_match(engine)
+        match.config_snapshot["wait_seconds"] = 0.05  # fast waits for the test
 
         async def on_fire(match_id, player_id, kind):
-            hook = {"rest": engine.on_rest_expired, "holding": engine.on_holding_expired}[kind]
-            service.apply_result(match_id, hook(match, player_id))
+            service.apply_result(match_id, engine.on_wait_expired(match, player_id))
 
         service = TimerService(on_fire)
-        alpha = members[:4]
-        for player in alpha[:3]:  # three go green; rest timers pending
-            result = engine.submit_main(match, player.id, player.current_main.id, MAIN_OK)
+        alpha = members["alpha"]
+        for player in alpha[:3]:  # three clear; wait timers pending
+            result = solve(engine, match, player, now=None)
             service.apply_result(match.id, result)
         assert service.pending(match.id) == {p.id for p in alpha[:3]}
 
-        # 4th green before any rest expires → advance; cancels team timers.
-        result = engine.submit_main(match, alpha[3].id, alpha[3].current_main.id, MAIN_OK)
+        # 4th clear before any wait expires → advance; cancels team timers.
+        result = solve(engine, match, alpha[3], now=None)
         assert result.advanced_team_ids == ["alpha"]
         service.apply_result(match.id, result)
         assert service.pending(match.id) == set()
 
+        served = {p.id: p.current_main.id for p in alpha}
         await asyncio.sleep(0.12)  # well past the old deadlines
-        assert all(p.status == "solving" for p in alpha)  # no ghost holding
+        # No ghost fire: everyone still solving the level-2 puzzle they got.
+        assert all(p.status == "solving" for p in alpha)
+        assert {p.id: p.current_main.id for p in alpha} == served
 
     asyncio.run(scenario())
 
 
-def test_rest_timer_fires_engine_hook_and_serves_holding():
-    """AC: a scheduled rest timer fires on_rest_expired at the deadline."""
+def test_wait_timer_fires_engine_hook_and_drops_cleared():
+    """AC: a scheduled wait timer fires on_wait_expired at the deadline."""
     async def scenario():
         engine = make_engine()
-        match = engine.create_match()
-        players = []
-        for team_id in ("alpha", "bravo"):
-            for i in range(4):
-                player, _ = engine.join_match(match, f"{team_id[0]}{i}", team_id)
-                players.append(player)
-        engine.start_match(match)
-        match.config_snapshot["rest_seconds"] = 0.05
-        match.config_snapshot["holding_seconds"] = 5
+        match, members, _ = full_match(engine)
+        match.config_snapshot["wait_seconds"] = 0.05
 
         async def on_fire(match_id, player_id, kind):
-            hook = {"rest": engine.on_rest_expired, "holding": engine.on_holding_expired}[kind]
-            service.apply_result(match_id, hook(match, player_id))
+            service.apply_result(match_id, engine.on_wait_expired(match, player_id))
 
         service = TimerService(on_fire)
-        player = players[0]
-        result = engine.submit_main(match, player.id, player.current_main.id, MAIN_OK)
+        player = members["alpha"][0]
+        result = solve(engine, match, player, now=None)
         service.apply_result(match.id, result)
-        assert player.status == "resting"
+        assert player.status == "cleared"
         await asyncio.sleep(0.1)
-        assert player.status == "holding"  # hook fired and cascaded
-        assert player.current_holding is not None
-        assert service.pending(match.id) == {player.id}  # holding timer now pending
+        assert player.status == "solving"  # hook fired: cleared status lapsed
+        assert player.current_main is not None
+        assert service.pending(match.id) == set()
         service.cancel_match(match.id)
 
     asyncio.run(scenario())
 
 
-# --- T3.2 per-match serialization ---
+# --- per-match serialization ---
 
 def test_concurrent_final_submits_are_serialized_and_deterministic():
     """Two teams' winning submissions race; the lock serializes them, the first
     one wins, the second is rejected (match already finished)."""
     async def scenario():
         engine = make_engine()
-        match = engine.create_match()
-        members = {"alpha": [], "bravo": []}
-        for team_id in ("alpha", "bravo"):
-            for i in range(4):
-                player, _ = engine.join_match(match, f"{team_id[0]}{i}", team_id)
-                members[team_id].append(player)
-        engine.start_match(match)
-        # Both teams to Stage 4, all but one player green on each.
-        for _ in range(3):
+        match, members, _ = full_match(engine)
+        # Both teams to the last level, all but one player cleared on each.
+        for _ in range(LEVELS - 1):
             for team_id in ("alpha", "bravo"):
                 for player in members[team_id]:
-                    engine.submit_main(match, player.id, player.current_main.id, MAIN_OK)
+                    solve(engine, match, player, now=None)
         for team_id in ("alpha", "bravo"):
             for player in members[team_id][:3]:
-                engine.submit_main(match, player.id, player.current_main.id, MAIN_OK)
-        assert all(match.teams[t].stage == 4 for t in ("alpha", "bravo"))
+                solve(engine, match, player, now=None)
+        assert all(match.teams[t].level == LEVELS for t in ("alpha", "bravo"))
 
         locks = MatchLocks()
         results = []
 
         async def final_submit(player):
             async with locks.for_match(match.id):
-                result = engine.submit_main(
+                result = engine.submit_answer(
                     match, player.id, player.current_main.id, MAIN_OK
                 )
                 await asyncio.sleep(0.02)  # simulate broadcast I/O inside the section

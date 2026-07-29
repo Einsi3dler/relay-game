@@ -1,5 +1,5 @@
-// The Relay — frontend shell (T5.1–T5.5, host-controlled lobby).
-// One page, four views, everything driven by state_snapshot (protocol §2.2:
+// The Relay — frontend shell (v2: leaders, levels, wait/bonus, perks).
+// One page, five views, everything driven by state_snapshot (protocol rule:
 // the snapshot alone must be enough to be correct; nudges are polish).
 (function () {
   "use strict";
@@ -7,17 +7,19 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var session = null;      // { matchId, playerId, name }
-  var serverConfig = null; // /api/config — caps and defaults pre-start
+  var serverConfig = null; // /api/config — caps, perk catalogue, game library
+  var gameNames = {};      // game id -> display name (from the library)
   var socket = null;
   var lastState = null;
   var mounted = null;      // { puzzleId, renderer }
   var timerHandle = null;
+  var frozenHandle = null;
   var toastHandle = null;
   var overlayHandle = null;
   var reconnectDelay = 500;
   var finished = false;
 
-  // --- session persistence (T5.5: refresh restores the match) ---
+  // --- session persistence (refresh restores the match) ---
 
   function saveSession() {
     try { sessionStorage.setItem("relay", JSON.stringify(session)); } catch (e) {}
@@ -33,9 +35,8 @@
   // --- tiny ui helpers ---
 
   function show(viewId) {
-    ["view-join", "view-lobby", "view-play", "view-result"].forEach(function (id) {
-      $(id).hidden = id !== viewId;
-    });
+    ["view-join", "view-lobby", "view-play", "view-leader", "view-result"]
+      .forEach(function (id) { $(id).hidden = id !== viewId; });
   }
 
   function toast(text) {
@@ -57,13 +58,21 @@
     } catch (e) { return ""; }
   }
 
-  function sendAction(fields) {
+  function send(fields) {
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    fields.type = "lobby_action";
     socket.send(JSON.stringify(fields));
   }
 
-  // --- landing: host or join (T5.1) ---
+  function sendAction(fields) {
+    fields.type = "lobby_action";
+    send(fields);
+  }
+
+  function gameName(gameId) {
+    return gameNames[gameId] || gameId || "?";
+  }
+
+  // --- landing: host or join ---
 
   function bindLanding() {
     $("host-btn").addEventListener("click", function () {
@@ -88,6 +97,14 @@
     $("play-again").addEventListener("click", function () {
       clearSession();
       window.location.href = "/play";
+    });
+    $("choice-wait").addEventListener("click", function () {
+      send({ type: "choose_wait" });
+      $("choice-overlay").hidden = true;
+    });
+    $("choice-bonus").addEventListener("click", function () {
+      send({ type: "choose_bonus" });
+      $("choice-overlay").hidden = true;
     });
 
     // Invite link (?match=CODE) routes straight to the join flow.
@@ -133,7 +150,7 @@
     el.hidden = false;
   }
 
-  // --- websocket lifecycle (T5.5 reconnect) ---
+  // --- websocket lifecycle ---
 
   function connect() {
     var scheme = window.location.protocol === "https:" ? "wss" : "ws";
@@ -161,8 +178,16 @@
   function handle(message) {
     if (message.type === "state_snapshot") render(message.state);
     else if (message.type === "error") toast(message.error);
-    else if (message.type === "stage_advanced") stageOverlay("Stage " + message.stage + "! 🚀");
+    else if (message.type === "level_advanced") stageOverlay("Level " + message.level + "! 🚀");
+    else if (message.type === "perk_used") perkToast(message);
     else if (message.type === "event") logEvent(message.event, true);
+  }
+
+  function perkToast(message) {
+    var perk = (lastState && lastState.config.perks || {})[message.perk_id];
+    var name = perk ? perk.name : message.perk_id;
+    var mine = lastState && lastState.me && lastState.me.team_id === message.by_team_id;
+    toast(mine ? "🛒 Your team used " + name + "!" : "⚠️ Enemy perk: " + name + "!");
   }
 
   // --- rendering (all views are pure functions of the snapshot) ---
@@ -173,10 +198,11 @@
     $("match-chip").hidden = false;
     if (state.status === "lobby") renderLobby(state);
     else if (state.status === "finished") renderResult(state);
+    else if (state.me && state.me.is_leader) renderLeader(state);
     else renderPlay(state);
   }
 
-  // --- lobby (T5.1 + host controls) ---
+  // --- lobby (teams, leader seats, game assignment) ---
 
   function playerRow(state, player) {
     var me = player.id === session.playerId;
@@ -185,12 +211,23 @@
     var row = document.createElement("li");
     var label = document.createElement("span");
     label.textContent =
-      player.name + (isHost ? " 🎛️" : "") + (me ? " (you)" : "") +
-      (player.connected ? "" : " 💤");
+      player.name + (isHost ? " 🎛️" : "") + (player.is_leader ? " 🎖️" : "") +
+      (me ? " (you)" : "") + (player.connected ? "" : " 💤");
     row.appendChild(label);
+    var controls = document.createElement("span");
+    controls.className = "host-controls";
+    var myself = state.me;
+    if (myself && myself.is_leader && !me && player.team_id === myself.team_id) {
+      var hand = document.createElement("button");
+      hand.className = "mini-btn";
+      hand.title = "Hand over leadership";
+      hand.textContent = "🎖️→";
+      hand.addEventListener("click", function () {
+        send({ type: "give_leader", target_id: player.id });
+      });
+      controls.appendChild(hand);
+    }
     if (iAmHost && !me) {
-      var controls = document.createElement("span");
-      controls.className = "host-controls";
       [["alpha", "🔥"], ["bravo", "🌊"]].forEach(function (pair) {
         if (player.team_id === pair[0]) return;
         var move = document.createElement("button");
@@ -210,8 +247,8 @@
         sendAction({ action: "kick", target_id: player.id });
       });
       controls.appendChild(kick);
-      row.appendChild(controls);
     }
+    if (controls.children.length) row.appendChild(controls);
     return row;
   }
 
@@ -238,13 +275,23 @@
         teamList.appendChild(playerRow(state, player));
       });
       var joinButton = box.querySelector(".join-team-btn");
-      var cap = (serverConfig && serverConfig.players_per_team) || 4;
+      var cap = ((serverConfig && serverConfig.players_per_team) || 4) + 1;
       var full = team.players.length >= cap;
       joinButton.hidden = !me || me.team_id === teamId || full;
       joinButton.onclick = function () {
         sendAction({ action: "set_team", team_id: teamId });
       };
+      // Leader seat: claimable by a teammate while empty or its holder is away.
+      var leader = null;
+      team.players.forEach(function (p) { if (p.is_leader) leader = p; });
+      var claimBtn = box.querySelector(".claim-leader-btn");
+      var canClaim = me && me.team_id === teamId && !me.is_leader &&
+        (!leader || !leader.connected);
+      claimBtn.hidden = !canClaim;
+      claimBtn.onclick = function () { sendAction({ action: "claim_leader" }); };
     });
+
+    renderAssignPanel(state);
 
     var panel = $("host-panel");
     panel.hidden = !iAmHost;
@@ -269,30 +316,105 @@
     $("claim-host").onclick = function () { sendAction({ action: "claim_host" }); };
   }
 
+  // The leader's assignment panel: one row per playing teammate.
+  function renderAssignPanel(state) {
+    var me = state.me;
+    var panel = $("assign-panel");
+    if (!me || !me.is_leader || !me.team_id) { panel.hidden = true; return; }
+    panel.hidden = false;
+    var team = state.teams[me.team_id];
+    var taken = {};
+    team.players.forEach(function (p) {
+      if (p.assigned_game) taken[p.assigned_game] = p.id;
+    });
+    var rows = $("assign-rows");
+    rows.innerHTML = "";
+    team.players.forEach(function (player) {
+      if (player.is_leader) return;
+      var row = document.createElement("div");
+      row.className = "assign-row";
+      var label = document.createElement("span");
+      label.textContent = player.name;
+      row.appendChild(label);
+      var select = document.createElement("select");
+      select.className = "assign-select";
+      var placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "— pick a game —";
+      select.appendChild(placeholder);
+      var byRole = {};
+      ((serverConfig && serverConfig.library) || []).forEach(function (entry) {
+        var role = entry.role || "other";
+        (byRole[role] = byRole[role] || []).push(entry);
+      });
+      Object.keys(byRole).forEach(function (role) {
+        var group = document.createElement("optgroup");
+        group.label = role;
+        byRole[role].forEach(function (entry) {
+          var option = document.createElement("option");
+          option.value = entry.id;
+          option.textContent = entry.name;
+          if (taken[entry.id] && taken[entry.id] !== player.id) {
+            option.disabled = true; // no two teammates on one game
+          }
+          group.appendChild(option);
+        });
+        select.appendChild(group);
+      });
+      select.value = player.assigned_game || "";
+      select.onchange = function () {
+        if (!select.value) return;
+        sendAction({
+          action: "assign_game", target_id: player.id, game_id: select.value,
+        });
+      };
+      row.appendChild(select);
+      rows.appendChild(row);
+    });
+  }
+
   function findPlayer(state, playerId) {
     var found = null;
     state.unassigned.forEach(function (p) { if (p.id === playerId) found = p; });
     ["alpha", "bravo"].forEach(function (teamId) {
-      state.teams[teamId].players.forEach(function (p) {
+      (state.teams[teamId].players || []).forEach(function (p) {
         if (p.id === playerId) found = p;
       });
     });
     return found;
   }
 
+  // Client-side mirror of engine.start_blocker, for the host button copy.
   function startBlocker(state) {
     if (state.unassigned.length) {
       var names = state.unassigned.map(function (p) { return p.name; }).join(", ");
       return "Everyone needs a team — waiting on " + names + ".";
     }
-    var short = null;
+    var blocker = null;
     ["alpha", "bravo"].forEach(function (teamId) {
-      if (state.teams[teamId].players.length < state.min_players) {
-        short = "Team " + state.teams[teamId].name + " needs " +
-          state.min_players + " player(s).";
+      if (blocker) return;
+      var team = state.teams[teamId];
+      var leader = null;
+      var playing = [];
+      team.players.forEach(function (p) {
+        if (p.is_leader) leader = p;
+        else playing.push(p);
+      });
+      if (!leader) {
+        blocker = "Team " + team.name + " needs a leader.";
+      } else if (playing.length < state.min_players) {
+        blocker = "Team " + team.name + " needs " + state.min_players +
+          " player(s) besides the leader.";
+      } else {
+        playing.forEach(function (p) {
+          if (!p.assigned_game && !blocker) {
+            blocker = team.name + "'s leader still needs to assign a game to " +
+              p.name + ".";
+          }
+        });
       }
     });
-    return short;
+    return blocker;
   }
 
   $("copy-link") && $("copy-link").addEventListener("click", function () {
@@ -304,45 +426,38 @@
     }
   });
 
-  // --- play (T5.2/T5.3) ---
+  // --- play view (players: just your game and your level) ---
 
   function renderPlay(state) {
     show("view-play");
     renderStrip(state);
-    renderMe(state.me);
-    renderFeed(state.events);
+    renderMe(state);
+    renderFeed(state.events, "event-feed");
   }
 
   function renderStrip(state) {
+    var me = state.me;
     var strip = $("team-strip");
     strip.innerHTML = "";
-    ["alpha", "bravo"].forEach(function (teamId) {
-      var team = state.teams[teamId];
-      var row = document.createElement("div");
-      row.className = "team-row " + teamId;
-      row.innerHTML =
-        '<span class="team-name">' + (teamId === "alpha" ? "🔥" : "🌊") + " " +
-        team.name + "</span>" +
-        '<span class="stage-tag">Stage ' + team.stage + "</span>";
-      team.players.forEach(function (player) {
-        var dot = document.createElement("span");
-        dot.className = "dot" + (player.green ? " green" : "") +
-          (player.connected ? "" : " off");
-        dot.appendChild(document.createTextNode(player.name));
-        row.appendChild(dot);
-      });
-      var count = document.createElement("span");
-      count.className = "muted";
-      count.textContent = team.green_count + "/" + team.roster_size;
-      row.appendChild(count);
-      strip.appendChild(row);
-    });
+    var team = me && me.team_id ? state.teams[me.team_id] : null;
+    if (!team) return;
+    var row = document.createElement("div");
+    row.className = "team-row " + team.id;
+    row.innerHTML =
+      '<span class="team-name">' + (team.id === "alpha" ? "🔥" : "🌊") + " " +
+      team.name + "</span>" +
+      '<span class="stage-tag">Level ' + team.level + "</span>" +
+      '<span class="muted">Your game: ' + gameName(me.assigned_game) + "</span>";
+    strip.appendChild(row);
   }
 
-  function renderMe(me) {
+  function renderMe(state) {
+    var me = state.me;
     if (!me) return;
     var puzzle = me.current_puzzle;
-    $("rest-card").hidden = !(me.status === "resting");
+    $("cleared-card").hidden = me.status !== "cleared";
+    $("choice-overlay").hidden = !(me.status === "cleared" && me.choice_pending);
+    $("bonus-badge").hidden = me.status !== "bonus";
     $("puzzle-card").hidden = !puzzle;
     if (puzzle) {
       $("puzzle-prompt").textContent = puzzle.prompt;
@@ -350,24 +465,24 @@
     } else {
       unmountPuzzle();
     }
-    startCountdown(me.timer_deadline, me.timer_kind);
+    startCountdown(me.timer_deadline, me.status);
+    renderFrozen(me.frozen_until);
   }
 
-  // T5.2: mount by game_id from window.RelayGames; unmount the old first.
+  // Mount by game_id from window.RelayGames; unmount the old first.
   function mountPuzzle(puzzle) {
     if (mounted && mounted.puzzleId === puzzle.id) return; // same instance
     unmountPuzzle();
     var renderer = window.RelayGames[puzzle.game_id] || window.RelayGames.fallback;
     var api = {
       submit: function (answer) {
-        if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        socket.send(JSON.stringify({
-          type: puzzle.kind === "holding" ? "submit_holding" : "submit_answer",
+        send({
+          type: "submit_answer",
           puzzle_id: puzzle.id,
           answer: String(answer),
-        }));
+        });
       },
-      setReady: function () {}, // shell has no external submit button in the MVP
+      setReady: function () {},
     };
     renderer.mount($("puzzle-mount"), puzzle, api);
     mounted = { puzzleId: puzzle.id, renderer: renderer };
@@ -381,21 +496,21 @@
     $("puzzle-mount").innerHTML = "";
   }
 
-  // T5.3: countdown driven by timer_deadline; server stays authoritative.
-  function startCountdown(deadlineIso, kind) {
+  // Countdown driven by timer_deadline; server stays authoritative.
+  function startCountdown(deadlineIso, status) {
     clearInterval(timerHandle);
     var bar = $("timer-bar"), label = $("timer-label");
     if (!deadlineIso) { bar.hidden = true; label.hidden = true; return; }
     var deadline = parseDeadline(deadlineIso);
-    var total = ((lastState && lastState.config[kind + "_seconds"]) ||
-      (serverConfig && serverConfig[kind + "_seconds"]) || 15) * 1000;
+    var total = ((lastState && lastState.config.wait_seconds) ||
+      (serverConfig && serverConfig.wait_seconds) || 180) * 1000;
     bar.hidden = false;
     label.hidden = false;
+    var prefix = status === "bonus" ? "🔥 Bonus deadline: " : "⏳ Holding cleared: ";
     var tick = function () {
       var left = Math.max(0, deadline - Date.now());
       $("timer-fill").style.width = Math.min(100, (left / total) * 100) + "%";
-      label.textContent = (kind === "rest" ? "😌 Rest: " : "⚡ Holding: ") +
-        Math.ceil(left / 1000) + "s";
+      label.textContent = prefix + Math.ceil(left / 1000) + "s";
       if (left <= 0) {
         label.textContent = "⏳ Time's up — waiting for the server…";
         clearInterval(timerHandle);
@@ -405,16 +520,159 @@
     timerHandle = setInterval(tick, 250);
   }
 
-  function renderFeed(events) {
-    var feed = $("event-feed");
-    feed.innerHTML = "";
-    events.slice(-5).reverse().forEach(function (event) {
-      logEvent(event, false);
+  function renderFrozen(frozenIso) {
+    clearInterval(frozenHandle);
+    var overlay = $("frozen-overlay");
+    if (!frozenIso) { overlay.hidden = true; return; }
+    var until = parseDeadline(frozenIso);
+    var tick = function () {
+      var left = until - Date.now();
+      if (left <= 0) {
+        overlay.hidden = true;
+        clearInterval(frozenHandle);
+        return;
+      }
+      overlay.hidden = false;
+      $("frozen-text").textContent = "🧊 Frozen for " + Math.ceil(left / 1000) + "s!";
+    };
+    tick();
+    frozenHandle = setInterval(tick, 250);
+  }
+
+  // --- leader dashboard ---
+
+  function statusPill(player) {
+    if (player.green) return ["cleared ✅", "pill green"];
+    if (player.status === "bonus") return ["bonus 🔥", "pill bonus"];
+    if (player.status === "finished") return ["done 🏁", "pill"];
+    return ["solving …", "pill"];
+  }
+
+  function renderLeader(state) {
+    show("view-leader");
+    var me = state.me;
+    var team = state.teams[me.team_id];
+    $("leader-team-title").textContent =
+      (team.id === "alpha" ? "🔥 " : "🌊 ") + team.name + " — Level " + team.level;
+    $("leader-currency").textContent = "🪙 " + team.currency;
+    $("leader-status-line").textContent =
+      team.green_count + "/" + team.roster_size + " cleared" +
+      (team.shield_active ? " · 🛡️ shield up" : "");
+
+    var roster = $("leader-roster");
+    roster.innerHTML = "";
+    team.players.forEach(function (player) {
+      if (player.is_leader) return;
+      var row = document.createElement("li");
+      var name = document.createElement("span");
+      name.textContent = player.name + (player.connected ? "" : " 💤") +
+        " · " + gameName(player.assigned_game);
+      row.appendChild(name);
+      var pill = document.createElement("span");
+      var pillSpec = statusPill(player);
+      pill.textContent = pillSpec[0];
+      pill.className = pillSpec[1];
+      row.appendChild(pill);
+      roster.appendChild(row);
+    });
+
+    var opponentId = me.team_id === "alpha" ? "bravo" : "alpha";
+    var opponent = state.teams[opponentId];
+    $("leader-opponent").textContent = opponent
+      ? "🔭 " + opponent.name + ": Level " + opponent.level + " · " +
+        opponent.green_count + "/" + opponent.roster_size + " cleared"
+      : "";
+
+    renderPerkGrid(state, team);
+    renderHandoff(team);
+    renderFeed(state.events, "leader-feed");
+  }
+
+  function renderPerkGrid(state, team) {
+    var grid = $("perk-grid");
+    grid.innerHTML = "";
+    var perks = state.config.perks || {};
+    Object.keys(perks).forEach(function (perkId) {
+      var perk = perks[perkId];
+      var card = document.createElement("div");
+      card.className = "perk-card " + perk.kind;
+      var title = document.createElement("div");
+      title.className = "perk-name";
+      title.textContent = (perk.kind === "attack" ? "⚔️ " : "🛡️ ") + perk.name;
+      card.appendChild(title);
+      var cost = document.createElement("div");
+      cost.className = "muted";
+      cost.textContent = "🪙 " + perk.cost;
+      card.appendChild(cost);
+      var target = null;
+      if (perkId === "extend_wait") {
+        target = document.createElement("select");
+        target.className = "assign-select";
+        var cleared = team.players.filter(function (p) { return p.green; });
+        if (!cleared.length) {
+          var none = document.createElement("option");
+          none.value = "";
+          none.textContent = "nobody cleared";
+          target.appendChild(none);
+        }
+        cleared.forEach(function (p) {
+          var option = document.createElement("option");
+          option.value = p.id;
+          option.textContent = p.name;
+          target.appendChild(option);
+        });
+        card.appendChild(target);
+      }
+      var buy = document.createElement("button");
+      buy.className = "mini-btn";
+      buy.textContent = "Buy";
+      buy.disabled = team.currency < perk.cost;
+      buy.addEventListener("click", function () {
+        var message = { type: "buy_perk", perk_id: perkId };
+        if (target && target.value) message.target_id = target.value;
+        send(message);
+      });
+      card.appendChild(buy);
+      grid.appendChild(card);
     });
   }
 
-  function logEvent(event, fresh) {
-    var feed = $("event-feed");
+  function renderHandoff(team) {
+    var select = $("handoff-select");
+    select.innerHTML = "";
+    team.players.forEach(function (player) {
+      if (player.is_leader) return;
+      var option = document.createElement("option");
+      option.value = player.id;
+      option.textContent = player.name + " (" + gameName(player.assigned_game) + ")";
+      select.appendChild(option);
+    });
+    $("handoff-btn").onclick = function () {
+      if (!select.value) return;
+      var pick = select.options[select.selectedIndex].textContent;
+      if (window.confirm("Hand leadership to " + pick +
+          "? You take over their game; their cleared status is lost.")) {
+        send({ type: "give_leader", target_id: select.value });
+      }
+    };
+  }
+
+  // --- events, overlays, result ---
+
+  function renderFeed(events, feedId) {
+    var feed = $(feedId);
+    feed.innerHTML = "";
+    events.slice(-5).reverse().forEach(function (event) {
+      logEvent(event, false, feedId);
+    });
+  }
+
+  function logEvent(event, fresh, feedId) {
+    if (!feedId) {
+      feedId = lastState && lastState.me && lastState.me.is_leader
+        ? "leader-feed" : "event-feed";
+    }
+    var feed = $(feedId);
     var item = document.createElement("li");
     if (fresh) item.className = "fresh";
     item.textContent = event.message;
@@ -422,7 +680,6 @@
     while (feed.children.length > 6) feed.removeChild(feed.lastChild);
   }
 
-  // T5.4: stage transition + result screens.
   function stageOverlay(text) {
     var overlay = $("stage-overlay");
     $("stage-overlay-text").textContent = text;
@@ -435,20 +692,30 @@
     finished = true;
     unmountPuzzle();
     clearInterval(timerHandle);
+    clearInterval(frozenHandle);
+    $("choice-overlay").hidden = true;
+    $("frozen-overlay").hidden = true;
     show("view-result");
     var mine = state.me ? state.me.team_id : null;
     var won = state.winner_team_id === mine;
+    var levels = (state.config && state.config.level_count) || 10;
     $("result-emoji").textContent = won ? "🏆🎉" : "😵💨";
     $("result-title").textContent = won ? "You won!" : "You lost!";
     $("result-sub").textContent =
-      "Team " + state.teams[state.winner_team_id].name + " cleared all five games first.";
+      "Team " + state.teams[state.winner_team_id].name +
+      " cleared all " + levels + " levels first.";
   }
 
   // --- boot ---
 
   fetch("/api/config")
     .then(function (r) { return r.json(); })
-    .then(function (body) { serverConfig = body; })
+    .then(function (body) {
+      serverConfig = body;
+      (body.library || []).forEach(function (entry) {
+        gameNames[entry.id] = entry.name;
+      });
+    })
     .catch(function () {});
   bindLanding();
   var saved = loadSession();
@@ -457,7 +724,7 @@
   if (saved && saved.matchId && saved.playerId &&
       (!invited || invited === saved.matchId)) {
     session = saved;
-    connect(); // T5.5: snapshot on connect restores the right view
+    connect(); // snapshot on connect restores the right view
   } else {
     show("view-join");
   }

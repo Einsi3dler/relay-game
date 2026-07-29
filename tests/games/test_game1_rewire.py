@@ -96,3 +96,9 @@ def test_shape_edge_rotation_math():
     assert open_edges("elbow", 2) == {2, 3}
     assert open_edges("tee", 3) == {3, 0, 1}
     assert open_edges("end", 2) == {2}
+
+
+def test_generate_main_accepts_level():
+    # v2 contract (docs/REDESIGN_PLAN.md): level is accepted; scaling is follow-up.
+    puzzle = game.generate_main(42, level=5)
+    assert puzzle.kind == "main" and puzzle.game_id == game.id
