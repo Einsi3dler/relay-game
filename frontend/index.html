@@ -16,7 +16,7 @@
   <!-- landing: host or join -->
   <section id="view-join" class="view card">
     <h1>Ready to race?</h1>
-    <p class="sub">Two teams, ten levels. A leader calls the plays; the squad clears the games. Host a match or join with a code.</p>
+    <p class="sub">Two teams, ten levels. A Grandmaster calls the plays; the squad clears the games. Host a match or join with a code.</p>
     <label for="name-input">Your name</label>
     <input id="name-input" maxlength="16" placeholder="Ada" autocomplete="off">
     <div class="team-pick">
@@ -34,7 +34,7 @@
     <p class="sub games-link-row"><a href="/games" class="games-link">📖 New here? Meet the games</a></p>
   </section>
 
-  <!-- lobby: pick teams, claim the leader seat, leader assigns games -->
+  <!-- lobby: pick teams, claim the Grandmaster seat, assign roles + games -->
   <section id="view-lobby" class="view" hidden>
     <div class="card">
       <h1 id="lobby-title">Lobby</h1>
@@ -48,18 +48,18 @@
         <div id="lobby-team-alpha" class="team-box team-alpha-box">
           <h2>🔥 Alpha</h2><ul></ul>
           <button class="btn team-alpha join-team-btn" data-team="alpha">Join Alpha</button>
-          <button class="mini-btn claim-leader-btn" data-team="alpha" hidden>🎖️ Claim leader</button>
+          <button class="mini-btn claim-leader-btn" data-team="alpha" hidden>🎖️ Claim Grandmaster</button>
         </div>
         <div id="lobby-team-bravo" class="team-box team-bravo-box">
           <h2>🌊 Bravo</h2><ul></ul>
           <button class="btn team-bravo join-team-btn" data-team="bravo">Join Bravo</button>
-          <button class="mini-btn claim-leader-btn" data-team="bravo" hidden>🎖️ Claim leader</button>
+          <button class="mini-btn claim-leader-btn" data-team="bravo" hidden>🎖️ Claim Grandmaster</button>
         </div>
       </div>
     </div>
     <div id="assign-panel" class="card" hidden>
-      <h2>🎖️ Assign games</h2>
-      <p class="sub">Give every teammate their own game — no two the same.</p>
+      <h2>🎖️ Assign roles &amp; games</h2>
+      <p class="sub">Give every teammate a role, then a game from that role — no two the same.</p>
       <div id="assign-rows"></div>
     </div>
     <div id="host-panel" class="card" hidden>
@@ -113,8 +113,8 @@
       <div id="perk-grid" class="perk-grid"></div>
     </div>
     <div class="card">
-      <h2>🎖️ Hand over leadership</h2>
-      <p class="sub">Full swap: they step out to lead, you take over their game — once per level.</p>
+      <h2>🎖️ Hand over the Grandmaster seat</h2>
+      <p class="sub">Full swap: they step out to lead, you take over their role and game — once per level.</p>
       <div class="handoff-row">
         <select id="handoff-select"></select>
         <button id="handoff-btn" class="mini-btn">Hand over</button>
