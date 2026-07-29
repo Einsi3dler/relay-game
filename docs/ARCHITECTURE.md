@@ -1,4 +1,4 @@
-# The Relay — Architecture (MVP)
+# The Relay — Architecture (v2)
 
 How the system is put together, and the seams contributors build against. Pair
 this with [GAME_DESIGN.md](GAME_DESIGN.md) (the rules) and
@@ -14,9 +14,9 @@ this with [GAME_DESIGN.md](GAME_DESIGN.md) (the rules) and
  │ index.html / app.js    │ ─────────────▶ │ main.py  (routes + WS + fanout)
  │  - join / lobby        │   WebSocket    │   ├─ ConnectionManager        │
  │  - play view           │ ◀────────────▶ │   ├─ RelayEngine  (rules)     │
- │  - countdowns          │                │   ├─ StateStore   (in-memory) │
- │  - result screen       │                │   ├─ TimerService (deadlines) │
- └───────────────────────┘                │   └─ GameRegistry (games 1-4) │
+ │  - leader dashboard    │                │   ├─ StateStore   (in-memory) │
+ │  - countdowns          │                │   ├─ TimerService (deadlines) │
+ │  - result screen       │                │   └─ GameRegistry (library)   │
                                            └──────────────────────────────┘
 ```
 
@@ -36,11 +36,11 @@ this with [GAME_DESIGN.md](GAME_DESIGN.md) (the rules) and
 ```
 backend/
   __init__.py
-  config.py        # ALL tunables (timers, team size, stage count, game order)
+  config.py        # ALL tunables (timers, team size, levels, currency, perks, roles)
   models.py        # dataclasses: Match, Team, Player, PuzzleInstance, Event
   state.py         # InMemoryStateStore
-  registry.py      # GameRegistry: maps stage index -> GameModule
-  engine.py        # RelayEngine: the pure rules (relay loop, advance check, win)
+  registry.py      # GameRegistry: the id-indexed game library
+  engine.py        # RelayEngine: the pure rules (level loop, economy, perks, win)
   timers.py        # TimerService: schedules deadline callbacks into the engine
   protocol.py      # message (de)serialisation helpers + type constants
   main.py          # FastAPI app: REST routes, WebSocket endpoint, ConnectionManager
@@ -59,24 +59,28 @@ backend/
 
 ### Responsibilities
 
-- **`config.py`** — single home for `REST_SECONDS=15`, `HOLDING_SECONDS=20`,
-  `MAIN_PUZZLE_SECONDS=0`, `PLAYERS_PER_TEAM=4`, `MIN_PLAYERS_PER_TEAM=4`,
-  `STAGE_COUNT=4`, `SUBMIT_MIN_INTERVAL_MS=300`, `MATCH_TTL_SECONDS=1800`, and the
-  ordered list of game module ids. Nothing else in the codebase should contain
-  these literals.
+- **`config.py`** — single home for `WAIT_SECONDS=180`, `LEVEL_COUNT=10`,
+  `PLAYERS_PER_TEAM=4`, `MIN_PLAYERS_PER_TEAM=4`, `CURRENCY_PER_CLEAR`,
+  `CURRENCY_BONUS_FIRST/REPEAT`, `BONUS_LEVEL_OFFSET`, the `PERKS` catalogue,
+  the placeholder `ROLES` grouping, `SUBMIT_MIN_INTERVAL_MS=300`, and
+  `MATCH_TTL_SECONDS=1800`. Nothing else in the codebase should contain these
+  literals.
 - **`models.py`** — plain dataclasses with `.public()` methods that return the
   JSON-safe dict the client sees. **`.public()` must never include puzzle
   answers.** See [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) for exact shapes.
 - **`state.py`** — create/get/require/list matches. Async signatures so the store
   could later be swapped for a real backing store without touching callers.
-- **`registry.py`** — `GameRegistry.for_stage(n)` returns the `GameModule` for
-  stage `n` (1-based). Built from the ordered id list in config. Games register
-  themselves here; the engine only ever asks the registry, never a concrete game.
-- **`engine.py`** — the `RelayEngine`. Pure functions over a `Match`:
-  `start_match`, `submit_main`, `submit_holding`, `on_rest_expired`,
-  `on_holding_expired`, plus the private `advance_check`. Returns an
-  `EngineResult` describing what changed (events, timers to (re)schedule, whether
-  the match ended). **This is where the GAME_DESIGN §4 loop is implemented.**
+- **`registry.py`** — the id-indexed library: `by_id(game_id)`, `has(game_id)`,
+  and `library()` (feeds the leader's assignment picker, with roles from
+  `config.ROLES`). Games register themselves here; the engine only ever asks
+  the registry, never a concrete game. The game a player is served comes from
+  **their own `assigned_game`**, not from the team's level.
+- **`engine.py`** — the `RelayEngine`. Pure functions over a `Match`: lobby
+  (`claim_leader`, `assign_game`, `give_leader`, host actions), `start_match`,
+  `submit_answer`, `choose_wait`/`choose_bonus`, `on_wait_expired`, `buy_perk`,
+  plus the private advance check. Returns an `EngineResult` describing what
+  changed (events, timers to (re)schedule/cancel, perk/win outcomes).
+  **This is where the GAME_DESIGN §4 loop is implemented.**
 - **`timers.py`** — see §4 below.
 - **`main.py`** — FastAPI wiring: REST for match create/join/config, one WebSocket
   per player, a `ConnectionManager` for fanout, and the glue that (a) calls the
@@ -91,26 +95,36 @@ Match
   status: "lobby" | "active" | "finished"
   teams: { "alpha": Team, "bravo": Team }
   winner_team_id: str | None
-  events: [Event]           # last ~30, for the log
-  config_snapshot: {...}    # timers/sizes frozen at match start
+  events: [Event]           # last ~30; green/lost_green entries are leader-only
+  config_snapshot: {...}    # timers/levels/economy/perks frozen at match start
 
 Team
   id, name
-  stage: int                # 1..STAGE_COUNT, per-team (independent)
-  roster_size: int          # frozen at match start (usually 4)
-  player_ids: [str]
+  level: int                # 1..LEVEL_COUNT, per-team (independent)
+  roster_size: int          # PLAYING members, frozen at match start
+  player_ids: [str]         # includes the leader
   finished: bool
+  currency: int             # team pool, spent only by the leader
+  shield_active: bool       # blocks the next incoming attack perk
+  leader_id: str | None
+  handoff_used_level: int   # last level a mid-match leader handoff happened
 
 Player
   id, name, team_id                        # id is long + random — it is the WS credential
-  status: "lobby"|"solving"|"resting"|"holding"|"finished"
+  status: "lobby"|"solving"|"cleared"|"bonus"|"leading"|"finished"
   connected: bool
-  attempt: int                             # counts main-puzzle instances this stage;
+  is_leader: bool
+  assigned_game: str | None                # game id chosen by the leader
+  attempt: int                             # counts instances served this level;
                                            #   feeds seed derivation (see "Seeds")
   current_main: PuzzleInstance | None      # server-only answer stripped in public()
-  current_holding: PuzzleInstance | None
+  current_bonus: PuzzleInstance | None
+  choice_pending: bool                     # cleared, wait-or-bonus not chosen yet
   timer_deadline: str | None               # UTC ISO; drives client countdown
-  timer_kind: "rest"|"holding"|None
+  timer_kind: "wait"|None
+  frozen_until: str | None                 # UTC ISO; lazy freeze deadline
+  earned_level: int                        # highest level base currency was paid
+  bonus_streak: int / bonus_earned: int    # this level's bonus count / forfeitable pay
 
 PuzzleInstance   (produced by a GameModule; see GAME_MODULE_SPEC)
   id, game_id, kind ("main"|"holding")
@@ -118,7 +132,7 @@ PuzzleInstance   (produced by a GameModule; see GAME_MODULE_SPEC)
   answer                     # SERVER ONLY — stripped from .public()
 ```
 
-`green(player)` is a derived helper: `player.status in {"resting","holding"}`.
+`green(player)` is a derived helper: `player.status == "cleared"`.
 
 ### Seeds
 
@@ -129,13 +143,13 @@ player precompute their board**. Rules:
 - Seeds are generated **server-side** and are **never sent to the client** (not in
   payloads, snapshots, or logs the client can see).
 - Derive them unguessably, e.g.
-  `seed = int.from_bytes(hmac_sha256(SERVER_SEED_SECRET, f"{match_id}:{player_id}:{stage}:{attempt}")[:8])`
+  `seed = int.from_bytes(hmac_sha256(SERVER_SEED_SECRET, f"{match_id}:{player_id}:{level}:{attempt}")[:8])`
   where `SERVER_SEED_SECRET` is a per-process random value created at startup —
   or simply draw each seed from `secrets` and store it on the `PuzzleInstance`.
   Never use sequential counters or timestamps alone.
-- `Player.attempt` increments every time a fresh main instance is served (stage
-  start, wrong answer, lost green, reconnect-while-solving), which is what makes
-  every attempt a genuinely new puzzle.
+- `Player.attempt` increments every time a fresh instance is served (level
+  start, wrong answer, lost cleared status, scramble, reconnect-while-solving),
+  which is what makes every attempt a genuinely new puzzle.
 
 ## 4. Timers (the tricky part)
 
@@ -146,14 +160,18 @@ browser. Approach:
   deadline and an `asyncio` task (or a single global tick loop that scans
   deadlines every ~500ms — either is acceptable; a per-timer `asyncio.create_task`
   with `asyncio.sleep` is simplest).
-- When the engine returns "start a REST timer for player X (deadline T)", `main.py`
+- When the engine returns "start a WAIT timer for player X (deadline T)", `main.py`
   asks `TimerService` to schedule a callback at `T`.
 - When the deadline fires, the callback calls back **into the engine**
-  (`on_rest_expired` / `on_holding_expired`), which applies the GAME_DESIGN rule,
-  then `main.py` broadcasts the new state and reschedules any follow-up timer.
+  (`on_wait_expired`), which applies the GAME_DESIGN rule (cleared status lost,
+  or bonus failed with forfeit), then `main.py` broadcasts the new state.
 - Starting a new timer for a player **cancels** their previous one (a player has at
-  most one active timer). Advancing a stage or winning **cancels all** of a team's
+  most one active timer). Advancing a level or winning **cancels all** of a team's
   timers.
+- **The wait deadline is the only scheduled timer.** The freeze perk is a lazy
+  `frozen_until` deadline checked on submit — deliberately, so the
+  one-timer-per-player invariant holds. Any future second concurrent deadline
+  must also be lazy, or the `(match_id, player_id)` timer key must grow.
 - The engine stays pure: it never sleeps. It only says *"schedule/cancel this
   deadline."* `TimerService` is the only place that touches the clock and the loop.
 
@@ -167,12 +185,14 @@ browser. Approach:
 - Flow: fetch `/api/config` → join via REST → open WebSocket → render every
   `state_snapshot`. The client is a **pure function of the latest snapshot** plus
   local countdown animation derived from `timer_deadline`.
-- Views: **lobby** (waiting for players), **play** (current puzzle — main or
-  holding — with countdown and a team readiness strip showing who's green), and
-  **result** (win/lose).
+- Views: **lobby** (teams, leader seats, game assignment), **play** (your own
+  game + level, the wait/bonus choice, freeze overlay), the **leader dashboard**
+  (roster status, currency, perk shop, opponent level chip, handoff), and
+  **result** (win/lose). Snapshots are personalised per viewer — see
+  [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) §3 "TeamView".
 - The client **never** decides correctness or advancement. It submits
-  `submit_answer` / `submit_holding` and reacts to the snapshot.
-- **Shell + per-game renderers.** The four MVP games are *action* games (rotate,
+  `submit_answer` and reacts to the snapshot.
+- **Shell + per-game renderers.** The games are *action* games (rotate,
   flag, pour, tap), so rendering is split:
   - The **shell** (Frontend owner) owns the app frame: join/lobby, the play view
     container, the countdown from `timer_deadline`, the team-readiness strip, error
@@ -211,8 +231,8 @@ frontend/
 ## 7. Testing seams
 
 - The pure engine is unit-tested with no server or sockets — construct a `Match`,
-  call `submit_main` / `on_rest_expired`, assert statuses and stage. See
-  [TASK_LIST.md](TASK_LIST.md) for required cases.
+  call `submit_answer` / `on_wait_expired` / `buy_perk`, assert statuses, level,
+  and currency. See [TASK_LIST.md](TASK_LIST.md) for required cases.
 - Game modules are tested in isolation against the `GameModule` contract
   (generate → check(correct)==True, check(wrong)==False, determinism by seed).
 - WebSocket flow is tested with FastAPI's `TestClient` websocket support.

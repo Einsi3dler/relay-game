@@ -37,21 +37,22 @@ things at once?".)
 | Slice | Owns | Files |
 | --- | --- | --- |
 | **Core / Engine** | Rules, timers, state, protocol | `backend/config.py`, `models.py`, `state.py`, `engine.py`, `timers.py`, `registry.py`, `protocol.py`, `main.py`, `games/base.py` |
-| **Game 1 — REWIRE** | Stage-1 game (module + renderer) | `backend/games/game1_*.py`, `frontend/games/rewire.js`, `tests/games/test_game1_*.py` |
-| **Game 2 — SWEEP** | Stage-2 game (module + renderer) | `backend/games/game2_*.py`, `frontend/games/sweep.js`, `tests/games/test_game2_*.py` |
-| **Game 5 — MIRROR RUN** | Stage-3 game (module + renderer) | `backend/games/game5_mirror_run.py`, `frontend/games/mirror_run.js`, `tests/games/test_game5_*.py` |
-| **Game 3 — DECANT** | Stage-3 game (module + renderer) | `backend/games/game3_*.py`, `frontend/games/decant.js`, `tests/games/test_game3_*.py` |
-| **Game 4 — ECHO** | Stage-4 game (module + renderer) | `backend/games/game4_*.py`, `frontend/games/echo.js`, `tests/games/test_game4_*.py` |
-| **Frontend** | App shell + renderer registry + fallback | `frontend/index.html`, `frontend/app.js`, `frontend/styles.css`, `frontend/games/registry.js`, `frontend/games/fallback.js` |
+| **Game 1 — REWIRE** | Game module + renderer | `backend/games/game1_*.py`, `frontend/games/rewire.js`, `tests/games/test_game1_*.py` |
+| **Game 2 — SWEEP** | Game module + renderer | `backend/games/game2_*.py`, `frontend/games/sweep.js`, `tests/games/test_game2_*.py` |
+| **Game 5 — MIRROR RUN** | Game module + renderer | `backend/games/game5_mirror_run.py`, `frontend/games/mirror_run.js`, `tests/games/test_game5_*.py` |
+| **Game 3 — DECANT** | Game module + renderer | `backend/games/game3_*.py`, `frontend/games/decant.js`, `tests/games/test_game3_*.py` |
+| **Game 4 — ECHO** | Game module + renderer | `backend/games/game4_*.py`, `frontend/games/echo.js`, `tests/games/test_game4_*.py` |
+| **Game 6 — OVERPRINT** | Game module + renderer | `backend/games/game6_overprint.py`, `frontend/games/overprint.js`, `tests/games/test_game6_*.py` |
+| **Frontend** | App shell + leader dashboard + fallback | `frontend/index.html`, `frontend/app.js`, `frontend/style.css`, `frontend/games/fallback.js` |
 
 - Game owners need the **contract** in [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md)
   and your game's section of [GAMES_SPEC.md](GAMES_SPEC.md). You can build and unit-
   test the backend module with no running server; the renderer mounts into the
   shell (or a tiny local HTML harness) via `window.RelayGames`.
 - Two shared files must be touched to register a game — `backend/config.py`
-  (`GAME_ORDER`) and `backend/registry.py`. Keep those edits to **one line each**,
-  call them out in your PR, and expect the Core owner to review them. This is the
-  only sanctioned cross-slice edit.
+  (a `ROLES` group) and `backend/registry.py` (`REGISTERED_MODULES`). Keep those
+  edits to **one line each**, call them out in your PR, and expect the Core owner
+  to review them. This is the only sanctioned cross-slice edit.
 - Need something new from another slice (a protocol field, a config value)? **Ask
   in your PR / the channel** — don't reach into their files.
 
@@ -67,8 +68,9 @@ things at once?".)
 - [ ] Rebased on the latest `main`; no conflicts.
 - [ ] `python3 -m pytest` passes locally.
 - [ ] New/changed behaviour has tests (engine rule or game module — see specs).
-- [ ] No new scope that isn't in [TASK_LIST.md](TASK_LIST.md) (no power-ups,
-      economy, sabotage, roles — those were cut deliberately).
+- [ ] No new scope beyond [TASK_LIST.md](TASK_LIST.md) /
+      [REDESIGN_PLAN.md](REDESIGN_PLAN.md) (v2 includes leaders, currency, and
+      the placeholder perks; new perks/roles/curves need a design decision).
 - [ ] No import from `legacy/`. No cross-slice edits except the two registration
       lines, which are called out in the PR description.
 - [ ] Puzzle answers never appear in any `.public()` / client-visible payload.
@@ -86,17 +88,23 @@ python3 -m pytest
 
 ## 6. Manual smoke check
 
-To exercise the relay loop without eight people, temporarily lower
-`MIN_PLAYERS_PER_TEAM` (e.g. to 1 or 2) in `backend/config.py`, open that many tabs
-per team, and verify:
+To exercise the loop without ten people, have the host lower the minimum
+players per team in the lobby (each team still needs a leader + that many
+players), open that many tabs per team, and verify:
 
-1. A player who solves goes green and shows a rest countdown.
-2. When the rest ends and the team isn't all green, a holding question appears.
-3. Failing/ignoring the holding question drops the player back to a new main puzzle.
-4. When all players on a team are green, the team advances to the next stage.
-5. The first team to finish Stage 4 sees the win screen; the other sees the loss.
+1. Each team claims a leader; the leader assigns distinct games; start unlocks.
+2. A player who solves goes **cleared**, sees the wait countdown, and gets the
+   wait-or-bonus choice; the team's currency ticks up on the leader dashboard.
+3. Taking the bonus serves a harder board; failing it returns the player to
+   solving and claws back the level's bonus pay.
+4. Letting the wait timer lapse drops the player back to a fresh board.
+5. When all playing members are cleared, the team advances a level.
+6. The leader can buy each perk (watch the freeze/scramble land on an opponent)
+   and can hand leadership to a teammate (full swap) once per level.
+7. The first team to clear the last level sees the win screen; the other the loss.
 
-Revert the config change before committing.
+For a shorter run, temporarily set `LEVEL_COUNT = 2` in `backend/config.py` —
+revert the config change before committing.
 
 ## 7. Style
 

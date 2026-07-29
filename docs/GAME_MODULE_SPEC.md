@@ -1,15 +1,16 @@
 # Game Module Spec — build a Relay game
 
-**Read this before writing a game.** Every one of the four games is a self-contained
-module that implements one interface. If your module honours this contract, it
-plugs into the engine with zero engine changes and other people's games are none of
-your business. This is the seam that lets four people build four games in parallel.
+**Read this before writing a game.** Every game in the library is a
+self-contained module that implements one interface. If your module honours this
+contract, it plugs into the engine with zero engine changes and other people's
+games are none of your business. This is the seam that lets many people build
+games in parallel.
 
 Pair with [GAME_DESIGN.md](GAME_DESIGN.md) (rules),
-[ARCHITECTURE.md](ARCHITECTURE.md) (system), and — for the four concrete MVP games —
+[ARCHITECTURE.md](ARCHITECTURE.md) (system), and — for the concrete games —
 [GAMES_SPEC.md](GAMES_SPEC.md).
 
-> **The four MVP games are *action* games** (rotate, flag, pour, tap), not
+> **Relay games are *action* games** (rotate, flag, pour, tap), not
 > type-a-word games. So each one is **two files**: a backend module (this contract)
 > **and** a small frontend renderer. Read §10 "Interactive games" before you start —
 > it changes how `payload`, `answer`, and `check` are used.
@@ -25,13 +26,15 @@ questions:
 1. *"Give me a fresh puzzle for a player."* → `generate_main()` / `generate_holding()`
 2. *"Is this submitted answer correct for that puzzle?"* → `check()`
 
-Your game is played on **one stage** (Game 1 = Stage 1, etc.). During that stage:
+Your game is **assigned to one player per team** by their leader
+(v2 — see [GAME_DESIGN.md](GAME_DESIGN.md) §2) and played for the whole match,
+level by level:
 
-- **Main puzzle** — the real challenge. Solving it makes a player green.
-- **Holding puzzle** — a shorter keep-alive question shown to a green player who is
-  waiting for slower teammates (after their rest window). It should be **quick and
-  easy** — its job is to make idling cost attention, not to be a second boss. A
-  wrong/expired holding answer costs the player their green status.
+- **Main puzzle** — the real challenge, generated per `(seed, level)`. Solving
+  it clears the player for the current level. The same generator also serves
+  the harder **bonus board** (the engine just passes a higher `level`).
+- **Holding puzzle** — a shorter quick-fire variant. In v2 it appears **only in
+  practice mode** (`/explore`); the match loop no longer uses it.
 
 Both come from **your** module so they share a theme.
 
@@ -127,12 +130,13 @@ class GameModule(Protocol):
 ## 3. How it gets wired in (you do the tiny registration; Core owns the engine)
 
 1. Put your class in `backend/games/gameN_<yourname>.py`.
-2. Register your `id` in `backend/config.py`'s ordered `GAME_ORDER` list at the
-   stage index you were assigned, and add your class to the registry map in
-   `backend/registry.py`. (Coordinate the one-line edits to shared files via your
-   PR — see [CLAUDE.md](CLAUDE.md) ownership rules.)
-3. That's it. The engine calls `generate_main`, shows `.public()`, and later calls
-   `check`. You never touch the loop.
+2. Add your class to `REGISTERED_MODULES` in `backend/registry.py`, and put your
+   `id` in a `config.ROLES` group so the leader's assignment picker can offer it.
+   (Coordinate the one-line edits to shared files via your PR — see
+   [CLAUDE.md](CLAUDE.md) ownership rules.)
+3. That's it. The engine calls `generate_main(seed, level)` for whichever player
+   was assigned your game, shows `.public()`, and later calls `check`. You never
+   touch the loop.
 
 ## 4. Reset semantics — three scopes (read carefully)
 
@@ -141,7 +145,7 @@ this right is what keeps replays and re-qualification clean.
 
 | Scope | Who triggers it | What must happen | Your responsibility |
 | --- | --- | --- | --- |
-| **Per-puzzle (re-qualify)** | Engine, when a player loses green or starts a stage | The player gets a **brand-new** `PuzzleInstance` from `generate_main(new_seed)`. | Just return a fresh instance for the new seed. Because you're deterministic and stateless, there is nothing to clean up. |
+| **Per-puzzle (re-clear)** | Engine, when a player loses cleared status, fails a bonus, is scrambled, or starts a level | The player gets a **brand-new** `PuzzleInstance` from `generate_main(new_seed, level)`. | Just return a fresh instance for the new seed. Because you're deterministic and stateless, there is nothing to clean up. |
 | **Module reset** | Engine/host, e.g. between matches or in tests | `GameModule.reset()` returns the module to its initial state as if freshly constructed. | If your module holds **any** cross-call state (a cache, a counter), clear it here. If it's fully stateless, `reset()` is `pass`. |
 | **Match reset** | Core engine | The whole match is torn down / a new match is created. | Nothing game-specific — a new match uses fresh seeds and calls `reset()` on modules. |
 
@@ -150,7 +154,7 @@ this right is what keeps replays and re-qualification clean.
 `reset()` logic if you have a concrete reason to cache.
 
 > Why `reset()` exists at all: game modules are **long-lived singletons** (one
-> instance per stage, reused across every player and every match in the process).
+> instance per game id, reused across every player and every match in the process).
 > If you ever memoise expensive generation, `reset()` is the hook that guarantees a
 > new match doesn't inherit stale data. A leaked global is the classic bug here.
 
@@ -197,10 +201,10 @@ from backend.games.base import GameModule, PuzzleInstance, normalize_answer
 class TemplateGame:
     """One-line description of the puzzle idea and what a correct answer looks like."""
 
-    id = "template_game"      # unique snake_case; also goes in config.GAME_ORDER
+    id = "template_game"      # unique snake_case; also goes in a config.ROLES group
     name = "Template Game"    # display name
 
-    def generate_main(self, seed: int) -> PuzzleInstance:
+    def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
         rng = random.Random(seed)          # seed everything from `seed` — no bare random
         a, b = rng.randint(2, 9), rng.randint(2, 9)
         return PuzzleInstance(
@@ -245,30 +249,34 @@ Put them in `tests/games/test_gameN_<name>.py`. Minimum bar:
    SWEEP's `clues` grid — assert their documented shape instead; see
    [GAMES_SPEC.md](GAMES_SPEC.md).)
 6. **Holding is quick:** `generate_holding` returns `kind="holding"` and a puzzle;
-   same determinism/correctness checks.
+   same determinism/correctness checks (practice mode uses it).
 7. **`reset()` is safe:** calling it doesn't raise and doesn't change future
    deterministic output.
+8. **Level param accepted:** `generate_main(seed, level=5)` returns a valid
+   puzzle (scaling deterministically with `level` once your difficulty curve
+   lands; until then, ignoring it is fine).
 
-## 9. The four MVP games
+## 9. The game library
 
-The four concrete games are fully specified in [GAMES_SPEC.md](GAMES_SPEC.md) —
+The concrete games are fully specified in [GAMES_SPEC.md](GAMES_SPEC.md) —
 that document is the gameplay / validation / anti-cheat truth for each. Keep them
-**short** (main ≈ 15–40s, holding ≈ a few seconds).
+**short** (main ≈ 15–40s each level; holding ≈ a few seconds).
 
-| Stage | Game | Category | Owner |
-| --- | --- | --- | --- |
-| 1 | **REWIRE** — rotate tiles to route power from source to sinks | Puzzle | [G1] |
-| 2 | **SWEEP** — flag every mine from the number clues | Logical | [G2] |
-| 3 | **MIRROR RUN** — steer two runners, one with twisted controls, onto both exits | Divided attention | [G5] |
-| 4 | **DECANT** — pour colours between tubes until each is uniform | Sorting | [G3] |
-| 5 | **ECHO** — watch the flash sequence, repeat it by tapping | Reflex/Memory | [G4] |
+| Game | Category | Owner |
+| --- | --- | --- |
+| **REWIRE** — rotate tiles to route power from source to sinks | Puzzle | [G1] |
+| **SWEEP** — flag every mine from the number clues | Logical | [G2] |
+| **MIRROR RUN** — steer two runners, one with twisted controls, onto both exits | Divided attention | [G5] |
+| **DECANT** — pour colours between tubes until each is uniform | Sorting | [G3] |
+| **ECHO** — watch the flash sequence, repeat it by tapping | Reflex/Memory | [G4] |
+| **OVERPRINT** — recreate the layered stamp composition | Spatial | [G6] |
 
 The legacy `puzzles.py` generators are inspiration only — reimplement against
 **this** contract (do not import from `legacy/`).
 
 ## 10. Interactive (action) games — the frontend half
 
-The four MVP games ([GAMES_SPEC.md](GAMES_SPEC.md)) are action games. That changes
+The library games ([GAMES_SPEC.md](GAMES_SPEC.md)) are action games. That changes
 three things versus a plain text puzzle:
 
 1. **`payload` carries the game *state*** the renderer needs to draw (grid, tubes,
@@ -299,10 +307,10 @@ window.RelayGames["your_game_id"] = {
 
 - `puzzle` is exactly a `PuzzlePublic` (id, game_id, kind, prompt, payload — see
   [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) §3). **No answer is present.**
-- `api.submit(answerString)` sends `submit_answer` or `submit_holding` (the shell
-  picks the message type from `puzzle.kind`). Never talk to the WebSocket directly.
+- `api.submit(answerString)` sends `submit_answer` (the same message covers
+  level boards and bonus boards). Never talk to the WebSocket directly.
 - The shell (Frontend owner) provides: the container, the countdown from
-  `timer_deadline`, the team readiness strip, and error toasts. Your renderer only
+  `timer_deadline`, the wait/bonus choice, and error toasts. Your renderer only
   owns the puzzle area.
 - Keep renderers dependency-free vanilla JS (no framework/build), matching the rest
   of `frontend/`.
@@ -311,7 +319,7 @@ window.RelayGames["your_game_id"] = {
 
 Same three scopes as §4. The renderer's `unmount()` is the **frontend** analogue of
 per-puzzle reset: it must fully clear state/listeners so mounting the next instance
-(a re-qualify board, or the next stage) starts clean. The backend module stays
-stateless-by-seed; `reset()` is still a no-op unless you cache.
+(a re-clear board, a bonus board, or the next level) starts clean. The backend
+module stays stateless-by-seed; `reset()` is still a no-op unless you cache.
 
 Related: [GAMES_SPEC.md](GAMES_SPEC.md) · [GAME_DESIGN.md](GAME_DESIGN.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) · [TASK_LIST.md](TASK_LIST.md)

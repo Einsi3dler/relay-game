@@ -1,23 +1,58 @@
-# The Relay — Build Task List (MVP rebuild)
+# The Relay — Build Task List
 
-> **⚠️ v2 redesign in progress.** The MVP below is complete; the game is being
-> rebuilt around team leaders, 10 levels, currency and perks per
-> [REDESIGN_PLAN.md](REDESIGN_PLAN.md). New work should follow that plan; this
-> list will be rewritten in its docs-sync phase.
+**Before starting any task:** read [GAME_DESIGN.md](GAME_DESIGN.md),
+[REDESIGN_PLAN.md](REDESIGN_PLAN.md), and [ARCHITECTURE.md](ARCHITECTURE.md),
+and `git pull --rebase` (see [CONTRIBUTING.md](CONTRIBUTING.md) §1).
 
-The full plan for rebuilding The Relay from the archived prototype into the MVP. Work
-top-to-bottom by phase; within a phase, tasks tagged to different owners run in
-parallel. Each task has an **owner slice**, **dependencies**, **files**, and
-**acceptance criteria (AC)** you can check yourself.
-
-**Before starting any task:** read [GAME_DESIGN.md](GAME_DESIGN.md) and
-[ARCHITECTURE.md](ARCHITECTURE.md), and `git pull --rebase` (see
-[CONTRIBUTING.md](CONTRIBUTING.md) §1).
-
-Legend: **[C]** Core · **[G1..G4]** Game owners · **[F]** Frontend · **[ALL]** everyone.
+Legend: **[C]** Core · **[G1..G6]** Game owners · **[F]** Frontend · **[ALL]** everyone.
 Status boxes are for you to tick in PRs.
 
 ---
+
+## Part 1 — v2: leaders, levels, currency & perks (current)
+
+Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
+
+- [x] **V0 Plan doc** — `docs/REDESIGN_PLAN.md` committed and linked. · [C]
+- [x] **V1 Non-breaking prep** — `generate_main(seed, level=1)` contract,
+  registry `by_id`/`has`/`library()`, v2 config tunables. · [C]
+- [x] **V2 Core loop** — leaders + assignment lobby, wait/bonus state machine,
+  chained bonus economy with forfeit, perks, leader handoff, win at
+  `LEVEL_COUNT`; backend test suites rewritten. · [C]
+- [x] **V3 Frontend** — lobby leader/assignment UI, play view (choice overlay,
+  frozen overlay, wait countdown), leader dashboard with perk shop and
+  handoff. · [F]
+- [x] **V4 Docs sync** — GAME_DESIGN / ARCHITECTURE / WEBSOCKET_PROTOCOL /
+  GAME_MODULE_SPEC / CLAUDE.md / README rewritten for v2. · [C]
+- [ ] **V5 Level difficulty curves** — each game scales `generate_main` with
+  `level` (1..`LEVEL_COUNT` + `BONUS_LEVEL_OFFSET`), deterministic per
+  `(seed, level)`, still guaranteed-solvable; ship tests per level band.
+  **Six parallel tasks, one per game owner.** · [G1..G6]
+  **AC:** level 1 ≈ today's difficulty; level 10 clearly harder; the bonus
+  board is genuinely harder than the current level.
+- [ ] **V6 Full playtest** — two full teams + leaders in real browsers, play to
+  a win; file bugs. **AC:** a match completes with no server errors. · [ALL]
+- [ ] **V7 Economy & perk tuning** — set `WAIT_SECONDS`, currency amounts, and
+  perk costs from playtest data. **AC:** bonuses feel worth the risk; perks
+  get bought but don't dominate. · [ALL]
+- [ ] **V8 Real roles** — replace the placeholder `config.ROLES` grouping with
+  designed roles (and decide whether roles constrain assignment). Needs a
+  design decision first. · [ALL]
+
+### v2 stretch (only after V5–V7)
+
+- [ ] More games for the library (see `game/RELAY_EXPANSION_GAMES_README.md`).
+- [ ] Mid-match leader *claim* when the leader is long-disconnected.
+- [ ] Spectator/dashboard view for non-players.
+
+---
+
+## Part 2 — MVP rebuild (complete; kept for history)
+
+The original phased plan that produced the engine, the first six games, and the
+frontend shell. All tasks below are done; task ids (T0.x–T6.x) are still
+referenced by tests and old PRs. The v1 mechanics described here
+(stages/rest/holding) were replaced by v2 — read them as history, not rules.
 
 ## Phase 0 — Project setup (blocks everything)  ·  owner: [C]
 
@@ -172,9 +207,8 @@ For **each** of Game 1–4 (`[G1]`…`[G4]`):
   `tests/games/test_gameN_<name>.py`. **AC:** all pass, including no-solution-leak
   (documented exceptions: ECHO's `sequence`, SWEEP's `clues` grid) and
   solvable-board.
-- [ ] **T4.x.5 Playtest note** — record rough solve times for main & holding in your
-  PR so Core can tune `REST_SECONDS`/`HOLDING_SECONDS`. **AC:** main ≈ 15–40s,
-  holding ≈ a few seconds; times noted.
+- [ ] ~~**T4.x.5 Playtest note**~~ — superseded by **V6/V7** (wait-timer and
+  economy tuning replaced rest/holding tuning).
 
 ## Phase 5 — Frontend  ·  owner: [F]  ·  depends: T3.3–T3.4 (can stub against protocol earlier)
 
@@ -202,20 +236,15 @@ For **each** of Game 1–4 (`[G1]`…`[G4]`):
 
 ## Phase 6 — Integration, tuning, polish  ·  owner: [ALL]  ·  depends: Phases 2–5
 
-- [ ] **T6.1 Full 8-player playtest** — two teams of four, real browsers, play to a
-  win. File bugs. **AC:** a match completes end-to-end with no server errors.
-- [ ] **T6.2 Timer tuning** — set `REST_SECONDS`/`HOLDING_SECONDS` from playtest data.
-  **AC:** finishing early feels like a meaningful rest but idling still costs
-  attention (holding questions actually occur in normal play).
-- [ ] **T6.3 Docs sync** — update any doc whose rule/shape changed during the build.
-  **AC:** docs match code; `README` links resolve.
+- [ ] ~~**T6.1 Full 8-player playtest**~~ — superseded by **V6**.
+- [ ] ~~**T6.2 Timer tuning**~~ — superseded by **V7**.
+- [x] **T6.3 Docs sync** — done as part of **V4**.
 
-## Phase 7 — Stretch (only after MVP is solid)  ·  owner: [ALL]
+## Phase 7 — Stretch (superseded by the v2 plan above)  ·  owner: [ALL]
 
 - [ ] Attempt cap / lockout on main puzzles.
-- [ ] `MAIN_PUZZLE_SECONDS > 0` time limit on main puzzles.
-- [ ] Spectator/dashboard view.
-- [ ] Randomised game order or a 5th game.
+- [x] ~~Randomised game order or a 5th game~~ — games 5 & 6 (MIRROR RUN,
+  OVERPRINT) shipped; per-player assignment replaced the fixed order.
 - [ ] Rejoin-by-code UX niceties.
 
 ---
