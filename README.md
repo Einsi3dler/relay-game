@@ -35,6 +35,7 @@ the relay.
 
 | Doc | What it covers |
 | --- | --- |
+| [docs/REDESIGN_PLAN.md](docs/REDESIGN_PLAN.md) | **The approved v2 redesign** (leaders, levels, currency, perks). Wins over older docs until docs sync lands. |
 | [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) | The rules: relay loop, green status, timers, win condition. Read first. |
 | [docs/GAMES_SPEC.md](docs/GAMES_SPEC.md) | **The five games** (REWIRE / SWEEP / MIRROR RUN / DECANT / ECHO): rules, generation, validation, anti-cheat. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the system is built: backend engine, state, timers, frontend. |
