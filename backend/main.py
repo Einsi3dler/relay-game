@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from backend import config, protocol
 from backend.engine import EngineResult, RelayEngine
-from backend.models import Match
+from backend.models import LEADER_ONLY_EVENT_KINDS, Match
 from backend.registry import REGISTERED_MODULES, GameRegistry
 from backend.state import InMemoryStateStore, MatchLocks
 from backend.timers import TimerService
@@ -86,8 +86,7 @@ async def _timer_fired(match_id: str, player_id: str, kind: str) -> None:
         return
     async with locks.for_match(match_id):
         touch(match_id)
-        hook = {"rest": engine.on_rest_expired, "holding": engine.on_holding_expired}[kind]
-        result = hook(match, player_id)
+        result = engine.on_wait_expired(match, player_id)
         if result.changed:
             await apply_and_broadcast(match, result)
 
@@ -112,10 +111,25 @@ async def apply_and_broadcast(match: Match, result: EngineResult) -> None:
         timers.cancel_match(match.id)
     await manager.broadcast_state(match)
     for event in result.events:
-        await manager.broadcast(match.id, protocol.event_message(event))
+        payload = protocol.event_message(event)
+        if match.status != "lobby" and event.kind in LEADER_ONLY_EVENT_KINDS:
+            # Who cleared / who lost cleared status is leader-only knowledge.
+            for player_id, socket in manager.match_sockets(match.id):
+                player = match.players.get(player_id)
+                if player is not None and player.is_leader:
+                    await manager.send(socket, payload)
+        else:
+            await manager.broadcast(match.id, payload)
     for team_id in result.advanced_team_ids:
         await manager.broadcast(
-            match.id, protocol.stage_advanced(team_id, match.teams[team_id].stage)
+            match.id, protocol.level_advanced(team_id, match.teams[team_id].level)
+        )
+    if result.perk_used:
+        await manager.broadcast(
+            match.id,
+            protocol.perk_used(
+                result.perk_used["perk_id"], result.perk_used["by_team_id"]
+            ),
         )
     if result.winner_team_id:
         await manager.broadcast(match.id, protocol.match_won(result.winner_team_id))
@@ -199,10 +213,12 @@ async def games_page():
 async def get_config() -> dict:
     return {
         "teams": list(config.TEAM_IDS),
-        "rest_seconds": config.REST_SECONDS,
-        "holding_seconds": config.HOLDING_SECONDS,
         "players_per_team": config.PLAYERS_PER_TEAM,
-        "stage_count": config.STAGE_COUNT,
+        "level_count": config.LEVEL_COUNT,
+        "wait_seconds": config.WAIT_SECONDS,
+        "perks": {perk_id: dict(perk) for perk_id, perk in config.PERKS.items()},
+        "roles": {role: list(ids) for role, ids in config.ROLES.items()},
+        "library": engine.registry.library(),
     }
 
 
@@ -293,6 +309,12 @@ def _run_lobby_action(match: Match, player_id: str, fields: dict) -> EngineResul
         return engine.host_set_min_players(match, player_id, fields.get("value", 0))
     if action == "start":
         return engine.host_start(match, player_id)
+    if action == "claim_leader":
+        return engine.claim_leader(match, player_id)
+    if action == "assign_game":
+        return engine.assign_game(
+            match, player_id, fields.get("target_id", ""), fields.get("game_id", "")
+        )
     return engine.claim_host(match, player_id)  # claim_host
 
 
@@ -356,18 +378,13 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
                             with contextlib.suppress(Exception):
                                 await kicked_socket.close(code=protocol.CLOSE_KICKED)
                     await apply_and_broadcast(match, result)
-            elif msg_type in protocol.SUBMIT_TYPES:
+            elif msg_type == protocol.SUBMIT_ANSWER:
                 if _too_fast(match_id, player_id):
                     await manager.send(socket, protocol.error_message("Too fast."))
                     continue
-                submit = (
-                    engine.submit_main
-                    if msg_type == protocol.SUBMIT_ANSWER
-                    else engine.submit_holding
-                )
                 async with locks.for_match(match_id):
                     touch(match_id)
-                    result = submit(
+                    result = engine.submit_answer(
                         match, player_id, fields["puzzle_id"], fields["answer"]
                     )
                     if not result.ok:
@@ -376,6 +393,35 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
                         if text == "stale or unknown puzzle":
                             text = "Puzzle is no longer active"
                         await manager.send(socket, protocol.error_message(text))
+                        continue
+                    await apply_and_broadcast(match, result)
+            elif msg_type in (
+                protocol.CHOOSE_WAIT,
+                protocol.CHOOSE_BONUS,
+                protocol.BUY_PERK,
+                protocol.GIVE_LEADER,
+            ):
+                async with locks.for_match(match_id):
+                    touch(match_id)
+                    if msg_type == protocol.CHOOSE_WAIT:
+                        result = engine.choose_wait(match, player_id)
+                    elif msg_type == protocol.CHOOSE_BONUS:
+                        result = engine.choose_bonus(match, player_id)
+                    elif msg_type == protocol.BUY_PERK:
+                        result = engine.buy_perk(
+                            match,
+                            player_id,
+                            fields["perk_id"],
+                            fields.get("target_id"),
+                        )
+                    else:
+                        result = engine.give_leader(
+                            match, player_id, fields["target_id"]
+                        )
+                    if not result.ok:
+                        await manager.send(
+                            socket, protocol.error_message(result.error or "Rejected.")
+                        )
                         continue
                     await apply_and_broadcast(match, result)
             else:  # request_state / heartbeat

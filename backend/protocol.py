@@ -1,7 +1,7 @@
 """Message (de)serialisation helpers and type constants for the WebSocket protocol.
 
-Shapes are exactly docs/WEBSOCKET_PROTOCOL.md §2. Builders return JSON-safe
-dicts; `main.py` owns the sockets.
+v2 message set per docs/REDESIGN_PLAN.md. Builders return JSON-safe dicts;
+`main.py` owns the sockets.
 """
 
 from __future__ import annotations
@@ -12,21 +12,42 @@ from backend.models import Event, Match
 
 # Client → server
 SUBMIT_ANSWER = "submit_answer"
-SUBMIT_HOLDING = "submit_holding"
+CHOOSE_WAIT = "choose_wait"
+CHOOSE_BONUS = "choose_bonus"
+BUY_PERK = "buy_perk"
+GIVE_LEADER = "give_leader"
 REQUEST_STATE = "request_state"
 HEARTBEAT = "heartbeat"
 LOBBY_ACTION = "lobby_action"
-SUBMIT_TYPES = (SUBMIT_ANSWER, SUBMIT_HOLDING)
-CLIENT_TYPES = (SUBMIT_ANSWER, SUBMIT_HOLDING, REQUEST_STATE, HEARTBEAT, LOBBY_ACTION)
+CLIENT_TYPES = (
+    SUBMIT_ANSWER,
+    CHOOSE_WAIT,
+    CHOOSE_BONUS,
+    BUY_PERK,
+    GIVE_LEADER,
+    REQUEST_STATE,
+    HEARTBEAT,
+    LOBBY_ACTION,
+)
 
-# lobby_action.action values (host-controlled lobby; see GAME_DESIGN §2)
-LOBBY_ACTIONS = ("set_team", "move", "kick", "set_min_players", "start", "claim_host")
+# lobby_action.action values (host-controlled lobby + leader seat/assignments)
+LOBBY_ACTIONS = (
+    "set_team",
+    "move",
+    "kick",
+    "set_min_players",
+    "start",
+    "claim_host",
+    "claim_leader",
+    "assign_game",
+)
 
 # Server → client
 STATE_SNAPSHOT = "state_snapshot"
 ERROR = "error"
 EVENT = "event"
-STAGE_ADVANCED = "stage_advanced"
+LEVEL_ADVANCED = "level_advanced"
+PERK_USED = "perk_used"
 MATCH_WON = "match_won"
 
 # Close codes
@@ -47,8 +68,12 @@ def event_message(event: Event) -> dict[str, Any]:
     return {"type": EVENT, "event": event.public()}
 
 
-def stage_advanced(team_id: str, stage: int) -> dict[str, Any]:
-    return {"type": STAGE_ADVANCED, "team_id": team_id, "stage": stage}
+def level_advanced(team_id: str, level: int) -> dict[str, Any]:
+    return {"type": LEVEL_ADVANCED, "team_id": team_id, "level": level}
+
+
+def perk_used(perk_id: str, by_team_id: str) -> dict[str, Any]:
+    return {"type": PERK_USED, "perk_id": perk_id, "by_team_id": by_team_id}
 
 
 def match_won(team_id: str) -> dict[str, Any]:
@@ -62,18 +87,33 @@ def parse_client_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
     msg_type = raw.get("type")
     if msg_type not in CLIENT_TYPES:
         return "Unknown message type."
-    if msg_type in SUBMIT_TYPES:
+    if msg_type == SUBMIT_ANSWER:
         puzzle_id = raw.get("puzzle_id")
         answer = raw.get("answer")
         if not isinstance(puzzle_id, str) or not isinstance(answer, str):
             return "Malformed message."
         return msg_type, {"puzzle_id": puzzle_id, "answer": answer}
+    if msg_type == BUY_PERK:
+        perk_id = raw.get("perk_id")
+        if not isinstance(perk_id, str):
+            return "Malformed message."
+        fields = {"perk_id": perk_id}
+        if "target_id" in raw:
+            if not isinstance(raw["target_id"], str):
+                return "Malformed message."
+            fields["target_id"] = raw["target_id"]
+        return msg_type, fields
+    if msg_type == GIVE_LEADER:
+        target_id = raw.get("target_id")
+        if not isinstance(target_id, str):
+            return "Malformed message."
+        return msg_type, {"target_id": target_id}
     if msg_type == LOBBY_ACTION:
         action = raw.get("action")
         if action not in LOBBY_ACTIONS:
             return "Unknown lobby action."
         fields = {"action": action}
-        for key in ("target_id", "team_id"):
+        for key in ("target_id", "team_id", "game_id"):
             if key in raw:
                 if not isinstance(raw[key], str):
                     return "Malformed message."
@@ -83,4 +123,4 @@ def parse_client_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
                 return "Malformed message."
             fields["value"] = raw["value"]
         return msg_type, fields
-    return msg_type, {}
+    return msg_type, {}  # choose_wait / choose_bonus / request_state / heartbeat
