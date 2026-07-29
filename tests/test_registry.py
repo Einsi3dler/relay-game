@@ -62,6 +62,32 @@ def test_reset_all_resets_every_module():
     assert [game.reset_calls for game in games] == [1] * len(ORDER)
 
 
+def test_by_id_returns_module_and_raises_on_unknown():
+    registry, _ = make_registry()
+    for game_id in ORDER:
+        assert registry.by_id(game_id).id == game_id
+    with pytest.raises(KeyError):
+        registry.by_id("ghost_game")
+
+
+def test_has():
+    registry, _ = make_registry()
+    assert registry.has("rewire")
+    assert not registry.has("ghost_game")
+
+
+def test_library_lists_all_games_with_roles():
+    registry = GameRegistry()  # real games + config.ROLES
+    library = registry.library()
+    assert {entry["id"] for entry in library} == set(config.GAME_ORDER)
+    roles = {entry["id"]: entry["role"] for entry in library}
+    for role, game_ids in config.ROLES.items():
+        for game_id in game_ids:
+            assert roles[game_id] == role
+    for entry in library:
+        assert entry["name"]
+
+
 def test_defaults_come_from_config():
     registry = GameRegistry()  # real games registered (T4.x.3); order from config
     assert registry._order == config.GAME_ORDER

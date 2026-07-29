@@ -135,3 +135,9 @@ def test_reset_safe_and_deterministic_after():
     before = game.generate_main(5).payload
     game.reset()
     assert game.generate_main(5).payload == before
+
+
+def test_generate_main_accepts_level():
+    # v2 contract (docs/REDESIGN_PLAN.md): level is accepted; scaling is follow-up.
+    puzzle = game.generate_main(42, level=5)
+    assert puzzle.kind == "main" and puzzle.game_id == game.id

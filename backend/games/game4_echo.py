@@ -23,7 +23,7 @@ class EchoGame:
     id = "echo"
     name = "Echo"
 
-    def generate_main(self, seed: int) -> PuzzleInstance:
+    def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
         return self._generate(seed, kind="main")
 
     def generate_holding(self, seed: int) -> PuzzleInstance:

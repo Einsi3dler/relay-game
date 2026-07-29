@@ -75,8 +75,8 @@ class GameModule(Protocol):
     id: str            # unique, stable, snake_case. e.g. "rewire"
     name: str          # display name. e.g. "Rewire"
 
-    def generate_main(self, seed: int) -> PuzzleInstance: ...
-    def generate_holding(self, seed: int) -> PuzzleInstance: ...
+    def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance: ...
+    def generate_holding(self, seed: int) -> PuzzleInstance: ...   # practice mode only
     def check(self, puzzle: PuzzleInstance, answer: str) -> bool: ...
     def reset(self) -> None: ...
 ```
@@ -88,11 +88,14 @@ class GameModule(Protocol):
   (prompt + answer). The engine passes a per-player, per-attempt seed so every
   player gets a different-but-reproducible puzzle. (Seeds are server-generated and
   unguessable — see [ARCHITECTURE.md](ARCHITECTURE.md) §"Seeds"; your module just
-  consumes them.) Set `game_id` to `self.id`. **Difficulty is a module constant in
-  the MVP** — never derive board size/difficulty from `seed` (that would randomise
-  fairness between players); difficulty scaling is a stretch knob.
-- **`generate_holding(seed)`** — same, with `kind="holding"`. Keep it solvable in a
-  few seconds.
+  consumes them.) Set `game_id` to `self.id`. **Never derive board size/difficulty
+  from `seed`** (that would randomise fairness between players). `level` (1-based,
+  see [REDESIGN_PLAN.md](REDESIGN_PLAN.md)) is the sanctioned difficulty knob:
+  scale deterministically with it or ignore it until your game's curve lands —
+  same seed + same level must always yield the same puzzle.
+- **`generate_holding(seed)`** — same, with `kind="holding"`; a quick few-second
+  variant. **v2 uses it only for practice mode** (`/api/practice`) — it no longer
+  appears in the match loop.
 - **`check(puzzle, answer)`** — return `True`/`False`. Two valid styles:
   (a) **match** a stored `puzzle.answer` (normalise both sides, see §5) — for games
   with one canonical answer; or (b) **recompute** correctness from the submitted

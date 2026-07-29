@@ -16,7 +16,7 @@ class TemplateGame:
     id = "template_game"      # unique snake_case; also goes in config.GAME_ORDER
     name = "Template Game"    # display name
 
-    def generate_main(self, seed: int) -> PuzzleInstance:
+    def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
         rng = random.Random(seed)          # seed everything from `seed` — no bare random
         a, b = rng.randint(2, 9), rng.randint(2, 9)
         return PuzzleInstance(

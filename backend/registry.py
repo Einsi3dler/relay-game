@@ -44,6 +44,28 @@ class GameRegistry:
             for module in (REGISTERED_MODULES if modules is None else modules)
         }
 
+    def by_id(self, game_id: str) -> GameModule:
+        """Return the module registered under `game_id` (KeyError if unknown)."""
+        module = self._by_id.get(game_id)
+        if module is None:
+            raise KeyError(f"no module registered for game id {game_id!r}")
+        return module
+
+    def has(self, game_id: str) -> bool:
+        return game_id in self._by_id
+
+    def library(self) -> list[dict[str, str | None]]:
+        """All registered games as `{id, name, role}` for the assignment UI."""
+        role_of = {
+            game_id: role
+            for role, game_ids in config.ROLES.items()
+            for game_id in game_ids
+        }
+        return [
+            {"id": module.id, "name": module.name, "role": role_of.get(module.id)}
+            for module in self._by_id.values()
+        ]
+
     def for_stage(self, stage: int) -> GameModule:
         """Return the module for a 1-based stage index."""
         if not 1 <= stage <= len(self._order):
