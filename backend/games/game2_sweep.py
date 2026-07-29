@@ -18,6 +18,28 @@ MAIN_ROWS, MAIN_COLS, MAIN_MINES = 6, 6, 6
 HOLD_ROWS, HOLD_COLS, HOLD_MINES = 3, 3, 1
 MAX_ROLLS = 50
 
+# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10,
+# level 1 == the original board. Density stays under ~19% so no-guess boards
+# keep rolling well inside MAX_ROLLS; the ease-by-dropping-mines fallback
+# remains the safety net.
+MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
+    {"rows": 6, "cols": 6, "mines": 6, "difficulty": 2, "time_hint": 40},   # 1
+    {"rows": 6, "cols": 6, "mines": 6, "difficulty": 2, "time_hint": 40},   # 2
+    {"rows": 6, "cols": 6, "mines": 7, "difficulty": 2, "time_hint": 45},   # 3
+    {"rows": 7, "cols": 7, "mines": 8, "difficulty": 3, "time_hint": 50},   # 4
+    {"rows": 7, "cols": 7, "mines": 8, "difficulty": 3, "time_hint": 50},   # 5
+    {"rows": 7, "cols": 7, "mines": 9, "difficulty": 3, "time_hint": 55},   # 6
+    {"rows": 8, "cols": 8, "mines": 10, "difficulty": 3, "time_hint": 60},  # 7
+    {"rows": 8, "cols": 8, "mines": 10, "difficulty": 3, "time_hint": 60},  # 8
+    {"rows": 8, "cols": 8, "mines": 11, "difficulty": 4, "time_hint": 65},  # 9
+    {"rows": 8, "cols": 8, "mines": 12, "difficulty": 4, "time_hint": 70},  # 10
+)
+
+
+def _params_for_level(level: int) -> dict:
+    """Main-board knobs for `level`, clamped to the 1..10 table."""
+    return MAIN_LEVEL_PARAMS[min(max(level, 1), len(MAIN_LEVEL_PARAMS)) - 1]
+
 Cell = tuple[int, int]
 
 
@@ -121,16 +143,17 @@ class SweepGame:
     name = "Sweep"
 
     def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
-        return self._generate(seed, kind="main")
+        return self._generate(seed, kind="main", level=level)
 
     def generate_holding(self, seed: int) -> PuzzleInstance:
         return self._generate(seed, kind="holding")
 
-    def _generate(self, seed: int, kind: str) -> PuzzleInstance:
+    def _generate(self, seed: int, kind: str, level: int = 1) -> PuzzleInstance:
         rng = random.Random(seed)
         if kind == "main":
-            rows, cols, mine_count = MAIN_ROWS, MAIN_COLS, MAIN_MINES
-            difficulty, time_hint = 2, 40
+            params = _params_for_level(level)
+            rows, cols, mine_count = params["rows"], params["cols"], params["mines"]
+            difficulty, time_hint = params["difficulty"], params["time_hint"]
         else:
             rows, cols, mine_count = HOLD_ROWS, HOLD_COLS, HOLD_MINES
             difficulty, time_hint = 1, 8

@@ -43,6 +43,27 @@ GEN_ATTEMPTS = 300             # per band; both bands are tried in order
 MIN_MOVE_FRACTION = 0.4        # each runner must move in >= this share of steps
 MAX_ANSWER_CHARS = 400
 
+
+def _params_for_level(level: int) -> dict:
+    """Main-board knobs for `level`, clamped to 1..10; level 1 == the
+    original board (depth (10,18), relaxed (8,22), cap 30). The depth band
+    slides up one step per level; size tops out at 7 — size 8 leaves too
+    little headroom in the generation attempt budget.
+    """
+    lvl = min(max(level, 1), 10)
+    lo = 9 + lvl
+    hi = lo + 8
+    relaxed = (lo - 2, hi + 4)
+    return {
+        "size": 6 if lvl <= 6 else 7,
+        "depth": (lo, hi),
+        "relaxed_depth": relaxed,
+        "wall_p": 0.18 if lvl <= 5 else (0.20 if lvl <= 8 else 0.22),
+        "move_cap": relaxed[1] + 8,
+        "difficulty": 2 if lvl <= 3 else (3 if lvl <= 7 else 4),
+        "time_hint": 30 + (lvl - 1) * 25 // 9,
+    }
+
 DELTAS = {"U": (-1, 0), "R": (0, 1), "D": (1, 0), "L": (0, -1)}
 
 MAPPINGS: dict[str, dict[str, str]] = {
@@ -136,20 +157,24 @@ class MirrorRunGame:
     name = "Mirror Run"
 
     def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
-        return self._generate(seed, kind="main")
+        return self._generate(seed, kind="main", level=level)
 
     def generate_holding(self, seed: int) -> PuzzleInstance:
         return self._generate(seed, kind="holding")
 
-    def _build(self, seed: int, kind: str) -> tuple[dict, str]:
+    def _build(self, seed: int, kind: str, level: int = 1) -> tuple[dict, str]:
         """Payload + a reference solution (server-only, used by tests)."""
         rng = random.Random(seed)
         if kind == "main":
-            size, wall_p, cap = MAIN_SIZE, MAIN_WALL_P, MAIN_MOVE_CAP
-            mappings, bands = MAIN_MAPPINGS, (MAIN_DEPTH, MAIN_RELAXED_DEPTH)
+            params = _params_for_level(level)
+            size, wall_p, cap = params["size"], params["wall_p"], params["move_cap"]
+            mappings = MAIN_MAPPINGS
+            bands = (params["depth"], params["relaxed_depth"])
+            difficulty, time_hint = params["difficulty"], params["time_hint"]
         else:
             size, wall_p, cap = HOLD_SIZE, HOLD_WALL_P, HOLD_MOVE_CAP
             mappings, bands = HOLD_MAPPINGS, (HOLD_DEPTH, HOLD_RELAXED_DEPTH)
+            difficulty, time_hint = 1, 8
         for lo, hi in bands:
             for _ in range(GEN_ATTEMPTS):
                 mapping = rng.choice(mappings)
@@ -164,8 +189,8 @@ class MirrorRunGame:
                     continue
                 payload = {
                     "variant": kind,
-                    "difficulty": 2 if kind == "main" else 1,
-                    "time_hint_seconds": 30 if kind == "main" else 8,
+                    "difficulty": difficulty,
+                    "time_hint_seconds": time_hint,
                     "rules_version": RULES_VERSION,
                     "rows": size,
                     "cols": size,
@@ -176,8 +201,8 @@ class MirrorRunGame:
                 return payload, solution
         raise RuntimeError(f"mirror_run generation failed for seed {seed}")
 
-    def _generate(self, seed: int, kind: str) -> PuzzleInstance:
-        payload, solution = self._build(seed, kind)
+    def _generate(self, seed: int, kind: str, level: int = 1) -> PuzzleInstance:
+        payload, solution = self._build(seed, kind, level)
         return PuzzleInstance(
             game_id=self.id,
             kind=kind,

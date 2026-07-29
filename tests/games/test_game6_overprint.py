@@ -6,9 +6,14 @@ from __future__ import annotations
 import json
 
 from backend.games.game6_overprint import (
+    MAIN_CELLS,
+    MAIN_LAYERS,
+    MAIN_LEVEL_PARAMS,
+    MAIN_SIZE,
     MAX_SOLUTIONS,
     OverprintGame,
     _count_solutions,
+    _params_for_level,
     _placed_cells,
     _transform,
 )
@@ -223,7 +228,47 @@ def test_reset_safe_and_deterministic_after():
     assert game.generate_main(5).payload == before
 
 
-def test_generate_main_accepts_level():
-    # v2 contract (docs/REDESIGN_PLAN.md): level is accepted; scaling is follow-up.
-    puzzle = game.generate_main(42, level=5)
-    assert puzzle.kind == "main" and puzzle.game_id == game.id
+def test_level_determinism():
+    # V5 contract: same (seed, level) always yields the same puzzle.
+    for level in (1, 5, 10):
+        a = game.generate_main(42, level=level)
+        b = game.generate_main(42, level=level)
+        assert a.payload == b.payload and a.answer == b.answer
+
+
+def test_level_one_matches_original_board():
+    assert _params_for_level(1) == {
+        "size": MAIN_SIZE, "layers": MAIN_LAYERS, "cells": MAIN_CELLS,
+        "max_overlap": 2, "min_misplaced": 2, "difficulty": 2, "time_hint": 30,
+    }
+    assert game.generate_main(42, level=1).payload == game.generate_main(42).payload
+
+
+def test_level_params_monotonic():
+    for easier, harder in zip(MAIN_LEVEL_PARAMS, MAIN_LEVEL_PARAMS[1:]):
+        for knob in ("size", "layers", "max_overlap", "min_misplaced",
+                     "difficulty", "time_hint"):
+            assert easier[knob] <= harder[knob]
+        assert easier["cells"][0] <= harder["cells"][0]
+        assert easier["cells"][1] <= harder["cells"][1]
+        # the renderer only has 4 layer styles
+        assert harder["layers"] <= 4
+        assert harder["min_misplaced"] <= harder["layers"]
+
+
+def test_every_level_generates_solvable_scaled_boards():
+    for level in range(1, 11):
+        params = _params_for_level(level)
+        for seed in (3, 44, 90):
+            puzzle = game.generate_main(seed, level=level)
+            payload = puzzle.payload
+            assert payload["rows"] == params["size"]
+            assert len(payload["layers"]) == params["layers"]
+            assert game.check(puzzle, puzzle.answer) is True
+
+
+def test_level_ten_visibly_harder():
+    top = _params_for_level(10)
+    assert top["size"] > MAIN_SIZE
+    assert top["layers"] > MAIN_LAYERS
+    assert top["min_misplaced"] > 2

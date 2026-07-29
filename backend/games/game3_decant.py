@@ -25,6 +25,28 @@ HOLD_COLOURS, HOLD_TUBES, HOLD_SCRAMBLE = 2, 3, 2
 CAPACITY = 4
 MAX_MOVES = 60
 
+# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10,
+# level 1 == the original board. Colours cap at 5 (the renderer palette has 5
+# entries) and min_pours at 11 — the run-count bound tops out at
+# blocks - colours = 15, and floors past 12 start missing the gate.
+MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
+    {"colours": 4, "tubes": 6, "scramble": 20, "min_pours": 7, "difficulty": 3, "time_hint": 40},   # 1
+    {"colours": 4, "tubes": 6, "scramble": 20, "min_pours": 7, "difficulty": 3, "time_hint": 40},   # 2
+    {"colours": 4, "tubes": 6, "scramble": 23, "min_pours": 8, "difficulty": 3, "time_hint": 45},   # 3
+    {"colours": 4, "tubes": 6, "scramble": 26, "min_pours": 9, "difficulty": 3, "time_hint": 50},   # 4
+    {"colours": 4, "tubes": 6, "scramble": 26, "min_pours": 9, "difficulty": 3, "time_hint": 50},   # 5
+    {"colours": 5, "tubes": 7, "scramble": 28, "min_pours": 9, "difficulty": 4, "time_hint": 55},   # 6
+    {"colours": 5, "tubes": 7, "scramble": 28, "min_pours": 10, "difficulty": 4, "time_hint": 60},  # 7
+    {"colours": 5, "tubes": 7, "scramble": 31, "min_pours": 10, "difficulty": 4, "time_hint": 65},  # 8
+    {"colours": 5, "tubes": 7, "scramble": 33, "min_pours": 11, "difficulty": 4, "time_hint": 70},  # 9
+    {"colours": 5, "tubes": 7, "scramble": 36, "min_pours": 11, "difficulty": 5, "time_hint": 75},  # 10
+)
+
+
+def _params_for_level(level: int) -> dict:
+    """Main-board knobs for `level`, clamped to the 1..10 table."""
+    return MAIN_LEVEL_PARAMS[min(max(level, 1), len(MAIN_LEVEL_PARAMS)) - 1]
+
 Tubes = list[list[int]]
 
 
@@ -104,27 +126,30 @@ class DecantGame:
     name = "Decant"
 
     def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
-        return self._generate(seed, kind="main")
+        return self._generate(seed, kind="main", level=level)
 
     def generate_holding(self, seed: int) -> PuzzleInstance:
         return self._generate(seed, kind="holding")
 
-    def _build(self, seed: int, kind: str) -> tuple[Tubes, list[tuple[int, int]]]:
+    def _build(
+        self, seed: int, kind: str, level: int = 1
+    ) -> tuple[Tubes, list[tuple[int, int]]]:
         """Board + a known-good solution (used by generation self-check and tests)."""
         rng = random.Random(seed)
         if kind == "main":
             # Difficulty gate: a reverse-scramble is always solvable but can
             # land near-solved, so re-roll until the run-count lower bound
-            # guarantees at least MAIN_MIN_POURS pours. If every attempt is
+            # guarantees at least the level's min_pours. If every attempt is
             # shallow (rare), serve the deepest board seen — still solvable,
             # just easier.
+            params = _params_for_level(level)
             deepest: tuple[int, Tubes, list[tuple[int, int]]] | None = None
             for _ in range(MAIN_GEN_ATTEMPTS):
                 tubes, solution = _scramble(
-                    rng, MAIN_COLOURS, MAIN_TUBES, MAIN_SCRAMBLE
+                    rng, params["colours"], params["tubes"], params["scramble"]
                 )
                 runs = _colour_runs(tubes)
-                if runs - MAIN_COLOURS >= MAIN_MIN_POURS:
+                if runs - params["colours"] >= params["min_pours"]:
                     break
                 if deepest is None or runs > deepest[0]:
                     deepest = (runs, tubes, solution)
@@ -139,9 +164,13 @@ class DecantGame:
         assert _solved(replay, CAPACITY)
         return tubes, solution
 
-    def _generate(self, seed: int, kind: str) -> PuzzleInstance:
-        tubes, _ = self._build(seed, kind)
-        difficulty, time_hint = (3, 40) if kind == "main" else (1, 8)
+    def _generate(self, seed: int, kind: str, level: int = 1) -> PuzzleInstance:
+        tubes, _ = self._build(seed, kind, level)
+        if kind == "main":
+            params = _params_for_level(level)
+            difficulty, time_hint = params["difficulty"], params["time_hint"]
+        else:
+            difficulty, time_hint = 1, 8
         return PuzzleInstance(
             game_id=self.id,
             kind=kind,

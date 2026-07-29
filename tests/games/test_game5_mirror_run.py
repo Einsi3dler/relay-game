@@ -9,9 +9,12 @@ from collections import deque
 from backend.games.game5_mirror_run import (
     HOLD_SIZE,
     MAIN_DEPTH,
+    MAIN_MOVE_CAP,
     MAIN_SIZE,
+    MAIN_WALL_P,
     MAPPINGS,
     MirrorRunGame,
+    _params_for_level,
     _solve,
     _step,
 )
@@ -19,8 +22,8 @@ from backend.games.game5_mirror_run import (
 game = MirrorRunGame()
 
 
-def good_answer(seed: int, kind: str = "main") -> str:
-    _, solution = game._build(seed, kind)
+def good_answer(seed: int, kind: str = "main", level: int = 1) -> str:
+    _, solution = game._build(seed, kind, level)
     return json.dumps({"v": 1, "moves": solution})
 
 
@@ -44,10 +47,16 @@ def test_generated_boards_are_solvable_and_unsolved():
 
 
 def test_main_depth_in_band_and_under_cap():
-    for seed in range(10):
-        puzzle = game.generate_main(seed)
-        assert MAIN_DEPTH[0] <= len(puzzle.answer) <= MAIN_DEPTH[1]
-        assert len(puzzle.answer) <= puzzle.payload["move_cap"]
+    # The primary band can spill into the relaxed band by design, so the
+    # relaxed band is the hard bound at every level.
+    for level in (1, 5, 10):
+        params = _params_for_level(level)
+        lo, hi = params["relaxed_depth"]
+        for seed in range(10):
+            puzzle = game.generate_main(seed, level=level)
+            assert lo <= len(puzzle.answer) <= hi
+            assert len(puzzle.answer) <= puzzle.payload["move_cap"]
+            assert puzzle.payload["move_cap"] == params["move_cap"]
 
 
 def test_holding_materially_smaller():
@@ -180,7 +189,44 @@ def test_reset_safe_and_deterministic_after():
     assert game.generate_main(5).payload == before
 
 
-def test_generate_main_accepts_level():
-    # v2 contract (docs/REDESIGN_PLAN.md): level is accepted; scaling is follow-up.
-    puzzle = game.generate_main(42, level=5)
-    assert puzzle.kind == "main" and puzzle.game_id == game.id
+def test_level_determinism():
+    # V5 contract: same (seed, level) always yields the same puzzle.
+    for level in (1, 5, 10):
+        a = game.generate_main(42, level=level)
+        b = game.generate_main(42, level=level)
+        assert a.payload == b.payload and a.answer == b.answer
+
+
+def test_level_one_matches_original_board():
+    params = _params_for_level(1)
+    assert params["size"] == MAIN_SIZE
+    assert params["depth"] == MAIN_DEPTH
+    assert params["wall_p"] == MAIN_WALL_P
+    assert params["move_cap"] == MAIN_MOVE_CAP
+    assert game.generate_main(42, level=1).payload == game.generate_main(42).payload
+
+
+def test_level_params_monotonic():
+    for level in range(1, 10):
+        easier, harder = _params_for_level(level), _params_for_level(level + 1)
+        assert easier["size"] <= harder["size"]
+        assert easier["depth"][0] < harder["depth"][0]
+        assert easier["wall_p"] <= harder["wall_p"]
+        assert easier["move_cap"] <= harder["move_cap"]
+        assert easier["difficulty"] <= harder["difficulty"]
+        assert easier["time_hint"] <= harder["time_hint"]
+
+
+def test_every_level_generates_solvable_scaled_boards():
+    for level in range(1, 11):
+        params = _params_for_level(level)
+        for seed in (3, 44, 90):
+            puzzle = game.generate_main(seed, level=level)
+            assert puzzle.payload["rows"] == params["size"]
+            assert game.check(puzzle, good_answer(seed, "main", level)) is True
+
+
+def test_level_ten_visibly_harder():
+    top = _params_for_level(10)
+    assert top["size"] > MAIN_SIZE
+    assert top["depth"][0] > MAIN_DEPTH[0]
