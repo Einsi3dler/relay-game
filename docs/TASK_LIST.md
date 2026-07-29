@@ -1,5 +1,10 @@
 # The Relay — Build Task List (MVP rebuild)
 
+> **⚠️ v2 redesign in progress.** The MVP below is complete; the game is being
+> rebuilt around team leaders, 10 levels, currency and perks per
+> [REDESIGN_PLAN.md](REDESIGN_PLAN.md). New work should follow that plan; this
+> list will be rewritten in its docs-sync phase.
+
 The full plan for rebuilding The Relay from the archived prototype into the MVP. Work
 top-to-bottom by phase; within a phase, tasks tagged to different owners run in
 parallel. Each task has an **owner slice**, **dependencies**, **files**, and
