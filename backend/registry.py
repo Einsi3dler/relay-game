@@ -15,6 +15,7 @@ from backend.games.game2_sweep import SweepGame
 from backend.games.game3_decant import DecantGame
 from backend.games.game4_echo import EchoGame
 from backend.games.game5_mirror_run import MirrorRunGame
+from backend.games.game6_overprint import OverprintGame
 
 # Game owners register their module instance here (task T4.x.3 — the
 # sanctioned one-line edit, alongside their id in config.GAME_ORDER).
@@ -24,6 +25,7 @@ REGISTERED_MODULES: list[GameModule] = [
     MirrorRunGame(),
     DecantGame(),
     EchoGame(),
+    OverprintGame(),
 ]
 
 

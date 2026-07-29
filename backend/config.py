@@ -14,7 +14,7 @@ MAIN_PUZZLE_SECONDS = 0      # main-puzzle time limit (0 = none in the MVP)
 # --- Teams & stages ---
 PLAYERS_PER_TEAM = 4
 MIN_PLAYERS_PER_TEAM = 4     # both teams need this many players to start
-STAGE_COUNT = 5
+STAGE_COUNT = 6
 TEAM_IDS = ("alpha", "bravo")
 
 # --- Server behaviour ---
@@ -28,4 +28,5 @@ GAME_ORDER: list[str] = [
     "mirror_run",
     "decant",
     "echo",
+    "overprint",
 ]
