@@ -1,0 +1,5720 @@
+{
+ "cases": [
+  {
+   "label": "main-l1-s0-all-pins",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "triangle",
+      "start": [
+       4,
+       3
+      ]
+     }
+    ],
+    "cols": 6,
+    "containers": [
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "c0",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        7,
+        2
+       ]
+      ],
+      "id": "c1",
+      "kind": "triangle"
+     }
+    ],
+    "difficulty": 2,
+    "pins": [
+     {
+      "cells": [
+       [
+        3,
+        0
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        4,
+        0
+       ]
+      ],
+      "id": "p1",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        5,
+        3
+       ],
+       [
+        5,
+        4
+       ]
+      ],
+      "id": "p2",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        2
+       ]
+      ],
+      "id": "p3",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 4,
+    "rows": 8,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 3,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 5,
+      "type": "ramp_right"
+     },
+     {
+      "c": 3,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 0,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 5,
+      "r": 7,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 30,
+    "variant": "main"
+   },
+   "removals": [
+    "p0",
+    "p1",
+    "p2",
+    "p3"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       2,
+       0,
+       false
+      ],
+      [
+       4,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       1,
+       true
+      ],
+      [
+       4,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       1,
+       true
+      ],
+      [
+       4,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       1,
+       true
+      ],
+      [
+       5,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       1,
+       true
+      ],
+      [
+       7,
+       2,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l1-s0-reversed",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "triangle",
+      "start": [
+       4,
+       3
+      ]
+     }
+    ],
+    "cols": 6,
+    "containers": [
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "c0",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        7,
+        2
+       ]
+      ],
+      "id": "c1",
+      "kind": "triangle"
+     }
+    ],
+    "difficulty": 2,
+    "pins": [
+     {
+      "cells": [
+       [
+        3,
+        0
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        4,
+        0
+       ]
+      ],
+      "id": "p1",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        5,
+        3
+       ],
+       [
+        5,
+        4
+       ]
+      ],
+      "id": "p2",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        2
+       ]
+      ],
+      "id": "p3",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 4,
+    "rows": 8,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 3,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 5,
+      "type": "ramp_right"
+     },
+     {
+      "c": 3,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 0,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 5,
+      "r": 7,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 30,
+    "variant": "main"
+   },
+   "removals": [
+    "p3",
+    "p2",
+    "p0"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       2,
+       0,
+       false
+      ],
+      [
+       4,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       2,
+       0,
+       false
+      ],
+      [
+       4,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       2,
+       0,
+       false
+      ],
+      [
+       7,
+       2,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       6,
+       2,
+       false
+      ],
+      [
+       7,
+       2,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l1-s0-solution",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "triangle",
+      "start": [
+       4,
+       3
+      ]
+     }
+    ],
+    "cols": 6,
+    "containers": [
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "c0",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        7,
+        2
+       ]
+      ],
+      "id": "c1",
+      "kind": "triangle"
+     }
+    ],
+    "difficulty": 2,
+    "pins": [
+     {
+      "cells": [
+       [
+        3,
+        0
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        4,
+        0
+       ]
+      ],
+      "id": "p1",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        5,
+        3
+       ],
+       [
+        5,
+        4
+       ]
+      ],
+      "id": "p2",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        2
+       ]
+      ],
+      "id": "p3",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 4,
+    "rows": 8,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 3,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 5,
+      "type": "ramp_right"
+     },
+     {
+      "c": 3,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 0,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 5,
+      "r": 7,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 30,
+    "variant": "main"
+   },
+   "removals": [
+    "p0",
+    "p2",
+    "p3"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       2,
+       0,
+       false
+      ],
+      [
+       4,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       1,
+       true
+      ],
+      [
+       4,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       1,
+       true
+      ],
+      [
+       5,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       1,
+       true
+      ],
+      [
+       7,
+       2,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l1-s0-swapped",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "triangle",
+      "start": [
+       4,
+       3
+      ]
+     }
+    ],
+    "cols": 6,
+    "containers": [
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "c0",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        7,
+        2
+       ]
+      ],
+      "id": "c1",
+      "kind": "triangle"
+     }
+    ],
+    "difficulty": 2,
+    "pins": [
+     {
+      "cells": [
+       [
+        3,
+        0
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        4,
+        0
+       ]
+      ],
+      "id": "p1",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        5,
+        3
+       ],
+       [
+        5,
+        4
+       ]
+      ],
+      "id": "p2",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        2
+       ]
+      ],
+      "id": "p3",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 4,
+    "rows": 8,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 3,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 5,
+      "type": "ramp_right"
+     },
+     {
+      "c": 3,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 0,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 5,
+      "r": 7,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 30,
+    "variant": "main"
+   },
+   "removals": [
+    "p2",
+    "p0",
+    "p3"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       2,
+       0,
+       false
+      ],
+      [
+       4,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       2,
+       0,
+       false
+      ],
+      [
+       5,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       1,
+       true
+      ],
+      [
+       5,
+       3,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       1,
+       true
+      ],
+      [
+       7,
+       2,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l1-s1-all-pins",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       0,
+       4
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "triangle",
+      "start": [
+       4,
+       4
+      ]
+     }
+    ],
+    "cols": 6,
+    "containers": [
+     {
+      "cells": [
+       [
+        7,
+        4
+       ]
+      ],
+      "id": "c0",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        7,
+        5
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     }
+    ],
+    "difficulty": 2,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        3
+       ],
+       [
+        1,
+        4
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        3
+       ],
+       [
+        5,
+        4
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        5
+       ]
+      ],
+      "id": "p2",
+      "kind": "tilt_left"
+     },
+     {
+      "cells": [
+       [
+        6,
+        4
+       ]
+      ],
+      "id": "p3",
+      "kind": "tilt_right"
+     }
+    ],
+    "removal_cap": 4,
+    "rows": 8,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 0,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 2,
+      "type": "ramp_right"
+     },
+     {
+      "c": 1,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 30,
+    "variant": "main"
+   },
+   "removals": [
+    "p0",
+    "p1",
+    "p2",
+    "p3"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       4,
+       4,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       4,
+       5,
+       false
+      ],
+      [
+       4,
+       4,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       5,
+       4,
+       false
+      ],
+      [
+       6,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       5,
+       4,
+       false
+      ],
+      [
+       6,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       5,
+       4,
+       false
+      ],
+      [
+       6,
+       5,
+       false
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l1-s1-reversed",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       0,
+       4
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "triangle",
+      "start": [
+       4,
+       4
+      ]
+     }
+    ],
+    "cols": 6,
+    "containers": [
+     {
+      "cells": [
+       [
+        7,
+        4
+       ]
+      ],
+      "id": "c0",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        7,
+        5
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     }
+    ],
+    "difficulty": 2,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        3
+       ],
+       [
+        1,
+        4
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        3
+       ],
+       [
+        5,
+        4
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        5
+       ]
+      ],
+      "id": "p2",
+      "kind": "tilt_left"
+     },
+     {
+      "cells": [
+       [
+        6,
+        4
+       ]
+      ],
+      "id": "p3",
+      "kind": "tilt_right"
+     }
+    ],
+    "removal_cap": 4,
+    "rows": 8,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 0,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 2,
+      "type": "ramp_right"
+     },
+     {
+      "c": 1,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 30,
+    "variant": "main"
+   },
+   "removals": [
+    "p1",
+    "p3",
+    "p2",
+    "p0"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       4,
+       4,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       6,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       6,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       6,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       6,
+       5,
+       false
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l1-s1-solution",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       0,
+       4
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "triangle",
+      "start": [
+       4,
+       4
+      ]
+     }
+    ],
+    "cols": 6,
+    "containers": [
+     {
+      "cells": [
+       [
+        7,
+        4
+       ]
+      ],
+      "id": "c0",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        7,
+        5
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     }
+    ],
+    "difficulty": 2,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        3
+       ],
+       [
+        1,
+        4
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        3
+       ],
+       [
+        5,
+        4
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        5
+       ]
+      ],
+      "id": "p2",
+      "kind": "tilt_left"
+     },
+     {
+      "cells": [
+       [
+        6,
+        4
+       ]
+      ],
+      "id": "p3",
+      "kind": "tilt_right"
+     }
+    ],
+    "removal_cap": 4,
+    "rows": 8,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 0,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 2,
+      "type": "ramp_right"
+     },
+     {
+      "c": 1,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 30,
+    "variant": "main"
+   },
+   "removals": [
+    "p0",
+    "p2",
+    "p3",
+    "p1"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       4,
+       4,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       4,
+       5,
+       false
+      ],
+      [
+       4,
+       4,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       5,
+       true
+      ],
+      [
+       4,
+       4,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       5,
+       true
+      ],
+      [
+       4,
+       4,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       5,
+       true
+      ],
+      [
+       7,
+       4,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l1-s1-swapped",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       0,
+       4
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "triangle",
+      "start": [
+       4,
+       4
+      ]
+     }
+    ],
+    "cols": 6,
+    "containers": [
+     {
+      "cells": [
+       [
+        7,
+        4
+       ]
+      ],
+      "id": "c0",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        7,
+        5
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     }
+    ],
+    "difficulty": 2,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        3
+       ],
+       [
+        1,
+        4
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        3
+       ],
+       [
+        5,
+        4
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        5
+       ]
+      ],
+      "id": "p2",
+      "kind": "tilt_left"
+     },
+     {
+      "cells": [
+       [
+        6,
+        4
+       ]
+      ],
+      "id": "p3",
+      "kind": "tilt_right"
+     }
+    ],
+    "removal_cap": 4,
+    "rows": 8,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 0,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 4,
+      "r": 2,
+      "type": "ramp_right"
+     },
+     {
+      "c": 1,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 1,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 7,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 30,
+    "variant": "main"
+   },
+   "removals": [
+    "p2",
+    "p0",
+    "p3",
+    "p1"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       4,
+       4,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       4,
+       4,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       5,
+       true
+      ],
+      [
+       4,
+       4,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       5,
+       true
+      ],
+      [
+       4,
+       4,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       7,
+       5,
+       true
+      ],
+      [
+       7,
+       4,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l10-s0-all-pins",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "triangle",
+      "start": [
+       0,
+       4
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "circle",
+      "start": [
+       1,
+       2
+      ]
+     },
+     {
+      "id": "b2",
+      "kind": "diamond",
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "b3",
+      "kind": "square",
+      "start": [
+       4,
+       5
+      ]
+     }
+    ],
+    "cols": 7,
+    "containers": [
+     {
+      "cells": [
+       [
+        8,
+        0
+       ]
+      ],
+      "id": "c0",
+      "kind": "diamond"
+     },
+     {
+      "cells": [
+       [
+        8,
+        2
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        4
+       ]
+      ],
+      "id": "c2",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        5
+       ]
+      ],
+      "id": "c3",
+      "kind": "square"
+     }
+    ],
+    "difficulty": 4,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        3
+       ],
+       [
+        1,
+        4
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        2,
+        2
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        4,
+        0
+       ],
+       [
+        4,
+        1
+       ]
+      ],
+      "id": "p2",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        5
+       ]
+      ],
+      "id": "p3",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        1
+       ]
+      ],
+      "id": "p4",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        6,
+        5
+       ]
+      ],
+      "id": "p5",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "p6",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 7,
+    "rows": 9,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 1,
+      "r": 3,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 3,
+      "type": "ramp_right"
+     },
+     {
+      "c": 3,
+      "r": 4,
+      "type": "ramp_left"
+     },
+     {
+      "c": 6,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 5,
+      "type": "ramp_left"
+     },
+     {
+      "c": 0,
+      "r": 6,
+      "type": "ramp_right"
+     },
+     {
+      "c": 4,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "ramp_right"
+     },
+     {
+      "c": 6,
+      "r": 7,
+      "type": "ramp_left"
+     },
+     {
+      "c": 1,
+      "r": 8,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 6,
+      "r": 8,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 55,
+    "variant": "main"
+   },
+   "removals": [
+    "p0",
+    "p1",
+    "p2",
+    "p3",
+    "p4",
+    "p5",
+    "p6"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       1,
+       2,
+       false
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       1,
+       2,
+       false
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       5,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       5,
+       0,
+       false
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       8,
+       0,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       8,
+       0,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       8,
+       0,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l10-s0-reversed",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "triangle",
+      "start": [
+       0,
+       4
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "circle",
+      "start": [
+       1,
+       2
+      ]
+     },
+     {
+      "id": "b2",
+      "kind": "diamond",
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "b3",
+      "kind": "square",
+      "start": [
+       4,
+       5
+      ]
+     }
+    ],
+    "cols": 7,
+    "containers": [
+     {
+      "cells": [
+       [
+        8,
+        0
+       ]
+      ],
+      "id": "c0",
+      "kind": "diamond"
+     },
+     {
+      "cells": [
+       [
+        8,
+        2
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        4
+       ]
+      ],
+      "id": "c2",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        5
+       ]
+      ],
+      "id": "c3",
+      "kind": "square"
+     }
+    ],
+    "difficulty": 4,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        3
+       ],
+       [
+        1,
+        4
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        2,
+        2
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        4,
+        0
+       ],
+       [
+        4,
+        1
+       ]
+      ],
+      "id": "p2",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        5
+       ]
+      ],
+      "id": "p3",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        1
+       ]
+      ],
+      "id": "p4",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        6,
+        5
+       ]
+      ],
+      "id": "p5",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "p6",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 7,
+    "rows": 9,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 1,
+      "r": 3,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 3,
+      "type": "ramp_right"
+     },
+     {
+      "c": 3,
+      "r": 4,
+      "type": "ramp_left"
+     },
+     {
+      "c": 6,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 5,
+      "type": "ramp_left"
+     },
+     {
+      "c": 0,
+      "r": 6,
+      "type": "ramp_right"
+     },
+     {
+      "c": 4,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "ramp_right"
+     },
+     {
+      "c": 6,
+      "r": 7,
+      "type": "ramp_left"
+     },
+     {
+      "c": 1,
+      "r": 8,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 6,
+      "r": 8,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 55,
+    "variant": "main"
+   },
+   "removals": [
+    "p4",
+    "p3",
+    "p2",
+    "p1",
+    "p0"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       1,
+       2,
+       false
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       1,
+       2,
+       false
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       1,
+       2,
+       false
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       1,
+       2,
+       false
+      ],
+      [
+       8,
+       0,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       7,
+       0,
+       false
+      ],
+      [
+       8,
+       0,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       7,
+       0,
+       false
+      ],
+      [
+       8,
+       0,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l10-s0-solution",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "triangle",
+      "start": [
+       0,
+       4
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "circle",
+      "start": [
+       1,
+       2
+      ]
+     },
+     {
+      "id": "b2",
+      "kind": "diamond",
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "b3",
+      "kind": "square",
+      "start": [
+       4,
+       5
+      ]
+     }
+    ],
+    "cols": 7,
+    "containers": [
+     {
+      "cells": [
+       [
+        8,
+        0
+       ]
+      ],
+      "id": "c0",
+      "kind": "diamond"
+     },
+     {
+      "cells": [
+       [
+        8,
+        2
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        4
+       ]
+      ],
+      "id": "c2",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        5
+       ]
+      ],
+      "id": "c3",
+      "kind": "square"
+     }
+    ],
+    "difficulty": 4,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        3
+       ],
+       [
+        1,
+        4
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        2,
+        2
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        4,
+        0
+       ],
+       [
+        4,
+        1
+       ]
+      ],
+      "id": "p2",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        5
+       ]
+      ],
+      "id": "p3",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        1
+       ]
+      ],
+      "id": "p4",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        6,
+        5
+       ]
+      ],
+      "id": "p5",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "p6",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 7,
+    "rows": 9,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 1,
+      "r": 3,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 3,
+      "type": "ramp_right"
+     },
+     {
+      "c": 3,
+      "r": 4,
+      "type": "ramp_left"
+     },
+     {
+      "c": 6,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 5,
+      "type": "ramp_left"
+     },
+     {
+      "c": 0,
+      "r": 6,
+      "type": "ramp_right"
+     },
+     {
+      "c": 4,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "ramp_right"
+     },
+     {
+      "c": 6,
+      "r": 7,
+      "type": "ramp_left"
+     },
+     {
+      "c": 1,
+      "r": 8,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 6,
+      "r": 8,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 55,
+    "variant": "main"
+   },
+   "removals": [
+    "p0",
+    "p1",
+    "p2",
+    "p3",
+    "p4"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       1,
+       2,
+       false
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       1,
+       2,
+       false
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       5,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       5,
+       0,
+       false
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       8,
+       0,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l10-s0-swapped",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "triangle",
+      "start": [
+       0,
+       4
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "circle",
+      "start": [
+       1,
+       2
+      ]
+     },
+     {
+      "id": "b2",
+      "kind": "diamond",
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "b3",
+      "kind": "square",
+      "start": [
+       4,
+       5
+      ]
+     }
+    ],
+    "cols": 7,
+    "containers": [
+     {
+      "cells": [
+       [
+        8,
+        0
+       ]
+      ],
+      "id": "c0",
+      "kind": "diamond"
+     },
+     {
+      "cells": [
+       [
+        8,
+        2
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        4
+       ]
+      ],
+      "id": "c2",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        5
+       ]
+      ],
+      "id": "c3",
+      "kind": "square"
+     }
+    ],
+    "difficulty": 4,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        3
+       ],
+       [
+        1,
+        4
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        2,
+        2
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        4,
+        0
+       ],
+       [
+        4,
+        1
+       ]
+      ],
+      "id": "p2",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        5,
+        5
+       ]
+      ],
+      "id": "p3",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        1
+       ]
+      ],
+      "id": "p4",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        6,
+        5
+       ]
+      ],
+      "id": "p5",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "p6",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 7,
+    "rows": 9,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 1,
+      "r": 3,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 3,
+      "type": "ramp_right"
+     },
+     {
+      "c": 3,
+      "r": 4,
+      "type": "ramp_left"
+     },
+     {
+      "c": 6,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 5,
+      "type": "ramp_left"
+     },
+     {
+      "c": 0,
+      "r": 6,
+      "type": "ramp_right"
+     },
+     {
+      "c": 4,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 7,
+      "type": "ramp_right"
+     },
+     {
+      "c": 6,
+      "r": 7,
+      "type": "ramp_left"
+     },
+     {
+      "c": 1,
+      "r": 8,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 6,
+      "r": 8,
+      "type": "hazard"
+     }
+    ],
+    "time_hint_seconds": 55,
+    "variant": "main"
+   },
+   "removals": [
+    "p1",
+    "p0",
+    "p2",
+    "p3",
+    "p4"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       1,
+       2,
+       false
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       4,
+       false
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       5,
+       0,
+       false
+      ],
+      [
+       4,
+       5,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       5,
+       0,
+       false
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       2,
+       true
+      ],
+      [
+       8,
+       0,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l10-s1-all-pins",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "triangle",
+      "start": [
+       0,
+       5
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "square",
+      "start": [
+       0,
+       6
+      ]
+     },
+     {
+      "id": "b2",
+      "kind": "circle",
+      "start": [
+       3,
+       2
+      ]
+     },
+     {
+      "id": "b3",
+      "kind": "diamond",
+      "start": [
+       5,
+       1
+      ]
+     }
+    ],
+    "cols": 7,
+    "containers": [
+     {
+      "cells": [
+       [
+        8,
+        0
+       ]
+      ],
+      "id": "c0",
+      "kind": "diamond"
+     },
+     {
+      "cells": [
+       [
+        8,
+        1
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        4
+       ]
+      ],
+      "id": "c2",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        5
+       ]
+      ],
+      "id": "c3",
+      "kind": "square"
+     }
+    ],
+    "difficulty": 4,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        5
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        1,
+        6
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        3,
+        5
+       ]
+      ],
+      "id": "p2",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        4,
+        1
+       ],
+       [
+        4,
+        2
+       ]
+      ],
+      "id": "p3",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        0
+       ],
+       [
+        6,
+        1
+       ]
+      ],
+      "id": "p4",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "p5",
+      "kind": "tilt_left"
+     },
+     {
+      "cells": [
+       [
+        7,
+        6
+       ]
+      ],
+      "id": "p6",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 7,
+    "rows": 9,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 1,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 6,
+      "r": 2,
+      "type": "ramp_left"
+     },
+     {
+      "c": 5,
+      "r": 4,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 5,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 6,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 3,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 6,
+      "r": 8,
+      "type": "wall"
+     }
+    ],
+    "time_hint_seconds": 55,
+    "variant": "main"
+   },
+   "removals": [
+    "p0",
+    "p1",
+    "p2",
+    "p3",
+    "p4",
+    "p5",
+    "p6"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       7,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       7,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       7,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       7,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       7,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       7,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       7,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l10-s1-reversed",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "triangle",
+      "start": [
+       0,
+       5
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "square",
+      "start": [
+       0,
+       6
+      ]
+     },
+     {
+      "id": "b2",
+      "kind": "circle",
+      "start": [
+       3,
+       2
+      ]
+     },
+     {
+      "id": "b3",
+      "kind": "diamond",
+      "start": [
+       5,
+       1
+      ]
+     }
+    ],
+    "cols": 7,
+    "containers": [
+     {
+      "cells": [
+       [
+        8,
+        0
+       ]
+      ],
+      "id": "c0",
+      "kind": "diamond"
+     },
+     {
+      "cells": [
+       [
+        8,
+        1
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        4
+       ]
+      ],
+      "id": "c2",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        5
+       ]
+      ],
+      "id": "c3",
+      "kind": "square"
+     }
+    ],
+    "difficulty": 4,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        5
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        1,
+        6
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        3,
+        5
+       ]
+      ],
+      "id": "p2",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        4,
+        1
+       ],
+       [
+        4,
+        2
+       ]
+      ],
+      "id": "p3",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        0
+       ],
+       [
+        6,
+        1
+       ]
+      ],
+      "id": "p4",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "p5",
+      "kind": "tilt_left"
+     },
+     {
+      "cells": [
+       [
+        7,
+        6
+       ]
+      ],
+      "id": "p6",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 7,
+    "rows": 9,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 1,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 6,
+      "r": 2,
+      "type": "ramp_left"
+     },
+     {
+      "c": 5,
+      "r": 4,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 5,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 6,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 3,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 6,
+      "r": 8,
+      "type": "wall"
+     }
+    ],
+    "time_hint_seconds": 55,
+    "variant": "main"
+   },
+   "removals": [
+    "p3",
+    "p5",
+    "p4",
+    "p0",
+    "p2",
+    "p1"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       5,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       5,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       6,
+       1,
+       false
+      ],
+      [
+       7,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       6,
+       1,
+       false
+      ],
+      [
+       7,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       6,
+       1,
+       false
+      ],
+      [
+       7,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       6,
+       1,
+       false
+      ],
+      [
+       7,
+       1,
+       false
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l10-s1-solution",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "triangle",
+      "start": [
+       0,
+       5
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "square",
+      "start": [
+       0,
+       6
+      ]
+     },
+     {
+      "id": "b2",
+      "kind": "circle",
+      "start": [
+       3,
+       2
+      ]
+     },
+     {
+      "id": "b3",
+      "kind": "diamond",
+      "start": [
+       5,
+       1
+      ]
+     }
+    ],
+    "cols": 7,
+    "containers": [
+     {
+      "cells": [
+       [
+        8,
+        0
+       ]
+      ],
+      "id": "c0",
+      "kind": "diamond"
+     },
+     {
+      "cells": [
+       [
+        8,
+        1
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        4
+       ]
+      ],
+      "id": "c2",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        5
+       ]
+      ],
+      "id": "c3",
+      "kind": "square"
+     }
+    ],
+    "difficulty": 4,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        5
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        1,
+        6
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        3,
+        5
+       ]
+      ],
+      "id": "p2",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        4,
+        1
+       ],
+       [
+        4,
+        2
+       ]
+      ],
+      "id": "p3",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        0
+       ],
+       [
+        6,
+        1
+       ]
+      ],
+      "id": "p4",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "p5",
+      "kind": "tilt_left"
+     },
+     {
+      "cells": [
+       [
+        7,
+        6
+       ]
+      ],
+      "id": "p6",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 7,
+    "rows": 9,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 1,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 6,
+      "r": 2,
+      "type": "ramp_left"
+     },
+     {
+      "c": 5,
+      "r": 4,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 5,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 6,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 3,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 6,
+      "r": 8,
+      "type": "wall"
+     }
+    ],
+    "time_hint_seconds": 55,
+    "variant": "main"
+   },
+   "removals": [
+    "p1",
+    "p2",
+    "p0",
+    "p4",
+    "p5",
+    "p3"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       8,
+       5,
+       true
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       8,
+       5,
+       true
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       8,
+       0,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       8,
+       0,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       8,
+       4,
+       true
+      ],
+      [
+       8,
+       5,
+       true
+      ],
+      [
+       8,
+       1,
+       true
+      ],
+      [
+       8,
+       0,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "main-l10-s1-swapped",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "triangle",
+      "start": [
+       0,
+       5
+      ]
+     },
+     {
+      "id": "b1",
+      "kind": "square",
+      "start": [
+       0,
+       6
+      ]
+     },
+     {
+      "id": "b2",
+      "kind": "circle",
+      "start": [
+       3,
+       2
+      ]
+     },
+     {
+      "id": "b3",
+      "kind": "diamond",
+      "start": [
+       5,
+       1
+      ]
+     }
+    ],
+    "cols": 7,
+    "containers": [
+     {
+      "cells": [
+       [
+        8,
+        0
+       ]
+      ],
+      "id": "c0",
+      "kind": "diamond"
+     },
+     {
+      "cells": [
+       [
+        8,
+        1
+       ]
+      ],
+      "id": "c1",
+      "kind": "circle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        4
+       ]
+      ],
+      "id": "c2",
+      "kind": "triangle"
+     },
+     {
+      "cells": [
+       [
+        8,
+        5
+       ]
+      ],
+      "id": "c3",
+      "kind": "square"
+     }
+    ],
+    "difficulty": 4,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        5
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        1,
+        6
+       ]
+      ],
+      "id": "p1",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        3,
+        5
+       ]
+      ],
+      "id": "p2",
+      "kind": "tilt_right"
+     },
+     {
+      "cells": [
+       [
+        4,
+        1
+       ],
+       [
+        4,
+        2
+       ]
+      ],
+      "id": "p3",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        6,
+        0
+       ],
+       [
+        6,
+        1
+       ]
+      ],
+      "id": "p4",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        7,
+        1
+       ]
+      ],
+      "id": "p5",
+      "kind": "tilt_left"
+     },
+     {
+      "cells": [
+       [
+        7,
+        6
+       ]
+      ],
+      "id": "p6",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 7,
+    "rows": 9,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 1,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 6,
+      "r": 2,
+      "type": "ramp_left"
+     },
+     {
+      "c": 5,
+      "r": 4,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 5,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 6,
+      "type": "ramp_left"
+     },
+     {
+      "c": 3,
+      "r": 6,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 3,
+      "r": 8,
+      "type": "hazard"
+     },
+     {
+      "c": 6,
+      "r": 8,
+      "type": "wall"
+     }
+    ],
+    "time_hint_seconds": 55,
+    "variant": "main"
+   },
+   "removals": [
+    "p2",
+    "p1",
+    "p0",
+    "p4",
+    "p5",
+    "p3"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       0,
+       6,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       7,
+       4,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       7,
+       4,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       7,
+       4,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       7,
+       4,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": false,
+     "balls": [
+      [
+       0,
+       5,
+       false
+      ],
+      [
+       7,
+       4,
+       false
+      ],
+      [
+       3,
+       2,
+       false
+      ],
+      [
+       5,
+       1,
+       false
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "holding-s0-all-pins",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       0,
+       2
+      ]
+     }
+    ],
+    "cols": 4,
+    "containers": [
+     {
+      "cells": [
+       [
+        4,
+        1
+       ]
+      ],
+      "id": "c0",
+      "kind": "circle"
+     }
+    ],
+    "difficulty": 1,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        1
+       ],
+       [
+        1,
+        2
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        3,
+        2
+       ]
+      ],
+      "id": "p1",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 2,
+    "rows": 5,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 3,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 4,
+      "type": "wall"
+     }
+    ],
+    "time_hint_seconds": 8,
+    "variant": "holding"
+   },
+   "removals": [
+    "p0",
+    "p1"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       2,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       4,
+       1,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       4,
+       1,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "holding-s0-reversed",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       0,
+       2
+      ]
+     }
+    ],
+    "cols": 4,
+    "containers": [
+     {
+      "cells": [
+       [
+        4,
+        1
+       ]
+      ],
+      "id": "c0",
+      "kind": "circle"
+     }
+    ],
+    "difficulty": 1,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        1
+       ],
+       [
+        1,
+        2
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        3,
+        2
+       ]
+      ],
+      "id": "p1",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 2,
+    "rows": 5,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 3,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 4,
+      "type": "wall"
+     }
+    ],
+    "time_hint_seconds": 8,
+    "variant": "holding"
+   },
+   "removals": [
+    "p0"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       2,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       4,
+       1,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "holding-s0-solution",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       0,
+       2
+      ]
+     }
+    ],
+    "cols": 4,
+    "containers": [
+     {
+      "cells": [
+       [
+        4,
+        1
+       ]
+      ],
+      "id": "c0",
+      "kind": "circle"
+     }
+    ],
+    "difficulty": 1,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        1
+       ],
+       [
+        1,
+        2
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        3,
+        2
+       ]
+      ],
+      "id": "p1",
+      "kind": "tilt_left"
+     }
+    ],
+    "removal_cap": 2,
+    "rows": 5,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 3,
+      "r": 0,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 4,
+      "type": "wall"
+     }
+    ],
+    "time_hint_seconds": 8,
+    "variant": "holding"
+   },
+   "removals": [
+    "p0"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       2,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       4,
+       1,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "holding-s1-all-pins",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       0,
+       0
+      ]
+     }
+    ],
+    "cols": 4,
+    "containers": [
+     {
+      "cells": [
+       [
+        4,
+        1
+       ]
+      ],
+      "id": "c0",
+      "kind": "circle"
+     }
+    ],
+    "difficulty": 1,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        0
+       ],
+       [
+        1,
+        1
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        3,
+        0
+       ]
+      ],
+      "id": "p1",
+      "kind": "tilt_right"
+     }
+    ],
+    "removal_cap": 2,
+    "rows": 5,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 3,
+      "r": 1,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 3,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 4,
+      "type": "wall"
+     }
+    ],
+    "time_hint_seconds": 8,
+    "variant": "holding"
+   },
+   "removals": [
+    "p0",
+    "p1"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       0,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       4,
+       1,
+       true
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       4,
+       1,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "holding-s1-reversed",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       0,
+       0
+      ]
+     }
+    ],
+    "cols": 4,
+    "containers": [
+     {
+      "cells": [
+       [
+        4,
+        1
+       ]
+      ],
+      "id": "c0",
+      "kind": "circle"
+     }
+    ],
+    "difficulty": 1,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        0
+       ],
+       [
+        1,
+        1
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        3,
+        0
+       ]
+      ],
+      "id": "p1",
+      "kind": "tilt_right"
+     }
+    ],
+    "removal_cap": 2,
+    "rows": 5,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 3,
+      "r": 1,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 3,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 4,
+      "type": "wall"
+     }
+    ],
+    "time_hint_seconds": 8,
+    "variant": "holding"
+   },
+   "removals": [
+    "p0"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       0,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       4,
+       1,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "label": "holding-s1-solution",
+   "payload": {
+    "balls": [
+     {
+      "id": "b0",
+      "kind": "circle",
+      "start": [
+       0,
+       0
+      ]
+     }
+    ],
+    "cols": 4,
+    "containers": [
+     {
+      "cells": [
+       [
+        4,
+        1
+       ]
+      ],
+      "id": "c0",
+      "kind": "circle"
+     }
+    ],
+    "difficulty": 1,
+    "pins": [
+     {
+      "cells": [
+       [
+        1,
+        0
+       ],
+       [
+        1,
+        1
+       ]
+      ],
+      "id": "p0",
+      "kind": "hold"
+     },
+     {
+      "cells": [
+       [
+        3,
+        0
+       ]
+      ],
+      "id": "p1",
+      "kind": "tilt_right"
+     }
+    ],
+    "removal_cap": 2,
+    "rows": 5,
+    "rules_version": 1,
+    "static_cells": [
+     {
+      "c": 3,
+      "r": 1,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 2,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 3,
+      "type": "wall"
+     },
+     {
+      "c": 0,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 2,
+      "r": 4,
+      "type": "wall"
+     },
+     {
+      "c": 3,
+      "r": 4,
+      "type": "wall"
+     }
+    ],
+    "time_hint_seconds": 8,
+    "variant": "holding"
+   },
+   "removals": [
+    "p0"
+   ],
+   "steps": [
+    {
+     "alive": true,
+     "balls": [
+      [
+       0,
+       0,
+       false
+      ]
+     ]
+    },
+    {
+     "alive": true,
+     "balls": [
+      [
+       4,
+       1,
+       true
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "rules_version": 1
+}
