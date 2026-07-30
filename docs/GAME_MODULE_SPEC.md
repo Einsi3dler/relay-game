@@ -276,6 +276,7 @@ that document is the gameplay / validation / anti-cheat truth for each. Keep the
 | **DECANT** — pour colours between tubes until each is uniform | Sorting | [G3] |
 | **ECHO** — watch the flash sequence, repeat it by tapping | Reflex/Memory | [G4] |
 | **OVERPRINT** — recreate the layered stamp composition | Spatial | [G6] |
+| **STACKDROP** — pull the pins so each ball drops into its own container | Causal prediction | [G7] |
 
 The legacy `puzzles.py` generators are inspiration only — reimplement against
 **this** contract (do not import from `legacy/`).
