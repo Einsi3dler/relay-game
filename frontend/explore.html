@@ -52,6 +52,7 @@
         <button data-game="echo">🔊 ECHO</button>
         <button data-game="overprint">🖨️ OVERPRINT</button>
         <button data-game="stackdrop">🪀 STACKDROP</button>
+        <button data-game="lane_shift">📦 LANE SHIFT</button>
       </div>
       <div class="kind-row">
         <span class="label">Puzzle type:</span>
@@ -91,12 +92,13 @@
   <script src="/static/games/echo.js" defer></script>
   <script src="/static/games/overprint.js" defer></script>
   <script src="/static/games/stackdrop.js" defer></script>
+  <script src="/static/games/lane_shift.js" defer></script>
   <script defer>
     document.addEventListener("DOMContentLoaded", function () {
       "use strict";
       var $ = function (id) { return document.getElementById(id); };
       var GAMES = ["rewire", "sweep", "mirror_run", "decant", "echo", "overprint",
-                   "stackdrop"];
+                   "stackdrop", "lane_shift"];
 
       var current = { game: "rewire", kind: "main", seed: null, puzzle: null };
       var mounted = null;

@@ -1,7 +1,7 @@
 # The Relay — The Game Library (detailed spec)
 
 The concrete design for the library games: REWIRE, SWEEP, MIRROR RUN, DECANT,
-ECHO (this doc), plus OVERPRINT, STACKDROP and the expansion candidates in
+ECHO (this doc), plus OVERPRINT, STACKDROP, LANE SHIFT and the expansion candidates in
 [`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md).
 In v2 there is no stage order — the **team leader assigns one game per player**
 (see [GAME_DESIGN.md](GAME_DESIGN.md) §2). Each game owner builds against the
@@ -453,6 +453,7 @@ tedious to transcribe. Normal play is faster than tool-assisted transcription.
 | **DECANT** | Sorting | Click source→dest pours | moves `"0>3;4>0"` | replay pours → all tubes uniform |
 | **ECHO** | Reflex/Memory | Tap pads in order | taps `"4,0,8,3,1"` | taps == flashed sequence |
 | **STACKDROP** | Causal prediction | Tap a pin to arm, again to pull | `{"v":1,"remove":["p1","p0"]}` | replay pulls through the cell simulation → every ball in its container |
+| **LANE SHIFT** | Scheduling | One action per turn, then the belt moves | `{"v":1,"actions":[["toggle","s0"],["pass"]]}` | replay turns → every packet in its matching exit |
 
 **STACKDROP rules note.** The module ships two pin kinds — flat pins *hold* a
 ball, slanted pins *roll* it one cell down-slope — which extends
@@ -462,6 +463,18 @@ a puzzle: with hold-only pins a ball's route through the chamber is invariant �
 a pull can delay a ball but never divert it — so no board could ever satisfy
 that section's order-sensitivity requirement. Python and JavaScript run the same
 simulation, locked together by `tests/games/fixtures/stackdrop_cases.json`.
+
+**LANE SHIFT rules note.** The board is a lane grid rather than the explicit
+node/edge list in
+[`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md)
+§2 — the same directed graph written compactly, where a cell's outgoing edge is
+`(row + delta, col + 1)` and `delta` comes from the junction standing on that
+cell. Two explicit rulings the spec leaves open: packets that swap *rows*
+diagonally in one tick do **not** collide (they share no cell — only two
+packets landing on the same cell do), and a packet that cannot spawn because
+its cell is still occupied fails the attempt. Python and JavaScript run the
+same simulation, locked together by
+`tests/games/fixtures/lane_shift_cases.json`.
 
 ## Per-game deliverables (each game owner)
 
