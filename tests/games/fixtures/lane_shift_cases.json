@@ -1,0 +1,11136 @@
+{
+ "cases": [
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l1-s0-all-pass",
+   "order": "all-pass",
+   "payload": {
+    "blockers": [],
+    "columns": 6,
+    "difficulty": 3,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     }
+    ],
+    "holds": [],
+    "lanes": 3,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "square",
+      "spawn_tick": 0,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       4
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       2,
+       3
+      ],
+      "id": "s1",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 35,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": false
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l1-s0-shifted",
+   "order": "shifted",
+   "payload": {
+    "blockers": [],
+    "columns": 6,
+    "difficulty": 3,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     }
+    ],
+    "holds": [],
+    "lanes": 3,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "square",
+      "spawn_tick": 0,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       4
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       2,
+       3
+      ],
+      "id": "s1",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 35,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       0,
+       2
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       0,
+       3
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       4
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       5
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "done",
+       0
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 8
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l1-s0-solution",
+   "order": "solution",
+   "payload": {
+    "blockers": [],
+    "columns": 6,
+    "difficulty": 3,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     }
+    ],
+    "holds": [],
+    "lanes": 3,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "square",
+      "spawn_tick": 0,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       4
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       2,
+       3
+      ],
+      "id": "s1",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 35,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       0,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       0,
+       3
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       4
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       5
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "done",
+       0
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 8
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l1-s0-truncated",
+   "order": "truncated",
+   "payload": {
+    "blockers": [],
+    "columns": 6,
+    "difficulty": 3,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     }
+    ],
+    "holds": [],
+    "lanes": 3,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "square",
+      "spawn_tick": 0,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       4
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       2,
+       3
+      ],
+      "id": "s1",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 35,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       0,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       0,
+       3
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       4
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       5
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0
+     ],
+     "tick": 7
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l1-s1-all-pass",
+   "order": "all-pass",
+   "payload": {
+    "blockers": [],
+    "columns": 6,
+    "difficulty": 3,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     }
+    ],
+    "holds": [],
+    "lanes": 3,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "square",
+      "spawn_tick": 1,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       4
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       4
+      ],
+      "id": "s1",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 35,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "on",
+       0,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       0,
+       2
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       0,
+       3
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 5
+    },
+    {
+     "alive": false
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l1-s1-shifted",
+   "order": "shifted",
+   "payload": {
+    "blockers": [],
+    "columns": 6,
+    "difficulty": 3,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     }
+    ],
+    "holds": [],
+    "lanes": 3,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "square",
+      "spawn_tick": 1,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       4
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       4
+      ],
+      "id": "s1",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 35,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "on",
+       0,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       0,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       0,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "done",
+       0
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0
+     ],
+     "tick": 8
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l1-s1-solution",
+   "order": "solution",
+   "payload": {
+    "blockers": [],
+    "columns": 6,
+    "difficulty": 3,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     }
+    ],
+    "holds": [],
+    "lanes": 3,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "square",
+      "spawn_tick": 1,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       4
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       4
+      ],
+      "id": "s1",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 35,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "on",
+       0,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       0,
+       2
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       0,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "done",
+       0
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0
+     ],
+     "tick": 8
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ]
+   ],
+   "label": "main-l1-s1-truncated",
+   "order": "truncated",
+   "payload": {
+    "blockers": [],
+    "columns": 6,
+    "difficulty": 3,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     }
+    ],
+    "holds": [],
+    "lanes": 3,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "square",
+      "spawn_tick": 1,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       4
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       4
+      ],
+      "id": "s1",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 35,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "on",
+       0,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       0,
+       2
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       0,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0
+     ],
+     "tick": 7
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l7-s0-all-pass",
+   "order": "all-pass",
+   "payload": {
+    "blockers": [
+     [
+      0,
+      3
+     ]
+    ],
+    "columns": 7,
+    "difficulty": 4,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       0,
+       6
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "diamond",
+      "spawn_tick": 2,
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 3,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "square",
+      "spawn_tick": 3,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       3,
+       5
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       2
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       1
+      ],
+      "id": "s2",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       3
+      ],
+      "id": "s3",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 48,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       3,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       2,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       2,
+       6
+      ],
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       2,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 8
+    },
+    {
+     "alive": false
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l7-s0-shifted",
+   "order": "shifted",
+   "payload": {
+    "blockers": [
+     [
+      0,
+      3
+     ]
+    ],
+    "columns": 7,
+    "difficulty": 4,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       0,
+       6
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "diamond",
+      "spawn_tick": 2,
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 3,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "square",
+      "spawn_tick": 3,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       3,
+       5
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       2
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       1
+      ],
+      "id": "s2",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       3
+      ],
+      "id": "s3",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 48,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       3,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       2,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       2,
+       6
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "tick": 8
+    },
+    {
+     "alive": false
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l7-s0-solution",
+   "order": "solution",
+   "payload": {
+    "blockers": [
+     [
+      0,
+      3
+     ]
+    ],
+    "columns": 7,
+    "difficulty": 4,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       0,
+       6
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "diamond",
+      "spawn_tick": 2,
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 3,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "square",
+      "spawn_tick": 3,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       3,
+       5
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       2
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       1
+      ],
+      "id": "s2",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       3
+      ],
+      "id": "s3",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 48,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       3,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       3,
+       2
+      ],
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       3,
+       3
+      ],
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       3,
+       4
+      ],
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       3,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       2,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       3,
+       6
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "tick": 8
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       3
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       2,
+       6
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "tick": 9
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       3
+      ],
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "tick": 10
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l7-s0-truncated",
+   "order": "truncated",
+   "payload": {
+    "blockers": [
+     [
+      0,
+      3
+     ]
+    ],
+    "columns": 7,
+    "difficulty": 4,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       0,
+       6
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "diamond",
+      "spawn_tick": 2,
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 3,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "square",
+      "spawn_tick": 3,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       3,
+       5
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       2
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       1
+      ],
+      "id": "s2",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       3
+      ],
+      "id": "s3",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 48,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       3,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       3,
+       2
+      ],
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       3,
+       3
+      ],
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       2,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       3,
+       4
+      ],
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       2,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       3,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       2,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       3,
+       6
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "tick": 8
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       3
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       2,
+       6
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "tick": 9
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l7-s1-all-pass",
+   "order": "all-pass",
+   "payload": {
+    "blockers": [
+     [
+      2,
+      6
+     ]
+    ],
+    "columns": 7,
+    "difficulty": 4,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       0,
+       2
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "triangle",
+      "spawn_tick": 3,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       1
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       1
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       4
+      ],
+      "id": "s2",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       2,
+       0
+      ],
+      "id": "s3",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 48,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       3,
+       2
+      ],
+      [
+       "on",
+       1,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       3,
+       3
+      ],
+      [
+       "on",
+       1,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       3,
+       4
+      ],
+      [
+       "on",
+       1,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "tick": 6
+    },
+    {
+     "alive": false
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l7-s1-shifted",
+   "order": "shifted",
+   "payload": {
+    "blockers": [
+     [
+      2,
+      6
+     ]
+    ],
+    "columns": 7,
+    "difficulty": 4,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       0,
+       2
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "triangle",
+      "spawn_tick": 3,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       1
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       1
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       4
+      ],
+      "id": "s2",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       2,
+       0
+      ],
+      "id": "s3",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 48,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      0,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": false
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l7-s1-solution",
+   "order": "solution",
+   "payload": {
+    "blockers": [
+     [
+      2,
+      6
+     ]
+    ],
+    "columns": 7,
+    "difficulty": 4,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       0,
+       2
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "triangle",
+      "spawn_tick": 3,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       1
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       1
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       4
+      ],
+      "id": "s2",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       2,
+       0
+      ],
+      "id": "s3",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 48,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       1,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      0,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       1,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       1,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       1,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       1,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 8
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       0
+      ],
+      [
+       "on",
+       1,
+       6
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 9
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 10
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l7-s1-truncated",
+   "order": "truncated",
+   "payload": {
+    "blockers": [
+     [
+      2,
+      6
+     ]
+    ],
+    "columns": 7,
+    "difficulty": 4,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       0,
+       2
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 2,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 2,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "triangle",
+      "spawn_tick": 3,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       1
+      ],
+      "id": "s0",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       1
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       4
+      ],
+      "id": "s2",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       2,
+       0
+      ],
+      "id": "s3",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 48,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       1,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      0,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       1,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       1,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       1,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       1,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 8
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       0
+      ],
+      [
+       "on",
+       1,
+       6
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 9
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l10-s0-all-pass",
+   "order": "all-pass",
+   "payload": {
+    "blockers": [
+     [
+      1,
+      3
+     ],
+     [
+      3,
+      4
+     ]
+    ],
+    "columns": 8,
+    "difficulty": 5,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       3,
+       6
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "square",
+      "spawn_tick": 0,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 2,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 3,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "triangle",
+      "spawn_tick": 4,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p4",
+      "kind": "square",
+      "spawn_tick": 4,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       2,
+       3
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       2
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       0
+      ],
+      "id": "s2",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       7
+      ],
+      "id": "s3",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 55,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      0
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": false
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l10-s0-shifted",
+   "order": "shifted",
+   "payload": {
+    "blockers": [
+     [
+      1,
+      3
+     ],
+     [
+      3,
+      4
+     ]
+    ],
+    "columns": 8,
+    "difficulty": 5,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       3,
+       6
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "square",
+      "spawn_tick": 0,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 2,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 3,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "triangle",
+      "spawn_tick": 4,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p4",
+      "kind": "square",
+      "spawn_tick": 4,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       2,
+       3
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       2
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       0
+      ],
+      "id": "s2",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       7
+      ],
+      "id": "s3",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 55,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      0
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       6
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       3,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       7
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       2,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      0
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       2,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      0
+     ],
+     "tick": 8
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       7
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      1
+     ],
+     "tick": 9
+    },
+    {
+     "alive": false
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "toggle",
+     "s3"
+    ]
+   ],
+   "label": "main-l10-s0-solution",
+   "order": "solution",
+   "payload": {
+    "blockers": [
+     [
+      1,
+      3
+     ],
+     [
+      3,
+      4
+     ]
+    ],
+    "columns": 8,
+    "difficulty": 5,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       3,
+       6
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "square",
+      "spawn_tick": 0,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 2,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 3,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "triangle",
+      "spawn_tick": 4,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p4",
+      "kind": "square",
+      "spawn_tick": 4,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       2,
+       3
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       2
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       0
+      ],
+      "id": "s2",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       7
+      ],
+      "id": "s3",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 55,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      0
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       6
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       3,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       7
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       2,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      0
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       2,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      0
+     ],
+     "tick": 8
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       7
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      0
+     ],
+     "tick": 9
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       2
+      ],
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       0,
+       7
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       2,
+       6
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      1
+     ],
+     "tick": 10
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       2
+      ],
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       0
+      ],
+      [
+       "on",
+       0,
+       7
+      ],
+      [
+       "on",
+       2,
+       7
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      0
+     ],
+     "tick": 11
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       2
+      ],
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      1
+     ],
+     "tick": 12
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "toggle",
+     "s3"
+    ]
+   ],
+   "label": "main-l10-s0-truncated",
+   "order": "truncated",
+   "payload": {
+    "blockers": [
+     [
+      1,
+      3
+     ],
+     [
+      3,
+      4
+     ]
+    ],
+    "columns": 8,
+    "difficulty": 5,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       3,
+       6
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "square",
+      "spawn_tick": 0,
+      "start": [
+       2,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 2,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "circle",
+      "spawn_tick": 3,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "triangle",
+      "spawn_tick": 4,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p4",
+      "kind": "square",
+      "spawn_tick": 4,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       2,
+       3
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       3,
+       2
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       0
+      ],
+      "id": "s2",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       7
+      ],
+      "id": "s3",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 55,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      0
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      0,
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      0
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       4
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       5
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       6
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       3,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      0,
+      1,
+      0
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       2,
+       7
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       2,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      0
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       2,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      0
+     ],
+     "tick": 8
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       2
+      ],
+      [
+       "on",
+       0,
+       7
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       2,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      0
+     ],
+     "tick": 9
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       2
+      ],
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       0,
+       7
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       2,
+       6
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      1
+     ],
+     "tick": 10
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       2
+      ],
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       0
+      ],
+      [
+       "on",
+       0,
+       7
+      ],
+      [
+       "on",
+       2,
+       7
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      1,
+      0
+     ],
+     "tick": 11
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l10-s1-all-pass",
+   "order": "all-pass",
+   "payload": {
+    "blockers": [
+     [
+      2,
+      2
+     ],
+     [
+      2,
+      7
+     ]
+    ],
+    "columns": 8,
+    "difficulty": 5,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       3,
+       3
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "diamond",
+      "spawn_tick": 2,
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "triangle",
+      "spawn_tick": 4,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "circle",
+      "spawn_tick": 4,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p4",
+      "kind": "diamond",
+      "spawn_tick": 4,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       3,
+       5
+      ],
+      "id": "s0",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       0
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       0
+      ],
+      "id": "s2",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       3
+      ],
+      "id": "s3",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 55,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       3,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       3,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       3,
+       3
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       2,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 5
+    },
+    {
+     "alive": false
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l10-s1-shifted",
+   "order": "shifted",
+   "payload": {
+    "blockers": [
+     [
+      2,
+      2
+     ],
+     [
+      2,
+      7
+     ]
+    ],
+    "columns": 8,
+    "difficulty": 5,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       3,
+       3
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "diamond",
+      "spawn_tick": 2,
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "triangle",
+      "spawn_tick": 4,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "circle",
+      "spawn_tick": 4,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p4",
+      "kind": "diamond",
+      "spawn_tick": 4,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       3,
+       5
+      ],
+      "id": "s0",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       0
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       0
+      ],
+      "id": "s2",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       3
+      ],
+      "id": "s3",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 55,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       3,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       3,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      0,
+      1
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       3,
+       3
+      ],
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      0,
+      1
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       3,
+       4
+      ],
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       3,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      1
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       7
+      ],
+      [
+       "on",
+       3,
+       5
+      ],
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       3,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       3,
+       6
+      ],
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       3,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 8
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       3,
+       7
+      ],
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       3,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 9
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       3
+      ],
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       3,
+       6
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 10
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       3
+      ],
+      [
+       "on",
+       1,
+       7
+      ],
+      [
+       "on",
+       0,
+       7
+      ],
+      [
+       "on",
+       3,
+       7
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 11
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       3
+      ],
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 12
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l10-s1-solution",
+   "order": "solution",
+   "payload": {
+    "blockers": [
+     [
+      2,
+      2
+     ],
+     [
+      2,
+      7
+     ]
+    ],
+    "columns": 8,
+    "difficulty": 5,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       3,
+       3
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "diamond",
+      "spawn_tick": 2,
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "triangle",
+      "spawn_tick": 4,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "circle",
+      "spawn_tick": 4,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p4",
+      "kind": "diamond",
+      "spawn_tick": 4,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       3,
+       5
+      ],
+      "id": "s0",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       0
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       0
+      ],
+      "id": "s2",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       3
+      ],
+      "id": "s3",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 55,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       3,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       3,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       3,
+       3
+      ],
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      0,
+      1
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       3,
+       4
+      ],
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       3,
+       2
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      0,
+      1
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       7
+      ],
+      [
+       "on",
+       3,
+       5
+      ],
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       3,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      1
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       3,
+       6
+      ],
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       3,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 8
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       3,
+       7
+      ],
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       3,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 9
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       3
+      ],
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       3,
+       6
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 10
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       3
+      ],
+      [
+       "on",
+       1,
+       7
+      ],
+      [
+       "on",
+       0,
+       7
+      ],
+      [
+       "on",
+       3,
+       7
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 11
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       3
+      ],
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 12
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s1"
+    ],
+    [
+     "toggle",
+     "s2"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "toggle",
+     "s3"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "main-l10-s1-truncated",
+   "order": "truncated",
+   "payload": {
+    "blockers": [
+     [
+      2,
+      2
+     ],
+     [
+      2,
+      7
+     ]
+    ],
+    "columns": 8,
+    "difficulty": 5,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     },
+     {
+      "kind": "square",
+      "lane": 2
+     },
+     {
+      "kind": "diamond",
+      "lane": 3
+     }
+    ],
+    "holds": [
+     {
+      "cell": [
+       3,
+       3
+      ],
+      "charges": 1,
+      "id": "h0"
+     }
+    ],
+    "lanes": 4,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "diamond",
+      "spawn_tick": 2,
+      "start": [
+       3,
+       0
+      ]
+     },
+     {
+      "id": "p2",
+      "kind": "triangle",
+      "spawn_tick": 4,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p3",
+      "kind": "circle",
+      "spawn_tick": 4,
+      "start": [
+       1,
+       0
+      ]
+     },
+     {
+      "id": "p4",
+      "kind": "diamond",
+      "spawn_tick": 4,
+      "start": [
+       3,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       3,
+       5
+      ],
+      "id": "s0",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       0
+      ],
+      "id": "s1",
+      "initial": "straight",
+      "states": [
+       "straight",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       1,
+       0
+      ],
+      "id": "s2",
+      "initial": "down",
+      "states": [
+       "up",
+       "down"
+      ]
+     },
+     {
+      "cell": [
+       0,
+       3
+      ],
+      "id": "s3",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 55,
+    "turn_cap": 20,
+    "variant": "main"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       3,
+       1
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      0,
+      1,
+      1
+     ],
+     "tick": 3
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       3,
+       2
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ],
+      [
+       "wait"
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "tick": 4
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       3,
+       3
+      ],
+      [
+       "on",
+       1,
+       1
+      ],
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       3,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      0,
+      1
+     ],
+     "tick": 5
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       3,
+       4
+      ],
+      [
+       "on",
+       1,
+       2
+      ],
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       3,
+       2
+      ]
+     ],
+     "switchIndex": [
+      1,
+      1,
+      0,
+      1
+     ],
+     "tick": 6
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "on",
+       1,
+       7
+      ],
+      [
+       "on",
+       3,
+       5
+      ],
+      [
+       "on",
+       1,
+       3
+      ],
+      [
+       "on",
+       0,
+       3
+      ],
+      [
+       "on",
+       3,
+       3
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      1
+     ],
+     "tick": 7
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       3,
+       6
+      ],
+      [
+       "on",
+       1,
+       4
+      ],
+      [
+       "on",
+       0,
+       4
+      ],
+      [
+       "on",
+       3,
+       4
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 8
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "on",
+       3,
+       7
+      ],
+      [
+       "on",
+       1,
+       5
+      ],
+      [
+       "on",
+       0,
+       5
+      ],
+      [
+       "on",
+       3,
+       5
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 9
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       3
+      ],
+      [
+       "on",
+       1,
+       6
+      ],
+      [
+       "on",
+       0,
+       6
+      ],
+      [
+       "on",
+       3,
+       6
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 10
+    },
+    {
+     "alive": true,
+     "charges": [
+      1
+     ],
+     "positions": [
+      [
+       "done",
+       1
+      ],
+      [
+       "done",
+       3
+      ],
+      [
+       "on",
+       1,
+       7
+      ],
+      [
+       "on",
+       0,
+       7
+      ],
+      [
+       "on",
+       3,
+       7
+      ]
+     ],
+     "switchIndex": [
+      0,
+      1,
+      0,
+      0
+     ],
+     "tick": 11
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "holding-s0-all-pass",
+   "order": "all-pass",
+   "payload": {
+    "blockers": [],
+    "columns": 3,
+    "difficulty": 1,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     }
+    ],
+    "holds": [],
+    "lanes": 2,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       1
+      ],
+      "id": "s0",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 8,
+    "turn_cap": 6,
+    "variant": "holding"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       1,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": false
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "holding-s0-shifted",
+   "order": "shifted",
+   "payload": {
+    "blockers": [],
+    "columns": 3,
+    "difficulty": 1,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     }
+    ],
+    "holds": [],
+    "lanes": 2,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       1
+      ],
+      "id": "s0",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 8,
+    "turn_cap": 6,
+    "variant": "holding"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       1,
+       1
+      ]
+     ],
+     "switchIndex": [
+      0
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       1,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       1
+      ]
+     ],
+     "switchIndex": [
+      0
+     ],
+     "tick": 3
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "holding-s0-solution",
+   "order": "solution",
+   "payload": {
+    "blockers": [],
+    "columns": 3,
+    "difficulty": 1,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     }
+    ],
+    "holds": [],
+    "lanes": 2,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       1
+      ],
+      "id": "s0",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 8,
+    "turn_cap": 6,
+    "variant": "holding"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       1,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       1,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       1
+      ]
+     ],
+     "switchIndex": [
+      0
+     ],
+     "tick": 3
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ]
+   ],
+   "label": "holding-s0-truncated",
+   "order": "truncated",
+   "payload": {
+    "blockers": [],
+    "columns": 3,
+    "difficulty": 1,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     }
+    ],
+    "holds": [],
+    "lanes": 2,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       1,
+       1
+      ],
+      "id": "s0",
+      "initial": "up",
+      "states": [
+       "straight",
+       "up"
+      ]
+     }
+    ],
+    "time_hint_seconds": 8,
+    "turn_cap": 6,
+    "variant": "holding"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       1,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       1,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0
+     ],
+     "tick": 2
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "holding-s1-all-pass",
+   "order": "all-pass",
+   "payload": {
+    "blockers": [],
+    "columns": 3,
+    "difficulty": 1,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     }
+    ],
+    "holds": [],
+    "lanes": 2,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       0,
+       2
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 8,
+    "turn_cap": 6,
+    "variant": "holding"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       1,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       1,
+       2
+      ]
+     ],
+     "switchIndex": [
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": false
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "holding-s1-shifted",
+   "order": "shifted",
+   "payload": {
+    "blockers": [],
+    "columns": 3,
+    "difficulty": 1,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     }
+    ],
+    "holds": [],
+    "lanes": 2,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       0,
+       2
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 8,
+    "turn_cap": 6,
+    "variant": "holding"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       1,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       1,
+       2
+      ]
+     ],
+     "switchIndex": [
+      0
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       1
+      ]
+     ],
+     "switchIndex": [
+      0
+     ],
+     "tick": 3
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ],
+    [
+     "toggle",
+     "s0"
+    ]
+   ],
+   "label": "holding-s1-solution",
+   "order": "solution",
+   "payload": {
+    "blockers": [],
+    "columns": 3,
+    "difficulty": 1,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     }
+    ],
+    "holds": [],
+    "lanes": 2,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       0,
+       2
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 8,
+    "turn_cap": 6,
+    "variant": "holding"
+   },
+   "solved": true,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       1,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       1,
+       2
+      ]
+     ],
+     "switchIndex": [
+      1
+     ],
+     "tick": 2
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "done",
+       0
+      ],
+      [
+       "done",
+       1
+      ]
+     ],
+     "switchIndex": [
+      0
+     ],
+     "tick": 3
+    }
+   ]
+  },
+  {
+   "actions": [
+    [
+     "pass"
+    ],
+    [
+     "pass"
+    ]
+   ],
+   "label": "holding-s1-truncated",
+   "order": "truncated",
+   "payload": {
+    "blockers": [],
+    "columns": 3,
+    "difficulty": 1,
+    "exits": [
+     {
+      "kind": "circle",
+      "lane": 0
+     },
+     {
+      "kind": "triangle",
+      "lane": 1
+     }
+    ],
+    "holds": [],
+    "lanes": 2,
+    "packets": [
+     {
+      "id": "p0",
+      "kind": "circle",
+      "spawn_tick": 0,
+      "start": [
+       0,
+       0
+      ]
+     },
+     {
+      "id": "p1",
+      "kind": "triangle",
+      "spawn_tick": 0,
+      "start": [
+       1,
+       0
+      ]
+     }
+    ],
+    "rules_version": 1,
+    "switches": [
+     {
+      "cell": [
+       0,
+       2
+      ],
+      "id": "s0",
+      "initial": "down",
+      "states": [
+       "straight",
+       "down"
+      ]
+     }
+    ],
+    "time_hint_seconds": 8,
+    "turn_cap": 6,
+    "variant": "holding"
+   },
+   "solved": false,
+   "steps": [
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       1
+      ],
+      [
+       "on",
+       1,
+       1
+      ]
+     ],
+     "switchIndex": [
+      1
+     ],
+     "tick": 1
+    },
+    {
+     "alive": true,
+     "charges": [],
+     "positions": [
+      [
+       "on",
+       0,
+       2
+      ],
+      [
+       "on",
+       1,
+       2
+      ]
+     ],
+     "switchIndex": [
+      1
+     ],
+     "tick": 2
+    }
+   ]
+  }
+ ],
+ "rules_version": 1
+}
