@@ -252,8 +252,9 @@ For **each** of Game 1–4 (`[G1]`…`[G4]`):
 ## Phase 7 — Stretch (superseded by the v2 plan above)  ·  owner: [ALL]
 
 - [ ] Attempt cap / lockout on main puzzles.
-- [x] ~~Randomised game order or a 5th game~~ — games 5–8 (MIRROR RUN, OVERPRINT,
-  STACKDROP, LANE SHIFT) shipped; per-player assignment replaced the fixed order.
+- [x] ~~Randomised game order or a 5th game~~ — games 5–9 (MIRROR RUN, OVERPRINT,
+  STACKDROP, LANE SHIFT, SHADOW CAST) shipped; per-player assignment replaced the
+  fixed order.
 - [ ] Rejoin-by-code UX niceties.
 
 ---

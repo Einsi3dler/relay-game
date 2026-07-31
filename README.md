@@ -45,7 +45,7 @@ cleared at the same instant**; first team to clear level `LEVEL_COUNT` (default
 | [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) | The rules: roles & the Grandmaster, level loop, cleared status, wait/bonus, economy, perks, handoff. Read first. |
 | [docs/PLAYTEST_GUIDE.md](docs/PLAYTEST_GUIDE.md) | How to run the V6 playtest and gather V7 economy-tuning data. |
 | [docs/REDESIGN_PLAN.md](docs/REDESIGN_PLAN.md) | The approved v2 redesign plan and its follow-up list. |
-| [docs/GAMES_SPEC.md](docs/GAMES_SPEC.md) | **The game library** (REWIRE / SWEEP / MIRROR RUN / DECANT / ECHO / OVERPRINT / STACKDROP / LANE SHIFT): rules, generation, validation, anti-cheat. |
+| [docs/GAMES_SPEC.md](docs/GAMES_SPEC.md) | **The game library** (REWIRE / SWEEP / MIRROR RUN / DECANT / ECHO / OVERPRINT / STACKDROP / LANE SHIFT / SHADOW CAST): rules, generation, validation, anti-cheat. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the system is built: backend engine, state, timers, frontend. |
 | [docs/GAME_MODULE_SPEC.md](docs/GAME_MODULE_SPEC.md) | **The contract every game must implement** (incl. action-game renderer interface). |
 | [docs/WEBSOCKET_PROTOCOL.md](docs/WEBSOCKET_PROTOCOL.md) | Every client↔server message and the state snapshot schema. |

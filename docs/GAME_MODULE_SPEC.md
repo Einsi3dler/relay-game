@@ -278,6 +278,7 @@ that document is the gameplay / validation / anti-cheat truth for each. Keep the
 | **OVERPRINT** — recreate the layered stamp composition | Spatial | [G6] |
 | **STACKDROP** — pull the pins so each ball drops into its own container | Causal prediction | [G7] |
 | **LANE SHIFT** — one action per turn while the conveyor keeps moving | Scheduling | [G8] |
+| **SHADOW CAST** — turn the block until both of its shadows match | Spatial | [G9] |
 
 The legacy `puzzles.py` generators are inspiration only — reimplement against
 **this** contract (do not import from `legacy/`).

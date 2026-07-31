@@ -45,6 +45,7 @@ things at once?".)
 | **Game 6 — OVERPRINT** | Game module + renderer | `backend/games/game6_overprint.py`, `frontend/games/overprint.js`, `tests/games/test_game6_*.py` |
 | **Game 7 — STACKDROP** | Game module + renderer | `backend/games/game7_stackdrop.py`, `frontend/games/stackdrop.js`, `tests/games/test_game7_*.py`, `tests/games/fixtures/stackdrop_cases.json` |
 | **Game 8 — LANE SHIFT** | Game module + renderer | `backend/games/game8_lane_shift.py`, `frontend/games/lane_shift.js`, `tests/games/test_game8_*.py`, `tests/games/fixtures/lane_shift_cases.json` |
+| **Game 9 — SHADOW CAST** | Game module + renderer | `backend/games/game9_shadow_cast.py`, `frontend/games/shadow_cast.js`, `tests/games/test_game9_*.py`, `tests/games/fixtures/shadow_cast_cases.json` |
 | **Frontend** | App shell + leader dashboard + fallback | `frontend/index.html`, `frontend/app.js`, `frontend/style.css`, `frontend/games/fallback.js` |
 
 - Game owners need the **contract** in [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md)
