@@ -12,6 +12,7 @@ from backend.models import Event, Match
 
 # Client → server
 SUBMIT_ANSWER = "submit_answer"
+DUEL_CHOICE = "duel_choice"
 CHOOSE_WAIT = "choose_wait"
 CHOOSE_BONUS = "choose_bonus"
 BUY_PERK = "buy_perk"
@@ -21,6 +22,7 @@ HEARTBEAT = "heartbeat"
 LOBBY_ACTION = "lobby_action"
 CLIENT_TYPES = (
     SUBMIT_ANSWER,
+    DUEL_CHOICE,
     CHOOSE_WAIT,
     CHOOSE_BONUS,
     BUY_PERK,
@@ -49,6 +51,7 @@ ERROR = "error"
 EVENT = "event"
 LEVEL_ADVANCED = "level_advanced"
 PERK_USED = "perk_used"
+DUEL_RESULT = "duel_result"
 MATCH_WON = "match_won"
 
 # Close codes
@@ -77,6 +80,12 @@ def perk_used(perk_id: str, by_team_id: str) -> dict[str, Any]:
     return {"type": PERK_USED, "perk_id": perk_id, "by_team_id": by_team_id}
 
 
+def duel_result(payload: dict[str, Any]) -> dict[str, Any]:
+    """A decided duel. The snapshot already carries the outcome; this is
+    the nudge that lets the client play the reveal."""
+    return {"type": DUEL_RESULT, **payload}
+
+
 def match_won(team_id: str) -> dict[str, Any]:
     return {"type": MATCH_WON, "team_id": team_id}
 
@@ -94,6 +103,17 @@ def parse_client_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
         if not isinstance(puzzle_id, str) or not isinstance(answer, str):
             return "Malformed message."
         return msg_type, {"puzzle_id": puzzle_id, "answer": answer}
+    if msg_type == DUEL_CHOICE:
+        duel_id = raw.get("duel_id")
+        round_index = raw.get("round")
+        choice = raw.get("choice")
+        if not isinstance(duel_id, str) or not isinstance(choice, str):
+            return "Malformed message."
+        if not isinstance(round_index, int) or isinstance(round_index, bool):
+            return "Malformed message."
+        return msg_type, {
+            "duel_id": duel_id, "round": round_index, "choice": choice,
+        }
     if msg_type == BUY_PERK:
         perk_id = raw.get("perk_id")
         if not isinstance(perk_id, str):
