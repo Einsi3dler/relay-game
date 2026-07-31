@@ -183,10 +183,11 @@ def test_get_config(client):
     for role_id, role in config.ROLES.items():
         assert body["roles"][role_id] == {"name": role["name"], "games": role["games"]}
     assert body["roles"]["generalist"]["games"] is None  # any game
-    assert body["roles"]["lexicon"]["games"] == []  # reserved
+    assert body["roles"]["duelist"]["games"] == ["rps_duel"]
     library_ids = {entry["id"] for entry in body["library"]}
     assert {"rewire", "sweep", "mirror_run", "decant", "echo", "overprint",
             "stackdrop", "lane_shift", "shadow_cast"} <= library_ids
+    assert "rps_duel" not in library_ids  # the server picks duels, not the leader
 
 
 def test_protocol_parses_assign_role():

@@ -55,8 +55,8 @@ def test_library_lists_all_games_with_specialist_roles():
     library = registry.library()
     specialist_ids = {
         game_id
-        for role in config.ROLES.values()
-        if role["games"]
+        for role_id, role in config.ROLES.items()
+        if role["games"] and not config.role_is_duel(role_id)
         for game_id in role["games"]
     }
     # Every registered game belongs to exactly one specialist role; catch-all
@@ -64,12 +64,32 @@ def test_library_lists_all_games_with_specialist_roles():
     assert {entry["id"] for entry in library} == specialist_ids
     roles = {entry["id"]: entry["role"] for entry in library}
     for role_id, role in config.ROLES.items():
+        if config.role_is_duel(role_id):
+            continue
         for game_id in role["games"] or []:
             assert roles[game_id] == role_id
     assert "generalist" not in roles.values()
-    assert "lexicon" not in roles.values()
     for entry in library:
         assert entry["name"]
+
+
+def test_duel_games_are_not_in_the_assignment_library():
+    """The Grandmaster picks the Duelist's *role*; the server picks the game.
+    A duel must never show up in the lobby game picker."""
+    registry = GameRegistry()
+    library_ids = {entry["id"] for entry in registry.library()}
+    duel_ids = {entry["id"] for entry in registry.duel_library()}
+    assert duel_ids and not (duel_ids & library_ids)
+    for duel_id in duel_ids:
+        assert registry.has_duel(duel_id) and not registry.has(duel_id)
+    assert "rps_duel" in duel_ids
+
+
+def test_pick_duel_is_deterministic_in_the_seed():
+    registry = GameRegistry()
+    assert registry.pick_duel(7).id == registry.pick_duel(7).id
+    for seed in range(20):  # always a registered duel, whatever the seed
+        assert registry.has_duel(registry.pick_duel(seed).id)
 
 
 def test_reset_all_resets_every_module():

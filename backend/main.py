@@ -80,13 +80,13 @@ class ConnectionManager:
             await self.send(socket, payload)
 
 
-async def _timer_fired(match_id: str, player_id: str, kind: str) -> None:
+async def _timer_fired(match_id: str, scope_id: str, kind: str) -> None:
     match = await store.get(match_id)
     if match is None:
         return
     async with locks.for_match(match_id):
         touch(match_id)
-        result = engine.on_wait_expired(match, player_id)
+        result = engine.on_wait_expired(match, scope_id)
         if result.changed:
             await apply_and_broadcast(match, result)
 

@@ -184,8 +184,6 @@ def test_assign_role_rules(engine):
     assert engine.assign_role(match, lead.id, rival.id, "generalist").ok is False  # not teammate
     assert engine.assign_role(match, lead.id, lead.id, "generalist").ok is False  # seat has no role
     assert engine.assign_role(match, lead.id, a0.id, "ghost").ok is False  # unknown role
-    result = engine.assign_role(match, lead.id, a0.id, "lexicon")  # reserved
-    assert result.ok is False and "no games" in result.error
     result = engine.assign_role(match, lead.id, a0.id, "generalist")
     assert result.ok and a0.role == "generalist"
     assert any("Generalist" in event.message for event in result.events)
@@ -199,12 +197,16 @@ def test_roles_gate_game_assignment(engine, monkeypatch):
         "solo": {"name": "Solo", "games": ["g1"]},
         "pair": {"name": "Pair", "games": ["g2", "g3"]},
         "generalist": {"name": "Generalist", "games": None},
+        "reserved": {"name": "Reserved", "games": []},
     })
     match = engine.create_match()
     lead, _ = engine.join_match(match, "Lead", "alpha")
     engine.claim_leader(match, lead.id)
     a0, _ = engine.join_match(match, "A0", "alpha")
     a1, _ = engine.join_match(match, "A1", "alpha")
+    # A role with no games shipped yet can't be handed out at all.
+    result = engine.assign_role(match, lead.id, a0.id, "reserved")
+    assert result.ok is False and "no games" in result.error
     assert engine.assign_role(match, lead.id, a0.id, "solo").ok
     result = engine.assign_game(match, lead.id, a0.id, "g2")  # out of role
     assert result.ok is False and "role" in result.error
@@ -340,7 +342,7 @@ def test_correct_answer_clears_with_wait_timer_and_pay(engine):
     assert player.timer_kind == "wait"
     expected = (NOW + timedelta(seconds=config.WAIT_SECONDS)).isoformat()
     assert player.timer_deadline == expected
-    assert [(r.player_id, r.kind) for r in result.schedule] == [(player.id, "wait")]
+    assert [(r.scope_id, r.kind) for r in result.schedule] == [(player.id, "wait")]
     assert match.teams["alpha"].currency == config.CURRENCY_PER_CLEAR
     assert player.earned_level == 1
 
@@ -697,7 +699,7 @@ def test_extend_wait_pushes_a_teammates_deadline(engine):
     assert result.ok
     extended = old_deadline + timedelta(seconds=config.PERKS["extend_wait"]["seconds"])
     assert player.timer_deadline == extended.isoformat()
-    assert [(r.player_id, r.kind) for r in result.schedule] == [(player.id, "wait")]
+    assert [(r.scope_id, r.kind) for r in result.schedule] == [(player.id, "wait")]
     opponent = members["bravo"][0]
     solve(engine, match, opponent)
     result = engine.buy_perk(

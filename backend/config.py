@@ -22,6 +22,16 @@ CURRENCY_BONUS_FIRST = 3     # first successful bonus of a level
 CURRENCY_BONUS_REPEAT = 1    # each later bonus that level (diminishing returns)
 BONUS_LEVEL_OFFSET = 3       # bonus puzzle = own game at level + this offset
 
+# --- Duels (the Duelist role; docs/DUEL_MODULE_SPEC.md) ---
+# A Duelist earns green for their team by beating the opposing Duelist. These
+# are the engine-side costs; the move set and the per-round choice window come
+# from the duel module itself, so different duel games cost different time.
+DUEL_INTERVAL_SECONDS = 30   # gap from one duel resolving to the next starting
+DUEL_REVEAL_SECONDS = 3      # reveal beat between rounds of the same duel
+DUEL_PENALTY_SECONDS = 60    # advance lock on the losing team, once per level
+DUEL_WIN_CURRENCY = 2        # paid to the winning team, doubling per...
+DUEL_CURRENCY_CAP = 8        # ...consecutive win, capped here
+
 # Perk catalogue: leader-only purchases from the team currency pool.
 # "seconds" is the effect duration/extension where the perk has one.
 PERKS: dict[str, dict] = {
@@ -36,6 +46,9 @@ PERKS: dict[str, dict] = {
 # role's games.
 #   games=None  -> any registered game (Generalist).
 #   games=[]    -> reserved, not assignable (no matching game shipped yet).
+#   duel=True   -> the Duelist: the *server* picks the game, the role is
+#                  mirrored (both teams field one or neither does), and the
+#                  player duels the opposing Duelist instead of solving.
 ROLES: dict[str, dict] = {
     "logician":         {"name": "Logician",         "games": ["sweep"]},
     "technocrat":       {"name": "Technocrat",       "games": ["rewire", "lane_shift"]},
@@ -43,7 +56,7 @@ ROLES: dict[str, dict] = {
     "puzzle_master":    {"name": "Puzzle Master",    "games": ["decant", "stackdrop"]},
     "spymaster":        {"name": "Spymaster",        "games": ["echo", "overprint"]},
     "generalist":       {"name": "Generalist",       "games": None},
-    "lexicon":          {"name": "Lexicon",          "games": []},  # reserved: no word game yet
+    "duelist":          {"name": "Duelist",          "games": ["rps_duel"], "duel": True},
 }
 
 
@@ -57,6 +70,11 @@ def role_assignable(role_id: str) -> bool:
     """True if the role can be given to a player at all (reserved roles can't)."""
     games = ROLES[role_id]["games"]
     return games is None or bool(games)
+
+
+def role_is_duel(role_id: str | None) -> bool:
+    """True for a role whose player duels instead of solving puzzles."""
+    return bool(role_id) and bool(ROLES.get(role_id, {}).get("duel"))
 
 # --- Server behaviour ---
 SUBMIT_MIN_INTERVAL_MS = 300     # reject submissions arriving faster than this

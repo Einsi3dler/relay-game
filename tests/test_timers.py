@@ -96,7 +96,7 @@ def test_apply_result_schedules_and_cancels():
         service.schedule("m1", "p1", "wait", in_ms(500))
         result = EngineResult(
             cancel=["p1"],
-            schedule=[TimerRequest(player_id="p2", kind="wait", deadline=in_ms(500))],
+            schedule=[TimerRequest(scope_id="p2", kind="wait", deadline=in_ms(500))],
         )
         service.apply_result("m1", result)
         assert service.pending("m1") == {"p2"}

@@ -5,9 +5,11 @@ return an `EngineResult` describing what changed and which timers to
 (re)schedule or cancel — the engine never sleeps and never does I/O. The
 server layer (main.py + TimerService) owns the clock and the sockets.
 
-The only scheduled deadline is the per-player wait timer (which doubles as
-the bonus deadline). Freeze is a lazy deadline checked on submit. Any future
-second concurrent deadline must be lazy too, or the timer key must grow.
+Deadlines are keyed by *scope*, and a scope holds at most one at a time: a
+player id owns the wait timer (which doubles as the bonus deadline), while the
+cross-team duel owns DUEL_SCOPE and each team owns `_team_scope()` for its duel
+penalty. Freeze is a lazy deadline checked on submit. Any future deadline that
+must run concurrently with an existing one needs its own scope, or to be lazy.
 """
 
 from __future__ import annotations
@@ -21,6 +23,15 @@ from uuid import uuid4
 from backend import config
 from backend.models import Event, Match, Player, Team, green
 from backend.registry import GameRegistry
+
+
+# Match-level timer scopes. Player ids are 8-char uuid hex, so these literals
+# can never collide with one.
+DUEL_SCOPE = "duel"
+
+
+def _team_scope(team_id: str) -> str:
+    return f"team:{team_id}"
 
 
 def utc_now() -> datetime:
@@ -38,13 +49,16 @@ def _parse_iso(value: str) -> datetime:
 
 @dataclass
 class TimerRequest:
-    """Ask the server layer to schedule a deadline for a player.
+    """Ask the server layer to schedule a deadline for a scope.
 
-    Scheduling replaces the player's previous timer (one active timer each).
+    A scope is a player id (the wait timer) or a match-level scope owned by a
+    cross-team mechanic: DUEL_SCOPE for the duel phase clock, `_team_scope()`
+    for a team's duel penalty. Scheduling replaces that scope's previous timer
+    (one active timer each).
     """
 
-    player_id: str
-    kind: str  # "wait"
+    scope_id: str
+    kind: str  # "wait" | "duel_round" | "duel_reveal" | "duel_next" | "duel_penalty"
     deadline: str  # UTC ISO
 
 
@@ -668,7 +682,7 @@ class RelayEngine:
             target.timer_deadline = deadline.isoformat()
             result.schedule.append(
                 TimerRequest(
-                    player_id=target.id, kind="wait", deadline=target.timer_deadline
+                    scope_id=target.id, kind="wait", deadline=target.timer_deadline
                 )
             )
         else:
@@ -800,8 +814,25 @@ class RelayEngine:
         player.timer_kind = kind
         player.timer_deadline = deadline.isoformat()
         result.schedule.append(
-            TimerRequest(player_id=player.id, kind=kind, deadline=player.timer_deadline)
+            TimerRequest(scope_id=player.id, kind=kind, deadline=player.timer_deadline)
         )
+
+    def _start_scope_timer(
+        self, match: Match, scope_id: str, kind: str, result: EngineResult,
+        now: datetime | None,
+    ) -> str:
+        """Schedule a match-level deadline (duel phases, duel penalty).
+
+        Unlike `_start_timer` this writes no `player.timer_*` fields, so a duel
+        clock never displaces the wait countdown a player's client is drawing.
+        Returns the deadline so the caller can store it on its own object.
+        """
+        seconds = match.config_snapshot[f"{kind}_seconds"]
+        deadline = ((now or utc_now()) + timedelta(seconds=seconds)).isoformat()
+        result.schedule.append(
+            TimerRequest(scope_id=scope_id, kind=kind, deadline=deadline)
+        )
+        return deadline
 
     def _team_all_cleared(self, match: Match, team: Team) -> bool:
         members = self._playing_members(match, team)
@@ -815,8 +846,9 @@ class RelayEngine:
             return
         members = self._playing_members(match, team)
         member_ids = {member.id for member in members}
-        # Timers scheduled earlier in this same result are now moot.
-        result.schedule = [r for r in result.schedule if r.player_id not in member_ids]
+        # Timers scheduled earlier in this same result are now moot. Only the
+        # members' own scopes: duel/team scopes outlive an advance.
+        result.schedule = [r for r in result.schedule if r.scope_id not in member_ids]
         result.cancel.extend(member_ids)
 
         if team.level >= match.config_snapshot["level_count"]:
