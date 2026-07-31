@@ -40,7 +40,7 @@ ROLES: dict[str, dict] = {
     "logician":         {"name": "Logician",         "games": ["sweep"]},
     "technocrat":       {"name": "Technocrat",       "games": ["rewire"]},
     "spatial_reasoner": {"name": "Spatial Reasoner", "games": ["mirror_run"]},
-    "puzzle_master":    {"name": "Puzzle Master",    "games": ["decant"]},
+    "puzzle_master":    {"name": "Puzzle Master",    "games": ["decant", "stackdrop"]},
     "spymaster":        {"name": "Spymaster",        "games": ["echo", "overprint"]},
     "generalist":       {"name": "Generalist",       "games": None},
     "lexicon":          {"name": "Lexicon",          "games": []},  # reserved: no word game yet

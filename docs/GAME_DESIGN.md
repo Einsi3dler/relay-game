@@ -49,7 +49,7 @@ Roles are defined in `config.ROLES`:
 | Logician | Sweep |
 | Technocrat | Rewire |
 | Spatial Reasoner | Mirror Run |
-| Puzzle Master | Decant |
+| Puzzle Master | Decant, Stackdrop |
 | Spymaster | Echo, Overprint |
 | Generalist | any registered game |
 | Lexicon | *reserved* — no matching game shipped yet, not assignable |

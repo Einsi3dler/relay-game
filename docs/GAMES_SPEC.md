@@ -1,7 +1,7 @@
 # The Relay — The Game Library (detailed spec)
 
 The concrete design for the library games: REWIRE, SWEEP, MIRROR RUN, DECANT,
-ECHO (this doc), plus OVERPRINT and the expansion candidates in
+ECHO (this doc), plus OVERPRINT, STACKDROP and the expansion candidates in
 [`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md).
 In v2 there is no stage order — the **team leader assigns one game per player**
 (see [GAME_DESIGN.md](GAME_DESIGN.md) §2). Each game owner builds against the
@@ -452,6 +452,16 @@ tedious to transcribe. Normal play is faster than tool-assisted transcription.
 | **MIRROR RUN** | Divided attention | One D-pad, two runners | `{"v":1,"moves":"URDL..."}` | replay both runners → both exits |
 | **DECANT** | Sorting | Click source→dest pours | moves `"0>3;4>0"` | replay pours → all tubes uniform |
 | **ECHO** | Reflex/Memory | Tap pads in order | taps `"4,0,8,3,1"` | taps == flashed sequence |
+| **STACKDROP** | Causal prediction | Tap a pin to arm, again to pull | `{"v":1,"remove":["p1","p0"]}` | replay pulls through the cell simulation → every ball in its container |
+
+**STACKDROP rules note.** The module ships two pin kinds — flat pins *hold* a
+ball, slanted pins *roll* it one cell down-slope — which extends
+[`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md)
+§3 (its payload lists only `id` + `cells`). The extension is what makes the game
+a puzzle: with hold-only pins a ball's route through the chamber is invariant —
+a pull can delay a ball but never divert it — so no board could ever satisfy
+that section's order-sensitivity requirement. Python and JavaScript run the same
+simulation, locked together by `tests/games/fixtures/stackdrop_cases.json`.
 
 ## Per-game deliverables (each game owner)
 

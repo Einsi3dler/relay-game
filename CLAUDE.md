@@ -47,7 +47,7 @@ old prototype is frozen in [`legacy/`](legacy/README_LEGACY.md).
 Contributors each own a slice (see [docs/TASK_LIST.md](docs/TASK_LIST.md)):
 
 - **Core/engine** — match state, level gating, timers, economy/perks, WebSocket protocol.
-- **Game modules** (REWIRE, SWEEP, MIRROR RUN, DECANT, ECHO, OVERPRINT, …) — one owner per game.
+- **Game modules** (REWIRE, SWEEP, MIRROR RUN, DECANT, ECHO, OVERPRINT, STACKDROP, …) — one owner per game.
 - **Frontend** — the browser client (play view + leader dashboard).
 
 A person (or agent) can hold **more than one** slice — lanes exist to stop two
