@@ -38,7 +38,7 @@ PERKS: dict[str, dict] = {
 #   games=[]    -> reserved, not assignable (no matching game shipped yet).
 ROLES: dict[str, dict] = {
     "logician":         {"name": "Logician",         "games": ["sweep"]},
-    "technocrat":       {"name": "Technocrat",       "games": ["rewire"]},
+    "technocrat":       {"name": "Technocrat",       "games": ["rewire", "lane_shift"]},
     "spatial_reasoner": {"name": "Spatial Reasoner", "games": ["mirror_run"]},
     "puzzle_master":    {"name": "Puzzle Master",    "games": ["decant", "stackdrop"]},
     "spymaster":        {"name": "Spymaster",        "games": ["echo", "overprint"]},

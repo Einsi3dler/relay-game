@@ -81,5 +81,5 @@ def test_reset_all_resets_every_module():
 def test_defaults_are_the_real_modules():
     registry = GameRegistry()
     for game_id in ("rewire", "sweep", "mirror_run", "decant", "echo", "overprint",
-                    "stackdrop"):
+                    "stackdrop", "lane_shift"):
         assert registry.by_id(game_id).id == game_id

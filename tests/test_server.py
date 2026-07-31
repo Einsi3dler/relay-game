@@ -186,7 +186,7 @@ def test_get_config(client):
     assert body["roles"]["lexicon"]["games"] == []  # reserved
     library_ids = {entry["id"] for entry in body["library"]}
     assert {"rewire", "sweep", "mirror_run", "decant", "echo", "overprint",
-            "stackdrop"} <= library_ids
+            "stackdrop", "lane_shift"} <= library_ids
 
 
 def test_protocol_parses_assign_role():
