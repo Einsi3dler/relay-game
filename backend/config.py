@@ -39,7 +39,7 @@ PERKS: dict[str, dict] = {
 ROLES: dict[str, dict] = {
     "logician":         {"name": "Logician",         "games": ["sweep"]},
     "technocrat":       {"name": "Technocrat",       "games": ["rewire", "lane_shift"]},
-    "spatial_reasoner": {"name": "Spatial Reasoner", "games": ["mirror_run"]},
+    "spatial_reasoner": {"name": "Spatial Reasoner", "games": ["mirror_run", "shadow_cast"]},
     "puzzle_master":    {"name": "Puzzle Master",    "games": ["decant", "stackdrop"]},
     "spymaster":        {"name": "Spymaster",        "games": ["echo", "overprint"]},
     "generalist":       {"name": "Generalist",       "games": None},

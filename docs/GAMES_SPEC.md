@@ -1,7 +1,7 @@
 # The Relay — The Game Library (detailed spec)
 
 The concrete design for the library games: REWIRE, SWEEP, MIRROR RUN, DECANT,
-ECHO (this doc), plus OVERPRINT, STACKDROP, LANE SHIFT and the expansion candidates in
+ECHO (this doc), plus OVERPRINT, STACKDROP, LANE SHIFT, SHADOW CAST and the expansion candidates in
 [`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md).
 In v2 there is no stage order — the **team leader assigns one game per player**
 (see [GAME_DESIGN.md](GAME_DESIGN.md) §2). Each game owner builds against the
@@ -454,6 +454,7 @@ tedious to transcribe. Normal play is faster than tool-assisted transcription.
 | **ECHO** | Reflex/Memory | Tap pads in order | taps `"4,0,8,3,1"` | taps == flashed sequence |
 | **STACKDROP** | Causal prediction | Tap a pin to arm, again to pull | `{"v":1,"remove":["p1","p0"]}` | replay pulls through the cell simulation → every ball in its container |
 | **LANE SHIFT** | Scheduling | One action per turn, then the belt moves | `{"v":1,"actions":[["toggle","s0"],["pass"]]}` | replay turns → every packet in its matching exit |
+| **SHADOW CAST** | Spatial | Six quarter-turn buttons (X/Y/Z, each way) | `{"v":1,"turns":["x+","y-"]}` | replay turns → both projections match their targets |
 
 **STACKDROP rules note.** The module ships two pin kinds — flat pins *hold* a
 ball, slanted pins *roll* it one cell down-slope — which extends
@@ -475,6 +476,36 @@ packets landing on the same cell do), and a packet that cannot spawn because
 its cell is still occupied fails the attempt. Python and JavaScript run the
 same simulation, locked together by
 `tests/games/fixtures/lane_shift_cases.json`.
+
+**SHADOW CAST rules note.** The payload adds an explicit `bound` to the shape
+described in
+[`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md)
+§7 — that section requires the projection grids be padded to fixed dimensions
+but never names the field. Axis conventions are pinned in the module docstring
+and tested: `x` right, `y` away, `z` up, with `front[bound - 1 - z][x]` and
+`top[bound - 1 - y][x]`. `initial_orientation` indexes an ordered table of the
+24 proper cube orientations, enumerated breadth-first from the identity over
+the six quarter turns; Python and JavaScript build that table independently and
+`tests/games/fixtures/shadow_cast_cases.json` locks both the table and every
+pose along a run.
+
+One correction to that section's numbers: its "2–5 quarter turns from a valid
+orientation" is a **scramble count, not a distance**. Under the six quarter
+turns the cube's rotation group has diameter 3 — 1 orientation at distance 0, 6
+at 1, 11 at 2, 6 at 3 — so no board can ever need a fourth turn. The level
+curve therefore climbs through shape size (6→9 cubes) and shadow ambiguity
+(4→2 orientations allowed to share the target pair), with distance pinned at 3
+from level 6 on.
+
+**SHADOW CAST anti-cheat caveat (accepted).** The targets and the shape are
+both in the payload — they have to be, the player is looking at them — and
+there are only 24 orientations, so a scripted client could search all of them
+instantly. This is the same accepted weakness class as SWEEP's board and ECHO's
+flash sequence (§0): the payload is inspectable, the *checker* is not
+bypassable. The server replays the submitted turns through its own projection
+code and ignores any claimed orientation, bitmap or success flag, so the only
+forgeable thing is the player's effort, not the result. Normal play is faster
+than writing the script.
 
 ## Per-game deliverables (each game owner)
 

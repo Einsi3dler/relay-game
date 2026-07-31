@@ -19,6 +19,7 @@ from backend.games.game5_mirror_run import MirrorRunGame
 from backend.games.game6_overprint import OverprintGame
 from backend.games.game7_stackdrop import StackdropGame
 from backend.games.game8_lane_shift import LaneShiftGame
+from backend.games.game9_shadow_cast import ShadowCastGame
 
 # Game owners register their module instance here (the sanctioned one-line
 # cross-slice edit, alongside a role entry in config.ROLES).
@@ -31,6 +32,7 @@ REGISTERED_MODULES: list[GameModule] = [
     OverprintGame(),
     StackdropGame(),
     LaneShiftGame(),
+    ShadowCastGame(),
 ]
 
 
