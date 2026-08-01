@@ -42,15 +42,34 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   get bought but don't dominate. · [ALL]
 - [x] **V8 Real roles** — the placeholder `config.ROLES` grouping is replaced by
   the designed catalogue (Logician, Technocrat, Spatial Reasoner, Puzzle
-  Master, Spymaster, Generalist, and the reserved Lexicon); the team leader is
+  Master, Spymaster, Generalist, and the Duelist); the team leader is
   themed as the **Grandmaster**, who assigns each player a role that gates
   which games they may be given (Generalist = any). Duplicate roles per team
   are allowed. · [ALL]
 
+- [x] **V9 The Duelist** — a team may field one **Duelist**, a champion who
+  never solves a puzzle and instead fights the other team's Duelist. The role is
+  mirrored (both teams field one or neither), the **server** picks the duel
+  game, a win is how the Duelist goes green, and a loss stamps a once-per-level
+  advance lock on their team while paying the winner 2/4/8. First duel game is
+  **RPS DUEL**. Needed a real engine extension: timers are now scope-keyed so a
+  duel clock can run concurrently with a wait timer, and `duel_choice` is the
+  first live in-game client action. See
+  [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md), GAME_DESIGN §2b.
+  **AC:** the match refuses to start with a lone Duelist; neither Duelist ever
+  receives the other's move before the round resolves; a losing team is held
+  even when otherwise fully green. · [ALL]
+
 ### v2 stretch (only after V5–V7)
 
 - [ ] More games for the library (see `game/RELAY_EXPANSION_GAMES_README.md`) —
-  a **word game** would also unlock the reserved **Lexicon** role.
+  every new game widens the library the Grandmaster picks from.
+- [ ] More **duel** games for the Duelist role (see
+  [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md)) — same rules, different time
+  costs. The engine picks between whatever is registered.
+- [ ] PHASE LOCK / RHYTHM LOCK / BALANCE HOLD, the three expansion games marked
+  REQUIRES ENGINE EXTENSION — V9 built the live-action seam they were waiting
+  on (`duel_choice` + server-fired deadlines), so they are no longer blocked.
 - [ ] Mid-match Grandmaster *claim* when the Grandmaster is long-disconnected.
 - [ ] Spectator/dashboard view for non-players.
 

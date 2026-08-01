@@ -80,13 +80,16 @@ class ConnectionManager:
             await self.send(socket, payload)
 
 
-async def _timer_fired(match_id: str, player_id: str, kind: str) -> None:
+async def _timer_fired(match_id: str, scope_id: str, kind: str) -> None:
     match = await store.get(match_id)
     if match is None:
         return
     async with locks.for_match(match_id):
         touch(match_id)
-        result = engine.on_wait_expired(match, player_id)
+        if kind.startswith("duel_"):
+            result = engine.on_duel_timer(match, scope_id, kind)
+        else:
+            result = engine.on_wait_expired(match, scope_id)
         if result.changed:
             await apply_and_broadcast(match, result)
 
@@ -131,6 +134,9 @@ async def apply_and_broadcast(match: Match, result: EngineResult) -> None:
                 result.perk_used["perk_id"], result.perk_used["by_team_id"]
             ),
         )
+    if result.duel_result:
+        # Both teams watched the same duel resolve, so the outcome is public.
+        await manager.broadcast(match.id, protocol.duel_result(result.duel_result))
     if result.winner_team_id:
         await manager.broadcast(match.id, protocol.match_won(result.winner_team_id))
 
@@ -400,6 +406,22 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
                         if text == "stale or unknown puzzle":
                             text = "Puzzle is no longer active"
                         await manager.send(socket, protocol.error_message(text))
+                        continue
+                    await apply_and_broadcast(match, result)
+            elif msg_type == protocol.DUEL_CHOICE:
+                if _too_fast(match_id, player_id):
+                    await manager.send(socket, protocol.error_message("Too fast."))
+                    continue
+                async with locks.for_match(match_id):
+                    touch(match_id)
+                    result = engine.duel_choice(
+                        match, player_id, fields["duel_id"],
+                        fields["round"], fields["choice"],
+                    )
+                    if not result.ok:
+                        await manager.send(
+                            socket, protocol.error_message(result.error or "Rejected.")
+                        )
                         continue
                     await apply_and_broadcast(match, result)
             elif msg_type in (

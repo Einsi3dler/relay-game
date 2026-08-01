@@ -268,3 +268,56 @@ input:focus { border-color: var(--sun); }
   .card { padding: 14px; }
   h1 { font-size: 1.25rem; }
 }
+
+/* --- duels (the Duelist role) --- */
+.duel-card { border: 2px solid var(--violet); }
+#duel-title { color: var(--violet); letter-spacing: 0.04em; }
+.duel-timer { margin: 0 0 12px; }
+#duel-timer-fill {
+  height: 100%; width: 100%;
+  background: linear-gradient(90deg, var(--violet), var(--alpha));
+  transition: width 0.1s linear;
+}
+
+.duel-header {
+  display: flex; align-items: center; justify-content: space-around;
+  gap: 8px; margin-bottom: 10px;
+}
+.duel-seat { text-align: center; min-width: 88px; }
+.duel-hand { font-size: 2.6rem; line-height: 1.2; }
+.duel-name { font-weight: 800; font-size: 0.9rem; }
+.duel-pips { color: var(--violet); letter-spacing: 3px; font-size: 1.1rem; }
+.duel-versus { font-weight: 900; color: var(--muted); letter-spacing: 0.1em; }
+.duel-status {
+  text-align: center; font-weight: 800; min-height: 1.4em; margin-bottom: 10px;
+}
+
+.duel-moves { display: flex; gap: 10px; justify-content: center; }
+.duel-move {
+  font-family: inherit; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 14px; min-width: 84px;
+  border: 2px solid var(--line); border-radius: var(--radius);
+  background: var(--card); color: var(--ink);
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+.duel-move:hover:not(:disabled) {
+  border-color: var(--violet); transform: translateY(-2px);
+}
+.duel-move:disabled { opacity: 0.45; cursor: default; }
+.duel-move.chosen { border-color: var(--violet); opacity: 1; }
+.duel-move-art { font-size: 1.8rem; }
+.duel-move-label { font-size: 0.78rem; font-weight: 700; }
+
+/* The reveal beat: the moment both hands are on the table. */
+.duel-reveal .duel-hand { animation: duel-pop 0.35s ease; }
+.duel-done .duel-status { font-size: 1.15rem; }
+@keyframes duel-pop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .duel-reveal .duel-hand { animation: none; }
+  .duel-move { transition: none; }
+}

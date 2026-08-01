@@ -11,6 +11,8 @@ from typing import Iterable
 
 from backend import config
 from backend.games.base import GameModule
+from backend.games.duel1_rps import RockPaperScissorsDuel
+from backend.games.duel_base import DuelModule
 from backend.games.game1_rewire import RewireGame
 from backend.games.game2_sweep import SweepGame
 from backend.games.game3_decant import DecantGame
@@ -35,15 +37,31 @@ REGISTERED_MODULES: list[GameModule] = [
     ShadowCastGame(),
 ]
 
+# Duel games live in their own list: they implement a different interface
+# (DuelModule, not GameModule) and the Grandmaster never picks one — the
+# server does. Keeping them out of REGISTERED_MODULES is what keeps them out
+# of `library()`, and so out of the lobby game picker.
+REGISTERED_DUELS: list[DuelModule] = [
+    RockPaperScissorsDuel(),
+]
+
 
 class GameRegistry:
     """Resolves game ids to modules; `modules` defaults to the module-level
     registrations (overridable in tests)."""
 
-    def __init__(self, modules: Iterable[GameModule] | None = None) -> None:
+    def __init__(
+        self,
+        modules: Iterable[GameModule] | None = None,
+        duels: Iterable[DuelModule] | None = None,
+    ) -> None:
         self._by_id = {
             module.id: module
             for module in (REGISTERED_MODULES if modules is None else modules)
+        }
+        self._duels_by_id = {
+            duel.id: duel
+            for duel in (REGISTERED_DUELS if duels is None else duels)
         }
 
     def by_id(self, game_id: str) -> GameModule:
@@ -73,6 +91,39 @@ class GameRegistry:
             for module in self._by_id.values()
         ]
 
+    # --- duels ---
+
+    def duel_by_id(self, duel_game_id: str) -> DuelModule:
+        """Return the duel module registered under `duel_game_id`."""
+        module = self._duels_by_id.get(duel_game_id)
+        if module is None:
+            raise KeyError(f"no duel module registered for id {duel_game_id!r}")
+        return module
+
+    def has_duel(self, duel_game_id: str) -> bool:
+        return duel_game_id in self._duels_by_id
+
+    def pick_duel(self, seed: int) -> DuelModule:
+        """The server's choice of duel game — Duelists don't pick their own.
+
+        Deterministic in `seed` so a match's duel game is reproducible from
+        the seed the engine drew.
+        """
+        duels = list(self._duels_by_id.values())
+        if not duels:
+            raise KeyError("no duel modules registered")
+        return duels[seed % len(duels)]
+
+    def duel_library(self) -> list[dict[str, str]]:
+        """All registered duels as `{id, name}` — for the explainer pages, not
+        for the assignment picker."""
+        return [
+            {"id": duel.id, "name": duel.name}
+            for duel in self._duels_by_id.values()
+        ]
+
     def reset_all(self) -> None:
         for module in self._by_id.values():
             module.reset()
+        for duel in self._duels_by_id.values():
+            duel.reset()

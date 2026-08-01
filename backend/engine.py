@@ -5,9 +5,11 @@ return an `EngineResult` describing what changed and which timers to
 (re)schedule or cancel — the engine never sleeps and never does I/O. The
 server layer (main.py + TimerService) owns the clock and the sockets.
 
-The only scheduled deadline is the per-player wait timer (which doubles as
-the bonus deadline). Freeze is a lazy deadline checked on submit. Any future
-second concurrent deadline must be lazy too, or the timer key must grow.
+Deadlines are keyed by *scope*, and a scope holds at most one at a time: a
+player id owns the wait timer (which doubles as the bonus deadline), while the
+cross-team duel owns DUEL_SCOPE and each team owns `_team_scope()` for its duel
+penalty. Freeze is a lazy deadline checked on submit. Any future deadline that
+must run concurrently with an existing one needs its own scope, or to be lazy.
 """
 
 from __future__ import annotations
@@ -19,8 +21,18 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from backend import config
-from backend.models import Event, Match, Player, Team, green
+from backend.games.duel_base import SIDES, other_side
+from backend.models import DuelSession, Event, Match, Player, Team, green
 from backend.registry import GameRegistry
+
+
+# Match-level timer scopes. Player ids are 8-char uuid hex, so these literals
+# can never collide with one.
+DUEL_SCOPE = "duel"
+
+
+def _team_scope(team_id: str) -> str:
+    return f"team:{team_id}"
 
 
 def utc_now() -> datetime:
@@ -38,13 +50,16 @@ def _parse_iso(value: str) -> datetime:
 
 @dataclass
 class TimerRequest:
-    """Ask the server layer to schedule a deadline for a player.
+    """Ask the server layer to schedule a deadline for a scope.
 
-    Scheduling replaces the player's previous timer (one active timer each).
+    A scope is a player id (the wait timer) or a match-level scope owned by a
+    cross-team mechanic: DUEL_SCOPE for the duel phase clock, `_team_scope()`
+    for a team's duel penalty. Scheduling replaces that scope's previous timer
+    (one active timer each).
     """
 
-    player_id: str
-    kind: str  # "wait"
+    scope_id: str
+    kind: str  # "wait" | "duel_round" | "duel_reveal" | "duel_next" | "duel_penalty"
     deadline: str  # UTC ISO
 
 
@@ -59,6 +74,7 @@ class EngineResult:
     winner_team_id: str | None = None
     kicked_player_ids: list[str] = field(default_factory=list)  # sockets to close
     perk_used: dict | None = None  # {"perk_id", "by_team_id"} for the nudge
+    duel_result: dict | None = None  # a decided duel, for the reveal nudge
     events: list[Event] = field(default_factory=list)
     schedule: list[TimerRequest] = field(default_factory=list)
     cancel: list[str] = field(default_factory=list)  # player_ids to cancel
@@ -288,6 +304,12 @@ class RelayEngine:
         # Active match: full swap, once per level.
         if team.handoff_used_level == team.level:
             return EngineResult.rejected("the Grandmaster seat already changed this level")
+        if config.role_is_duel(target.role):
+            # The duel holds two fixed seats for the whole match; vacating one
+            # mid-duel would leave the opposing Duelist with nobody to fight.
+            return EngineResult.rejected(
+                "the Duelist can't take the Grandmaster seat mid-match"
+            )
         game_id = target.assigned_game
         if game_id is None:  # defensive: every playing member is assigned at start
             return EngineResult.rejected("target has no assigned game")
@@ -352,8 +374,16 @@ class RelayEngine:
                 f"{config.ROLES[role_id]['name']} has no games yet"
             )
         target.role = role_id
-        if target.assigned_game is not None and not config.role_allows(
-            role_id, target.assigned_game
+        if config.role_is_duel(role_id):
+            # The Duelist doesn't get a choice of game — the server picks it,
+            # so the "everyone needs a game" start gate is already satisfied.
+            target.assigned_game = self.registry.pick_duel(_new_seed()).id
+        elif target.assigned_game is not None and not (
+            # Moving *off* the duel role must also drop the server's pick: a
+            # duel id is not a registered game, so the Generalist (which allows
+            # every game) would otherwise inherit an unresolvable assignment.
+            self.registry.has(target.assigned_game)
+            and config.role_allows(role_id, target.assigned_game)
         ):
             target.assigned_game = None
         result = EngineResult(changed=True)
@@ -381,6 +411,10 @@ class RelayEngine:
             return EngineResult.rejected("target must be a teammate")
         if target.is_leader:
             return EngineResult.rejected("the Grandmaster doesn't play")
+        if target.role is not None and config.role_is_duel(target.role):
+            return EngineResult.rejected(
+                f"the server picks the {config.ROLES[target.role]['name']}'s game"
+            )
         if not self.registry.has(game_id):
             return EngineResult.rejected(f"unknown game {game_id!r}")
         if target.role is None:
@@ -428,6 +462,21 @@ class RelayEngine:
                 return (
                     f"team {team.name}: assign a game to {', '.join(unassigned)}"
                 )
+            if len(self._duelists(match, team)) > 1:
+                return f"team {team.name} can only field one Duelist"
+        # The Duelist is mirrored: a duel needs two seats, so one team fielding
+        # a champion forces the other to answer with one.
+        fielding = [
+            team for team in match.teams.values() if self._duelists(match, team)
+        ]
+        if len(fielding) == 1:
+            other = next(
+                team for team in match.teams.values() if team is not fielding[0]
+            )
+            return (
+                f"team {fielding[0].name} has a Duelist — team {other.name} "
+                f"needs one too"
+            )
         return None
 
     def _assign_team(
@@ -476,6 +525,11 @@ class RelayEngine:
             "currency_bonus_repeat": config.CURRENCY_BONUS_REPEAT,
             "bonus_level_offset": config.BONUS_LEVEL_OFFSET,
             "perks": {perk_id: dict(perk) for perk_id, perk in config.PERKS.items()},
+            "duel_next_seconds": config.DUEL_INTERVAL_SECONDS,
+            "duel_reveal_seconds": config.DUEL_REVEAL_SECONDS,
+            "duel_penalty_seconds": config.DUEL_PENALTY_SECONDS,
+            "duel_win_currency": config.DUEL_WIN_CURRENCY,
+            "duel_currency_cap": config.DUEL_CURRENCY_CAP,
         }
         result = EngineResult(changed=True, match_started=True)
         for team in match.teams.values():
@@ -485,8 +539,11 @@ class RelayEngine:
             if leader is not None:
                 leader.status = "leading"
             for player in playing:
+                if config.role_is_duel(player.role):
+                    continue  # champions duel instead; _start_duel seats them
                 self._serve_main(match, player)
         self._add_event(match, result, "Match started — Level 1!", "info")
+        self._start_duel(match, result, now)
         return result
 
     # --- the level loop ---
@@ -611,6 +668,10 @@ class RelayEngine:
         player = match.players.get(player_id)
         if match.status != "active" or player is None:
             return EngineResult(changed=False)  # stale timer — no-op
+        if config.role_is_duel(player.role):
+            # A Duelist holds no wait timer: their green comes from the last
+            # duel and only the next duel takes it away.
+            return EngineResult(changed=False)
         if player.status == "cleared":
             result = EngineResult(changed=True)
             self._serve_main(match, player)
@@ -668,7 +729,7 @@ class RelayEngine:
             target.timer_deadline = deadline.isoformat()
             result.schedule.append(
                 TimerRequest(
-                    player_id=target.id, kind="wait", deadline=target.timer_deadline
+                    scope_id=target.id, kind="wait", deadline=target.timer_deadline
                 )
             )
         else:
@@ -800,8 +861,28 @@ class RelayEngine:
         player.timer_kind = kind
         player.timer_deadline = deadline.isoformat()
         result.schedule.append(
-            TimerRequest(player_id=player.id, kind=kind, deadline=player.timer_deadline)
+            TimerRequest(scope_id=player.id, kind=kind, deadline=player.timer_deadline)
         )
+
+    def _start_scope_timer(
+        self, match: Match, scope_id: str, kind: str, result: EngineResult,
+        now: datetime | None, seconds: float | None = None,
+    ) -> str:
+        """Schedule a match-level deadline (duel phases, duel penalty).
+
+        Unlike `_start_timer` this writes no `player.timer_*` fields, so a duel
+        clock never displaces the wait countdown a player's client is drawing.
+        `seconds` defaults to the frozen config value for `kind`; the duel round
+        window passes it explicitly because it belongs to the duel module.
+        Returns the deadline so the caller can store it on its own object.
+        """
+        if seconds is None:
+            seconds = match.config_snapshot[f"{kind}_seconds"]
+        deadline = ((now or utc_now()) + timedelta(seconds=seconds)).isoformat()
+        result.schedule.append(
+            TimerRequest(scope_id=scope_id, kind=kind, deadline=deadline)
+        )
+        return deadline
 
     def _team_all_cleared(self, match: Match, team: Team) -> bool:
         members = self._playing_members(match, team)
@@ -813,10 +894,17 @@ class RelayEngine:
         """Runs on every cleared transition, not just timer fires."""
         if not self._team_all_cleared(match, team):
             return
+        if self._duel_penalty_active(team, now):
+            # Everyone is green but the team lost a duel this level and still
+            # owes the lock. Their wait timers keep running — holding green
+            # through the penalty is the tax. The `duel_penalty` timer calls
+            # us again when it lapses.
+            return
         members = self._playing_members(match, team)
         member_ids = {member.id for member in members}
-        # Timers scheduled earlier in this same result are now moot.
-        result.schedule = [r for r in result.schedule if r.player_id not in member_ids]
+        # Timers scheduled earlier in this same result are now moot. Only the
+        # members' own scopes: duel/team scopes outlive an advance.
+        result.schedule = [r for r in result.schedule if r.scope_id not in member_ids]
         result.cancel.extend(member_ids)
 
         if team.level >= match.config_snapshot["level_count"]:
@@ -836,14 +924,268 @@ class RelayEngine:
             return
 
         team.level += 1
+        team.duel_penalty_until = None
+        team.duel_penalty_level = 0  # the new level may take its own hit
         result.advanced_team_ids.append(team.id)
         for member in members:
             member.bonus_streak = 0
             member.bonus_earned = 0
+            if config.role_is_duel(member.role):
+                # The champion carries their duel win into the new level; the
+                # next duel is what takes it away again.
+                continue
             self._serve_main(match, member)
         self._add_event(
             match, result, f"Team {team.name} advances to Level {team.level}!", "advance"
         )
+
+    # --- duels (the Duelist role) ---
+
+    def _duelists(self, match: Match, team: Team) -> list[Player]:
+        return [
+            player
+            for player in self._playing_members(match, team)
+            if config.role_is_duel(player.role)
+        ]
+
+    def _duel_seats(
+        self, match: Match
+    ) -> list[tuple[str, Player, Team]] | None:
+        """(side, Duelist, team) for each seat, or None if no duel is possible.
+
+        Sides follow `config.TEAM_IDS` order, so a given team always occupies
+        the same seat for the whole match.
+        """
+        seats: list[tuple[str, Player, Team]] = []
+        for side, team in zip(SIDES, match.teams.values()):
+            duelists = self._duelists(match, team)
+            if len(duelists) != 1:
+                return None
+            seats.append((side, duelists[0], team))
+        return seats
+
+    def _duel_penalty_active(self, team: Team, now: datetime | None) -> bool:
+        if team.duel_penalty_until is None:
+            return False
+        return _parse_iso(team.duel_penalty_until) > (now or utc_now())
+
+    def _start_duel(
+        self, match: Match, result: EngineResult, now: datetime | None = None
+    ) -> None:
+        """Seat both Duelists in a fresh duel and open the first round."""
+        seats = self._duel_seats(match)
+        if match.status != "active" or seats is None:
+            return
+        if any(team.finished for _, _, team in seats):
+            return
+
+        module = self.registry.pick_duel(_new_seed())
+        duel = DuelSession(
+            id=uuid4().hex[:8],
+            module=module,
+            state=module.new_duel(_new_seed()),
+            sides={side: player.id for side, player, _ in seats},
+            team_of={side: team.id for side, _, team in seats},
+            phase="choosing",
+        )
+        match.duel = duel
+        for _, player, _ in seats:
+            # A duel takes green away from both champions: it has to be won
+            # again, which is what makes a lost duel block a team.
+            player.assigned_game = module.id
+            player.status = "duelling"
+            player.current_main = None
+            player.current_bonus = None
+            player.choice_pending = False
+            player.timer_kind = None
+            player.timer_deadline = None
+            result.cancel.append(player.id)
+        duel.deadline = self._start_scope_timer(
+            match, DUEL_SCOPE, "duel_round", result, now,
+            seconds=module.choice_seconds,
+        )
+        names = " vs ".join(player.name for _, player, _ in seats)
+        self._add_event(match, result, f"Duel — {names} ({module.name}).", "info")
+
+    def duel_choice(
+        self,
+        match: Match,
+        player_id: str,
+        duel_id: str,
+        round_index: int,
+        choice: str,
+        now: datetime | None = None,
+    ) -> EngineResult:
+        """A Duelist commits a move for the open round.
+
+        The move is recorded but never broadcast: the round resolves when both
+        have committed, or when the window lapses. Choosing early therefore
+        tells the opponent nothing beyond the fact that you chose.
+        """
+        if match.status != "active":
+            return EngineResult.rejected("match is not active")
+        duel = match.duel
+        if duel is None or duel.id != duel_id:
+            return EngineResult.rejected("no duel to answer")
+        if duel.phase != "choosing":
+            return EngineResult.rejected("the round is closed")
+        if round_index != duel.state.round_index:
+            return EngineResult.rejected("that round is over")
+        side = duel.side_of(player_id)
+        if side is None:
+            return EngineResult.rejected("you aren't in this duel")
+        if duel.state.locked(side):
+            return EngineResult.rejected("you already chose this round")
+        move = duel.module.normalize_choice(duel.state, choice)
+        if move is None:
+            return EngineResult.rejected("not a legal move")
+
+        duel.state.choices[side] = move
+        result = EngineResult(changed=True)
+        if duel.state.both_locked():
+            self._resolve_round(match, result, now)
+        return result
+
+    def _resolve_round(
+        self, match: Match, result: EngineResult, now: datetime | None
+    ) -> None:
+        """Score the open round and either move on or end the duel."""
+        duel = match.duel
+        state = duel.state
+        winner = duel.module.resolve_round(state)
+        entry = {
+            "round": state.round_index,
+            "a": state.choices.get("a"),
+            "b": state.choices.get("b"),
+            "winner": winner,
+        }
+        state.history.append(entry)
+        duel.last_round = entry
+        if winner is not None:
+            state.wins[winner] += 1
+            if state.wins[winner] >= duel.module.wins_needed:
+                duel.winner_side = winner
+                self._finish_duel(match, result, now)
+                return
+        # Choices stay on the state through the reveal beat, then clear.
+        duel.phase = "reveal"
+        duel.deadline = self._start_scope_timer(
+            match, DUEL_SCOPE, "duel_reveal", result, now
+        )
+
+    def _next_round(
+        self, match: Match, result: EngineResult, now: datetime | None
+    ) -> None:
+        duel = match.duel
+        duel.state.choices.clear()
+        duel.state.round_index += 1
+        duel.last_round = None
+        duel.phase = "choosing"
+        duel.deadline = self._start_scope_timer(
+            match, DUEL_SCOPE, "duel_round", result, now,
+            seconds=duel.module.choice_seconds,
+        )
+
+    def _finish_duel(
+        self, match: Match, result: EngineResult, now: datetime | None
+    ) -> None:
+        """Pay the winner, lock the loser, and queue the next duel."""
+        duel = match.duel
+        duel.phase = "done"
+        winner_side = duel.winner_side
+        loser_side = other_side(winner_side)
+        winner = match.players[duel.sides[winner_side]]
+        loser = match.players[duel.sides[loser_side]]
+        winner_team = match.teams[duel.team_of[winner_side]]
+        loser_team = match.teams[duel.team_of[loser_side]]
+
+        # The champion holds green until the next duel pulls them back in —
+        # no wait timer, so `extend_wait` can't prolong a duel win either.
+        winner.status = "cleared"
+        winner.choice_pending = False
+        winner.timer_kind = None
+        winner.timer_deadline = None
+        result.cancel.append(winner.id)
+        loser.status = "duelling"
+
+        winner_team.duel_streak += 1
+        pay = min(
+            match.config_snapshot["duel_win_currency"]
+            * 2 ** (winner_team.duel_streak - 1),
+            match.config_snapshot["duel_currency_cap"],
+        )
+        winner_team.currency += pay
+        loser_team.duel_streak = 0
+
+        # The time penalty bites once per level: losing twice at the same
+        # level costs nothing extra beyond staying un-green.
+        penalised = loser_team.duel_penalty_level != loser_team.level
+        if penalised:
+            loser_team.duel_penalty_level = loser_team.level
+            loser_team.duel_penalty_until = self._start_scope_timer(
+                match, _team_scope(loser_team.id), "duel_penalty", result, now
+            )
+
+        result.duel_result = {
+            "duel_id": duel.id,
+            "winner_team_id": winner_team.id,
+            "loser_team_id": loser_team.id,
+            "winner_name": winner.name,
+            "loser_name": loser.name,
+            "wins": dict(duel.state.wins),
+            "streak": winner_team.duel_streak,
+            "currency": pay,
+            "penalty_until": loser_team.duel_penalty_until if penalised else None,
+        }
+        self._add_event(
+            match,
+            result,
+            f"{winner.name} wins the duel for team {winner_team.name} (+{pay}).",
+            "info",
+        )
+        duel.deadline = self._start_scope_timer(
+            match, DUEL_SCOPE, "duel_next", result, now
+        )
+        # The winner just went green, so their team may now be complete.
+        for team in (winner_team, loser_team):
+            self._advance_check(match, team, result, now)
+
+    def on_duel_timer(
+        self,
+        match: Match,
+        scope_id: str,
+        kind: str,
+        now: datetime | None = None,
+    ) -> EngineResult:
+        """A duel-scoped deadline passed. Stale timers are no-ops."""
+        result = EngineResult(changed=True)
+        if kind == "duel_penalty":
+            team = next(
+                (t for t in match.teams.values() if _team_scope(t.id) == scope_id),
+                None,
+            )
+            if team is None or team.duel_penalty_until is None:
+                return EngineResult(changed=False)
+            team.duel_penalty_until = None
+            self._add_event(
+                match, result, f"Team {team.name}'s duel penalty is over.", "info"
+            )
+            self._advance_check(match, team, result, now)
+            return result
+
+        duel = match.duel
+        if duel is None or scope_id != DUEL_SCOPE or match.status != "active":
+            return EngineResult(changed=False)
+        if kind == "duel_round" and duel.phase == "choosing":
+            self._resolve_round(match, result, now)
+            return result
+        if kind == "duel_reveal" and duel.phase == "reveal":
+            self._next_round(match, result, now)
+            return result
+        if kind == "duel_next" and duel.phase == "done":
+            self._start_duel(match, result, now)
+            return result
+        return EngineResult(changed=False)
 
     def _add_event(
         self, match: Match, result: EngineResult, message: str, kind: str

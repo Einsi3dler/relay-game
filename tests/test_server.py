@@ -45,10 +45,16 @@ def join(client, match_id: str, name: str, team_id: str | None = None):
     )
 
 
-def fill_match(client, match_id: str, games=None) -> dict[str, list[str]]:
+def fill_match(
+    client, match_id: str, games=None, duelists: bool = False
+) -> dict[str, list[str]]:
     """Join a leader + 4 players per team, claim seats, assign games over the
     socket, and have the host (alpha's leader) start. Returns ids per team,
-    with leaders under 'alpha-lead' / 'bravo-lead'."""
+    with leaders under 'alpha-lead' / 'bravo-lead'.
+
+    `duelists` makes seat 0 of each team a Duelist — mirrored, because the
+    start gate refuses a lone champion — and skips its game assignment, since
+    the server picks a Duelist's game."""
     games = games or GAMES[:4]
     ids: dict[str, list[str]] = {"alpha": [], "bravo": []}
     for team_id in ("alpha", "bravo"):
@@ -67,6 +73,12 @@ def fill_match(client, match_id: str, games=None) -> dict[str, list[str]]:
             ws.receive_json()
             ws.send_json({"type": "lobby_action", "action": "claim_leader"})
             for i, player_id in enumerate(ids[team_id]):
+                if duelists and i == 0:
+                    ws.send_json({
+                        "type": "lobby_action", "action": "assign_role",
+                        "target_id": player_id, "role_id": "duelist",
+                    })
+                    continue
                 ws.send_json({
                     "type": "lobby_action", "action": "assign_role",
                     "target_id": player_id, "role_id": "generalist",
@@ -183,10 +195,11 @@ def test_get_config(client):
     for role_id, role in config.ROLES.items():
         assert body["roles"][role_id] == {"name": role["name"], "games": role["games"]}
     assert body["roles"]["generalist"]["games"] is None  # any game
-    assert body["roles"]["lexicon"]["games"] == []  # reserved
+    assert body["roles"]["duelist"]["games"] == ["rps_duel"]
     library_ids = {entry["id"] for entry in body["library"]}
     assert {"rewire", "sweep", "mirror_run", "decant", "echo", "overprint",
             "stackdrop", "lane_shift", "shadow_cast"} <= library_ids
+    assert "rps_duel" not in library_ids  # the server picks duels, not the leader
 
 
 def test_protocol_parses_assign_role():
@@ -477,3 +490,147 @@ def test_eviction_of_idle_match(client, fake_games):
     assert client.get(f"/api/matches/{stale_id}").status_code == 404
     assert client.get(f"/api/matches/{fresh_id}").status_code == 200
     assert server.timers.pending(stale_id) == set()  # no timer will fire
+
+
+# --- duels over the socket ---
+
+def test_duel_over_the_websocket(client, fake_games):
+    """Both Duelists commit a move; the round resolves and the outcome fans out.
+
+    The load-bearing assertion is the one in the middle: while the round is
+    open, the opponent's socket has been sent nothing about A0's move.
+    """
+    match_id = create_match(client)
+    ids = fill_match(client, match_id, duelists=True)
+
+    with connect(client, match_id, ids["alpha"][0]) as (ws_a, me_a):
+        with connect(client, match_id, ids["bravo"][0]) as (ws_b, me_b):
+            assert me_a["status"] == "duelling"
+            assert me_a["assigned_game"] == "rps_duel"
+
+            ws_a.send_json({"type": "request_state"})
+            duel = ws_a.receive_json()["state"]["duel"]
+            assert duel["phase"] == "choosing" and duel["you"] == "a"
+            assert duel["duellists"] == {"a": "a0", "b": "b0"}
+            duel_id, round_index = duel["id"], duel["round"]
+
+            ws_a.send_json({
+                "type": "duel_choice", "duel_id": duel_id,
+                "round": round_index, "choice": "rock",
+            })
+            # B asks for state mid-round: A's move must not be in the reply.
+            ws_b.send_json({"type": "request_state"})
+            for _ in range(20):
+                message = ws_b.receive_json()
+                if message["type"] == "state_snapshot":
+                    view = message["state"]["duel"]
+                    assert view["choices"] == {}
+                    assert "rock" not in repr(view["choices"])
+                    if view["locked"]["a"]:
+                        break
+            else:
+                raise AssertionError("never saw A locked in")
+
+            ws_b.send_json({
+                "type": "duel_choice", "duel_id": duel_id,
+                "round": round_index, "choice": "scissors",
+            })
+            for _ in range(20):
+                message = ws_b.receive_json()
+                if message["type"] == "state_snapshot":
+                    view = message["state"]["duel"]
+                    if view["phase"] == "reveal":
+                        # Resolved: now both moves are public to both seats.
+                        assert view["choices"] == {"a": "rock", "b": "scissors"}
+                        assert view["wins"] == {"a": 1, "b": 0}
+                        break
+            else:
+                raise AssertionError("round never resolved")
+
+
+def test_duel_choice_is_rejected_for_outsiders(client, fake_games):
+    match_id = create_match(client)
+    ids = fill_match(client, match_id, duelists=True)
+    with connect(client, match_id, ids["alpha"][0]) as (ws_a, _):
+        ws_a.send_json({"type": "request_state"})
+        duel_id = ws_a.receive_json()["state"]["duel"]["id"]
+    with connect(client, match_id, ids["alpha"][1]) as (ws, me):
+        assert me["status"] == "solving"  # an ordinary solver, not a Duelist
+        ws.send_json({
+            "type": "duel_choice", "duel_id": duel_id, "round": 1,
+            "choice": "rock",
+        })
+        for _ in range(20):
+            message = ws.receive_json()
+            if message["type"] == "error":
+                assert "aren't in this duel" in message["error"]
+                break
+        else:
+            raise AssertionError("no rejection")
+
+
+def test_malformed_duel_choice_is_rejected(client, fake_games):
+    match_id = create_match(client)
+    ids = fill_match(client, match_id, duelists=True)
+    with connect(client, match_id, ids["alpha"][0]) as (ws, _):
+        for bad in (
+            {"type": "duel_choice", "duel_id": "d", "round": "1", "choice": "rock"},
+            {"type": "duel_choice", "duel_id": 1, "round": 1, "choice": "rock"},
+            {"type": "duel_choice", "duel_id": "d", "round": True, "choice": "rock"},
+            {"type": "duel_choice", "duel_id": "d", "round": 1},
+        ):
+            ws.send_json(bad)
+            for _ in range(20):
+                message = ws.receive_json()
+                if message["type"] == "error":
+                    assert message["error"] == "Malformed message."
+                    break
+            else:
+                raise AssertionError(f"no rejection for {bad}")
+
+
+def test_a_lone_duelist_cannot_start_the_match(client, fake_games):
+    """The mirror rule, enforced where the host actually presses start."""
+    match_id = create_match(client)
+    ids = {}
+    for team_id in ("alpha", "bravo"):
+        ids[f"{team_id}-lead"] = join(
+            client, match_id, f"{team_id}-lead", team_id
+        ).json()["player"]["id"]
+        ids[team_id] = [
+            join(client, match_id, f"{team_id[0]}{i}", team_id).json()["player"]["id"]
+            for i in range(4)
+        ]
+    for team_id in ("alpha", "bravo"):
+        with connect(client, match_id, ids[f"{team_id}-lead"]) as (ws, _):
+            ws.send_json({"type": "lobby_action", "action": "claim_leader"})
+            for i, player_id in enumerate(ids[team_id]):
+                role = "duelist" if (i == 0 and team_id == "alpha") else "generalist"
+                ws.send_json({
+                    "type": "lobby_action", "action": "assign_role",
+                    "target_id": player_id, "role_id": role,
+                })
+                if role == "generalist":
+                    ws.send_json({
+                        "type": "lobby_action", "action": "assign_game",
+                        "target_id": player_id, "game_id": GAMES[i],
+                    })
+            ws.send_json({"type": "heartbeat"})
+            ws.receive_json()
+    with connect(client, match_id, ids["alpha-lead"]) as (ws, _):
+        ws.send_json({"type": "lobby_action", "action": "start"})
+        for _ in range(30):
+            message = ws.receive_json()
+            if message["type"] == "error":
+                assert "Duelist" in message["error"]
+                break
+            assert message.get("state", {}).get("status") != "active"
+        else:
+            raise AssertionError("start was not refused")
+
+
+def test_duel_renderer_is_served(client):
+    response = client.get("/static/duels/rps_duel.js")
+    assert response.status_code == 200
+    assert "RelayDuels" in response.text
+    assert '/static/duels/rps_duel.js' in client.get("/play").text

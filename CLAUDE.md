@@ -49,6 +49,8 @@ Contributors each own a slice (see [docs/TASK_LIST.md](docs/TASK_LIST.md)):
 - **Core/engine** — match state, level gating, timers, economy/perks, WebSocket protocol.
 - **Game modules** (REWIRE, SWEEP, MIRROR RUN, DECANT, ECHO, OVERPRINT, STACKDROP,
   LANE SHIFT, SHADOW CAST, …) — one owner per game.
+- **Duel modules** (RPS DUEL, …) — games for the Duelist role, a different
+  interface from the rest (see [docs/DUEL_MODULE_SPEC.md](docs/DUEL_MODULE_SPEC.md)).
 - **Frontend** — the browser client (play view + leader dashboard).
 
 A person (or agent) can hold **more than one** slice — lanes exist to stop two
@@ -62,7 +64,8 @@ Rules:
   protocol field), **write it up in your PR description** and flag it — don't
   silently edit their active files.
 - Game modules must talk to the engine **only through the interface** in
-  [docs/GAME_MODULE_SPEC.md](docs/GAME_MODULE_SPEC.md). Never reach into engine
+  [docs/GAME_MODULE_SPEC.md](docs/GAME_MODULE_SPEC.md) (duel modules:
+  [docs/DUEL_MODULE_SPEC.md](docs/DUEL_MODULE_SPEC.md)). Never reach into engine
   internals from a game, or into another game from a game.
 - **Never import from `legacy/`.** It is reference-only.
 

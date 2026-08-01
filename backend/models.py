@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.games.base import PuzzleInstance
+from backend.games.duel_base import SIDES, DuelModule, DuelState, other_side
 
 # How many events MatchPublic carries (the "last ~30" in the protocol doc).
 PUBLIC_EVENT_LIMIT = 30
@@ -30,6 +31,8 @@ def green(player: Player) -> bool:
 
     A player in `bonus` is NOT green — taking the bonus resets cleared status
     until they solve it, which is what blocks the team from advancing past them.
+    Nor is a player in `duelling`: a Duelist is green only while holding a duel
+    win, so a lost duel blocks their team by exactly the same mechanism.
     """
     return player.status == "cleared"
 
@@ -53,7 +56,8 @@ class Player:
     id: str  # long + random — it is the WS credential
     name: str
     team_id: str | None = None  # None while unassigned in the lobby
-    status: str = "lobby"  # "lobby" | "solving" | "cleared" | "bonus" | "leading" | "finished"
+    # "lobby" | "solving" | "cleared" | "bonus" | "duelling" | "leading" | "finished"
+    status: str = "lobby"
     connected: bool = False
     is_leader: bool = False
     role: str | None = None  # config.ROLES id given by the Grandmaster
@@ -115,6 +119,9 @@ class Team:
     shield_active: bool = False  # blocks the next incoming attack perk
     leader_id: str | None = None
     handoff_used_level: int = 0  # last level a mid-match leader handoff happened
+    duel_streak: int = 0  # consecutive duel wins; drives the doubling payout
+    duel_penalty_until: str | None = None  # UTC ISO; advance is locked until then
+    duel_penalty_level: int = 0  # level the live penalty was stamped at (once each)
 
     def public(self, players: dict[str, Player]) -> dict[str, Any]:
         """Full view: own team for its leader, and everyone in the lobby."""
@@ -129,6 +136,8 @@ class Team:
             "currency": self.currency,
             "shield_active": self.shield_active,
             "leader_id": self.leader_id,
+            "duel_streak": self.duel_streak,
+            "duel_penalty_until": self.duel_penalty_until,
             "players": [member.public() for member in members],
         }
 
@@ -145,10 +154,79 @@ class Team:
             "level": self.level,
             "roster_size": self.roster_size,
             "finished": self.finished,
+            # Not progress info: a team held by a duel penalty must be able to
+            # see *why* it is stuck, or the lock reads as a bug.
+            "duel_penalty_until": self.duel_penalty_until,
         }
         if include_green:
             members = [players[player_id] for player_id in self.player_ids]
             view["green_count"] = sum(1 for member in members if green(member))
+        return view
+
+
+@dataclass
+class DuelSession:
+    """One duel in progress between the two teams' Duelists.
+
+    Match-level state, not player-level: a single object both Duelists act on.
+    `state.choices` is server-only while the round is open — the reveal rule is
+    enforced by the module's `public()` (see duel_base.base_public), never here.
+    """
+
+    id: str
+    module: DuelModule  # the singleton the server picked; not serialised
+    state: DuelState
+    sides: dict[str, str] = field(default_factory=dict)   # "a"/"b" -> player id
+    team_of: dict[str, str] = field(default_factory=dict)  # "a"/"b" -> team id
+    phase: str = "choosing"  # "choosing" | "reveal" | "done"
+    deadline: str | None = None  # UTC ISO for the current phase
+    last_round: dict[str, Any] | None = None  # the round that just resolved
+    winner_side: str | None = None  # set once the duel is decided
+
+    def side_of(self, player_id: str) -> str | None:
+        for side, seat_player_id in self.sides.items():
+            if seat_player_id == player_id:
+                return side
+        return None
+
+    def player_ids(self) -> list[str]:
+        return [self.sides[side] for side in SIDES if side in self.sides]
+
+    def revealed(self) -> bool:
+        """Choices become public the instant the round stops being open."""
+        return self.phase != "choosing"
+
+    def winner_team_id(self) -> str | None:
+        if self.winner_side is None:
+            return None
+        return self.team_of.get(self.winner_side)
+
+    def loser_team_id(self) -> str | None:
+        if self.winner_side is None:
+            return None
+        return self.team_of.get(other_side(self.winner_side))
+
+    def public(self, me: Player, players: dict[str, Player]) -> dict[str, Any]:
+        """The duel as `me` is allowed to see it.
+
+        Names only, never player ids: an id is a WS credential, and the
+        opponent's is not exposed anywhere else in the protocol either.
+        """
+        view = self.module.public(self.state, self.side_of(me.id), self.revealed())
+        view.update({
+            "id": self.id,
+            "name": self.module.name,
+            "phase": self.phase,
+            "deadline": self.deadline,
+            "last_round": dict(self.last_round) if self.last_round else None,
+            "winner_side": self.winner_side,
+            "team_of": dict(self.team_of),
+            "duellists": {
+                side: players[player_id].name
+                for side, player_id in self.sides.items()
+                if player_id in players
+            },
+        })
         return view
 
 
@@ -163,10 +241,24 @@ class Match:
     winner_team_id: str | None = None
     events: list[Event] = field(default_factory=list)
     config_snapshot: dict[str, Any] = field(default_factory=dict)  # frozen at start
+    duel: DuelSession | None = None  # the live cross-team duel, if any
 
     def unassigned(self) -> list[Player]:
         """Lobby players who haven't picked (or been given) a team yet."""
         return [p for p in self.players.values() if p.team_id is None]
+
+    def _duel_view(self, me: Player | None) -> dict[str, Any] | None:
+        """The duel reaches only the two Duelists and the two Grandmasters.
+
+        A deliberate, minimal exception to the leader-exclusive visibility rule
+        (REDESIGN_PLAN locked decision #9): a Duelist must see who they are
+        fighting. Ordinary solvers still learn nothing about the other team.
+        """
+        if self.duel is None or me is None:
+            return None
+        if not (me.is_leader or me.id in self.duel.sides.values()):
+            return None
+        return self.duel.public(me, self.players)
 
     def _team_view(self, team: Team, me: Player | None) -> dict[str, Any]:
         if self.status == "lobby":
@@ -200,5 +292,6 @@ class Match:
             },
             "unassigned": [player.public() for player in self.unassigned()],
             "events": [event.public() for event in events],
+            "duel": self._duel_view(me),
             "me": me.private() if me else None,
         }

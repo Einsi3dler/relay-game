@@ -89,7 +89,8 @@ def test_match_public_shape():
     out = make_match().public()
     assert set(out) == {"id", "status", "host_player_id", "min_players",
                         "winner_team_id", "config", "teams", "unassigned",
-                        "events", "me"}
+                        "events", "duel", "me"}
+    assert out["duel"] is None  # no Duelists in this fixture
     assert out["status"] == "active"
     assert out["winner_team_id"] is None
     assert out["config"]["wait_seconds"] == 180
@@ -109,12 +110,13 @@ def test_leader_sees_own_team_full_and_opponent_summary():
     own = out["teams"]["alpha"]
     assert set(own) == {"id", "name", "level", "roster_size", "finished",
                         "green_count", "currency", "shield_active",
-                        "leader_id", "players"}
+                        "leader_id", "duel_streak", "duel_penalty_until",
+                        "players"}
     assert own["currency"] == 5 and own["shield_active"] is True
     assert [p["id"] for p in own["players"]] == ["p_lead", "p_alice", "p_bob"]
     opponent = out["teams"]["bravo"]
     assert set(opponent) == {"id", "name", "level", "roster_size", "finished",
-                             "green_count"}
+                             "green_count", "duel_penalty_until"}
     assert opponent["green_count"] == 1  # Cara is cleared
     assert opponent["level"] == 1
 
@@ -122,7 +124,8 @@ def test_leader_sees_own_team_full_and_opponent_summary():
 def test_player_sees_only_own_level_and_no_opponent_progress():
     out = make_match().public("p_alice")
     own = out["teams"]["alpha"]
-    assert set(own) == {"id", "name", "level", "roster_size", "finished"}
+    assert set(own) == {"id", "name", "level", "roster_size", "finished",
+                        "duel_penalty_until"}
     assert own["level"] == 2  # your level, but not who has cleared
     opponent = out["teams"]["bravo"]
     assert set(opponent) == {"id", "name", "finished"}  # nothing else
