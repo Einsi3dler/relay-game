@@ -627,3 +627,10 @@ def test_a_lone_duelist_cannot_start_the_match(client, fake_games):
             assert message.get("state", {}).get("status") != "active"
         else:
             raise AssertionError("start was not refused")
+
+
+def test_duel_renderer_is_served(client):
+    response = client.get("/static/duels/rps_duel.js")
+    assert response.status_code == 200
+    assert "RelayDuels" in response.text
+    assert '/static/duels/rps_duel.js' in client.get("/play").text

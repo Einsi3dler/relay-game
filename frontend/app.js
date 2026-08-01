@@ -12,6 +12,8 @@
   var socket = null;
   var lastState = null;
   var mounted = null;      // { puzzleId, renderer }
+  var mountedDuel = null;  // { duelId, renderer, mountId }
+  var duelTimerHandle = null;
   var timerHandle = null;
   var frozenHandle = null;
   var toastHandle = null;
@@ -68,8 +70,12 @@
     send(fields);
   }
 
+  // Duel ids aren't in the game library (the server picks them, so the lobby
+  // picker never offers them) — name them from the duel catalogue instead.
+  var DUEL_NAMES = { rps_duel: "Rock Paper Scissors" };
+
   function gameName(gameId) {
-    return gameNames[gameId] || gameId || "?";
+    return gameNames[gameId] || DUEL_NAMES[gameId] || gameId || "?";
   }
 
   function roleName(roleId) {
@@ -197,6 +203,7 @@
     else if (message.type === "error") toast(message.error);
     else if (message.type === "level_advanced") stageOverlay("Level " + message.level + "! 🚀");
     else if (message.type === "perk_used") perkToast(message);
+    else if (message.type === "duel_result") duelToast(message);
     else if (message.type === "event") logEvent(message.event, true);
   }
 
@@ -380,6 +387,16 @@
       };
       row.appendChild(roleSelect);
 
+      if (player.role === "duelist") {
+        // The server picks a Duelist's game, so there is nothing to choose.
+        var fixed = document.createElement("span");
+        fixed.className = "muted";
+        fixed.textContent = "⚔️ the server picks the duel";
+        row.appendChild(fixed);
+        rows.appendChild(row);
+        return;
+      }
+
       var select = document.createElement("select");
       select.className = "assign-select";
       var placeholder = document.createElement("option");
@@ -456,9 +473,28 @@
               p.name + ".";
           }
         });
+        if (!blocker && duelistsOf(team).length > 1) {
+          blocker = "Team " + team.name + " can only field one Duelist.";
+        }
       }
     });
-    return blocker;
+    if (blocker) return blocker;
+    // Mirrored role: a duel needs two seats, so one champion forces another.
+    var fielding = ["alpha", "bravo"].filter(function (teamId) {
+      return duelistsOf(state.teams[teamId]).length > 0;
+    });
+    if (fielding.length === 1) {
+      var other = fielding[0] === "alpha" ? "bravo" : "alpha";
+      return "Team " + state.teams[fielding[0]].name + " has a Duelist — team " +
+        state.teams[other].name + " needs one too.";
+    }
+    return null;
+  }
+
+  function duelistsOf(team) {
+    return (team.players || []).filter(function (p) {
+      return !p.is_leader && p.role === "duelist";
+    });
   }
 
   $("copy-link") && $("copy-link").addEventListener("click", function () {
@@ -491,7 +527,9 @@
       '<span class="team-name">' + (team.id === "alpha" ? "🔥" : "🌊") + " " +
       team.name + "</span>" +
       '<span class="stage-tag">Level ' + team.level + "</span>" +
-      '<span class="muted">Your game: ' + gameName(me.assigned_game) + "</span>";
+      '<span class="muted">' + (state.duel && state.duel.you
+        ? "You are the ⚔️ Duelist"
+        : "Your game: " + gameName(me.assigned_game)) + "</span>";
     strip.appendChild(row);
   }
 
@@ -499,7 +537,10 @@
     var me = state.me;
     if (!me) return;
     var puzzle = me.current_puzzle;
-    $("cleared-card").hidden = me.status !== "cleared";
+    // A Duelist's green comes from the duel card, not a cleared puzzle — the
+    // "Level cleared!" rest card would be a lie for them.
+    var duelling = !!(state.duel && state.duel.you);
+    $("cleared-card").hidden = me.status !== "cleared" || duelling;
     $("choice-overlay").hidden = !(me.status === "cleared" && me.choice_pending);
     $("bonus-badge").hidden = me.status !== "bonus";
     $("puzzle-card").hidden = !puzzle;
@@ -511,6 +552,89 @@
     }
     startCountdown(me.timer_deadline, me.status);
     renderFrozen(me.frozen_until);
+    renderDuel(state, "duel-card", "duel-mount");
+  }
+
+  // --- duels ---
+  //
+  // A duel is one long-lived object that changes phase under the same id, so
+  // renderers get update() as well as mount(). Only the two Duelists and the
+  // two Grandmasters are sent `state.duel` at all; everyone else sees null.
+  function renderDuel(state, cardId, mountId) {
+    var duel = state.duel;
+    var card = $(cardId);
+    if (!card) return;
+    if (!duel) {
+      card.hidden = true;
+      unmountDuel();
+      startDuelCountdown(null);
+      return;
+    }
+    card.hidden = false;
+    var renderer = window.RelayDuels[duel.duel_game_id] ||
+      window.RelayDuels.fallback;
+    if (!mountedDuel || mountedDuel.duelId !== duel.id ||
+        mountedDuel.mountId !== mountId) {
+      unmountDuel();
+      renderer.mount($(mountId), duel, {
+        choose: function (move, duelId, round) {
+          send({
+            type: "duel_choice",
+            duel_id: duelId,
+            round: round,
+            choice: String(move),
+          });
+        },
+      });
+      mountedDuel = { duelId: duel.id, renderer: renderer, mountId: mountId };
+    } else {
+      renderer.update(duel);
+    }
+    var title = $("duel-title");
+    if (title) {
+      title.textContent = "⚔️ " + (duel.name || "Duel") + " — round " + duel.round;
+    }
+    // Only the choice window is a race; the reveal beat needs no pressure bar.
+    startDuelCountdown(duel.phase === "choosing" ? duel.deadline : null, duel);
+  }
+
+  function unmountDuel() {
+    if (mountedDuel) {
+      mountedDuel.renderer.unmount();
+      mountedDuel = null;
+    }
+  }
+
+  function startDuelCountdown(deadlineIso, duel) {
+    clearInterval(duelTimerHandle);
+    var bar = $("duel-timer-bar");
+    if (!bar) return;
+    if (!deadlineIso) { bar.hidden = true; return; }
+    var deadline = parseDeadline(deadlineIso);
+    var total = ((duel && duel.payload && duel.payload.choice_seconds) || 5) * 1000;
+    bar.hidden = false;
+    var tick = function () {
+      var left = Math.max(0, deadline - Date.now());
+      $("duel-timer-fill").style.width = Math.min(100, (left / total) * 100) + "%";
+      if (left <= 0) clearInterval(duelTimerHandle);
+    };
+    tick();
+    duelTimerHandle = setInterval(tick, 100);
+  }
+
+  function duelToast(message) {
+    var mine = lastState && lastState.me && lastState.me.team_id;
+    var won = mine && message.winner_team_id === mine;
+    if (!mine) return;
+    if (won) {
+      toast("⚔️ " + message.winner_name + " won the duel! +" +
+        message.currency + " 🪙" +
+        (message.streak > 1 ? " (streak ×" + message.streak + ")" : ""));
+    } else {
+      toast("⚔️ " + message.loser_name + " lost the duel to " +
+        message.winner_name + "." +
+        (message.penalty_until ? " Your team is locked for a moment." : ""));
+    }
   }
 
   // Mount by game_id from window.RelayGames; unmount the old first.
@@ -586,8 +710,12 @@
   // --- leader dashboard ---
 
   function statusPill(player) {
-    if (player.green) return ["cleared ✅", "pill green"];
+    if (player.green) {
+      return player.role === "duelist"
+        ? ["duel won ⚔️", "pill green"] : ["cleared ✅", "pill green"];
+    }
     if (player.status === "bonus") return ["bonus 🔥", "pill bonus"];
+    if (player.status === "duelling") return ["duelling ⚔️", "pill"];
     if (player.status === "finished") return ["done 🏁", "pill"];
     return ["solving …", "pill"];
   }
@@ -599,9 +727,14 @@
     $("leader-team-title").textContent =
       (team.id === "alpha" ? "🔥 " : "🌊 ") + team.name + " — Level " + team.level;
     $("leader-currency").textContent = "🪙 " + team.currency;
+    var locked = team.duel_penalty_until &&
+      parseDeadline(team.duel_penalty_until) > Date.now();
     $("leader-status-line").textContent =
       team.green_count + "/" + team.roster_size + " cleared" +
-      (team.shield_active ? " · 🛡️ shield up" : "");
+      (team.shield_active ? " · 🛡️ shield up" : "") +
+      (team.duel_streak ? " · ⚔️ duel streak " + team.duel_streak : "") +
+      (locked ? " · ⛔ duel penalty — the team can't advance yet" : "");
+    renderDuel(state, "leader-duel-card", "leader-duel-mount");
 
     var roster = $("leader-roster");
     roster.innerHTML = "";

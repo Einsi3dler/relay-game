@@ -90,6 +90,11 @@
       <span id="bonus-badge" class="bonus-badge" hidden>🔥 BONUS — solve it or forfeit your bonus loot!</span>
       <div id="puzzle-mount"></div>
     </div>
+    <div id="duel-card" class="card duel-card" hidden>
+      <p class="prompt"><span id="duel-title">⚔️ DUEL</span></p>
+      <div id="duel-timer-bar" class="timer-bar duel-timer" hidden><div id="duel-timer-fill"></div></div>
+      <div id="duel-mount"></div>
+    </div>
     <div id="cleared-card" class="card rest" hidden>
       <div class="rest-big">✅ Level cleared!</div>
       <p>Hold on for your team — if the timer runs out, you'll have to clear it again.</p>
@@ -107,6 +112,11 @@
       <p class="sub" id="leader-status-line"></p>
       <ul id="leader-roster" class="leader-roster"></ul>
       <div class="leader-opponent" id="leader-opponent"></div>
+    </div>
+    <div id="leader-duel-card" class="card duel-card" hidden>
+      <h2>⚔️ Duel</h2>
+      <p class="sub">You can watch, but not the moves — neither Duelist's hand reaches you until the round resolves.</p>
+      <div id="leader-duel-mount"></div>
     </div>
     <div class="card">
       <h2>🛒 Perk shop</h2>
@@ -155,6 +165,7 @@
   <script src="/static/games/stackdrop.js" defer></script>
   <script src="/static/games/lane_shift.js" defer></script>
   <script src="/static/games/shadow_cast.js" defer></script>
-  <script src="/static/app.js?v=2" defer></script>
+  <script src="/static/duels/rps_duel.js" defer></script>
+  <script src="/static/app.js?v=3" defer></script>
 </body>
 </html>
