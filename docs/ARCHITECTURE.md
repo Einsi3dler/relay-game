@@ -157,7 +157,7 @@ player precompute their board**. Rules:
 Timers must fire even if the relevant client is closed, so they cannot live in the
 browser. Approach:
 
-- **`TimerService`** holds, per `(match_id, player_id)`, at most one pending
+- **`TimerService`** holds, per `(match_id, scope_id)`, at most one pending
   deadline and an `asyncio` task (or a single global tick loop that scans
   deadlines every ~500ms — either is acceptable; a per-timer `asyncio.create_task`
   with `asyncio.sleep` is simplest).
@@ -166,13 +166,20 @@ browser. Approach:
 - When the deadline fires, the callback calls back **into the engine**
   (`on_wait_expired`), which applies the GAME_DESIGN rule (cleared status lost,
   or bonus failed with forfeit), then `main.py` broadcasts the new state.
-- Starting a new timer for a player **cancels** their previous one (a player has at
-  most one active timer). Advancing a level or winning **cancels all** of a team's
-  timers.
-- **The wait deadline is the only scheduled timer.** The freeze perk is a lazy
-  `frozen_until` deadline checked on submit — deliberately, so the
-  one-timer-per-player invariant holds. Any future second concurrent deadline
-  must also be lazy, or the `(match_id, player_id)` timer key must grow.
+- Starting a new timer for a scope **cancels** its previous one (one active timer
+  each). Advancing a level or winning **cancels all** of a team's timers.
+- **A scope is usually a player id** — the wait deadline is the only player-scoped
+  timer, and the freeze perk is deliberately a lazy `frozen_until` check on submit
+  rather than a second one. Cross-team mechanics own their own scopes so their
+  clocks can run *concurrently* with a player's wait timer without displacing it:
+  `"duel"` for the duel phase clock and `"team:<id>"` for a team's duel penalty.
+  Player ids are 8-char uuid hex, so they never collide with those literals.
+- A duel round is why the key had to widen at all: a 5-second secret-choice window
+  cannot be lazy, because the server itself must fire to reveal. Any future
+  deadline that must run alongside an existing one needs its own scope, or to be
+  lazy.
+- `main.py`'s fire callback routes on `kind` — `wait` to `on_wait_expired`,
+  `duel_*` to `on_duel_timer`.
 - The engine stays pure: it never sleeps. It only says *"schedule/cancel this
   deadline."* `TimerService` is the only place that touches the clock and the loop.
 

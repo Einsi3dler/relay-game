@@ -23,7 +23,8 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
   assignment picker (each entry's `role` is its specialist role id, or `null`).
   `roles` is the full role catalogue: `games` is the list a role may be
   assigned, or `null` for the Generalist (any game); an empty list marks a
-  reserved role (e.g. Lexicon) that can't be assigned yet.
+  reserved role (`games: []`) that can't be assigned yet. `assign_game` is
+  refused outright for a Duelist — the server picks that one.
 - `team_id: null` (the normal client flow) → the player joins **unassigned** and
   picks a team in the lobby (or the host assigns one).
 - The **first joiner becomes the match host**.
@@ -54,6 +55,7 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 | `type` | Fields | Meaning |
 | --- | --- | --- |
 | `submit_answer` | `puzzle_id: str`, `answer: str` | Submit the current puzzle (level board while `solving`, bonus board while `bonus`). |
+| `duel_choice` | `duel_id: str`, `round: int`, `choice: str` | A Duelist commits a move for the open round. Recorded server-side and **never broadcast** — the round resolves when both have committed or the window lapses. Rejected for anyone not seated in the duel, for a closed or stale round, for a second attempt at the same round, and for an illegal move. |
 | `choose_wait` | — | Cleared player locks in "wait" (clears `choice_pending`; the wait timer keeps running). |
 | `choose_bonus` | — | Cleared player takes the bonus: status → `bonus`, a harder instance of their game arrives, the running wait deadline becomes the bonus deadline. |
 | `buy_perk` | `perk_id: str`, `target_id?: str` | Grandmaster-only, active match only. `target_id` is required for `extend_wait` (a cleared teammate); attack perks pick a random opponent server-side. |
@@ -82,6 +84,7 @@ lightweight nudges for animations/toasts; never require them for correctness.
 | `event` | `event: <Event>` | A log line to append. **`green`/`lost_green` events go to Grandmaster sockets only** (who cleared is Grandmaster-only knowledge); everything else is broadcast. |
 | `level_advanced` | `team_id: str`, `level: int` | A team advanced — trigger a transition animation. |
 | `perk_used` | `perk_id: str`, `by_team_id: str` | A perk fired — toast/flash material. |
+| `duel_result` | `duel_id`, `winner_team_id`, `loser_team_id`, `winner_name`, `loser_name`, `wins`, `streak`, `currency`, `penalty_until` | A duel was decided. A nudge only: the snapshot already carries the outcome. Broadcast to everyone — both teams watched the same duel resolve. |
 | `match_won` | `team_id: str` | A team won; match is over. |
 
 > Minimal client: handle `state_snapshot` (render) and `error` (toast). Everything

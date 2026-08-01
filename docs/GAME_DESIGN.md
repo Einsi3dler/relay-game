@@ -52,7 +52,7 @@ Roles are defined in `config.ROLES`:
 | Puzzle Master | Decant, Stackdrop |
 | Spymaster | Echo, Overprint |
 | Generalist | any registered game |
-| Lexicon | *reserved* — no matching game shipped yet, not assignable |
+| Duelist | *the server picks* — duels the other team's Duelist (see §2b) |
 
 Rules:
 
@@ -63,10 +63,55 @@ Rules:
   overlap, and two Generalists is a legitimate setup. (Two players locked to
   the *same* single-game role would leave one unassignable, which `start` will
   refuse until it's fixed — a visible, self-correcting lobby mistake.)
-- **Lexicon** is reserved for a future word game; until one ships it has no
-  games and cannot be assigned.
+- **Duelist** breaks several of the rules above on purpose — see §2b.
 - On a Grandmaster handoff the role moves with the seat's game; switching teams
   or claiming the seat clears a player's role.
+
+### 2b. The Duelist
+
+A team may spend one of its four playing slots on a **Duelist** — a champion who
+never solves a puzzle. Their only job is beating the other team's Duelist.
+
+The role deliberately breaks the rules above:
+
+- **The server picks their game, not the Grandmaster.** `assign_game` is refused
+  for a Duelist. Duel games live in their own catalogue and never appear in the
+  lobby picker.
+- **It is mirrored.** If one team fields a Duelist, the other must too — a duel
+  needs two seats. The match won't start otherwise.
+- **At most one per team.**
+- **They can't be handed the Grandmaster seat mid-match**, which would vacate a
+  duel seat mid-fight.
+
+**How a duel works.** A duel starts at kickoff and again every
+`DUEL_INTERVAL_SECONDS` (30s) after the last one resolves. Both Duelists commit a
+move inside a window set by the duel game (5s for RPS DUEL) *without seeing each
+other's*; the round resolves when both have committed or the window lapses — a
+Duelist who lets it lapse forfeits that round, so stalling never pays. Ties replay.
+First to the game's win target (2 for RPS) takes the duel.
+
+**What a duel is worth.**
+
+- The **winner goes green** and stays green until the next duel — their team can
+  advance while they hold it. There is no wait timer on a duel win, so `extend_wait`
+  can't prolong one either.
+- The **loser is not green**, which blocks their team by exactly the same mechanism
+  a bonus-hunting player does. Nothing special is needed for this.
+- The **winning team is paid** `DUEL_WIN_CURRENCY` (2), doubling on each consecutive
+  win, capped at `DUEL_CURRENCY_CAP` (8). Any loss resets the streak.
+- The **losing team is locked** out of advancing for `DUEL_PENALTY_SECONDS` (60) —
+  **once per level**. Losing twice at the same level costs nothing extra beyond
+  staying un-green, and the lock clears on level-up. It only bites when the team is
+  otherwise ready to advance, and their wait timers keep running while it holds, so
+  holding green through it is the real tax.
+
+**Who sees a duel.** The two Duelists and the two Grandmasters, nobody else. This is
+a deliberate, minimal exception to the leader-exclusive visibility rule (§9) — a
+Duelist has to see who they're fighting. Ordinary solvers still learn nothing about
+the other team, and the view carries names, never player ids. Neither Duelist —
+nor either Grandmaster — receives the opponent's move until the round has resolved.
+
+Building a new duel game: [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md).
 
 ### Lobby / start (host + Grandmasters)
 
@@ -81,8 +126,9 @@ Rules:
 - The **host** still controls the lobby: move players, kick (`4403`), set the
   **minimum playing members per team** (1..`PLAYERS_PER_TEAM`), and **start**.
 - Start is allowed only when every player has a team, **each team has a
-  Grandmaster**, each team's playing count is within bounds, and **every playing
-  member has an assigned game**.
+  Grandmaster**, each team's playing count is within bounds, **every playing
+  member has an assigned game**, and the **Duelist mirror rule** holds — at most
+  one Duelist per team, and either both teams field one or neither does (§2b).
 - If the host disconnects, any player can **claim host** while they're gone.
 - Sharing: the lobby exposes an invite URL (`/play?match=<id>`).
 
@@ -96,12 +142,15 @@ Each player has exactly one status at any time. This is the heart of the engine.
 | `solving` | Working on their game's **level puzzle**. | Their game + controls. |
 | `cleared` | Solved the level; holding cleared status on the **wait timer**. | "Cleared ✅" + countdown, plus the wait-or-bonus choice if still pending. |
 | `bonus` | Gambling cleared status on a **bonus board**. | A harder instance of their game + the same countdown. |
+| `duelling` | A **Duelist** who does not currently hold a duel win (§2b). | The duel card: the open round, the score, their move buttons. |
 | `leading` | The team's Grandmaster, observing. | The Grandmaster dashboard. |
 | `finished` | Match over for this team. | Result screen. |
 
 **"Green" = the player counts as ready for advancement.** A player is green
 only while `cleared`. A `bonus` player is **not** green — taking the bonus
-puts their readiness on the line until they solve it.
+puts their readiness on the line until they solve it. Nor is a `duelling`
+player: a Duelist is green only while holding a duel win, so a lost duel blocks
+their team through exactly the same mechanism (§2b).
 
 ```
 green(player) := player.status == "cleared"
@@ -188,13 +237,20 @@ ADVANCE CHECK (for a team):
 | --- | --- | --- | --- |
 | Wait / bonus deadline | `WAIT_SECONDS` | 180 | Holds cleared status; doubles as the bonus deadline. Expiry = lose cleared / fail the bonus. |
 | Freeze (perk) | `PERKS["freeze"]["seconds"]` | 10 | Not a scheduled timer — a `frozen_until` deadline checked lazily on submit. |
+| Duel round | the duel module's `choice_seconds` | 5 | The window both Duelists commit inside. Expiry resolves the round; a Duelist who didn't commit forfeits it. |
+| Duel reveal | `DUEL_REVEAL_SECONDS` | 3 | The beat between rounds where both hands are shown. |
+| Next duel | `DUEL_INTERVAL_SECONDS` | 30 | Gap from one duel resolving to the next starting. |
+| Duel penalty | `DUEL_PENALTY_SECONDS` | 60 | Advance lock on a team that lost a duel — once per level. |
 
 - Timers are **server-authoritative**: the server stores an absolute
   **`deadline`** (UTC ISO) and sends it in the snapshot; the client renders the
   countdown. Expiry consequences are applied by the server.
-- The wait deadline is the **only** scheduled timer per player. Any future
-  second concurrent deadline must be lazy (like freeze) or the timer key must
-  grow — see [ARCHITECTURE.md](ARCHITECTURE.md) §4.
+- The wait deadline is the **only** scheduled timer per *player*. The duel
+  timers are match-level and run on their own scopes (`"duel"`, `"team:<id>"`),
+  which is exactly why they can run concurrently with a player's wait timer.
+  Any future deadline that must run alongside an existing one needs its own
+  scope or must be lazy (like freeze) — see
+  [ARCHITECTURE.md](ARCHITECTURE.md) §4.
 - All durations are tunable via config; never hard-code them.
 
 ## 6. Winning and ending
@@ -211,6 +267,8 @@ ADVANCE CHECK (for a team):
 | First successful bonus of a level (per player) | +3 | `CURRENCY_BONUS_FIRST` |
 | Each later bonus that level (per player) | +1 | `CURRENCY_BONUS_REPEAT` |
 | Bonus failure / bonus deadline expiry | **forfeit that level's bonus pay** | — |
+| Winning a duel (per team) | +2, doubling per consecutive win, capped at 8 | `DUEL_WIN_CURRENCY`, `DUEL_CURRENCY_CAP` |
+| Losing a duel | streak resets to 0 | — |
 
 Currency is a **team pool** spent only by the Grandmaster. Anti-farming rules:
 re-clearing a lapsed level pays nothing (first clear only), chained bonuses pay

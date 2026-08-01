@@ -49,7 +49,8 @@ browser's dev-tools console (client errors). Keep both visible.
 - [ ] **Zero** server tracebacks in the uvicorn log for the whole match.
 - [ ] **Zero** uncaught errors in any browser console.
 - [ ] Role/game assignment behaves: the game picker only offers the assigned
-      role's games, Generalist offers all, Lexicon never appears, and start
+      role's games, Generalist offers all, the Duelist offers none (the server
+      picks) and forces the other team to field one too, and start
       stays blocked until every playing member has a role *and* a game.
 - [ ] Reconnect works: refresh a tab mid-match and the correct view returns
       (a solving player gets a fresh board; cleared/bonus resume their state).

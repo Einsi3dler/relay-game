@@ -173,10 +173,11 @@ and the README doc map.
 - `on_reconnect`: fresh instance when `solving` **or `bonus`** (anti-replay).
 - Config snapshot: `{wait_seconds, level_count, players_per_team, currency_*,
   bonus_level_offset, perks}`.
-- `backend/timers.py` unchanged — the only scheduled deadline left is the
-  wait/bonus deadline (one per player, existing invariant holds); freeze is
-  lazy. Any future second concurrent deadline must be lazy too, or the timer
-  key must grow.
+- `backend/timers.py` — deadlines are keyed by *scope*, at most one each. A
+  scope is a player id (the wait/bonus deadline) or a match-level id owned by a
+  cross-team mechanic (`"duel"`, `"team:<id>"`). Freeze stays lazy. **Amended by
+  the Duelist (V9):** the key widened from `(match_id, player_id)` because a
+  5-second secret-choice window cannot be lazy — the server must fire to reveal.
 
 `backend/protocol.py` + `backend/main.py`
 - Client→server: `submit_answer` (delete `submit_holding`), `choose_wait`,
@@ -265,7 +266,7 @@ incl. `current_bonus`), `test_timers.py` (kinds → `wait`), `test_server.py`
   scales its main board with `level` via a `MAIN_LEVEL_PARAMS` table.
 - ~~Real role definitions~~ — **shipped (V8)**: the designed role catalogue
   replaces the placeholder, the leader is themed as the **Grandmaster**, and
-  roles gate game assignment (Generalist = any). Lexicon is reserved for a
+  roles gate game assignment (Generalist = any). The Duelist is reserved for a
   future word game.
 - More games for the library; perk balance and economy tuning from playtests
   (V6/V7 — see [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md)).

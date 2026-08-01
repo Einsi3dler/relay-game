@@ -22,6 +22,7 @@
     .stage-7 { background: #c9a227; }
     .stage-8 { background: #4e79a7; }
     .stage-9 { background: #2a9d8f; }
+    .stage-duel { background: #8338ec; }
     .cat { color: var(--muted); font-weight: 700; font-size: 0.85rem; margin: 0 0 10px; }
     .game-card h3 { margin: 14px 0 4px; font-size: 0.95rem; }
     .game-card p, .game-card li { margin: 0 0 6px; font-size: 0.95rem; }
@@ -189,6 +190,25 @@
     </ul>
     <p class="sizes">Main: 6 cubes in a 4×4×4 box, 2 turns from a solution · Holding: 4 cubes in a 3×3×3 box, 1 turn</p>
     <p class="tip">💡 Read the two targets before you touch anything. Both are the same width, so that's how wide the block must sit; the FRONT target's height is how tall it must stand, and the TOP target's height is how far back it must reach. That usually rules out most of the six turns before you try one.</p>
+  </section>
+
+  <section class="view card game-card">
+    <h2><span class="stage-chip stage-duel">Duelist</span> ⚔️ RPS DUEL</h2>
+    <p class="cat">Head-to-head · nerve</p>
+    <h3>The role</h3>
+    <p>Your Grandmaster can spend one of the team's four playing slots on a <strong>Duelist</strong> — a champion who never solves a puzzle. Instead you fight the other team's Duelist, over and over, for the whole match. Both teams must field one, or neither does: a duel needs two seats. You don't pick your game either — <strong>the server does</strong>.</p>
+    <h3>How to play</h3>
+    <ul>
+      <li>A duel opens at kickoff and again <strong>30 seconds</strong> after the last one ends. Pick <strong>rock</strong>, <strong>paper</strong> or <strong>scissors</strong> inside a <strong>5-second</strong> window.</li>
+      <li>Neither of you sees the other's hand until the round resolves — not even your Grandmaster, so there's nobody to ask. Let the window lapse and you <strong>forfeit that round</strong>, so a guess always beats a freeze.</li>
+      <li><strong>First to two</strong> takes the duel. Ties replay.</li>
+    </ul>
+    <h3>What it's worth</h3>
+    <ul>
+      <li><strong>Win</strong> and you're your team's green light — they can't advance a level without you, and they can while you hold it. Your team banks <strong>2 coins, doubling every duel you win in a row</strong>, up to 8.</li>
+      <li><strong>Lose</strong> and your team is stuck until you win the next one — <em>plus</em> a <strong>60-second lock</strong> that holds even after you win it back. That lock only lands <strong>once per level</strong>, so a bad run costs you time, not the match.</li>
+    </ul>
+    <p class="tip">💡 There's no system to solve here — only the person opposite you. Watch what they threw last round, and remember they're watching you.</p>
   </section>
 
   <section class="view card">
