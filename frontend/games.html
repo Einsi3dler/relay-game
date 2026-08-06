@@ -22,6 +22,7 @@
     .stage-7 { background: #c9a227; }
     .stage-8 { background: #4e79a7; }
     .stage-9 { background: #2a9d8f; }
+    .stage-10 { background: #8338ec; }
     .stage-duel { background: #8338ec; }
     .cat { color: var(--muted); font-weight: 700; font-size: 0.85rem; margin: 0 0 10px; }
     .game-card h3 { margin: 14px 0 4px; font-size: 0.95rem; }
@@ -190,6 +191,23 @@
     </ul>
     <p class="sizes">Main: 6 cubes in a 4×4×4 box, 2 turns from a solution · Holding: 4 cubes in a 3×3×3 box, 1 turn</p>
     <p class="tip">💡 Read the two targets before you touch anything. Both are the same width, so that's how wide the block must sit; the FRONT target's height is how tall it must stand, and the TOP target's height is how far back it must reach. That usually rules out most of the six turns before you try one.</p>
+  </section>
+
+  <section class="view card game-card">
+    <h2><span class="stage-chip stage-10">Game 10</span> 🧵 THREADLINE</h2>
+    <p class="cat">Routing · planning under constraints</p>
+    <h3>What you see</h3>
+    <p>A grid with a <strong>START</strong> socket, an <strong>END</strong> socket, numbered anchors, and blocked cells (✕). Above the board: which anchor you need next, how many bends you have spent, and how long your cable has run.</p>
+    <h3>How to play</h3>
+    <ul>
+      <li>Draw <strong>one</strong> cable from START to END. Tap a neighbouring cell to extend it, drag across the grid to trace, or use the <strong>arrow keys</strong>.</li>
+      <li>The anchors must be reached <strong>in their numbered order</strong> — stepping onto a later one early fails the run, it isn't ignored.</li>
+      <li>The cable can't enter a blocked cell or <strong>cross or touch itself</strong>; every cell is used at most once, so doubling back on your own line is out.</li>
+      <li>Every corner spends one <strong>bend</strong>, and the board only gives you so many. A red bar on an anchor is a <strong>port</strong>: the cable has to cross that particular side.</li>
+      <li>Tap a cell your cable already covers to <strong>rewind to it</strong>, or UNDO one step at a time. The board submits itself the moment a legal cable reaches END.</li>
+    </ul>
+    <p class="sizes">Main: 8×8, 3–5 anchors, 5–10 blocked cells, 6–10 bends · Holding: 5×5, one anchor, one obstacle</p>
+    <p class="tip">💡 Bends, not length, are the scarce thing. Plan the corners first — count the turns a route needs before you draw a single cell, and prefer the one that lines an anchor up with the next one.</p>
   </section>
 
   <section class="view card game-card">

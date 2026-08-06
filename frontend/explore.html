@@ -54,6 +54,7 @@
         <button data-game="stackdrop">🪀 STACKDROP</button>
         <button data-game="lane_shift">📦 LANE SHIFT</button>
         <button data-game="shadow_cast">🧊 SHADOW CAST</button>
+        <button data-game="threadline">🧵 THREADLINE</button>
       </div>
       <div class="kind-row">
         <span class="label">Puzzle type:</span>
@@ -95,12 +96,13 @@
   <script src="/static/games/stackdrop.js" defer></script>
   <script src="/static/games/lane_shift.js" defer></script>
   <script src="/static/games/shadow_cast.js" defer></script>
+  <script src="/static/games/threadline.js" defer></script>
   <script defer>
     document.addEventListener("DOMContentLoaded", function () {
       "use strict";
       var $ = function (id) { return document.getElementById(id); };
       var GAMES = ["rewire", "sweep", "mirror_run", "decant", "echo", "overprint",
-                   "stackdrop", "lane_shift", "shadow_cast"];
+                   "stackdrop", "lane_shift", "shadow_cast", "threadline"];
 
       var current = { game: "rewire", kind: "main", seed: null, puzzle: null };
       var mounted = null;

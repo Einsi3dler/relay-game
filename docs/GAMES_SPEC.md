@@ -1,7 +1,8 @@
 # The Relay — The Game Library (detailed spec)
 
 The concrete design for the library games: REWIRE, SWEEP, MIRROR RUN, DECANT,
-ECHO (this doc), plus OVERPRINT, STACKDROP, LANE SHIFT, SHADOW CAST and the expansion candidates in
+ECHO (this doc), plus OVERPRINT, STACKDROP, LANE SHIFT, SHADOW CAST, THREADLINE and the
+expansion candidates in
 [`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md).
 In v2 there is no stage order — the **team leader assigns one game per player**
 (see [GAME_DESIGN.md](GAME_DESIGN.md) §2). Each game owner builds against the
@@ -455,6 +456,7 @@ tedious to transcribe. Normal play is faster than tool-assisted transcription.
 | **STACKDROP** | Causal prediction | Tap a pin to arm, again to pull | `{"v":1,"remove":["p1","p0"]}` | replay pulls through the cell simulation → every ball in its container |
 | **LANE SHIFT** | Scheduling | One action per turn, then the belt moves | `{"v":1,"actions":[["toggle","s0"],["pass"]]}` | replay turns → every packet in its matching exit |
 | **SHADOW CAST** | Spatial | Six quarter-turn buttons (X/Y/Z, each way) | `{"v":1,"turns":["x+","y-"]}` | replay turns → both projections match their targets |
+| **THREADLINE** | Routing | Tap/drag/arrow-key a cable cell by cell | `{"v":1,"path":[[7,0],[6,0]]}` | walk the route → anchors in order, no reuse, inside both caps |
 
 **STACKDROP rules note.** The module ships two pin kinds — flat pins *hold* a
 ball, slanted pins *roll* it one cell down-slope — which extends
@@ -506,6 +508,39 @@ bypassable. The server replays the submitted turns through its own projection
 code and ignores any claimed orientation, bitmap or success flag, so the only
 forgeable thing is the player's effort, not the result. Normal play is faster
 than writing the script.
+
+**THREADLINE rules note.** Version 1 takes the strict reading of every ruling
+[`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md)
+§14 leaves open. Passing through a later anchor early **fails** rather than being
+ignored, and **no cell is used twice** — one rule that covers self-crossing, edge
+reuse, and the 180-degree reversal the section wants rejected. Anchor order is
+read off the walk, never from anything the client says. A port names a **side of
+the anchor cell**: `entry: "n"` means the cable crosses that cell's north side on
+its way in, and `exit: "s"` means it leaves through the south side, so a port
+reads the same whichever way the player is travelling. Ports appear from level 5,
+one side per ported anchor.
+
+The board is generated constructively — a self-avoiding reference route first,
+anchors taken from cells along it, obstacles placed off it — so a legal route
+exists by construction and the checker never compares against it: **any** route
+satisfying the rules wins. Two extra generation gates enforce the section's
+quality bar. `_min_bends` runs a 0-1 BFS over `(cell, next anchor, heading)` that
+ignores self-avoidance, so its answer is a true *lower bound* on the bends any
+legal route must spend; a board is rejected unless `bend_cap` sits within the
+level's `bend_freedom` of that bound (the cap is real, not decorative), and — the
+section's "obstacles do not influence routing" rejection — unless removing the
+obstacles *lowers* it. The level curve then climbs through anchors (3→5),
+obstacles (5→10), route length (12→24 edges) and ports (0→2) while
+`bend_freedom` falls 4→2. Python and JavaScript run the same route walk, locked
+together by `tests/games/fixtures/threadline_cases.json`; the renderer uses it in
+`partial` mode to refuse an illegal step where the player makes it.
+
+**THREADLINE anti-cheat caveat (accepted).** The board is in the payload — it has
+to be, the player is looking at it — and a scripted client could search it. Same
+accepted weakness class as SWEEP's board and ECHO's flash sequence (§0): the
+payload is inspectable, the *checker* is not bypassable. The reference route is
+never sent, no claimed verdict is read, and the server re-walks whatever arrives,
+so the only forgeable thing is the player's effort, not the result.
 
 ## Per-game deliverables (each game owner)
 

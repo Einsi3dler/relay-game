@@ -50,7 +50,7 @@ PERKS: dict[str, dict] = {
 #                  mirrored (both teams field one or neither does), and the
 #                  player duels the opposing Duelist instead of solving.
 ROLES: dict[str, dict] = {
-    "logician":         {"name": "Logician",         "games": ["sweep"]},
+    "logician":         {"name": "Logician",         "games": ["sweep", "threadline"]},
     "technocrat":       {"name": "Technocrat",       "games": ["rewire", "lane_shift"]},
     "spatial_reasoner": {"name": "Spatial Reasoner", "games": ["mirror_run", "shadow_cast"]},
     "puzzle_master":    {"name": "Puzzle Master",    "games": ["decant", "stackdrop"]},

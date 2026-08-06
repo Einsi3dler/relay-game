@@ -64,6 +64,11 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
 
 - [ ] More games for the library (see `game/RELAY_EXPANSION_GAMES_README.md`) —
   every new game widens the library the Grandmaster picks from.
+  **THREADLINE** (game 10, the Logician's second game) shipped: backend module,
+  renderer, Python/JS parity fixture, docs. That completes the expansion spec's
+  §18 first wave (MIRROR RUN, OVERPRINT, STACKDROP, LANE SHIFT, SHADOW CAST,
+  THREADLINE); GRAVITY SHIFT, PRESSURE VALVES, SIGNAL BUFFER, TETHER, FOLDLINE
+  and ORBIT SYNC are the next batch.
 - [ ] More **duel** games for the Duelist role (see
   [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md)) — same rules, different time
   costs. The engine picks between whatever is registered.
