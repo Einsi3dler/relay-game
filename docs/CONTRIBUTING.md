@@ -46,6 +46,7 @@ things at once?".)
 | **Game 7 — STACKDROP** | Game module + renderer | `backend/games/game7_stackdrop.py`, `frontend/games/stackdrop.js`, `tests/games/test_game7_*.py`, `tests/games/fixtures/stackdrop_cases.json` |
 | **Game 8 — LANE SHIFT** | Game module + renderer | `backend/games/game8_lane_shift.py`, `frontend/games/lane_shift.js`, `tests/games/test_game8_*.py`, `tests/games/fixtures/lane_shift_cases.json` |
 | **Game 9 — SHADOW CAST** | Game module + renderer | `backend/games/game9_shadow_cast.py`, `frontend/games/shadow_cast.js`, `tests/games/test_game9_*.py`, `tests/games/fixtures/shadow_cast_cases.json` |
+| **Game 10 — THREADLINE** | Game module + renderer | `backend/games/game10_threadline.py`, `frontend/games/threadline.js`, `tests/games/test_game10_*.py`, `tests/games/fixtures/threadline_cases.json` |
 | **RPS DUEL (Duelist)** | Duel module + renderer | `backend/games/duel1_rps.py`, `backend/games/duel_base.py`, `frontend/duels/rps_duel.js`, `tests/games/test_duel1_rps*.py`, `tests/test_duels.py` |
 | **Frontend** | App shell + leader dashboard + fallback | `frontend/index.html`, `frontend/app.js`, `frontend/style.css`, `frontend/games/fallback.js` |
 
