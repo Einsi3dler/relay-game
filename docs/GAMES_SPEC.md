@@ -457,7 +457,7 @@ tedious to transcribe. Normal play is faster than tool-assisted transcription.
 | **LANE SHIFT** | Scheduling | One action per turn, then the belt moves | `{"v":1,"actions":[["toggle","s0"],["pass"]]}` | replay turns → every packet in its matching exit |
 | **SHADOW CAST** | Spatial | Six quarter-turn buttons (X/Y/Z, each way) | `{"v":1,"turns":["x+","y-"]}` | replay turns → both projections match their targets |
 | **THREADLINE** | Routing | Tap/drag/arrow-key a cable cell by cell | `{"v":1,"path":[[7,0],[6,0]]}` | walk the route → anchors in order, no reuse, inside both caps |
-| **BOMB DEFUSE** | Manual lookup | Open a bay, work it, press OK | `{"v":1,"moves":[{"m":"m0","a":"n"},{"m":"ok"}]}` | replay every bay's actions → all shut, then OK last |
+| **BOMB DEFUSE** | Manual lookup | Open a bay, work it, press OK | `{"v":2,"moves":[{"m":"m0","a":"n"},{"m":"ok"}]}` | replay every bay's actions → each bank shut in turn, the last OK defuses |
 
 **STACKDROP rules note.** The module ships two pin kinds — flat pins *hold* a
 ball, slanted pins *roll* it one cell down-slope — which extends
@@ -561,6 +561,19 @@ who sees the manual but not the bomb. The Relay seats both.
   fuse burns, so asking is faster than looking — but a Grandmaster busy with
   four other players, silenced, or disconnected only ever *slows* their Defuser
   down. They can never strand them, which is what keeps the level curve honest.
+
+**Banks** (rules version 2). A board is a list of *banks*, each with its own
+bays and its own fuse. Shut every bay in the armed bank and press OK and the
+next bank arms behind it on a fresh countdown; the last one defuses the bomb.
+Levels 1–10 are a single bank — an ordinary bomb — and the bonus-only tiers
+11–13 are the ones that come in two, which is what makes them a different board
+rather than just a wider one. Three rules follow from it, all enforced in the
+replay: a bay of a bank that is not armed is refused (`wrong_bank`), whether it
+has not come up yet or has already shut behind you; OK with a bay of the armed
+bank still open is still the explosion; and only the final OK ends the bomb, so
+a transcript that stops one OK short is `missing_ok`. §13's
+no-two-of-a-kind rule is **per bank** — a later bank may reuse a type, since the
+first instance is shuttered by then and the player is reading a fresh board.
 
 Bays work the same way as the manual: the face is a dashboard, and working a bay
 means opening it over the face. Looking at one thing at a time is the whole

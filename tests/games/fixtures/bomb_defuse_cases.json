@@ -6,25 +6,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -35,6 +39,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -52,25 +57,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -81,6 +90,7 @@
     "ok": false,
     "reason": "bad_shape",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -98,25 +108,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -127,6 +141,7 @@
     "ok": false,
     "reason": "bad_shape",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -144,25 +159,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -173,6 +192,7 @@
     "ok": false,
     "reason": "bad_shape",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -190,25 +210,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -221,6 +245,7 @@
     "ok": false,
     "reason": "bad_shape",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -238,18 +263,22 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
      }
     ]
    },
@@ -1064,6 +1093,7 @@
     "ok": false,
     "reason": "too_many_moves",
     "defused": false,
+    "bank": 0,
     "state": {
      "m3": {
       "solved": false
@@ -1077,25 +1107,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1108,6 +1142,7 @@
     "ok": false,
     "reason": "bad_shape",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1125,25 +1160,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1159,6 +1198,7 @@
     "ok": false,
     "reason": "bad_shape",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1176,25 +1216,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1207,6 +1251,7 @@
     "ok": false,
     "reason": "bad_shape",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1224,25 +1269,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1258,6 +1307,7 @@
     "ok": false,
     "reason": "bad_shape",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1275,25 +1325,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1308,6 +1362,7 @@
     "ok": false,
     "reason": "bad_shape",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1325,25 +1380,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1406,6 +1465,7 @@
     "ok": true,
     "reason": "",
     "defused": true,
+    "bank": 1,
     "state": {
      "m0": {
       "solved": true,
@@ -1423,25 +1483,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1457,6 +1521,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1474,25 +1539,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1508,6 +1577,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1525,25 +1595,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1559,6 +1633,7 @@
     "ok": false,
     "reason": "maze_wall",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1576,25 +1651,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1610,6 +1689,7 @@
     "ok": false,
     "reason": "bad_action",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1627,25 +1707,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1661,6 +1745,7 @@
     "ok": false,
     "reason": "bad_action",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1678,25 +1763,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1756,6 +1845,7 @@
     "ok": false,
     "reason": "missing_ok",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true,
@@ -1773,25 +1863,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1855,6 +1949,7 @@
     "ok": false,
     "reason": "already_solved",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true,
@@ -1872,25 +1967,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       3,
-       3
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         3,
+         3
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1906,6 +2005,7 @@
     "ok": false,
     "reason": "bad_shape",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1923,25 +2023,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -1965,6 +2069,7 @@
     "ok": false,
     "reason": "maze_wall",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -1982,22 +2087,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
      }
     ]
    },
@@ -2012,6 +2121,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m1": {
       "solved": false,
@@ -2027,22 +2137,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
      }
     ]
    },
@@ -2068,6 +2182,7 @@
     "ok": true,
     "reason": "",
     "defused": true,
+    "bank": 1,
     "state": {
      "m1": {
       "solved": true,
@@ -2083,22 +2198,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
      }
     ]
    },
@@ -2113,6 +2232,7 @@
     "ok": false,
     "reason": "simon_wrong",
     "defused": false,
+    "bank": 0,
     "state": {
      "m1": {
       "solved": false,
@@ -2128,22 +2248,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
      }
     ]
    },
@@ -2166,6 +2290,7 @@
     "ok": false,
     "reason": "simon_wrong",
     "defused": false,
+    "bank": 0,
     "state": {
      "m1": {
       "solved": false,
@@ -2181,22 +2306,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
      }
     ]
    },
@@ -2211,6 +2340,7 @@
     "ok": false,
     "reason": "bad_action",
     "defused": false,
+    "bank": 0,
     "state": {
      "m1": {
       "solved": false,
@@ -2226,22 +2356,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 3,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 3,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
      }
     ]
    },
@@ -2272,6 +2406,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m1": {
       "solved": false,
@@ -2287,22 +2422,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       }
       ]
      }
     ]
@@ -2325,6 +2464,7 @@
     "ok": true,
     "reason": "",
     "defused": true,
+    "bank": 1,
     "state": {
      "m2": {
       "solved": true,
@@ -2339,22 +2479,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       }
       ]
      }
     ]
@@ -2370,6 +2514,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m2": {
       "solved": false,
@@ -2384,22 +2529,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       }
       ]
      }
     ]
@@ -2415,6 +2564,7 @@
     "ok": false,
     "reason": "atn_wrong",
     "defused": false,
+    "bank": 0,
     "state": {
      "m2": {
       "solved": false,
@@ -2429,22 +2579,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       }
       ]
      }
     ]
@@ -2460,6 +2614,7 @@
     "ok": false,
     "reason": "bad_action",
     "defused": false,
+    "bank": 0,
     "state": {
      "m2": {
       "solved": false,
@@ -2474,22 +2629,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       }
       ]
      }
     ]
@@ -2505,6 +2664,7 @@
     "ok": false,
     "reason": "bad_action",
     "defused": false,
+    "bank": 0,
     "state": {
      "m2": {
       "solved": false,
@@ -2519,22 +2679,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       }
       ]
      }
     ]
@@ -2550,6 +2714,7 @@
     "ok": false,
     "reason": "bad_action",
     "defused": false,
+    "bank": 0,
     "state": {
      "m2": {
       "solved": false,
@@ -2564,22 +2729,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       }
       ]
      }
     ]
@@ -2595,6 +2764,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m2": {
       "solved": false,
@@ -2609,22 +2779,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "row",
-      "displays": [
-       3,
-       8
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "row",
+        "displays": [
+         3,
+         8
+        ]
+       }
       ]
      }
     ]
@@ -2640,6 +2814,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m2": {
       "solved": false,
@@ -2654,22 +2829,26 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       2
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         2
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       }
       ]
      }
     ]
@@ -2685,6 +2864,7 @@
     "ok": false,
     "reason": "bad_shape",
     "defused": false,
+    "bank": 0,
     "state": {
      "m2": {
       "solved": false,
@@ -2699,18 +2879,22 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
      }
     ]
    },
@@ -2728,6 +2912,7 @@
     "ok": true,
     "reason": "",
     "defused": true,
+    "bank": 1,
     "state": {
      "m3": {
       "solved": true
@@ -2741,18 +2926,22 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
      }
     ]
    },
@@ -2767,6 +2956,7 @@
     "ok": false,
     "reason": "mini_code",
     "defused": false,
+    "bank": 0,
     "state": {
      "m3": {
       "solved": false
@@ -2780,18 +2970,22 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
      }
     ]
    },
@@ -2806,6 +3000,7 @@
     "ok": false,
     "reason": "bad_action",
     "defused": false,
+    "bank": 0,
     "state": {
      "m3": {
       "solved": false
@@ -2819,18 +3014,22 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
      }
     ]
    },
@@ -2845,6 +3044,7 @@
     "ok": false,
     "reason": "bad_action",
     "defused": false,
+    "bank": 0,
     "state": {
      "m3": {
       "solved": false
@@ -2858,18 +3058,22 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
      }
     ]
    },
@@ -2884,6 +3088,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m3": {
       "solved": true
@@ -2897,62 +3102,66 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
-      ]
-     },
-     {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
      }
     ]
    },
@@ -3038,6 +3247,7 @@
     "ok": true,
     "reason": "",
     "defused": true,
+    "bank": 1,
     "state": {
      "m0": {
       "solved": true,
@@ -3067,62 +3277,66 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
-      ]
-     },
-     {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
      }
     ]
    },
@@ -3204,6 +3418,7 @@
     "ok": false,
     "reason": "premature_ok",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true,
@@ -3233,62 +3448,66 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
-      ]
-     },
-     {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
      }
     ]
    },
@@ -3302,6 +3521,7 @@
     "ok": false,
     "reason": "premature_ok",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -3331,62 +3551,66 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
-      ]
-     },
-     {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
      }
     ]
    },
@@ -3475,6 +3699,7 @@
     "ok": false,
     "reason": "after_ok",
     "defused": false,
+    "bank": 1,
     "state": {
      "m0": {
       "solved": true,
@@ -3504,62 +3729,66 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
-      ]
-     },
-     {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
      }
     ]
    },
@@ -3649,6 +3878,7 @@
     "ok": false,
     "reason": "after_ok",
     "defused": false,
+    "bank": 1,
     "state": {
      "m0": {
       "solved": true,
@@ -3678,62 +3908,66 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
-      ]
-     },
-     {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
      }
     ]
    },
@@ -3816,6 +4050,7 @@
     "ok": false,
     "reason": "missing_ok",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true,
@@ -3845,62 +4080,66 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
-      ]
-     },
-     {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
      }
     ]
    },
@@ -3983,6 +4222,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true,
@@ -4012,62 +4252,66 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
-      ]
-     },
-     {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
      }
     ]
    },
@@ -4082,6 +4326,7 @@
     "ok": false,
     "reason": "unknown_module",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -4111,25 +4356,29 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "ok",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "ok",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
       ]
      }
     ]
@@ -4144,6 +4393,7 @@
     "ok": false,
     "reason": "premature_ok",
     "defused": false,
+    "bank": 0,
     "state": {
      "ok": {
       "solved": false,
@@ -4161,62 +4411,66 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 40,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       0,
-       1
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       2,
-       2
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 1,
-      "stages": 2,
-      "sequence": [
-       "red",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "according_to_number",
-      "bay": 2,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       3,
-       8
-      ]
-     },
-     {
-      "id": "m3",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 3000,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 42
      }
     ]
    },
@@ -4235,6 +4489,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": false,
@@ -4259,23 +4514,1361 @@
    }
   },
   {
+   "name": "two banks, defused",
+   "payload": {
+    "variant": "main",
+    "difficulty": 3,
+    "time_hint_seconds": 40,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 70,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "yellow"
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "m2",
+     "a": 3
+    },
+    {
+     "m": "m2",
+     "a": 1
+    },
+    {
+     "m": "m3",
+     "a": 42
+    },
+    {
+     "m": "ok"
+    }
+   ],
+   "partial": false,
+   "expected": {
+    "ok": true,
+    "reason": "",
+    "defused": true,
+    "bank": 2,
+    "state": {
+     "m0": {
+      "solved": true,
+      "cell": [
+       2,
+       2
+      ]
+     },
+     "m1": {
+      "solved": true,
+      "stage": 2,
+      "in_stage": 0
+     },
+     "m2": {
+      "solved": true,
+      "stage": 2
+     },
+     "m3": {
+      "solved": true
+     }
+    }
+   }
+  },
+  {
+   "name": "two banks, first bank shut",
+   "payload": {
+    "variant": "main",
+    "difficulty": 3,
+    "time_hint_seconds": 40,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 70,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "yellow"
+    },
+    {
+     "m": "ok"
+    }
+   ],
+   "partial": true,
+   "expected": {
+    "ok": true,
+    "reason": "",
+    "defused": false,
+    "bank": 1,
+    "state": {
+     "m0": {
+      "solved": true,
+      "cell": [
+       2,
+       2
+      ]
+     },
+     "m1": {
+      "solved": true,
+      "stage": 2,
+      "in_stage": 0
+     },
+     "m2": {
+      "solved": false,
+      "stage": 0
+     },
+     "m3": {
+      "solved": false
+     }
+    }
+   }
+  },
+  {
+   "name": "two banks, one ok short",
+   "payload": {
+    "variant": "main",
+    "difficulty": 3,
+    "time_hint_seconds": 40,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 70,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "yellow"
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "m2",
+     "a": 3
+    },
+    {
+     "m": "m2",
+     "a": 1
+    },
+    {
+     "m": "m3",
+     "a": 42
+    }
+   ],
+   "partial": false,
+   "expected": {
+    "ok": false,
+    "reason": "missing_ok",
+    "defused": false,
+    "bank": 1,
+    "state": {
+     "m0": {
+      "solved": true,
+      "cell": [
+       2,
+       2
+      ]
+     },
+     "m1": {
+      "solved": true,
+      "stage": 2,
+      "in_stage": 0
+     },
+     "m2": {
+      "solved": true,
+      "stage": 2
+     },
+     "m3": {
+      "solved": true
+     }
+    }
+   }
+  },
+  {
+   "name": "a second bank's bay cannot be pre-solved",
+   "payload": {
+    "variant": "main",
+    "difficulty": 3,
+    "time_hint_seconds": 40,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 70,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m3",
+     "a": 42
+    }
+   ],
+   "partial": true,
+   "expected": {
+    "ok": false,
+    "reason": "wrong_bank",
+    "defused": false,
+    "bank": 0,
+    "state": {
+     "m0": {
+      "solved": false,
+      "cell": [
+       0,
+       0
+      ]
+     },
+     "m1": {
+      "solved": false,
+      "stage": 0,
+      "in_stage": 0
+     },
+     "m2": {
+      "solved": false,
+      "stage": 0
+     },
+     "m3": {
+      "solved": false
+     }
+    }
+   }
+  },
+  {
+   "name": "a shut bank's bay takes no more input",
+   "payload": {
+    "variant": "main",
+    "difficulty": 3,
+    "time_hint_seconds": 40,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 70,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "yellow"
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    }
+   ],
+   "partial": true,
+   "expected": {
+    "ok": false,
+    "reason": "wrong_bank",
+    "defused": false,
+    "bank": 1,
+    "state": {
+     "m0": {
+      "solved": true,
+      "cell": [
+       2,
+       2
+      ]
+     },
+     "m1": {
+      "solved": true,
+      "stage": 2,
+      "in_stage": 0
+     },
+     "m2": {
+      "solved": false,
+      "stage": 0
+     },
+     "m3": {
+      "solved": false
+     }
+    }
+   }
+  },
+  {
+   "name": "ok with the second bank still open",
+   "payload": {
+    "variant": "main",
+    "difficulty": 3,
+    "time_hint_seconds": 40,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 70,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "yellow"
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "ok"
+    }
+   ],
+   "partial": true,
+   "expected": {
+    "ok": false,
+    "reason": "premature_ok",
+    "defused": false,
+    "bank": 1,
+    "state": {
+     "m0": {
+      "solved": true,
+      "cell": [
+       2,
+       2
+      ]
+     },
+     "m1": {
+      "solved": true,
+      "stage": 2,
+      "in_stage": 0
+     },
+     "m2": {
+      "solved": false,
+      "stage": 0
+     },
+     "m3": {
+      "solved": false
+     }
+    }
+   }
+  },
+  {
+   "name": "ok twice on a two-bank board",
+   "payload": {
+    "variant": "main",
+    "difficulty": 3,
+    "time_hint_seconds": 40,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 70,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         0,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         3,
+         8
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "yellow"
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "m2",
+     "a": 3
+    },
+    {
+     "m": "m2",
+     "a": 1
+    },
+    {
+     "m": "m3",
+     "a": 42
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "ok"
+    }
+   ],
+   "partial": false,
+   "expected": {
+    "ok": false,
+    "reason": "after_ok",
+    "defused": false,
+    "bank": 2,
+    "state": {
+     "m0": {
+      "solved": true,
+      "cell": [
+       2,
+       2
+      ]
+     },
+     "m1": {
+      "solved": true,
+      "stage": 2,
+      "in_stage": 0
+     },
+     "m2": {
+      "solved": true,
+      "stage": 2
+     },
+     "m3": {
+      "solved": true
+     }
+    }
+   }
+  },
+  {
+   "name": "three banks, defused",
+   "payload": {
+    "variant": "main",
+    "difficulty": 3,
+    "time_hint_seconds": 40,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         2
+        ]
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 70,
+      "modules": [
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 1,
+        "stages": 2,
+        "sequence": [
+         "red",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 50,
+      "modules": [
+       {
+        "id": "m2",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 3000,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 42
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "yellow"
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "m2",
+     "a": 42
+    },
+    {
+     "m": "ok"
+    }
+   ],
+   "partial": false,
+   "expected": {
+    "ok": true,
+    "reason": "",
+    "defused": true,
+    "bank": 3,
+    "state": {
+     "m0": {
+      "solved": true,
+      "cell": [
+       2,
+       2
+      ]
+     },
+     "m1": {
+      "solved": true,
+      "stage": 2,
+      "in_stage": 0
+     },
+     "m2": {
+      "solved": true
+     }
+    }
+   }
+  },
+  {
    "name": "generated seed 11 level 1",
    "payload": {
     "variant": "main",
     "difficulty": 2,
     "time_hint_seconds": 28,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "mini_button",
-      "bay": 4,
-      "delay_ms": 5509,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 69
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "mini_button",
+        "bay": 4,
+        "delay_ms": 5509,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 69
+       }
+      ]
      }
     ]
    },
@@ -4293,6 +5886,7 @@
     "ok": true,
     "reason": "",
     "defused": true,
+    "bank": 1,
     "state": {
      "m0": {
       "solved": true
@@ -4306,18 +5900,22 @@
     "variant": "main",
     "difficulty": 2,
     "time_hint_seconds": 28,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "mini_button",
-      "bay": 4,
-      "delay_ms": 5509,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 69
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "mini_button",
+        "bay": 4,
+        "delay_ms": 5509,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 69
+       }
+      ]
      }
     ]
    },
@@ -4332,6 +5930,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true
@@ -4345,18 +5944,22 @@
     "variant": "main",
     "difficulty": 2,
     "time_hint_seconds": 28,
-    "rules_version": 1,
-    "fuse_seconds": 90,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "mini_button",
-      "bay": 4,
-      "delay_ms": 5509,
-      "reaction_window_ms": 700,
-      "required_hold_ms": 750,
-      "code": 69
+      "fuse_seconds": 90,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "mini_button",
+        "bay": 4,
+        "delay_ms": 5509,
+        "reaction_window_ms": 700,
+        "required_hold_ms": 750,
+        "code": 69
+       }
+      ]
      }
     ]
    },
@@ -4371,6 +5974,7 @@
     "ok": false,
     "reason": "missing_ok",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true
@@ -4384,34 +5988,38 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 52,
-    "rules_version": 1,
-    "fuse_seconds": 92,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 5576,
-      "reaction_window_ms": 680,
-      "required_hold_ms": 820,
-      "code": 35
-     },
-     {
-      "id": "m1",
-      "type": "according_to_number",
-      "bay": 5,
-      "tip": [
-       1,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       7,
-       1,
-       7,
-       8,
-       1
+      "fuse_seconds": 92,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 5576,
+        "reaction_window_ms": 680,
+        "required_hold_ms": 820,
+        "code": 35
+       },
+       {
+        "id": "m1",
+        "type": "according_to_number",
+        "bay": 5,
+        "tip": [
+         1,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         7,
+         1,
+         7,
+         8,
+         1
+        ]
+       }
       ]
      }
     ]
@@ -4450,6 +6058,7 @@
     "ok": true,
     "reason": "",
     "defused": true,
+    "bank": 1,
     "state": {
      "m0": {
       "solved": true
@@ -4467,34 +6076,38 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 52,
-    "rules_version": 1,
-    "fuse_seconds": 92,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 5576,
-      "reaction_window_ms": 680,
-      "required_hold_ms": 820,
-      "code": 35
-     },
-     {
-      "id": "m1",
-      "type": "according_to_number",
-      "bay": 5,
-      "tip": [
-       1,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       7,
-       1,
-       7,
-       8,
-       1
+      "fuse_seconds": 92,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 5576,
+        "reaction_window_ms": 680,
+        "required_hold_ms": 820,
+        "code": 35
+       },
+       {
+        "id": "m1",
+        "type": "according_to_number",
+        "bay": 5,
+        "tip": [
+         1,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         7,
+         1,
+         7,
+         8,
+         1
+        ]
+       }
       ]
      }
     ]
@@ -4518,6 +6131,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true
@@ -4535,34 +6149,38 @@
     "variant": "main",
     "difficulty": 3,
     "time_hint_seconds": 52,
-    "rules_version": 1,
-    "fuse_seconds": 92,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "mini_button",
-      "bay": 3,
-      "delay_ms": 5576,
-      "reaction_window_ms": 680,
-      "required_hold_ms": 820,
-      "code": 35
-     },
-     {
-      "id": "m1",
-      "type": "according_to_number",
-      "bay": 5,
-      "tip": [
-       1,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       7,
-       1,
-       7,
-       8,
-       1
+      "fuse_seconds": 92,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "mini_button",
+        "bay": 3,
+        "delay_ms": 5576,
+        "reaction_window_ms": 680,
+        "required_hold_ms": 820,
+        "code": 35
+       },
+       {
+        "id": "m1",
+        "type": "according_to_number",
+        "bay": 5,
+        "tip": [
+         1,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         7,
+         1,
+         7,
+         8,
+         1
+        ]
+       }
       ]
      }
     ]
@@ -4598,6 +6216,7 @@
     "ok": false,
     "reason": "missing_ok",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true
@@ -4615,61 +6234,65 @@
     "variant": "main",
     "difficulty": 5,
     "time_hint_seconds": 78,
-    "rules_version": 1,
-    "fuse_seconds": 96,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "according_to_number",
-      "bay": 5,
-      "tip": [
-       2,
-       2
-      ],
-      "axis": "column",
-      "displays": [
-       6,
-       1,
-       9,
-       4,
-       1,
-       2
+      "fuse_seconds": 96,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "according_to_number",
+        "bay": 5,
+        "tip": [
+         2,
+         2
+        ],
+        "axis": "column",
+        "displays": [
+         6,
+         1,
+         9,
+         4,
+         1,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         3,
+         0
+        ],
+        "player": [
+         1,
+         2
+        ],
+        "goal": [
+         1,
+         0
+        ]
+       },
+       {
+        "id": "m2",
+        "type": "simon",
+        "bay": 4,
+        "stages": 6,
+        "sequence": [
+         "blue",
+         "red",
+         "yellow",
+         "red",
+         "red",
+         "blue"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       3,
-       0
-      ],
-      "player": [
-       1,
-       2
-      ],
-      "goal": [
-       1,
-       0
-      ]
-     },
-     {
-      "id": "m2",
-      "type": "simon",
-      "bay": 4,
-      "stages": 6,
-      "sequence": [
-       "blue",
-       "red",
-       "yellow",
-       "red",
-       "red",
-       "blue"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
      }
     ]
    },
@@ -4831,6 +6454,7 @@
     "ok": true,
     "reason": "",
     "defused": true,
+    "bank": 1,
     "state": {
      "m0": {
       "solved": true,
@@ -4857,61 +6481,65 @@
     "variant": "main",
     "difficulty": 5,
     "time_hint_seconds": 78,
-    "rules_version": 1,
-    "fuse_seconds": 96,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "according_to_number",
-      "bay": 5,
-      "tip": [
-       2,
-       2
-      ],
-      "axis": "column",
-      "displays": [
-       6,
-       1,
-       9,
-       4,
-       1,
-       2
+      "fuse_seconds": 96,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "according_to_number",
+        "bay": 5,
+        "tip": [
+         2,
+         2
+        ],
+        "axis": "column",
+        "displays": [
+         6,
+         1,
+         9,
+         4,
+         1,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         3,
+         0
+        ],
+        "player": [
+         1,
+         2
+        ],
+        "goal": [
+         1,
+         0
+        ]
+       },
+       {
+        "id": "m2",
+        "type": "simon",
+        "bay": 4,
+        "stages": 6,
+        "sequence": [
+         "blue",
+         "red",
+         "yellow",
+         "red",
+         "red",
+         "blue"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       3,
-       0
-      ],
-      "player": [
-       1,
-       2
-      ],
-      "goal": [
-       1,
-       0
-      ]
-     },
-     {
-      "id": "m2",
-      "type": "simon",
-      "bay": 4,
-      "stages": 6,
-      "sequence": [
-       "blue",
-       "red",
-       "yellow",
-       "red",
-       "red",
-       "blue"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
      }
     ]
    },
@@ -4998,6 +6626,7 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true,
@@ -5024,61 +6653,65 @@
     "variant": "main",
     "difficulty": 5,
     "time_hint_seconds": 78,
-    "rules_version": 1,
-    "fuse_seconds": 96,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "according_to_number",
-      "bay": 5,
-      "tip": [
-       2,
-       2
-      ],
-      "axis": "column",
-      "displays": [
-       6,
-       1,
-       9,
-       4,
-       1,
-       2
+      "fuse_seconds": 96,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "according_to_number",
+        "bay": 5,
+        "tip": [
+         2,
+         2
+        ],
+        "axis": "column",
+        "displays": [
+         6,
+         1,
+         9,
+         4,
+         1,
+         2
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         3,
+         0
+        ],
+        "player": [
+         1,
+         2
+        ],
+        "goal": [
+         1,
+         0
+        ]
+       },
+       {
+        "id": "m2",
+        "type": "simon",
+        "bay": 4,
+        "stages": 6,
+        "sequence": [
+         "blue",
+         "red",
+         "yellow",
+         "red",
+         "red",
+         "blue"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
       ]
-     },
-     {
-      "id": "m1",
-      "type": "maze",
-      "bay": 0,
-      "tip": [
-       3,
-       0
-      ],
-      "player": [
-       1,
-       2
-      ],
-      "goal": [
-       1,
-       0
-      ]
-     },
-     {
-      "id": "m2",
-      "type": "simon",
-      "bay": 4,
-      "stages": 6,
-      "sequence": [
-       "blue",
-       "red",
-       "yellow",
-       "red",
-       "red",
-       "blue"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
      }
     ]
    },
@@ -5237,6 +6870,7 @@
     "ok": false,
     "reason": "missing_ok",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true,
@@ -5262,70 +6896,122 @@
    "payload": {
     "variant": "main",
     "difficulty": 5,
-    "time_hint_seconds": 100,
-    "rules_version": 1,
-    "fuse_seconds": 110,
+    "time_hint_seconds": 145,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "mini_button",
-      "bay": 1,
-      "delay_ms": 3028,
-      "reaction_window_ms": 600,
-      "required_hold_ms": 1000,
-      "code": 59
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 5,
-      "stages": 6,
-      "sequence": [
-       "red",
-       "yellow",
-       "blue",
-       "yellow",
-       "blue",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "maze",
-      "bay": 4,
-      "tip": [
-       1,
-       2
-      ],
-      "player": [
-       0,
-       2
-      ],
-      "goal": [
-       1,
-       0
+      "fuse_seconds": 126,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "mini_button",
+        "bay": 1,
+        "delay_ms": 3028,
+        "reaction_window_ms": 600,
+        "required_hold_ms": 1000,
+        "code": 59
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 5,
+        "stages": 6,
+        "sequence": [
+         "red",
+         "yellow",
+         "blue",
+         "yellow",
+         "blue",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "maze",
+        "bay": 4,
+        "tip": [
+         1,
+         2
+        ],
+        "player": [
+         0,
+         2
+        ],
+        "goal": [
+         1,
+         0
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "according_to_number",
+        "bay": 0,
+        "tip": [
+         2,
+         1
+        ],
+        "axis": "column",
+        "displays": [
+         6,
+         2,
+         9,
+         2,
+         8,
+         6
+        ]
+       }
       ]
      },
      {
-      "id": "m3",
-      "type": "according_to_number",
-      "bay": 0,
-      "tip": [
-       2,
-       1
-      ],
-      "axis": "column",
-      "displays": [
-       6,
-       2,
-       9,
-       2,
-       8,
-       6
+      "fuse_seconds": 68,
+      "modules": [
+       {
+        "id": "m4",
+        "type": "mini_button",
+        "bay": 4,
+        "delay_ms": 2834,
+        "reaction_window_ms": 600,
+        "required_hold_ms": 1000,
+        "code": 56
+       },
+       {
+        "id": "m5",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         3
+        ],
+        "player": [
+         2,
+         0
+        ],
+        "goal": [
+         0,
+         0
+        ]
+       },
+       {
+        "id": "m6",
+        "type": "simon",
+        "bay": 3,
+        "stages": 6,
+        "sequence": [
+         "yellow",
+         "red",
+         "green",
+         "blue",
+         "blue",
+         "yellow"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
       ]
      }
     ]
@@ -5481,6 +7167,137 @@
     },
     {
      "m": "ok"
+    },
+    {
+     "m": "m4",
+     "a": 56
+    },
+    {
+     "m": "m5",
+     "a": "s"
+    },
+    {
+     "m": "m5",
+     "a": "e"
+    },
+    {
+     "m": "m5",
+     "a": "e"
+    },
+    {
+     "m": "m5",
+     "a": "n"
+    },
+    {
+     "m": "m5",
+     "a": "e"
+    },
+    {
+     "m": "m5",
+     "a": "n"
+    },
+    {
+     "m": "m5",
+     "a": "w"
+    },
+    {
+     "m": "m5",
+     "a": "w"
+    },
+    {
+     "m": "m5",
+     "a": "n"
+    },
+    {
+     "m": "m5",
+     "a": "w"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "blue"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "blue"
+    },
+    {
+     "m": "m6",
+     "a": "yellow"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "blue"
+    },
+    {
+     "m": "m6",
+     "a": "yellow"
+    },
+    {
+     "m": "m6",
+     "a": "red"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "blue"
+    },
+    {
+     "m": "m6",
+     "a": "yellow"
+    },
+    {
+     "m": "m6",
+     "a": "red"
+    },
+    {
+     "m": "m6",
+     "a": "red"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "blue"
+    },
+    {
+     "m": "m6",
+     "a": "yellow"
+    },
+    {
+     "m": "m6",
+     "a": "red"
+    },
+    {
+     "m": "m6",
+     "a": "red"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "ok"
     }
    ],
    "partial": false,
@@ -5488,6 +7305,7 @@
     "ok": true,
     "reason": "",
     "defused": true,
+    "bank": 2,
     "state": {
      "m0": {
       "solved": true
@@ -5507,6 +7325,21 @@
      "m3": {
       "solved": true,
       "stage": 6
+     },
+     "m4": {
+      "solved": true
+     },
+     "m5": {
+      "solved": true,
+      "cell": [
+       0,
+       0
+      ]
+     },
+     "m6": {
+      "solved": true,
+      "stage": 6,
+      "in_stage": 0
      }
     }
    }
@@ -5516,70 +7349,122 @@
    "payload": {
     "variant": "main",
     "difficulty": 5,
-    "time_hint_seconds": 100,
-    "rules_version": 1,
-    "fuse_seconds": 110,
+    "time_hint_seconds": 145,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "mini_button",
-      "bay": 1,
-      "delay_ms": 3028,
-      "reaction_window_ms": 600,
-      "required_hold_ms": 1000,
-      "code": 59
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 5,
-      "stages": 6,
-      "sequence": [
-       "red",
-       "yellow",
-       "blue",
-       "yellow",
-       "blue",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "maze",
-      "bay": 4,
-      "tip": [
-       1,
-       2
-      ],
-      "player": [
-       0,
-       2
-      ],
-      "goal": [
-       1,
-       0
+      "fuse_seconds": 126,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "mini_button",
+        "bay": 1,
+        "delay_ms": 3028,
+        "reaction_window_ms": 600,
+        "required_hold_ms": 1000,
+        "code": 59
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 5,
+        "stages": 6,
+        "sequence": [
+         "red",
+         "yellow",
+         "blue",
+         "yellow",
+         "blue",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "maze",
+        "bay": 4,
+        "tip": [
+         1,
+         2
+        ],
+        "player": [
+         0,
+         2
+        ],
+        "goal": [
+         1,
+         0
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "according_to_number",
+        "bay": 0,
+        "tip": [
+         2,
+         1
+        ],
+        "axis": "column",
+        "displays": [
+         6,
+         2,
+         9,
+         2,
+         8,
+         6
+        ]
+       }
       ]
      },
      {
-      "id": "m3",
-      "type": "according_to_number",
-      "bay": 0,
-      "tip": [
-       2,
-       1
-      ],
-      "axis": "column",
-      "displays": [
-       6,
-       2,
-       9,
-       2,
-       8,
-       6
+      "fuse_seconds": 68,
+      "modules": [
+       {
+        "id": "m4",
+        "type": "mini_button",
+        "bay": 4,
+        "delay_ms": 2834,
+        "reaction_window_ms": 600,
+        "required_hold_ms": 1000,
+        "code": 56
+       },
+       {
+        "id": "m5",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         3
+        ],
+        "player": [
+         2,
+         0
+        ],
+        "goal": [
+         0,
+         0
+        ]
+       },
+       {
+        "id": "m6",
+        "type": "simon",
+        "bay": 3,
+        "stages": 6,
+        "sequence": [
+         "yellow",
+         "red",
+         "green",
+         "blue",
+         "blue",
+         "yellow"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
       ]
      }
     ]
@@ -5660,6 +7545,70 @@
     {
      "m": "m1",
      "a": "red"
+    },
+    {
+     "m": "m1",
+     "a": "green"
+    },
+    {
+     "m": "m1",
+     "a": "red"
+    },
+    {
+     "m": "m1",
+     "a": "yellow"
+    },
+    {
+     "m": "m2",
+     "a": "s"
+    },
+    {
+     "m": "m2",
+     "a": "e"
+    },
+    {
+     "m": "m2",
+     "a": "s"
+    },
+    {
+     "m": "m2",
+     "a": "w"
+    },
+    {
+     "m": "m2",
+     "a": "w"
+    },
+    {
+     "m": "m2",
+     "a": "s"
+    },
+    {
+     "m": "m2",
+     "a": "w"
+    },
+    {
+     "m": "m2",
+     "a": "n"
+    },
+    {
+     "m": "m2",
+     "a": "n"
+    },
+    {
+     "m": "m3",
+     "a": 3
+    },
+    {
+     "m": "m3",
+     "a": 1
+    },
+    {
+     "m": "m3",
+     "a": 3
+    },
+    {
+     "m": "m3",
+     "a": 1
     }
    ],
    "partial": true,
@@ -5667,25 +7616,41 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 0,
     "state": {
      "m0": {
       "solved": true
      },
      "m1": {
-      "solved": false,
-      "stage": 5,
-      "in_stage": 3
+      "solved": true,
+      "stage": 6,
+      "in_stage": 0
      },
      "m2": {
-      "solved": false,
+      "solved": true,
       "cell": [
-       0,
-       2
+       1,
+       0
       ]
      },
      "m3": {
       "solved": false,
-      "stage": 0
+      "stage": 4
+     },
+     "m4": {
+      "solved": false
+     },
+     "m5": {
+      "solved": false,
+      "cell": [
+       2,
+       0
+      ]
+     },
+     "m6": {
+      "solved": false,
+      "stage": 0,
+      "in_stage": 0
      }
     }
    }
@@ -5695,70 +7660,122 @@
    "payload": {
     "variant": "main",
     "difficulty": 5,
-    "time_hint_seconds": 100,
-    "rules_version": 1,
-    "fuse_seconds": 110,
+    "time_hint_seconds": 145,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "mini_button",
-      "bay": 1,
-      "delay_ms": 3028,
-      "reaction_window_ms": 600,
-      "required_hold_ms": 1000,
-      "code": 59
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 5,
-      "stages": 6,
-      "sequence": [
-       "red",
-       "yellow",
-       "blue",
-       "yellow",
-       "blue",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "maze",
-      "bay": 4,
-      "tip": [
-       1,
-       2
-      ],
-      "player": [
-       0,
-       2
-      ],
-      "goal": [
-       1,
-       0
+      "fuse_seconds": 126,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "mini_button",
+        "bay": 1,
+        "delay_ms": 3028,
+        "reaction_window_ms": 600,
+        "required_hold_ms": 1000,
+        "code": 59
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 5,
+        "stages": 6,
+        "sequence": [
+         "red",
+         "yellow",
+         "blue",
+         "yellow",
+         "blue",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "maze",
+        "bay": 4,
+        "tip": [
+         1,
+         2
+        ],
+        "player": [
+         0,
+         2
+        ],
+        "goal": [
+         1,
+         0
+        ]
+       },
+       {
+        "id": "m3",
+        "type": "according_to_number",
+        "bay": 0,
+        "tip": [
+         2,
+         1
+        ],
+        "axis": "column",
+        "displays": [
+         6,
+         2,
+         9,
+         2,
+         8,
+         6
+        ]
+       }
       ]
      },
      {
-      "id": "m3",
-      "type": "according_to_number",
-      "bay": 0,
-      "tip": [
-       2,
-       1
-      ],
-      "axis": "column",
-      "displays": [
-       6,
-       2,
-       9,
-       2,
-       8,
-       6
+      "fuse_seconds": 68,
+      "modules": [
+       {
+        "id": "m4",
+        "type": "mini_button",
+        "bay": 4,
+        "delay_ms": 2834,
+        "reaction_window_ms": 600,
+        "required_hold_ms": 1000,
+        "code": 56
+       },
+       {
+        "id": "m5",
+        "type": "maze",
+        "bay": 0,
+        "tip": [
+         0,
+         3
+        ],
+        "player": [
+         2,
+         0
+        ],
+        "goal": [
+         0,
+         0
+        ]
+       },
+       {
+        "id": "m6",
+        "type": "simon",
+        "bay": 3,
+        "stages": 6,
+        "sequence": [
+         "yellow",
+         "red",
+         "green",
+         "blue",
+         "blue",
+         "yellow"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
       ]
      }
     ]
@@ -5911,6 +7928,137 @@
     {
      "m": "m3",
      "a": 3
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "m4",
+     "a": 56
+    },
+    {
+     "m": "m5",
+     "a": "s"
+    },
+    {
+     "m": "m5",
+     "a": "e"
+    },
+    {
+     "m": "m5",
+     "a": "e"
+    },
+    {
+     "m": "m5",
+     "a": "n"
+    },
+    {
+     "m": "m5",
+     "a": "e"
+    },
+    {
+     "m": "m5",
+     "a": "n"
+    },
+    {
+     "m": "m5",
+     "a": "w"
+    },
+    {
+     "m": "m5",
+     "a": "w"
+    },
+    {
+     "m": "m5",
+     "a": "n"
+    },
+    {
+     "m": "m5",
+     "a": "w"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "blue"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "blue"
+    },
+    {
+     "m": "m6",
+     "a": "yellow"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "blue"
+    },
+    {
+     "m": "m6",
+     "a": "yellow"
+    },
+    {
+     "m": "m6",
+     "a": "red"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "blue"
+    },
+    {
+     "m": "m6",
+     "a": "yellow"
+    },
+    {
+     "m": "m6",
+     "a": "red"
+    },
+    {
+     "m": "m6",
+     "a": "red"
+    },
+    {
+     "m": "m6",
+     "a": "green"
+    },
+    {
+     "m": "m6",
+     "a": "blue"
+    },
+    {
+     "m": "m6",
+     "a": "yellow"
+    },
+    {
+     "m": "m6",
+     "a": "red"
+    },
+    {
+     "m": "m6",
+     "a": "red"
+    },
+    {
+     "m": "m6",
+     "a": "green"
     }
    ],
    "partial": false,
@@ -5918,6 +8066,7 @@
     "ok": false,
     "reason": "missing_ok",
     "defused": false,
+    "bank": 1,
     "state": {
      "m0": {
       "solved": true
@@ -5937,6 +8086,21 @@
      "m3": {
       "solved": true,
       "stage": 6
+     },
+     "m4": {
+      "solved": true
+     },
+     "m5": {
+      "solved": true,
+      "cell": [
+       0,
+       0
+      ]
+     },
+     "m6": {
+      "solved": true,
+      "stage": 6,
+      "in_stage": 0
      }
     }
    }
@@ -5946,70 +8110,113 @@
    "payload": {
     "variant": "main",
     "difficulty": 5,
-    "time_hint_seconds": 98,
-    "rules_version": 1,
-    "fuse_seconds": 118,
+    "time_hint_seconds": 132,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 5,
-      "tip": [
-       0,
-       3
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       3,
-       0
+      "fuse_seconds": 114,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 4,
+        "tip": [
+         2,
+         3
+        ],
+        "player": [
+         0,
+         2
+        ],
+        "goal": [
+         0,
+         1
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 0,
+        "stages": 6,
+        "sequence": [
+         "red",
+         "red",
+         "yellow",
+         "red",
+         "red",
+         "blue"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "mini_button",
+        "bay": 5,
+        "delay_ms": 4701,
+        "reaction_window_ms": 600,
+        "required_hold_ms": 980,
+        "code": 84
+       }
       ]
      },
      {
-      "id": "m1",
-      "type": "simon",
-      "bay": 4,
-      "stages": 6,
-      "sequence": [
-       "red",
-       "red",
-       "blue",
-       "blue",
-       "green",
-       "yellow"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "mini_button",
-      "bay": 0,
-      "delay_ms": 5050,
-      "reaction_window_ms": 600,
-      "required_hold_ms": 980,
-      "code": 44
-     },
-     {
-      "id": "m3",
-      "type": "according_to_number",
-      "bay": 1,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       5,
-       6,
-       9,
-       4,
-       2,
-       1
+      "fuse_seconds": 78,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "simon",
+        "bay": 4,
+        "stages": 6,
+        "sequence": [
+         "yellow",
+         "green",
+         "red",
+         "green",
+         "green",
+         "blue"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m4",
+        "type": "maze",
+        "bay": 1,
+        "tip": [
+         0,
+         3
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         1
+        ]
+       },
+       {
+        "id": "m5",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         2,
+         2
+        ],
+        "axis": "column",
+        "displays": [
+         7,
+         8,
+         7,
+         3,
+         9,
+         7
+        ]
+       }
       ]
      }
     ]
@@ -6017,15 +8224,7 @@
    "moves": [
     {
      "m": "m0",
-     "a": "e"
-    },
-    {
-     "m": "m0",
      "a": "s"
-    },
-    {
-     "m": "m0",
-     "a": "e"
     },
     {
      "m": "m0",
@@ -6037,10 +8236,6 @@
     },
     {
      "m": "m0",
-     "a": "w"
-    },
-    {
-     "m": "m0",
      "a": "s"
     },
     {
@@ -6049,11 +8244,19 @@
     },
     {
      "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
      "a": "w"
     },
     {
-     "m": "m1",
-     "a": "blue"
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "n"
     },
     {
      "m": "m1",
@@ -6073,95 +8276,230 @@
     },
     {
      "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
      "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "yellow"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "yellow"
     },
     {
      "m": "m1",
      "a": "green"
     },
     {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "green"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "green"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "green"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "red"
+    },
+    {
      "m": "m2",
-     "a": 44
+     "a": 84
+    },
+    {
+     "m": "ok"
     },
     {
      "m": "m3",
-     "a": 1
+     "a": "green"
     },
     {
      "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "blue"
+    },
+    {
+     "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "blue"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "blue"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "blue"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "red"
+    },
+    {
+     "m": "m4",
+     "a": "e"
+    },
+    {
+     "m": "m4",
+     "a": "s"
+    },
+    {
+     "m": "m4",
+     "a": "e"
+    },
+    {
+     "m": "m4",
+     "a": "e"
+    },
+    {
+     "m": "m4",
+     "a": "s"
+    },
+    {
+     "m": "m4",
+     "a": "w"
+    },
+    {
+     "m": "m4",
+     "a": "s"
+    },
+    {
+     "m": "m4",
+     "a": "w"
+    },
+    {
+     "m": "m4",
+     "a": "w"
+    },
+    {
+     "m": "m4",
+     "a": "n"
+    },
+    {
+     "m": "m4",
+     "a": "e"
+    },
+    {
+     "m": "m5",
      "a": 2
     },
     {
-     "m": "m3",
+     "m": "m5",
      "a": 2
     },
     {
-     "m": "m3",
+     "m": "m5",
+     "a": 2
+    },
+    {
+     "m": "m5",
      "a": 3
     },
     {
-     "m": "m3",
-     "a": 2
+     "m": "m5",
+     "a": 3
     },
     {
-     "m": "m3",
-     "a": 1
+     "m": "m5",
+     "a": 2
     },
     {
      "m": "ok"
@@ -6172,12 +8510,13 @@
     "ok": true,
     "reason": "",
     "defused": true,
+    "bank": 2,
     "state": {
      "m0": {
       "solved": true,
       "cell": [
-       3,
-       0
+       0,
+       1
       ]
      },
      "m1": {
@@ -6189,6 +8528,18 @@
       "solved": true
      },
      "m3": {
+      "solved": true,
+      "stage": 6,
+      "in_stage": 0
+     },
+     "m4": {
+      "solved": true,
+      "cell": [
+       2,
+       1
+      ]
+     },
+     "m5": {
       "solved": true,
       "stage": 6
      }
@@ -6200,70 +8551,113 @@
    "payload": {
     "variant": "main",
     "difficulty": 5,
-    "time_hint_seconds": 98,
-    "rules_version": 1,
-    "fuse_seconds": 118,
+    "time_hint_seconds": 132,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "maze",
-      "bay": 5,
-      "tip": [
-       0,
-       3
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       3,
-       0
+      "fuse_seconds": 114,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 4,
+        "tip": [
+         2,
+         3
+        ],
+        "player": [
+         0,
+         2
+        ],
+        "goal": [
+         0,
+         1
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 0,
+        "stages": 6,
+        "sequence": [
+         "red",
+         "red",
+         "yellow",
+         "red",
+         "red",
+         "blue"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "mini_button",
+        "bay": 5,
+        "delay_ms": 4701,
+        "reaction_window_ms": 600,
+        "required_hold_ms": 980,
+        "code": 84
+       }
       ]
      },
      {
-      "id": "m1",
-      "type": "simon",
-      "bay": 4,
-      "stages": 6,
-      "sequence": [
-       "red",
-       "red",
-       "blue",
-       "blue",
-       "green",
-       "yellow"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "mini_button",
-      "bay": 0,
-      "delay_ms": 5050,
-      "reaction_window_ms": 600,
-      "required_hold_ms": 980,
-      "code": 44
-     },
-     {
-      "id": "m3",
-      "type": "according_to_number",
-      "bay": 1,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       5,
-       6,
-       9,
-       4,
-       2,
-       1
+      "fuse_seconds": 78,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "simon",
+        "bay": 4,
+        "stages": 6,
+        "sequence": [
+         "yellow",
+         "green",
+         "red",
+         "green",
+         "green",
+         "blue"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m4",
+        "type": "maze",
+        "bay": 1,
+        "tip": [
+         0,
+         3
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         1
+        ]
+       },
+       {
+        "id": "m5",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         2,
+         2
+        ],
+        "axis": "column",
+        "displays": [
+         7,
+         8,
+         7,
+         3,
+         9,
+         7
+        ]
+       }
       ]
      }
     ]
@@ -6271,15 +8665,7 @@
    "moves": [
     {
      "m": "m0",
-     "a": "e"
-    },
-    {
-     "m": "m0",
      "a": "s"
-    },
-    {
-     "m": "m0",
-     "a": "e"
     },
     {
      "m": "m0",
@@ -6291,10 +8677,6 @@
     },
     {
      "m": "m0",
-     "a": "w"
-    },
-    {
-     "m": "m0",
      "a": "s"
     },
     {
@@ -6303,7 +8685,19 @@
     },
     {
      "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
      "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "n"
     },
     {
      "m": "m1",
@@ -6316,6 +8710,66 @@
     {
      "m": "m1",
      "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "green"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "green"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "green"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "green"
     },
     {
      "m": "m1",
@@ -6330,20 +8784,23 @@
      "a": "red"
     },
     {
-     "m": "m1",
-     "a": "blue"
+     "m": "m2",
+     "a": 84
     },
     {
-     "m": "m1",
-     "a": "blue"
+     "m": "ok"
     },
     {
-     "m": "m1",
-     "a": "red"
+     "m": "m3",
+     "a": "green"
     },
     {
-     "m": "m1",
-     "a": "red"
+     "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
     }
    ],
    "partial": true,
@@ -6351,263 +8808,13 @@
     "ok": true,
     "reason": "",
     "defused": false,
+    "bank": 1,
     "state": {
      "m0": {
       "solved": true,
       "cell": [
-       3,
-       0
-      ]
-     },
-     "m1": {
-      "solved": false,
-      "stage": 4,
-      "in_stage": 0
-     },
-     "m2": {
-      "solved": false
-     },
-     "m3": {
-      "solved": false,
-      "stage": 0
-     }
-    }
-   }
-  },
-  {
-   "name": "generated seed 404 level 12 missing the ok",
-   "payload": {
-    "variant": "main",
-    "difficulty": 5,
-    "time_hint_seconds": 98,
-    "rules_version": 1,
-    "fuse_seconds": 118,
-    "bays": 6,
-    "modules": [
-     {
-      "id": "m0",
-      "type": "maze",
-      "bay": 5,
-      "tip": [
        0,
-       3
-      ],
-      "player": [
-       0,
-       0
-      ],
-      "goal": [
-       3,
-       0
-      ]
-     },
-     {
-      "id": "m1",
-      "type": "simon",
-      "bay": 4,
-      "stages": 6,
-      "sequence": [
-       "red",
-       "red",
-       "blue",
-       "blue",
-       "green",
-       "yellow"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
-     },
-     {
-      "id": "m2",
-      "type": "mini_button",
-      "bay": 0,
-      "delay_ms": 5050,
-      "reaction_window_ms": 600,
-      "required_hold_ms": 980,
-      "code": 44
-     },
-     {
-      "id": "m3",
-      "type": "according_to_number",
-      "bay": 1,
-      "tip": [
-       0,
-       0
-      ],
-      "axis": "column",
-      "displays": [
-       5,
-       6,
-       9,
-       4,
-       2,
        1
-      ]
-     }
-    ]
-   },
-   "moves": [
-    {
-     "m": "m0",
-     "a": "e"
-    },
-    {
-     "m": "m0",
-     "a": "s"
-    },
-    {
-     "m": "m0",
-     "a": "e"
-    },
-    {
-     "m": "m0",
-     "a": "e"
-    },
-    {
-     "m": "m0",
-     "a": "s"
-    },
-    {
-     "m": "m0",
-     "a": "w"
-    },
-    {
-     "m": "m0",
-     "a": "s"
-    },
-    {
-     "m": "m0",
-     "a": "w"
-    },
-    {
-     "m": "m0",
-     "a": "w"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "yellow"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "blue"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "red"
-    },
-    {
-     "m": "m1",
-     "a": "yellow"
-    },
-    {
-     "m": "m1",
-     "a": "green"
-    },
-    {
-     "m": "m2",
-     "a": 44
-    },
-    {
-     "m": "m3",
-     "a": 1
-    },
-    {
-     "m": "m3",
-     "a": 2
-    },
-    {
-     "m": "m3",
-     "a": 2
-    },
-    {
-     "m": "m3",
-     "a": 3
-    },
-    {
-     "m": "m3",
-     "a": 2
-    },
-    {
-     "m": "m3",
-     "a": 1
-    }
-   ],
-   "partial": false,
-   "expected": {
-    "ok": false,
-    "reason": "missing_ok",
-    "defused": false,
-    "state": {
-     "m0": {
-      "solved": true,
-      "cell": [
-       3,
-       0
       ]
      },
      "m1": {
@@ -6619,6 +8826,1200 @@
       "solved": true
      },
      "m3": {
+      "solved": false,
+      "stage": 2,
+      "in_stage": 0
+     },
+     "m4": {
+      "solved": false,
+      "cell": [
+       0,
+       0
+      ]
+     },
+     "m5": {
+      "solved": false,
+      "stage": 0
+     }
+    }
+   }
+  },
+  {
+   "name": "generated seed 404 level 12 missing the ok",
+   "payload": {
+    "variant": "main",
+    "difficulty": 5,
+    "time_hint_seconds": 132,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 114,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 4,
+        "tip": [
+         2,
+         3
+        ],
+        "player": [
+         0,
+         2
+        ],
+        "goal": [
+         0,
+         1
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "simon",
+        "bay": 0,
+        "stages": 6,
+        "sequence": [
+         "red",
+         "red",
+         "yellow",
+         "red",
+         "red",
+         "blue"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m2",
+        "type": "mini_button",
+        "bay": 5,
+        "delay_ms": 4701,
+        "reaction_window_ms": 600,
+        "required_hold_ms": 980,
+        "code": 84
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 78,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "simon",
+        "bay": 4,
+        "stages": 6,
+        "sequence": [
+         "yellow",
+         "green",
+         "red",
+         "green",
+         "green",
+         "blue"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       },
+       {
+        "id": "m4",
+        "type": "maze",
+        "bay": 1,
+        "tip": [
+         0,
+         3
+        ],
+        "player": [
+         0,
+         0
+        ],
+        "goal": [
+         2,
+         1
+        ]
+       },
+       {
+        "id": "m5",
+        "type": "according_to_number",
+        "bay": 2,
+        "tip": [
+         2,
+         2
+        ],
+        "axis": "column",
+        "displays": [
+         7,
+         8,
+         7,
+         3,
+         9,
+         7
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "green"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "green"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "green"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "green"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "blue"
+    },
+    {
+     "m": "m1",
+     "a": "red"
+    },
+    {
+     "m": "m2",
+     "a": 84
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "blue"
+    },
+    {
+     "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "blue"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "blue"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "green"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "blue"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "yellow"
+    },
+    {
+     "m": "m3",
+     "a": "red"
+    },
+    {
+     "m": "m4",
+     "a": "e"
+    },
+    {
+     "m": "m4",
+     "a": "s"
+    },
+    {
+     "m": "m4",
+     "a": "e"
+    },
+    {
+     "m": "m4",
+     "a": "e"
+    },
+    {
+     "m": "m4",
+     "a": "s"
+    },
+    {
+     "m": "m4",
+     "a": "w"
+    },
+    {
+     "m": "m4",
+     "a": "s"
+    },
+    {
+     "m": "m4",
+     "a": "w"
+    },
+    {
+     "m": "m4",
+     "a": "w"
+    },
+    {
+     "m": "m4",
+     "a": "n"
+    },
+    {
+     "m": "m4",
+     "a": "e"
+    },
+    {
+     "m": "m5",
+     "a": 2
+    },
+    {
+     "m": "m5",
+     "a": 2
+    },
+    {
+     "m": "m5",
+     "a": 2
+    },
+    {
+     "m": "m5",
+     "a": 3
+    },
+    {
+     "m": "m5",
+     "a": 3
+    },
+    {
+     "m": "m5",
+     "a": 2
+    }
+   ],
+   "partial": false,
+   "expected": {
+    "ok": false,
+    "reason": "missing_ok",
+    "defused": false,
+    "bank": 1,
+    "state": {
+     "m0": {
+      "solved": true,
+      "cell": [
+       0,
+       1
+      ]
+     },
+     "m1": {
+      "solved": true,
+      "stage": 6,
+      "in_stage": 0
+     },
+     "m2": {
+      "solved": true
+     },
+     "m3": {
+      "solved": true,
+      "stage": 6,
+      "in_stage": 0
+     },
+     "m4": {
+      "solved": true,
+      "cell": [
+       2,
+       1
+      ]
+     },
+     "m5": {
+      "solved": true,
+      "stage": 6
+     }
+    }
+   }
+  },
+  {
+   "name": "generated seed 55 level 11",
+   "payload": {
+    "variant": "main",
+    "difficulty": 5,
+    "time_hint_seconds": 120,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 120,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 5,
+        "tip": [
+         1,
+         0
+        ],
+        "player": [
+         1,
+         1
+        ],
+        "goal": [
+         2,
+         0
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "mini_button",
+        "bay": 2,
+        "delay_ms": 3440,
+        "reaction_window_ms": 620,
+        "required_hold_ms": 950,
+        "code": 94
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "axis": "column",
+        "displays": [
+         9,
+         7,
+         9,
+         7,
+         6,
+         7
+        ]
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 66,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "maze",
+        "bay": 2,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         2,
+         2
+        ],
+        "goal": [
+         2,
+         1
+        ]
+       },
+       {
+        "id": "m4",
+        "type": "according_to_number",
+        "bay": 0,
+        "tip": [
+         1,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         1,
+         7,
+         4,
+         2,
+         9,
+         7
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m1",
+     "a": 94
+    },
+    {
+     "m": "m2",
+     "a": 2
+    },
+    {
+     "m": "m2",
+     "a": 3
+    },
+    {
+     "m": "m2",
+     "a": 2
+    },
+    {
+     "m": "m2",
+     "a": 3
+    },
+    {
+     "m": "m2",
+     "a": 1
+    },
+    {
+     "m": "m2",
+     "a": 3
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "m3",
+     "a": "s"
+    },
+    {
+     "m": "m3",
+     "a": "e"
+    },
+    {
+     "m": "m3",
+     "a": "n"
+    },
+    {
+     "m": "m3",
+     "a": "n"
+    },
+    {
+     "m": "m3",
+     "a": "n"
+    },
+    {
+     "m": "m3",
+     "a": "w"
+    },
+    {
+     "m": "m3",
+     "a": "s"
+    },
+    {
+     "m": "m3",
+     "a": "w"
+    },
+    {
+     "m": "m3",
+     "a": "s"
+    },
+    {
+     "m": "m4",
+     "a": 1
+    },
+    {
+     "m": "m4",
+     "a": 2
+    },
+    {
+     "m": "m4",
+     "a": 3
+    },
+    {
+     "m": "m4",
+     "a": 3
+    },
+    {
+     "m": "m4",
+     "a": 3
+    },
+    {
+     "m": "m4",
+     "a": 2
+    },
+    {
+     "m": "ok"
+    }
+   ],
+   "partial": false,
+   "expected": {
+    "ok": true,
+    "reason": "",
+    "defused": true,
+    "bank": 2,
+    "state": {
+     "m0": {
+      "solved": true,
+      "cell": [
+       2,
+       0
+      ]
+     },
+     "m1": {
+      "solved": true
+     },
+     "m2": {
+      "solved": true,
+      "stage": 6
+     },
+     "m3": {
+      "solved": true,
+      "cell": [
+       2,
+       1
+      ]
+     },
+     "m4": {
+      "solved": true,
+      "stage": 6
+     }
+    }
+   }
+  },
+  {
+   "name": "generated seed 55 level 11 halfway",
+   "payload": {
+    "variant": "main",
+    "difficulty": 5,
+    "time_hint_seconds": 120,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 120,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 5,
+        "tip": [
+         1,
+         0
+        ],
+        "player": [
+         1,
+         1
+        ],
+        "goal": [
+         2,
+         0
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "mini_button",
+        "bay": 2,
+        "delay_ms": 3440,
+        "reaction_window_ms": 620,
+        "required_hold_ms": 950,
+        "code": 94
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "axis": "column",
+        "displays": [
+         9,
+         7,
+         9,
+         7,
+         6,
+         7
+        ]
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 66,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "maze",
+        "bay": 2,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         2,
+         2
+        ],
+        "goal": [
+         2,
+         1
+        ]
+       },
+       {
+        "id": "m4",
+        "type": "according_to_number",
+        "bay": 0,
+        "tip": [
+         1,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         1,
+         7,
+         4,
+         2,
+         9,
+         7
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m1",
+     "a": 94
+    },
+    {
+     "m": "m2",
+     "a": 2
+    },
+    {
+     "m": "m2",
+     "a": 3
+    },
+    {
+     "m": "m2",
+     "a": 2
+    },
+    {
+     "m": "m2",
+     "a": 3
+    },
+    {
+     "m": "m2",
+     "a": 1
+    },
+    {
+     "m": "m2",
+     "a": 3
+    }
+   ],
+   "partial": true,
+   "expected": {
+    "ok": true,
+    "reason": "",
+    "defused": false,
+    "bank": 0,
+    "state": {
+     "m0": {
+      "solved": true,
+      "cell": [
+       2,
+       0
+      ]
+     },
+     "m1": {
+      "solved": true
+     },
+     "m2": {
+      "solved": true,
+      "stage": 6
+     },
+     "m3": {
+      "solved": false,
+      "cell": [
+       2,
+       2
+      ]
+     },
+     "m4": {
+      "solved": false,
+      "stage": 0
+     }
+    }
+   }
+  },
+  {
+   "name": "generated seed 55 level 11 missing the ok",
+   "payload": {
+    "variant": "main",
+    "difficulty": 5,
+    "time_hint_seconds": 120,
+    "rules_version": 2,
+    "bays": 6,
+    "banks": [
+     {
+      "fuse_seconds": 120,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "maze",
+        "bay": 5,
+        "tip": [
+         1,
+         0
+        ],
+        "player": [
+         1,
+         1
+        ],
+        "goal": [
+         2,
+         0
+        ]
+       },
+       {
+        "id": "m1",
+        "type": "mini_button",
+        "bay": 2,
+        "delay_ms": 3440,
+        "reaction_window_ms": 620,
+        "required_hold_ms": 950,
+        "code": 94
+       },
+       {
+        "id": "m2",
+        "type": "according_to_number",
+        "bay": 0,
+        "tip": [
+         0,
+         1
+        ],
+        "axis": "column",
+        "displays": [
+         9,
+         7,
+         9,
+         7,
+         6,
+         7
+        ]
+       }
+      ]
+     },
+     {
+      "fuse_seconds": 66,
+      "modules": [
+       {
+        "id": "m3",
+        "type": "maze",
+        "bay": 2,
+        "tip": [
+         0,
+         1
+        ],
+        "player": [
+         2,
+         2
+        ],
+        "goal": [
+         2,
+         1
+        ]
+       },
+       {
+        "id": "m4",
+        "type": "according_to_number",
+        "bay": 0,
+        "tip": [
+         1,
+         0
+        ],
+        "axis": "column",
+        "displays": [
+         1,
+         7,
+         4,
+         2,
+         9,
+         7
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "moves": [
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "e"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "s"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m0",
+     "a": "n"
+    },
+    {
+     "m": "m0",
+     "a": "w"
+    },
+    {
+     "m": "m1",
+     "a": 94
+    },
+    {
+     "m": "m2",
+     "a": 2
+    },
+    {
+     "m": "m2",
+     "a": 3
+    },
+    {
+     "m": "m2",
+     "a": 2
+    },
+    {
+     "m": "m2",
+     "a": 3
+    },
+    {
+     "m": "m2",
+     "a": 1
+    },
+    {
+     "m": "m2",
+     "a": 3
+    },
+    {
+     "m": "ok"
+    },
+    {
+     "m": "m3",
+     "a": "s"
+    },
+    {
+     "m": "m3",
+     "a": "e"
+    },
+    {
+     "m": "m3",
+     "a": "n"
+    },
+    {
+     "m": "m3",
+     "a": "n"
+    },
+    {
+     "m": "m3",
+     "a": "n"
+    },
+    {
+     "m": "m3",
+     "a": "w"
+    },
+    {
+     "m": "m3",
+     "a": "s"
+    },
+    {
+     "m": "m3",
+     "a": "w"
+    },
+    {
+     "m": "m3",
+     "a": "s"
+    },
+    {
+     "m": "m4",
+     "a": 1
+    },
+    {
+     "m": "m4",
+     "a": 2
+    },
+    {
+     "m": "m4",
+     "a": 3
+    },
+    {
+     "m": "m4",
+     "a": 3
+    },
+    {
+     "m": "m4",
+     "a": 3
+    },
+    {
+     "m": "m4",
+     "a": 2
+    }
+   ],
+   "partial": false,
+   "expected": {
+    "ok": false,
+    "reason": "missing_ok",
+    "defused": false,
+    "bank": 1,
+    "state": {
+     "m0": {
+      "solved": true,
+      "cell": [
+       2,
+       0
+      ]
+     },
+     "m1": {
+      "solved": true
+     },
+     "m2": {
+      "solved": true,
+      "stage": 6
+     },
+     "m3": {
+      "solved": true,
+      "cell": [
+       2,
+       1
+      ]
+     },
+     "m4": {
       "solved": true,
       "stage": 6
      }
@@ -6631,22 +10032,26 @@
     "variant": "holding",
     "difficulty": 1,
     "time_hint_seconds": 10,
-    "rules_version": 1,
-    "fuse_seconds": 35,
+    "rules_version": 2,
     "bays": 6,
-    "modules": [
+    "banks": [
      {
-      "id": "m0",
-      "type": "simon",
-      "bay": 4,
-      "stages": 2,
-      "sequence": [
-       "blue",
-       "green"
-      ],
-      "flash_ms": 450,
-      "gap_ms": 250,
-      "input_delay_ms": 300
+      "fuse_seconds": 35,
+      "modules": [
+       {
+        "id": "m0",
+        "type": "simon",
+        "bay": 4,
+        "stages": 2,
+        "sequence": [
+         "blue",
+         "green"
+        ],
+        "flash_ms": 450,
+        "gap_ms": 250,
+        "input_delay_ms": 300
+       }
+      ]
      }
     ]
    },
@@ -6672,6 +10077,7 @@
     "ok": true,
     "reason": "",
     "defused": true,
+    "bank": 1,
     "state": {
      "m0": {
       "solved": true,

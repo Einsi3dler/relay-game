@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.games.game11_bomb_defuse import BombDefuseGame
+from backend.games.game11_bomb_defuse import RULES_VERSION, BombDefuseGame
 
 FRONTEND = Path(__file__).parents[2] / "frontend" / "games"
 RENDERER = FRONTEND / "bomb_defuse.js"
@@ -163,11 +163,15 @@ function workBay(root, module, moves) {
   });
 }
 
+// Work every bank in turn: its bays, then OK — which arms the next bank, or
+// on the last one defuses the bomb.
 function defuse(puzzle) {
   const { container, sent } = mount(puzzle);
   const moves = JSON.parse(puzzle.__reference).moves;
-  puzzle.payload.modules.forEach((module) => workBay(container, module, moves));
-  click(byText(container, "OK"));
+  puzzle.payload.banks.forEach((bank) => {
+    bank.modules.forEach((module) => workBay(container, module, moves));
+    click(byText(container, "OK"));
+  });
   return { container, sent };
 }
 
@@ -182,7 +186,7 @@ const report = {};
   const seen = screen(container);
   report.face = {
     timer: byLabel(container, "OK — bays are still open") ? true : false,
-    shows_fuse: seen.indexOf(String(puzzles.full.payload.fuse_seconds)) !== -1,
+    shows_fuse: seen.indexOf(String(puzzles.full.payload.banks[0].fuse_seconds)) !== -1,
     has_give_up: seen.indexOf("Give up") !== -1,
     has_manual: seen.indexOf("📖  MANUAL") !== -1,
     bay_buttons: all(container).filter(
@@ -199,13 +203,39 @@ const report = {};
   game.unmount();
 }
 
+// 2b. Shutting a bank arms the next one: fresh fuse, fresh bays, a banner.
+{
+  const { container, sent } = mount(puzzles.full);
+  const banks = puzzles.full.payload.banks;
+  const moves = JSON.parse(puzzles.full.__reference).moves;
+  advance(4000);                                   // burn some of the first fuse
+  const beforeFuse = texts(container)[0];
+  banks[0].modules.forEach((module) => workBay(container, module, moves));
+  click(byText(container, "OK"));
+  report.bankTurn = {
+    banks: banks.length,
+    submitted_yet: sent.length,                    // the board is not over
+    banner: screen(container),
+    fuse_before: beforeFuse,
+    fuse_after: texts(container)[0],
+    // The second bank's bays are the ones on the face now.
+    open_labels: all(container)
+      .map((n) => n.attrs["aria-label"] || "")
+      .filter((label) => label.indexOf("Open the ") === 0),
+  };
+  banks[1].modules.forEach((module) => workBay(container, module, moves));
+  click(byText(container, "OK"));
+  report.bankTurn.after_last_ok = { sent: sent.length, screen: screen(container) };
+  game.unmount();
+}
+
 // 3. The fuse: it ticks down, then it goes off.
 {
   const { container, sent } = mount(puzzles.full);
   advance(3000);
   const after3s = byLabel(container, "OK — bays are still open") ?
     texts(container)[0] : null;
-  advance(puzzles.full.payload.fuse_seconds * 1000);
+  advance(puzzles.full.payload.banks[0].fuse_seconds * 1000);
   const boom = screen(container);
   advance(5000);
   report.fuse = { after3s: after3s, screen: boom, sent: sent };
@@ -244,7 +274,7 @@ const fatal = {};
   // Echoing the flash back instead of translating it (§49).
   const { container, sent } = mount(puzzles.simon);
   click(byLabel(container, "Open the Simon Says bay"));
-  click(byLabel(container, puzzles.simon.payload.modules[0].sequence[0]));
+  click(byLabel(container, puzzles.simon.payload.banks[0].modules[0].sequence[0]));
   advance(5000);
   fatal.simon = { screen: screen(container), sent: sent };
   game.unmount();
@@ -262,7 +292,7 @@ const fatal = {};
 {
   // Ignoring the red for too long (§54).
   const { container, sent } = mount(puzzles.mini);
-  const module = puzzles.mini.payload.modules[0];
+  const module = puzzles.mini.payload.banks[0].modules[0];
   click(byLabel(container, "Open the The mini button bay"));
   click(byText(container, "ARM THE BUTTON"));
   advance(module.delay_ms + module.reaction_window_ms + 1);
@@ -273,7 +303,7 @@ const fatal = {};
 {
   // Letting go before green (§56).
   const { container, sent } = mount(puzzles.mini);
-  const module = puzzles.mini.payload.modules[0];
+  const module = puzzles.mini.payload.banks[0].modules[0];
   click(byLabel(container, "Open the The mini button bay"));
   click(byText(container, "ARM THE BUTTON"));
   advance(module.delay_ms);
@@ -304,7 +334,7 @@ report.fatal = fatal;
 {
   // The mini button is a hold, so space has to hold it.
   const { container, sent } = mount(puzzles.mini);
-  const module = puzzles.mini.payload.modules[0];
+  const module = puzzles.mini.payload.banks[0].modules[0];
   click(byLabel(container, "Open the The mini button bay"));
   click(byText(container, "ARM THE BUTTON"));
   advance(module.delay_ms);
@@ -322,7 +352,7 @@ report.fatal = fatal;
 // 6. An armed mini button locks the way out: no manual, no closing the bay.
 {
   const { container } = mount(puzzles.mini);
-  const module = puzzles.mini.payload.modules[0];
+  const module = puzzles.mini.payload.banks[0].modules[0];
   click(byLabel(container, "Open the The mini button bay"));
   click(byText(container, "ARM THE BUTTON"));
   advance(Math.floor(module.delay_ms / 2));
@@ -370,7 +400,7 @@ report.fatal = fatal;
     left_running: leftRunning,
     window_listeners: (windowListeners.resize || []).length,
     detached: first.container.children.length,
-    remount_is_fresh: fresh.indexOf(String(puzzles.full.payload.fuse_seconds)) !== -1,
+    remount_is_fresh: fresh.indexOf(String(puzzles.full.payload.banks[0].fuse_seconds)) !== -1,
     remount_scheduled: clock.made > madeBefore,
   };
 }
@@ -452,7 +482,7 @@ function reachable(container) {
   const live = {};
   const { container } = mount(puzzles.full);
   live.face = reachable(container);
-  puzzles.full.payload.modules.forEach((module) => {
+  puzzles.full.payload.banks[0].modules.forEach((module) => {
     const name = {
       maze: "Maze", simon: "Simon Says",
       according_to_number: "According to number", mini_button: "The mini button",
@@ -481,8 +511,15 @@ def board(game: BombDefuseGame, seed: int, level: int, module_type: str | None =
     server-side extras under `__`-prefixed keys the renderer never reads."""
     for candidate in range(seed, seed + 500):
         puzzle = game.generate_main(candidate, level)
-        types = [module["type"] for module in puzzle.payload["modules"]]
-        if module_type is None or types == [module_type]:
+        banks = puzzle.payload["banks"]
+        if module_type is None:
+            # No type asked for: any board, and at a bonus tier that is
+            # deliberately a multi-bank one.
+            public = puzzle.public()
+            public["__reference"] = puzzle.answer
+            return public, puzzle
+        # A single-bay scenario wants exactly that bay and no bank behind it.
+        if len(banks) == 1 and [m["type"] for m in banks[0]["modules"]] == [module_type]:
             public = puzzle.public()
             public["__reference"] = puzzle.answer
             return public, puzzle
@@ -501,7 +538,7 @@ def report() -> dict:
 
     # Which way is a wall from the maze bay's start cell?
     from backend.games.game11_bomb_defuse import MAZE_LAYOUTS, _wall_between
-    module = maze["payload"]["modules"][0]
+    module = maze["payload"]["banks"][0]["modules"][0]
     layout = next(e for e in MAZE_LAYOUTS if list(e["tip"]) == module["tip"])
     start = (module["player"][0], module["player"][1])
     maze["__blocked"] = next(
@@ -546,10 +583,30 @@ def test_working_every_bay_then_ok_submits_a_transcript_the_server_accepts(repor
     sent = report["defused"]["sent"]
     assert len(sent) == 1
     payload = json.loads(sent[0])
-    assert payload["v"] == 1 and "failed" not in payload
+    assert payload["v"] == RULES_VERSION and "failed" not in payload
     assert BombDefuseGame().check(report["_puzzles"]["full"], sent[0]) is True
     assert payload["moves"][-1] == {"m": "ok"}
     assert "BOMB DEFUSED" in report["defused"]["screen"]
+
+
+def test_shutting_a_bank_arms_the_next_one(report):
+    """A bank is not the board: OK shuts one and the next comes up behind it."""
+    turn = report["bankTurn"]
+    assert turn["banks"] == 2, "the level-13 board should come in two banks"
+    # Nothing is submitted until the *last* bank is shut.
+    assert turn["submitted_yet"] == 0
+    assert "BANK 2 ARMED" in turn["banner"]
+    # The new bank brings its own fuse, and the face shows it straight away
+    # rather than a stale second of the old one.
+    assert int(turn["fuse_after"]) != int(turn["fuse_before"])
+    assert int(turn["fuse_after"]) == \
+        report["_puzzles"]["full"].payload["banks"][1]["fuse_seconds"]
+    # ...and the bays on the face are the new bank's.
+    second = report["_puzzles"]["full"].payload["banks"][1]["modules"]
+    assert len(turn["open_labels"]) == len(second)
+    # Only the final OK ends the bomb.
+    assert turn["after_last_ok"]["sent"] == 1
+    assert "BOMB DEFUSED" in turn["after_last_ok"]["screen"]
 
 
 # --- the fuse -----------------------------------------------------------
@@ -561,7 +618,8 @@ def test_the_fuse_counts_down_and_then_goes_off(report):
     assert started is True
     # Three seconds in, the display has moved (§8: an absolute deadline).
     assert fuse["after3s"] is not None
-    assert int(fuse["after3s"]) < report["_puzzles"]["full"].payload["fuse_seconds"]
+    opening = report["_puzzles"]["full"].payload["banks"][0]["fuse_seconds"]
+    assert int(fuse["after3s"]) < opening
     assert "MISSION FAILED" in fuse["screen"]
     assert "The fuse ran out." in fuse["screen"]
     assert json.loads(fuse["sent"][0])["failed"] == "timer-expired"
@@ -590,7 +648,7 @@ def test_every_fatal_path_detonates_and_asks_for_a_fresh_bomb(report, case, reas
     # One submission, five seconds later, and it is a losing one by
     # construction — which is how the engine is asked for the next bomb.
     assert len(got["sent"]) == 1
-    assert json.loads(got["sent"][0]) == {"v": 1, "failed": reason}
+    assert json.loads(got["sent"][0]) == {"v": RULES_VERSION, "failed": reason}
 
 
 def test_colour_is_never_the_only_carrier_of_meaning(report):

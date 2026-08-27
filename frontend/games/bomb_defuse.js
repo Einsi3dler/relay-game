@@ -34,7 +34,7 @@
 
   var STEPS = { n: [-1, 0], s: [1, 0], e: [0, 1], w: [0, -1] };
   var MAX_MOVES = 200;
-  var RULES_VERSION = 1;
+  var RULES_VERSION = 2;
 
   // The 590x440 logical surface (§23). Everything below is in these units and
   // the whole surface is scaled uniformly to whatever container it lands in.
@@ -101,9 +101,17 @@
     return typeof value === "number" && isFinite(value);
   }
 
+  function allModules(payload) {
+    var out = [];
+    payload.banks.forEach(function (bank) {
+      bank.modules.forEach(function (module) { out.push(module); });
+    });
+    return out;
+  }
+
   function initialState(payload) {
     var state = {};
-    payload.modules.forEach(function (module) {
+    allModules(payload).forEach(function (module) {
       if (module.type === "maze") {
         state[module.id] = { solved: false, cell: [module.player[0], module.player[1]] };
       } else if (module.type === "simon") {
@@ -117,22 +125,31 @@
     return state;
   }
 
-  function allSolved(state) {
-    for (var id in state) {
-      if (Object.prototype.hasOwnProperty.call(state, id) && !state[id].solved) return false;
-    }
-    return true;
+  function bankSolved(payload, progress, bank) {
+    return payload.banks[bank].modules.every(function (module) {
+      return progress[module.id].solved;
+    });
   }
 
-  // `partial` drops the two end-of-board rules (OK was pressed, every bay shut)
-  // so a half-defused bomb can be asked the same question after every action.
+  // `partial` drops the two end-of-board rules (OK was pressed, every bank
+  // shut) so a half-defused bomb can be asked the same question after every
+  // action.
   function validate(payload, moves, partial) {
-    var state = initialState(payload);
+    var progress = initialState(payload);
+    var banks = payload.banks;
     var byId = {};
-    payload.modules.forEach(function (module) { byId[module.id] = module; });
+    var bankOf = {};
+    banks.forEach(function (entry, index) {
+      entry.modules.forEach(function (module) {
+        byId[module.id] = module;
+        bankOf[module.id] = index;
+      });
+    });
+    var bank = 0;
 
     function report(ok, reason, defused) {
-      return { ok: ok, reason: reason, defused: !!defused, state: state };
+      return { ok: ok, reason: reason, defused: !!defused, bank: bank,
+               state: progress };
     }
 
     if (!Array.isArray(moves)) return report(false, "bad_shape");
@@ -149,14 +166,16 @@
       if (typeof moduleId !== "string") return report(false, "bad_shape");
 
       if (moduleId === "ok") {
-        if (!allSolved(state)) return report(false, "premature_ok");
-        defused = true;
+        if (!bankSolved(payload, progress, bank)) return report(false, "premature_ok");
+        bank += 1;
+        if (bank === banks.length) defused = true;
         continue;
       }
 
       var module = byId[moduleId];
       if (!module) return report(false, "unknown_module");
-      var entry = state[moduleId];
+      if (bankOf[moduleId] !== bank) return report(false, "wrong_bank");
+      var entry = progress[moduleId];
       if (entry.solved) return report(false, "already_solved");
       var action = move.a;
 
@@ -353,7 +372,7 @@
 
     // The bays: shut ones wear a shutter, live ones a grey panel you can open.
     var byBay = {};
-    payload.modules.forEach(function (module) { byBay[module.bay] = module; });
+    armedBank().modules.forEach(function (module) { byBay[module.bay] = module; });
     for (var bay = 0; bay < payload.bays; bay++) {
       var cell = BAY_CELLS[bay];
       var x = COL[cell[1]], y = ROW[cell[0]];
@@ -368,7 +387,7 @@
     }
 
     // OK — the centre, and the only way to finish (§15, §16).
-    var ready = allSolved(state.result.state);
+    var ready = bankSolved(state.puzzle.payload, state.result.state, state.bank);
     state.okButton = button("OK",
       "border:5px solid " + C.black + ";background:" + (ready ? C.green : "#00a802") + ";" +
       "color:" + C.black + ";font-size:26px;font-weight:700;border-radius:50%;",
@@ -481,8 +500,12 @@
     state.panelLayer.appendChild(shell.panel);
   }
 
+  function armedBank() {
+    return state.puzzle.payload.banks[state.bank];
+  }
+
   function moduleById(id) {
-    var modules = state.puzzle.payload.modules;
+    var modules = allModules(state.puzzle.payload);
     for (var i = 0; i < modules.length; i++) {
       if (modules[i].id === id) return modules[i];
     }
@@ -779,7 +802,7 @@
   // §62: which axis the number bay reads is configurable server-side, so the
   // page is written from the board rather than from a constant.
   function axisOfBoard() {
-    var modules = state && state.puzzle ? state.puzzle.payload.modules : [];
+    var modules = state && state.puzzle ? allModules(state.puzzle.payload) : [];
     for (var i = 0; i < modules.length; i++) {
       if (modules[i].type === "according_to_number") {
         return modules[i].axis === "row" ? "row" : "column";
@@ -815,11 +838,42 @@
   function pressOk() {
     if (state.status !== "active") return;
     var moves = state.moves.concat([{ m: "ok" }]);
-    var result = validate(state.puzzle.payload, moves, false);
+    var result = validate(state.puzzle.payload, moves, true);
     if (!result.ok) return detonate(result.reason);   // §15
     state.moves = moves;
     state.result = result;
-    defuse();
+    if (result.defused) return defuse();
+    armBank(result.bank);
+  }
+
+  // A bank shut, and the next one comes up behind it on its own fresh fuse.
+  // Everything transient resets with it: the old bank's flash timers and the
+  // mini button's state machine belong to bays that are now shuttered.
+  function armBank(bank) {
+    stopClocks();
+    state.bank = bank;
+    state.openId = null;
+    state.mini = { phase: "idle", timers: [] };
+    state.simon = { pads: {}, timers: [], playing: false };
+    renderPanel();
+    renderFace();
+    startFuse();
+
+    var banner = at(el("div"), 0, 0, W, H);
+    banner.style.cssText += "background:rgba(0,0,0,0.86);display:flex;" +
+      "flex-direction:column;align-items:center;justify-content:center;gap:10px;" +
+      "font-family:Arial,Helvetica,sans-serif;pointer-events:none;";
+    banner.appendChild(el("div", "color:" + C.shutter + ";font-weight:700;" +
+      "font-size:46px;text-align:center;",
+      "BANK " + (bank + 1) + " ARMED"));
+    banner.appendChild(el("div", "color:#ddd;font-size:16px;",
+      armedBank().fuse_seconds + "s on the new fuse."));
+    banner.setAttribute("role", "alert");
+    state.panelLayer.appendChild(banner);
+    SOUND.click();
+    state.bannerTimer = window.setTimeout(function () {
+      if (state && state.status === "active") renderPanel();
+    }, 1600);
   }
 
   function openModule(moduleId) {
@@ -926,7 +980,12 @@
   // --- the fuse (§8: an absolute deadline, never a frame count) ------------
 
   function startFuse() {
-    state.deadline = Date.now() + state.puzzle.payload.fuse_seconds * 1000;
+    state.remaining = armedBank().fuse_seconds;
+    state.deadline = Date.now() + state.remaining * 1000;
+    // Paint the new number now rather than at the first tick: arming a bank
+    // resets the clock, and a second of the *old* fuse on screen reads as the
+    // bomb ignoring you.
+    if (state.timerText) state.timerText.textContent = String(state.remaining);
     state.clock = window.setInterval(function () {
       if (state.status !== "active") return;
       var left = Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000));
@@ -969,7 +1028,8 @@
         puzzle: puzzle, api: api, status: "active", view: "bomb",
         manualPage: "home", openId: null, moves: [],
         result: validate(puzzle.payload, [], true),
-        remaining: puzzle.payload.fuse_seconds,
+        bank: 0,
+        remaining: puzzle.payload.banks[0].fuse_seconds,
         clock: null, pulse: null, failTimer: null,
         simon: { pads: {}, timers: [], playing: false },
         mini: { phase: "idle", timers: [] }
@@ -1011,6 +1071,7 @@
       if (!state) return;                 // idempotent
       stopClocks();
       if (state.failTimer) window.clearTimeout(state.failTimer);
+      if (state.bannerTimer) window.clearTimeout(state.bannerTimer);
       window.removeEventListener("resize", state.resizeHandler);
       if (state.root && state.root.parentNode) {
         state.root.parentNode.removeChild(state.root);

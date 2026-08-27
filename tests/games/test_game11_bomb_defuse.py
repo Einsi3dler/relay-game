@@ -33,6 +33,15 @@ def moves_of(puzzle) -> list[dict]:
     return json.loads(puzzle.answer)["moves"]
 
 
+def bays_of(payload: dict) -> list[dict]:
+    """Every bay on the board, across every bank."""
+    return [module for bank in payload["banks"] for module in bank["modules"]]
+
+
+def banks_of(level: int) -> list[tuple[int, int]]:
+    return MAIN_LEVEL_PARAMS[level - 1]["banks"]
+
+
 # --- the static data the manual and the bomb share ----------------------
 
 
@@ -155,8 +164,10 @@ def test_holding_is_a_smaller_bomb(game):
         holding = game.generate_holding(seed)
         assert holding.kind == "holding"
         assert game.check(holding, holding.answer) is True
-        assert len(holding.payload["modules"]) == 1
-        assert holding.payload["fuse_seconds"] < MAIN_LEVEL_PARAMS[0]["fuse"]
+        assert len(holding.payload["banks"]) == 1        # never escalates
+        assert len(bays_of(holding.payload)) == 1
+        assert holding.payload["banks"][0]["fuse_seconds"] < \
+            MAIN_LEVEL_PARAMS[0]["banks"][0][1]
         assert game.generate_holding(seed).payload == holding.payload
     # A mini-button bay is one move whatever size it is, so the comparison that
     # means anything is the work across a spread of seeds, not one board.
@@ -179,20 +190,27 @@ def test_reset_is_a_no_op(game):
 def test_a_board_never_asks_the_same_question_twice(game):
     for seed in range(60):
         for level in LEVELS:
-            modules = game.generate_main(seed, level).payload["modules"]
-            types = [module["type"] for module in modules]
-            bays = [module["bay"] for module in modules]
-            assert len(set(types)) == len(types)          # bomb.md §13
-            assert len(set(bays)) == len(bays)
-            assert all(0 <= bay < BAY_COUNT for bay in bays)
-            assert [module["id"] for module in modules] == \
-                [f"m{index}" for index in range(len(modules))]
+            payload = game.generate_main(seed, level).payload
+            # §13 is a per-bank rule: a bank never asks the same question
+            # twice, but a later bank may reuse a type behind a shut shutter.
+            for bank in payload["banks"]:
+                types = [module["type"] for module in bank["modules"]]
+                bays = [module["bay"] for module in bank["modules"]]
+                assert len(set(types)) == len(types)      # bomb.md §13
+                assert len(set(bays)) == len(bays)
+                assert all(0 <= bay < BAY_COUNT for bay in bays)
+            # Ids are unique board-wide, which is what lets a stale move from a
+            # shut bank still resolve to a real bay and be refused correctly.
+            ids = [module["id"] for module in bays_of(payload)]
+            assert ids == [f"m{index}" for index in range(len(ids))]
 
 
 def test_every_module_type_turns_up(game):
     seen = set()
     for seed in range(40):
-        seen.update(module["type"] for module in game.generate_main(seed, 6).payload["modules"])
+        seen.update(
+            module["type"] for module in bays_of(game.generate_main(seed, 6).payload)
+        )
     assert seen == set(MODULE_TYPES)
 
 
@@ -201,7 +219,7 @@ def test_maze_bays_are_walkable_and_never_sit_on_the_tip(game):
     for seed in range(120):
         for level in LEVELS:
             payload = game.generate_main(seed, level).payload
-            for module in payload["modules"]:
+            for module in bays_of(payload):
                 if module["type"] != "maze":
                     continue
                 checked += 1
@@ -224,7 +242,7 @@ def test_maze_bays_are_walkable_and_never_sit_on_the_tip(game):
 def test_simon_bays_flash_the_right_number_of_colours_and_no_triples(game):
     for seed in range(120):
         for level in LEVELS:
-            for module in game.generate_main(seed, level).payload["modules"]:
+            for module in bays_of(game.generate_main(seed, level).payload):
                 if module["type"] != "simon":
                     continue
                 sequence = module["sequence"]
@@ -238,7 +256,7 @@ def test_simon_bays_flash_the_right_number_of_colours_and_no_triples(game):
 def test_number_bays_never_repeat_a_display_back_to_back(game):
     for seed in range(120):
         for level in LEVELS:
-            for module in game.generate_main(seed, level).payload["modules"]:
+            for module in bays_of(game.generate_main(seed, level).payload):
                 if module["type"] != "according_to_number":
                     continue
                 displays = module["displays"]
@@ -251,7 +269,7 @@ def test_number_bays_never_repeat_a_display_back_to_back(game):
 def test_mini_button_bays_carry_the_level_s_timings(game):
     for seed in range(120):
         for level in LEVELS:
-            for module in game.generate_main(seed, level).payload["modules"]:
+            for module in bays_of(game.generate_main(seed, level).payload):
                 if module["type"] != "mini_button":
                     continue
                 params = MAIN_LEVEL_PARAMS[level - 1]
@@ -266,7 +284,7 @@ def test_mini_button_bays_carry_the_level_s_timings(game):
 
 def find_module(payload: dict, module_type: str) -> dict | None:
     return next(
-        (module for module in payload["modules"] if module["type"] == module_type), None
+        (module for module in bays_of(payload) if module["type"] == module_type), None
     )
 
 
@@ -315,9 +333,10 @@ def test_a_defusal_needs_the_ok_press(game):
 
 def test_bays_may_be_worked_in_any_order(game):
     puzzle, _ = board_with(game, "maze", level=13)
-    grouped = moves_of(puzzle)[:-1]
+    moves = moves_of(puzzle)
+    first_ok = moves.index({"m": "ok"})
     by_module: dict[str, list[dict]] = {}
-    for move in grouped:
+    for move in moves[:first_ok]:
         by_module.setdefault(move["m"], []).append(move)
     # Interleave one move from each open bay at a time — a real player flipping
     # between bays, which must be worth exactly as much as doing them in turn.
@@ -326,7 +345,28 @@ def test_bays_may_be_worked_in_any_order(game):
         for queue in by_module.values():
             if queue:
                 interleaved.append(queue.pop(0))
-    assert validate(puzzle.payload, interleaved + [{"m": "ok"}])["ok"] is True
+    rest = moves[first_ok:]
+    assert validate(puzzle.payload, interleaved + rest)["ok"] is True
+
+
+def test_banks_may_not_be(game):
+    """Bays inside a bank are free; the banks themselves are strictly ordered."""
+    puzzle, _ = board_with(game, "maze", level=13)
+    payload = puzzle.payload
+    assert len(payload["banks"]) > 1, "level 13 comes in banks"
+    moves = moves_of(puzzle)
+    first_ok = moves.index({"m": "ok"})
+
+    # A second-bank bay cannot be pre-solved while the first is still armed...
+    ahead = moves[first_ok + 1]
+    assert validate(payload, [ahead], True)["reason"] == "wrong_bank"
+    # ...and a first-bank bay is dead once its bank has shut behind it.
+    stale = validate(payload, moves[: first_ok + 1] + [moves[0]], True)
+    assert stale["reason"] == "wrong_bank"
+    # The OK that shuts a bank arms the next one rather than ending the bomb.
+    shut = validate(payload, moves[: first_ok + 1], True)
+    assert shut["ok"] is True and shut["defused"] is False and shut["bank"] == 1
+    assert validate(payload, moves[: first_ok + 1])["reason"] == "missing_ok"
 
 
 def test_a_shut_bay_takes_no_further_input(game):
@@ -354,19 +394,23 @@ def test_the_table_has_a_row_per_level_including_the_bonus_tiers():
 
 def test_level_one_is_the_source_game_s_easy_bomb(game):
     params = MAIN_LEVEL_PARAMS[0]
-    assert params["modules"] == 1                 # bomb.md §10, easy
+    assert params["banks"] == [(1, 90)]           # bomb.md §10, easy: one bay
     assert params["simon_stages"] == 4            # §46
     assert params["atn_stages"] == 4              # §64
     assert params["react_ms"] == 700              # §54
     assert params["hold_ms"] == 750               # §55
     for seed in range(30):
-        assert len(game.generate_main(seed, 1).payload["modules"]) == 1
+        payload = game.generate_main(seed, 1).payload
+        assert len(payload["banks"]) == 1
+        assert len(bays_of(payload)) == 1
 
 
 def test_the_knobs_only_ever_tighten():
     rows = MAIN_LEVEL_PARAMS
     for earlier, later in zip(rows, rows[1:]):
-        assert later["modules"] >= earlier["modules"]
+        assert len(later["banks"]) >= len(earlier["banks"])
+        assert sum(count for count, _ in later["banks"]) >= \
+            sum(count for count, _ in earlier["banks"])
         assert later["simon_stages"] >= earlier["simon_stages"]
         assert later["atn_stages"] >= earlier["atn_stages"]
         assert later["maze_moves"] >= earlier["maze_moves"]
@@ -377,23 +421,52 @@ def test_the_knobs_only_ever_tighten():
 
 
 def test_the_fuse_tightens_inside_each_band_and_never_covers_less_work():
-    # A fuse is only difficulty relative to the work it has to cover, so it
-    # rises where a bay is added and tightens level by level after that.
+    # A fuse is only difficulty relative to the work it has to cover, so the
+    # opening bank's fuse rises where a bay is added and tightens level by
+    # level after that.
     rows = MAIN_LEVEL_PARAMS
+
+    def shape(row):
+        return [count for count, _ in row["banks"]]
+
     for earlier, later in zip(rows, rows[1:]):
-        if later["modules"] == earlier["modules"]:
-            assert later["fuse"] < earlier["fuse"]
+        if shape(later) == shape(earlier):
+            # Same bomb, less time: this is where the pressure comes from.
+            fuses = list(zip(earlier["banks"], later["banks"]))
+            assert all(after <= before for (_, before), (_, after) in fuses)
+            assert any(after < before for (_, before), (_, after) in fuses)
         else:
-            assert later["fuse"] > earlier["fuse"]
-    # Every level still leaves real room over the expected solve.
+            # A wider or deeper bomb buys time back, or it is not hard, it is
+            # impossible.
+            assert sum(f for _, f in later["banks"]) > \
+                sum(f for _, f in earlier["banks"])
     for row in rows:
-        assert row["fuse"] > row["time_hint"]
+        # A later bank is always smaller and faster than the one that armed it.
+        for (before_count, before_fuse), (after_count, after_fuse) in zip(
+            row["banks"], row["banks"][1:]
+        ):
+            assert after_count <= before_count
+            assert after_fuse < before_fuse
+        # And the whole board still leaves real room over the expected solve.
+        assert sum(fuse for _, fuse in row["banks"]) > row["time_hint"]
 
 
 def test_the_bonus_tiers_go_past_level_ten():
     played, bonus = MAIN_LEVEL_PARAMS[9], MAIN_LEVEL_PARAMS[10:]
-    assert all(row["modules"] > played["modules"] for row in bonus)
-    assert all(row["modules"] == len(MODULE_TYPES) for row in bonus)
+    # Levels 1..10 are a single bank; the bonus-only tiers are where a second
+    # arms behind the first, which is what makes them a different board rather
+    # than just a wider one.
+    assert all(len(row["banks"]) == 1 for row in MAIN_LEVEL_PARAMS[:10])
+    assert all(len(row["banks"]) > 1 for row in bonus)
+    def total(row):
+        return sum(count for count, _ in row["banks"])
+
+    assert all(total(row) > total(played) for row in bonus)
+    # A bank still cannot ask more than the four questions that exist.
+    assert all(
+        count <= len(MODULE_TYPES) for row in MAIN_LEVEL_PARAMS
+        for count, _ in row["banks"]
+    )
     assert bonus[-1]["hold_ms"] > played["hold_ms"]
     assert bonus[-1]["react_ms"] < played["react_ms"]
 

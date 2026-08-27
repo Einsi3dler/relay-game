@@ -61,20 +61,22 @@ def test_fixture_covers_every_rule():
     assert reasons == {
         "", "bad_shape", "bad_action", "too_many_moves", "unknown_module",
         "already_solved", "maze_wall", "simon_wrong", "atn_wrong", "mini_code",
-        "premature_ok", "after_ok", "missing_ok",
+        "premature_ok", "after_ok", "missing_ok", "wrong_bank",
     }
     # Both halves of the partial contract, and real boards alongside the
     # hand-built ones.
     assert {case["partial"] for case in cases} == {True, False}
     assert any(case["expected"]["defused"] for case in cases)
     assert any(case["name"].startswith("generated") for case in cases)
-    # Every module type is exercised.
+    # Every module type is exercised, and boards of more than one bank are too.
     types = {
         module["type"]
         for case in cases
-        for module in case["payload"]["modules"]
+        for bank in case["payload"]["banks"]
+        for module in bank["modules"]
     }
     assert types == {"maze", "simon", "according_to_number", "mini_button"}
+    assert max(len(case["payload"]["banks"]) for case in cases) >= 3
 
 
 def test_python_matches_the_fixture():

@@ -48,7 +48,11 @@ from collections import deque
 
 from backend.games.base import PuzzleInstance
 
-RULES_VERSION = 1
+# 2: the board comes in *banks* (bomb.md §20's escalation, applied inside one
+# board). `payload["modules"]` became `payload["banks"][i]["modules"]`, each
+# bank carries its own fuse, and OK shuts a bank rather than always ending the
+# bomb. Version 1 transcripts no longer parse, which is the point of the bump.
+RULES_VERSION = 2
 
 # --- the bomb frame (bomb.md §31) ---------------------------------------
 # A 3x3 face: the timer holds the top-middle cell, the OK button the centre,
@@ -141,61 +145,71 @@ MAX_MOVES = 200              # comfortably over a level-13 board's ~50
 # module, four Simon stages, four According-to-Number stages, the spec's 700ms
 # reaction window (§54) and 750ms hold (§55).
 #
-# `fuse_seconds` is the countdown on the bomb face and it *rises* wherever a
-# module is added, because a fuse is only difficulty relative to the work it
-# has to cover: three modules in the two-module fuse is not hard, it is
-# impossible. Within a band it then tightens level by level, which is where the
-# pressure actually comes from. `time_hint_seconds` is the expected solve, not
-# the cap — the Relay convention for that field.
+# `banks` is the shape of the bomb: one `(modules, fuse_seconds)` per bank of
+# bays. Shut every bay in a bank and press OK and the *next* bank arms behind
+# it on its own fresh fuse; the last one defuses. Most levels are a single
+# bank, which is an ordinary bomb.
 #
-# Levels 11..13 are BONUS-ONLY tiers, never served as a main board: they field
-# all four module types at once, which is the hardest this bomb can be built.
+# A fuse *rises* wherever a module is added, because a fuse is only difficulty
+# relative to the work it has to cover: three modules in the two-module fuse is
+# not hard, it is impossible. Within a band it then tightens level by level,
+# which is where the pressure actually comes from. A second bank always gets
+# less time than the first — it is smaller, and by then the player knows the
+# board. `time_hint_seconds` is the expected solve across every bank, not the
+# cap — the Relay convention for that field.
+#
+# Levels 11..13 are BONUS-ONLY tiers, never served as a main board. They are
+# the only ones that come in two banks, which is what makes them a different
+# board rather than just a wider one.
 MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
-    {"modules": 1, "fuse": 90, "simon_stages": 4, "atn_stages": 4,
+    {"banks": [(1, 90)], "simon_stages": 4, "atn_stages": 4,
      "maze_moves": (4, 6), "react_ms": 700, "hold_ms": 750,
      "difficulty": 2, "time_hint": 28},                                   # 1
-    {"modules": 1, "fuse": 82, "simon_stages": 4, "atn_stages": 4,
+    {"banks": [(1, 82)], "simon_stages": 4, "atn_stages": 4,
      "maze_moves": (5, 7), "react_ms": 700, "hold_ms": 750,
      "difficulty": 2, "time_hint": 30},                                   # 2
-    {"modules": 2, "fuse": 105, "simon_stages": 4, "atn_stages": 4,
+    {"banks": [(2, 105)], "simon_stages": 4, "atn_stages": 4,
      "maze_moves": (5, 7), "react_ms": 700, "hold_ms": 780,
      "difficulty": 3, "time_hint": 45},                                   # 3
-    {"modules": 2, "fuse": 98, "simon_stages": 4, "atn_stages": 4,
+    {"banks": [(2, 98)], "simon_stages": 4, "atn_stages": 4,
      "maze_moves": (5, 8), "react_ms": 680, "hold_ms": 800,
      "difficulty": 3, "time_hint": 48},                                   # 4
-    {"modules": 2, "fuse": 92, "simon_stages": 5, "atn_stages": 5,
+    {"banks": [(2, 92)], "simon_stages": 5, "atn_stages": 5,
      "maze_moves": (6, 8), "react_ms": 680, "hold_ms": 820,
      "difficulty": 3, "time_hint": 52},                                   # 5
-    {"modules": 3, "fuse": 120, "simon_stages": 5, "atn_stages": 5,
+    {"banks": [(3, 120)], "simon_stages": 5, "atn_stages": 5,
      "maze_moves": (6, 9), "react_ms": 660, "hold_ms": 840,
      "difficulty": 4, "time_hint": 68},                                   # 6
-    {"modules": 3, "fuse": 114, "simon_stages": 5, "atn_stages": 5,
+    {"banks": [(3, 114)], "simon_stages": 5, "atn_stages": 5,
      "maze_moves": (6, 9), "react_ms": 660, "hold_ms": 860,
      "difficulty": 4, "time_hint": 70},                                   # 7
-    {"modules": 3, "fuse": 108, "simon_stages": 5, "atn_stages": 5,
+    {"banks": [(3, 108)], "simon_stages": 5, "atn_stages": 5,
      "maze_moves": (7, 10), "react_ms": 640, "hold_ms": 880,
      "difficulty": 4, "time_hint": 72},                                   # 8
-    {"modules": 3, "fuse": 102, "simon_stages": 5, "atn_stages": 6,
+    {"banks": [(3, 102)], "simon_stages": 5, "atn_stages": 6,
      "maze_moves": (7, 10), "react_ms": 640, "hold_ms": 900,
      "difficulty": 5, "time_hint": 75},                                   # 9
-    {"modules": 3, "fuse": 96, "simon_stages": 6, "atn_stages": 6,
+    {"banks": [(3, 96)], "simon_stages": 6, "atn_stages": 6,
      "maze_moves": (8, 11), "react_ms": 620, "hold_ms": 920,
      "difficulty": 5, "time_hint": 78},                                   # 10
-    {"modules": 4, "fuse": 126, "simon_stages": 6, "atn_stages": 6,
+    # The bonus-only tiers are where the bomb starts coming in banks: shut the
+    # first one and a second arms behind it on a shorter fuse (§20's escalation
+    # applied inside a single board rather than across boards).
+    {"banks": [(3, 120), (2, 66)], "simon_stages": 6, "atn_stages": 6,
      "maze_moves": (8, 11), "react_ms": 620, "hold_ms": 950,
-     "difficulty": 5, "time_hint": 95},                                   # 11 bonus
-    {"modules": 4, "fuse": 118, "simon_stages": 6, "atn_stages": 6,
+     "difficulty": 5, "time_hint": 120},                                  # 11 bonus
+    {"banks": [(3, 114), (3, 78)], "simon_stages": 6, "atn_stages": 6,
      "maze_moves": (9, 12), "react_ms": 600, "hold_ms": 980,
-     "difficulty": 5, "time_hint": 98},                                   # 12 bonus
-    {"modules": 4, "fuse": 110, "simon_stages": 6, "atn_stages": 6,
+     "difficulty": 5, "time_hint": 132},                                  # 12 bonus
+    {"banks": [(4, 126), (3, 68)], "simon_stages": 6, "atn_stages": 6,
      "maze_moves": (9, 12), "react_ms": 600, "hold_ms": 1000,
-     "difficulty": 5, "time_hint": 100},                                  # 13 bonus
+     "difficulty": 5, "time_hint": 145},                                  # 13 bonus
 )
 
-# Holding is practice-mode only: one module, the shortest version of whichever
-# type comes up, and a fuse that is still a fuse.
+# Holding is practice-mode only: one bank, one module, the shortest version of
+# whichever type comes up, and a fuse that is still a fuse.
 HOLDING_PARAMS = {
-    "modules": 1, "fuse": 35, "simon_stages": 2, "atn_stages": 2,
+    "banks": [(1, 35)], "simon_stages": 2, "atn_stages": 2,
     "maze_moves": (2, 4), "react_ms": 800, "hold_ms": 600,
     "difficulty": 1, "time_hint": 10,
 }
@@ -329,10 +343,20 @@ def _is_number(value: object) -> bool:
     return not isinstance(value, bool) and isinstance(value, (int, float))
 
 
+def _all_modules(payload: dict) -> list[dict]:
+    """Every bay on the board, across every bank."""
+    return [module for bank in payload["banks"] for module in bank["modules"]]
+
+
 def _initial_state(payload: dict) -> dict[str, dict]:
-    """Fresh per-module progress, before any move is replayed."""
+    """Fresh per-module progress, before any move is replayed.
+
+    Every bank's bays are here from the start, armed or not. Which ones may be
+    touched is `bank`'s job, not this one's — keeping the map whole is what
+    lets a stale move name a real bay and be refused for the right reason.
+    """
     state: dict[str, dict] = {}
-    for module in payload["modules"]:
+    for module in _all_modules(payload):
         if module["type"] == "maze":
             state[module["id"]] = {"solved": False, "cell": list(module["player"])}
         elif module["type"] == "simon":
@@ -348,7 +372,7 @@ def validate(payload: dict, moves: object, partial: bool = False) -> dict:
     """Replay `moves` over `payload`'s bomb and report what happened.
 
     `partial` drops the two end-of-board rules (the OK press must be there, and
-    every module must be shut by then) so the browser can ask the same question
+    every bank must be shut by then) so the browser can ask the same question
     of a half-defused bomb — "is what I have done so far still survivable?" —
     through this exact code.
 
@@ -357,15 +381,24 @@ def validate(payload: dict, moves: object, partial: bool = False) -> dict:
     `payload` is the board this server generated, so it is taken as given — the
     same split the other action games use.
 
-    Returns `{ok, reason, defused, state}`. `reason` is "" while nothing has
-    gone wrong and otherwise one of the stable strings below; `state` is the
-    per-module progress the bomb face draws from.
+    Returns `{ok, reason, defused, bank, state}`. `bank` is the index of the
+    bank currently armed, and equals `len(payload["banks"])` once the board is
+    defused. `reason` is "" while nothing has gone wrong and otherwise one of
+    the stable strings below.
     """
     state = _initial_state(payload)
-    by_id = {module["id"]: module for module in payload["modules"]}
+    banks = payload["banks"]
+    by_id = {module["id"]: module for module in _all_modules(payload)}
+    bank_of = {
+        module["id"]: index
+        for index, entry in enumerate(banks)
+        for module in entry["modules"]
+    }
+    bank = 0
 
     def report(ok: bool, reason: str, defused: bool = False) -> dict:
-        return {"ok": ok, "reason": reason, "defused": defused, "state": state}
+        return {"ok": ok, "reason": reason, "defused": defused,
+                "bank": bank, "state": state}
 
     if not isinstance(moves, list):
         return report(False, "bad_shape")
@@ -375,8 +408,8 @@ def validate(payload: dict, moves: object, partial: bool = False) -> dict:
     defused = False
     for move in moves:
         if defused:
-            # OK ends the bomb. Anything after it is a transcript that did not
-            # come from this game.
+            # OK on the last bank ends the bomb. Anything after it is a
+            # transcript that did not come from this game.
             return report(False, "after_ok")
         if not isinstance(move, dict):
             return report(False, "bad_shape")
@@ -385,16 +418,23 @@ def validate(payload: dict, moves: object, partial: bool = False) -> dict:
             return report(False, "bad_shape")
 
         if module_id == "ok":
-            # §15: pressing OK with a bay still open is not a warning, it is
-            # the explosion.
-            if not all(entry["solved"] for entry in state.values()):
+            # §15: pressing OK with a bay of the armed bank still open is not a
+            # warning, it is the explosion.
+            armed = banks[bank]["modules"]
+            if not all(state[module["id"]]["solved"] for module in armed):
                 return report(False, "premature_ok")
-            defused = True
+            bank += 1
+            if bank == len(banks):
+                defused = True
             continue
 
         module = by_id.get(module_id)
         if module is None:
             return report(False, "unknown_module")
+        if bank_of[module_id] != bank:
+            # A bay of a bank that is not armed: either one already shut behind
+            # you, or one that has not come up yet and cannot be pre-solved.
+            return report(False, "wrong_bank")
         entry = state[module_id]
         if entry["solved"]:
             return report(False, "already_solved")   # a shut bay takes no input
@@ -556,8 +596,37 @@ _BUILDERS = {
 }
 
 
+def _module_moves(module: dict) -> list[dict]:
+    """The moves that shut one bay."""
+    if module["type"] == "maze":
+        layout = _layout_for_tip(tuple(module["tip"]))
+        route = _maze_route(
+            layout, tuple(module["player"]), tuple(module["goal"])
+        ) if layout else None
+        if route is None:
+            raise RuntimeError("bomb_defuse: unwalkable maze")
+        return [{"m": module["id"], "a": side} for side in route]
+    if module["type"] == "simon":
+        moves: list[dict] = []
+        for stage in range(module["stages"]):
+            moves += [
+                {"m": module["id"], "a": SIMON_MAP[colour]}
+                for colour in module["sequence"][: stage + 1]
+            ]
+        return moves
+    if module["type"] == "according_to_number":
+        pattern = _pattern_for_tip(tuple(module["tip"]))
+        return [
+            {"m": module["id"],
+             "a": _number_answer(pattern, shown, module["axis"])}
+            for shown in module["displays"]
+        ]
+    return [{"m": module["id"], "a": module["code"]}]
+
+
 def _reference_moves(payload: dict) -> list[dict]:
-    """A transcript that defuses this bomb, module by module then OK.
+    """A transcript that defuses this bomb: each bank's bays, then OK to arm
+    the next, and a final OK that ends it.
 
     Generation runs it through `validate` before serving, which is the quality
     gate: a board that its own reference cannot defuse never reaches a player.
@@ -565,31 +634,10 @@ def _reference_moves(payload: dict) -> list[dict]:
     defusal, not this one.
     """
     moves: list[dict] = []
-    for module in payload["modules"]:
-        if module["type"] == "maze":
-            layout = _layout_for_tip(tuple(module["tip"]))
-            route = _maze_route(
-                layout, tuple(module["player"]), tuple(module["goal"])
-            ) if layout else None
-            if route is None:
-                raise RuntimeError("bomb_defuse: unwalkable maze")
-            moves += [{"m": module["id"], "a": side} for side in route]
-        elif module["type"] == "simon":
-            for stage in range(module["stages"]):
-                moves += [
-                    {"m": module["id"], "a": SIMON_MAP[colour]}
-                    for colour in module["sequence"][: stage + 1]
-                ]
-        elif module["type"] == "according_to_number":
-            pattern = _pattern_for_tip(tuple(module["tip"]))
-            moves += [
-                {"m": module["id"],
-                 "a": _number_answer(pattern, shown, module["axis"])}
-                for shown in module["displays"]
-            ]
-        else:
-            moves.append({"m": module["id"], "a": module["code"]})
-    moves.append({"m": "ok"})
+    for bank in payload["banks"]:
+        for module in bank["modules"]:
+            moves += _module_moves(module)
+        moves.append({"m": "ok"})
     return moves
 
 
@@ -609,24 +657,31 @@ class BombDefuseGame:
         """Payload + the reference transcript (server-only, used by tests)."""
         rng = random.Random(seed)
         params = _params_for_level(level) if kind == "main" else HOLDING_PARAMS
-        count = params["modules"]
 
-        # §13: different puzzle types within one bomb, so a board never asks
-        # the same question twice. There are four types, which is what caps a
-        # bonus board at four bays.
-        types = rng.sample(MODULE_TYPES, count)
-        bays = rng.sample(range(BAY_COUNT), count)
+        banks = []
+        made = 0
+        for count, fuse in params["banks"]:
+            # §13 applies *per bank*: a bank never asks the same question
+            # twice, which is what caps one at four bays. A later bank may
+            # reuse a type — by then the first instance is shut behind its
+            # shutter and the player is reading a fresh board.
+            types = rng.sample(MODULE_TYPES, count)
+            bays = rng.sample(range(BAY_COUNT), count)
+            banks.append({
+                "fuse_seconds": fuse,
+                "modules": [
+                    _BUILDERS[module_type](rng, f"m{made + index}", bay, params)
+                    for index, (module_type, bay) in enumerate(zip(types, bays))
+                ],
+            })
+            made += count
         payload = {
             "variant": kind,
             "difficulty": params["difficulty"],
             "time_hint_seconds": params["time_hint"],
             "rules_version": RULES_VERSION,
-            "fuse_seconds": params["fuse"],
             "bays": BAY_COUNT,
-            "modules": [
-                _BUILDERS[module_type](rng, f"m{index}", bay, params)
-                for index, (module_type, bay) in enumerate(zip(types, bays))
-            ],
+            "banks": banks,
         }
 
         moves = _reference_moves(payload)
@@ -636,15 +691,24 @@ class BombDefuseGame:
 
     def _generate(self, seed: int, kind: str, level: int = 1) -> PuzzleInstance:
         payload, answer = self._build(seed, kind, level)
-        count = len(payload["modules"])
+        banks = payload["banks"]
+        count = len(banks[0]["modules"])
+        shape = (
+            f"{count} live {'module' if count == 1 else 'modules'}, "
+            f"{banks[0]['fuse_seconds']}s on the fuse"
+        )
+        behind = len(banks) - 1
+        if behind:
+            shape += (
+                f", and {behind} more bank{'' if behind == 1 else 's'} "
+                "armed behind it"
+            )
         return PuzzleInstance(
             game_id=self.id,
             kind=kind,
             prompt=(
-                f"Defuse the bomb: {count} live "
-                f"{'module' if count == 1 else 'modules'}, "
-                f"{payload['fuse_seconds']}s on the fuse. Read the manual, solve "
-                "every bay, then press OK. One wrong move and it goes off."
+                f"Defuse the bomb: {shape}. Read the manual, solve every bay, "
+                "then press OK. One wrong move and it goes off."
             ),
             answer=answer,   # server-only reference; check() replays instead
             payload=payload,
