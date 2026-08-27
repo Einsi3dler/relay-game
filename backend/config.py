@@ -88,19 +88,26 @@ SCREEN_EFFECTS = ("wobble", "static", "mirror", "blackout")
 # Role catalogue (docs/TASK_LIST.md V8): the Grandmaster (team leader) assigns
 # each player a role in the lobby; the game picker then only offers that
 # role's games.
-#   games=None  -> any registered game (Generalist).
-#   games=[]    -> reserved, not assignable (no matching game shipped yet).
-#   duel=True   -> the Duelist: the *server* picks the game, the role is
-#                  mirrored (both teams field one or neither does), and the
-#                  player duels the opposing Duelist instead of solving.
+#   games=None    -> any registered game (Generalist).
+#   games=[]      -> reserved, not assignable (no matching game shipped yet).
+#   duel=True     -> the Duelist: the *server* picks the game, the role is
+#                    mirrored (both teams field one or neither does), and the
+#                    player duels the opposing Duelist instead of solving.
+#   fixed=True    -> the role carries exactly one game and assigns it itself;
+#                    the Grandmaster picks *who* holds the role, never what
+#                    they play. `assign_game` is refused for these.
+#   required=True -> every team must field exactly one, or the match can't
+#                    start. Only the Defuser: the bomb is the game no team
+#                    opts out of.
 ROLES: dict[str, dict] = {
     "logician":         {"name": "Logician",         "games": ["sweep", "threadline"]},
-    "technocrat":       {"name": "Technocrat",       "games": ["rewire", "lane_shift",
-                                                               "bomb_defuse"]},
+    "technocrat":       {"name": "Technocrat",       "games": ["rewire", "lane_shift"]},
     "spatial_reasoner": {"name": "Spatial Reasoner", "games": ["mirror_run", "shadow_cast"]},
     "puzzle_master":    {"name": "Puzzle Master",    "games": ["decant", "stackdrop"]},
     "spymaster":        {"name": "Spymaster",        "games": ["echo", "overprint"]},
     "generalist":       {"name": "Generalist",       "games": None},
+    "defuser":          {"name": "Defuser",          "games": ["bomb_defuse"],
+                         "fixed": True, "required": True},
     "duelist":          {"name": "Duelist",          "games": ["rps_duel"], "duel": True},
 }
 
@@ -120,6 +127,25 @@ def role_assignable(role_id: str) -> bool:
 def role_is_duel(role_id: str | None) -> bool:
     """True for a role whose player duels instead of solving puzzles."""
     return bool(role_id) and bool(ROLES.get(role_id, {}).get("duel"))
+
+
+def role_fixed_game(role_id: str | None) -> str | None:
+    """The one game a `fixed` role assigns itself, or None.
+
+    The Duelist is deliberately *not* one of these: the server picks its game
+    from the duel catalogue at random, so there is no single id to return.
+    """
+    if not role_id:
+        return None
+    role = ROLES.get(role_id, {})
+    if not role.get("fixed"):
+        return None
+    return role["games"][0]
+
+
+def required_roles() -> list[str]:
+    """Roles every team must field exactly one of."""
+    return [role_id for role_id, role in ROLES.items() if role.get("required")]
 
 # --- Server behaviour ---
 SUBMIT_MIN_INTERVAL_MS = 300     # reject submissions arriving faster than this

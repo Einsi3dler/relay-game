@@ -46,7 +46,8 @@ def join(client, match_id: str, name: str, team_id: str | None = None):
 
 
 def fill_match(
-    client, match_id: str, games=None, duelists: bool = False
+    client, match_id: str, games=None, duelists: bool = False,
+    defuser_seat: int | None = None,
 ) -> dict[str, list[str]]:
     """Join a leader + 4 players per team, claim seats, assign games over the
     socket, and have the host (alpha's leader) start. Returns ids per team,
@@ -54,7 +55,12 @@ def fill_match(
 
     `duelists` makes seat 0 of each team a Duelist — mirrored, because the
     start gate refuses a lone champion — and skips its game assignment, since
-    the server picks a Duelist's game."""
+    the server picks a Duelist's game.
+
+    `defuser_seat` makes that seat the Defuser, whose game the role fixes. It
+    is only needed against the **real** registry: the Defuser is a required
+    role, but the gate only bites when `bomb_defuse` is registered, so matches
+    running on `fake_games` never need one."""
     games = games or GAMES[:4]
     ids: dict[str, list[str]] = {"alpha": [], "bravo": []}
     for team_id in ("alpha", "bravo"):
@@ -79,6 +85,12 @@ def fill_match(
                         "target_id": player_id, "role_id": "duelist",
                     })
                     continue
+                if i == defuser_seat:
+                    ws.send_json({
+                        "type": "lobby_action", "action": "assign_role",
+                        "target_id": player_id, "role_id": "defuser",
+                    })
+                    continue  # the role names the game; assign_game is refused
                 ws.send_json({
                     "type": "lobby_action", "action": "assign_role",
                     "target_id": player_id, "role_id": "generalist",
@@ -100,6 +112,11 @@ def fill_match(
         ws.send_json({"type": "lobby_action", "action": "start"})
         for _ in range(40):
             message = ws.receive_json()
+            if message["type"] == "error":
+                # A refused start sends one message and then nothing, so
+                # without this the next receive_json() blocks forever. Fail
+                # with the lobby's own reason instead of hanging the suite.
+                raise AssertionError(f"start refused: {message['error']}")
             if (message["type"] == "state_snapshot"
                     and message["state"]["status"] == "active"):
                 break
@@ -193,9 +210,20 @@ def test_get_config(client):
     assert set(body["perks"]) == set(config.PERKS)
     assert set(body["roles"]) == set(config.ROLES)
     for role_id, role in config.ROLES.items():
-        assert body["roles"][role_id] == {"name": role["name"], "games": role["games"]}
+        assert body["roles"][role_id] == {
+            "name": role["name"],
+            "games": role["games"],
+            # The lobby mirrors both rules client-side, so both flags travel.
+            "fixed": bool(role.get("fixed")),
+            "required": bool(role.get("required")),
+        }
     assert body["roles"]["generalist"]["games"] is None  # any game
     assert body["roles"]["duelist"]["games"] == ["rps_duel"]
+    # The Defuser is the one role every team must field, and its game is not
+    # the Grandmaster's to choose.
+    assert body["roles"]["defuser"] == {
+        "name": "Defuser", "games": ["bomb_defuse"], "fixed": True, "required": True,
+    }
     library_ids = {entry["id"] for entry in body["library"]}
     assert {"rewire", "sweep", "mirror_run", "decant", "echo", "overprint",
             "stackdrop", "lane_shift", "shadow_cast", "threadline",
@@ -455,7 +483,14 @@ def test_snapshots_never_contain_answers_real_games(client):
     """With the real registry: real games served per assignment, no leaks,
     and the leader's full view holds while players get the limited one."""
     match_id = create_match(client)
-    ids = fill_match(client, match_id, games=REAL_GAMES)
+    # Seat 3 defuses: against the real registry every team must field one.
+    ids = fill_match(client, match_id, games=REAL_GAMES, defuser_seat=3)
+    with connect(client, match_id, ids["alpha"][3]) as (ws, me):
+        # The required role served its own game, and the bomb's payload keeps
+        # its reference transcript to itself.
+        assert me["current_puzzle"]["game_id"] == "bomb_defuse"
+        ws.send_json({"type": "request_state"})
+        walk_no_answer(ws.receive_json())
     with connect(client, match_id, ids["alpha"][0]) as (ws, me):
         assert me["current_puzzle"]["game_id"] == "rewire"
         ws.send_json({"type": "request_state"})

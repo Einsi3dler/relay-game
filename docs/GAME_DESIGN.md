@@ -47,11 +47,12 @@ Roles are defined in `config.ROLES`:
 | Role | Games it may be assigned |
 | --- | --- |
 | Logician | Sweep, Threadline |
-| Technocrat | Rewire, Lane Shift, Bomb Defuse |
+| Technocrat | Rewire, Lane Shift |
 | Spatial Reasoner | Mirror Run, Shadow Cast |
 | Puzzle Master | Decant, Stackdrop |
 | Spymaster | Echo, Overprint |
 | Generalist | any registered game |
+| Defuser | *the role fixes it* — Bomb Defuse. **Every team must field one** (see §2c) |
 | Duelist | *the server picks* — duels the other team's Duelist (see §2b) |
 
 Rules:
@@ -63,7 +64,9 @@ Rules:
   overlap, and two Generalists is a legitimate setup. (Two players locked to
   the *same* single-game role would leave one unassignable, which `start` will
   refuse until it's fixed — a visible, self-correcting lobby mistake.)
-- **Duelist** breaks several of the rules above on purpose — see §2b.
+- **Duelist** and **Defuser** break several of the rules above on purpose — see
+  §2b and §2c. Both carry a game the Grandmaster cannot choose, and neither may
+  be doubled up on one team.
 - On a Grandmaster handoff the role moves with the seat's game; switching teams
   or claiming the seat clears a player's role.
 
@@ -112,6 +115,37 @@ the other team, and the view carries names, never player ids. Neither Duelist �
 nor either Grandmaster — receives the opponent's move until the round has resolved.
 
 Building a new duel game: [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md).
+
+### 2c. The Defuser
+
+Every team spends one of its four playing slots on a **Defuser**, who plays
+**BOMB DEFUSE**. This is the one game no team opts out of.
+
+Where the Duelist is *mirrored* (one team fielding a champion forces the other
+to answer), the Defuser is **required** — both teams name one or the match does
+not start:
+
+- **The role names the game, not the Grandmaster.** `assign_game` is refused for
+  a Defuser; giving someone the role assigns `bomb_defuse` with it. The
+  Grandmaster chooses **who** defuses, never **what** they play.
+- **Exactly one per team**, and the lobby refuses a second at the click that
+  would create it.
+- **Everything else is ordinary.** Unlike the Duelist, a Defuser solves, goes
+  green, holds a wait timer and takes bonus boards like any other player. The
+  level loop needs no special case for them.
+
+A required role costs a slot, and that is the point: a team fielding both a
+Defuser and a Duelist has two of its four seats spoken for and only two free
+picks. At small table sizes the two collide outright, and the lobby says so
+rather than looking like a deadlock.
+
+**The Grandmaster is the Expert.** BOMB DEFUSE is a two-player co-op wearing one
+seat: the bomb explains nothing, and the manual that explains it lives on the
+**Grandmaster's dashboard**. The Defuser asks; the Grandmaster reads it out.
+The Defuser keeps a copy of the manual too — flipping to it costs fuse, so a
+Grandmaster on the console is a *speed advantage*, never a dependency. A
+Grandmaster who is busy with four other players, or disconnected, slows their
+Defuser down; they never strand them.
 
 ### Lobby / start (host + Grandmasters)
 

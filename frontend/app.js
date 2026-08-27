@@ -399,6 +399,18 @@
         return;
       }
 
+      if (roleIsFixed(player.role)) {
+        // A fixed role names its own game — you choose who holds it, not what
+        // they play.
+        var locked = document.createElement("span");
+        locked.className = "muted";
+        locked.textContent = "💣 " + gameName(player.assigned_game) +
+          " — the role fixes it";
+        row.appendChild(locked);
+        rows.appendChild(row);
+        return;
+      }
+
       var select = document.createElement("select");
       select.className = "assign-select";
       var placeholder = document.createElement("option");
@@ -475,6 +487,20 @@
               p.name + ".";
           }
         });
+        // Required roles: the bomb is the game no team opts out of.
+        requiredRoles().forEach(function (roleId) {
+          if (blocker) return;
+          var roleName = serverConfig.roles[roleId].name;
+          var holders = playing.filter(function (p) { return p.role === roleId; });
+          if (holders.length > 1) {
+            blocker = "Team " + team.name + " can only field one " + roleName + ".";
+          } else if (!holders.length) {
+            blocker = playing.length < 2 && duelistsOf(team).length
+              ? "Team " + team.name + " needs a " + roleName + ", but its only " +
+                "player is a Duelist — drop the Duelist or add a player."
+              : "Team " + team.name + " needs a " + roleName + ".";
+          }
+        });
         if (!blocker && duelistsOf(team).length > 1) {
           blocker = "Team " + team.name + " can only field one Duelist.";
         }
@@ -496,6 +522,27 @@
   function duelistsOf(team) {
     return (team.players || []).filter(function (p) {
       return !p.is_leader && p.role === "duelist";
+    });
+  }
+
+  // Both read the catalogue rather than naming roles, so a new fixed or
+  // required role needs no client change (mirror of backend/config.py).
+  function roleIsFixed(roleId) {
+    var roles = (serverConfig && serverConfig.roles) || {};
+    return !!(roleId && roles[roleId] && roles[roleId].fixed);
+  }
+
+  function requiredRoles() {
+    var roles = (serverConfig && serverConfig.roles) || {};
+    var library = (serverConfig && serverConfig.library) || [];
+    return Object.keys(roles).filter(function (roleId) {
+      if (!roles[roleId].required) return false;
+      // Only a gate if this server actually ships the role's game, matching
+      // RelayEngine._required_roles.
+      var games = roles[roleId].games || [];
+      return !games.length || games.some(function (gameId) {
+        return library.some(function (entry) { return entry.id === gameId; });
+      });
     });
   }
 

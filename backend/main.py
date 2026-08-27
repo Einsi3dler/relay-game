@@ -223,8 +223,16 @@ async def get_config() -> dict:
         "level_count": config.LEVEL_COUNT,
         "wait_seconds": config.WAIT_SECONDS,
         "perks": {perk_id: dict(perk) for perk_id, perk in config.PERKS.items()},
+        # `fixed`/`required` reach the client because the lobby mirrors both
+        # rules: a fixed role shows no game picker, and a missing required role
+        # is one of the reasons the start button stays disabled.
         "roles": {
-            role_id: {"name": role["name"], "games": role["games"]}
+            role_id: {
+                "name": role["name"],
+                "games": role["games"],
+                "fixed": bool(role.get("fixed")),
+                "required": bool(role.get("required")),
+            }
             for role_id, role in config.ROLES.items()
         },
         "library": engine.registry.library(),
