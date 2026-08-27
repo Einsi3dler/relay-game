@@ -19,72 +19,32 @@
 (function () {
   "use strict";
 
-  // --- shared data (mirror of backend/games/game11_bomb_defuse.py, locked to
-  // it by tests/games/fixtures/bomb_defuse_cases.json) ---------------------
+  // --- shared data ---------------------------------------------------------
+  // The static data, the palette and the DOM helpers all live in
+  // frontend/games/bomb_manual.js, because the Grandmaster's console draws the
+  // same manual from the same tables (docs/GAME_DESIGN.md §2c). The rules
+  // mirror below is built on them too, so one copy is the only safe number.
+  var M = window.RelayBombManual;
+  var MAZE_LAYOUTS = M.MAZE_LAYOUTS, NUMBER_PATTERNS = M.NUMBER_PATTERNS;
+  var SIMON_COLOURS = M.SIMON_COLOURS, SIMON_MAP = M.SIMON_MAP;
+  var SIMON_PAINT = M.SIMON_PAINT, SIMON_SHAPE = M.SIMON_SHAPE;
+  var MODULE_NAMES = M.MODULE_NAMES, C = M.C;
+  var MAZE_SIZE = M.MAZE_SIZE;
+  var el = M.el, at = M.at, clear = M.clear;
 
   var STEPS = { n: [-1, 0], s: [1, 0], e: [0, 1], w: [0, -1] };
-  var MAZE_SIZE = 4;
   var MAX_MOVES = 200;
   var RULES_VERSION = 1;
 
-  //   h[r][c] — wall between (r, c) and (r + 1, c);  v[r][c] — between (r, c) and (r, c + 1)
-  var MAZE_LAYOUTS = [
-    { tip: [0, 1], h: [[0,1,0,0],[0,0,1,0],[1,1,0,0]], v: [[1,0,0],[1,0,1],[0,1,1],[0,0,0]] },
-    { tip: [0, 3], h: [[1,0,1,0],[0,1,1,0],[0,1,0,1]], v: [[0,1,0],[1,0,0],[0,1,0],[0,0,0]] },
-    { tip: [1, 0], h: [[0,1,0,0],[1,1,1,0],[0,0,1,0]], v: [[1,0,0],[0,0,1],[0,0,1],[1,0,0]] },
-    { tip: [1, 2], h: [[0,0,0,1],[0,1,1,0],[0,0,1,0]], v: [[1,0,0],[1,1,0],[1,0,0],[0,1,0]] },
-    { tip: [2, 1], h: [[1,1,0,0],[0,0,1,0],[0,1,0,0]], v: [[0,0,1],[1,0,1],[0,1,0],[0,0,1]] },
-    { tip: [2, 3], h: [[1,0,0,1],[0,0,1,0],[0,1,0,0]], v: [[0,1,0],[1,1,0],[1,0,1],[0,0,0]] },
-    { tip: [3, 0], h: [[1,1,0,0],[0,1,1,0],[0,0,0,0]], v: [[0,0,1],[0,1,0],[1,0,1],[0,1,0]] },
-    { tip: [3, 2], h: [[1,0,1,0],[0,1,1,0],[0,0,0,1]], v: [[0,1,0],[1,0,0],[0,1,0],[1,0,0]] }
-  ];
-
-  var SIMON_COLOURS = ["red", "blue", "green", "yellow"];
-  var SIMON_MAP = { red: "blue", blue: "red", green: "yellow", yellow: "green" };
-
-  var NUMBER_PATTERNS = [
-    [[1,6,3],[8,2,4],[5,9,7]],
-    [[5,7,9],[2,4,3],[6,8,1]],
-    [[2,7,5],[4,3,6],[8,1,9]],
-    [[5,3,9],[1,7,2],[8,6,4]],
-    [[6,3,2],[8,5,4],[1,7,9]],
-    [[8,2,4],[3,1,7],[6,9,5]],
-    [[3,7,6],[4,8,1],[2,5,9]],
-    [[6,1,4],[2,9,7],[3,8,5]]
-  ];
-
-  // §26 palette, kept as one table so a screenshot pass tunes it in one place.
-  var C = {
-    manualBg: "#fff5bc", black: "#000000", white: "#ffffff",
-    panelGrey: "#cbcbcb", bombGreyDark: "#373737", bombGrey: "#666666",
-    bombGreyLight: "#aeaeae", manualExitBlue: "#0e00a9", bgBlue: "#001777",
-    shutter: "#ff6600", shutterDark: "#c95000", green: "#00ff02",
-    cyan: "#00d4ff", red: "#ff0000"
-  };
-
-  var SIMON_PAINT = {
-    red: ["#8b0000", "#ff3b30"], blue: ["#00308b", "#3b82ff"],
-    green: ["#0a6b12", "#31d94a"], yellow: ["#8b7500", "#ffdd33"]
-  };
-
-  // Colour is never the only carrier of meaning: each pad wears a shape and its
-  // name too, so the mapping is readable without seeing hue.
-  var SIMON_SHAPE = { red: "▲", blue: "●", green: "■", yellow: "◆" };
-
   // The 590x440 logical surface (§23). Everything below is in these units and
   // the whole surface is scaled uniformly to whatever container it lands in.
-  var W = 590, H = 440;
+  var W = M.W, H = M.H;
   var HOUSE = { x: 12, y: 12, w: 566, h: 376 };
   var CELL = { w: 176, h: 113 };
   var COL = [22, 206, 390];
   var ROW = [22, 143, 264];
   // Bay index -> face cell. Timer takes (0,1), OK the centre, Give Up (2,2).
   var BAY_CELLS = [[0,0],[0,2],[1,0],[1,2],[2,0],[2,1]];
-
-  var MODULE_NAMES = {
-    maze: "Maze", simon: "Simon Says",
-    according_to_number: "According to number", mini_button: "The mini button"
-  };
 
   // Why the bomb went off, in the player's words.
   var REASONS = {
@@ -334,33 +294,13 @@
 
   var state = null;
 
-  function el(tag, css, text) {
-    var node = document.createElement(tag);
-    if (css) node.style.cssText = css;
-    if (text !== undefined && text !== null) node.textContent = String(text);
-    return node;
-  }
-
-  function at(node, x, y, w, h) {
-    node.style.cssText += "position:absolute;left:" + x + "px;top:" + y + "px;" +
-      "width:" + w + "px;height:" + h + "px;box-sizing:border-box;";
-    return node;
-  }
-
+  // The bomb's own button: the shared one, plus the gesture that unblocks
+  // audio. Browsers only allow an AudioContext to start from a real click.
   function button(label, css, onClick) {
-    var node = el("button", "font-family:Arial,Helvetica,sans-serif;cursor:pointer;" +
-      "border-radius:0;padding:0;" + (css || ""), label);
-    node.setAttribute("type", "button");
-    node.addEventListener("click", function (event) {
-      if (event && event.preventDefault) event.preventDefault();
+    return M.button(label, css, function () {
       wake();
       onClick();
     });
-    return node;
-  }
-
-  function clear(node) {
-    if (node) node.innerHTML = "";
   }
 
   function reduceMotion() {
@@ -821,140 +761,24 @@
 
   // --- the manual (§27-§30, §68-§71) --------------------------------------
 
-  function manualShell(title) {
-    var page = at(el("div"), 0, 0, W, H);
-    page.style.cssText += "background:" + C.manualBg + ";color:" + C.black + ";" +
-      "font-family:Arial,Helvetica,sans-serif;pointer-events:auto;";
-    page.appendChild(el("div", "position:absolute;left:20px;top:14px;font-size:28px;" +
-      "font-weight:700;", title));
-    var exit = button("Exit", "border:0;background:" + C.manualExitBlue + ";color:" + C.white + ";" +
-      "font-size:14px;font-weight:700;", function () {
-        if (state.manualPage === "home") closeManual();
-        else { state.manualPage = "home"; renderManual(); }
-      });
-    at(exit, W - 73, 14, 53, 34);
-    page.appendChild(exit);
-    return page;
-  }
-
   function renderManual() {
-    clear(state.manualLayer);
-    var page = manualShell(state.manualPage === "home" ? "The Bomb:"
-      : MODULE_NAMES[state.manualPage]);
-    var body = at(el("div"), 20, 58, W - 40, H - 78);
-    page.appendChild(body);
-    if (state.manualPage === "home") renderManualHome(body);
-    else if (state.manualPage === "maze") renderManualMaze(body);
-    else if (state.manualPage === "simon") renderManualSimon(body);
-    else if (state.manualPage === "according_to_number") renderManualNumber(body);
-    else renderManualMini(body);
-    state.manualLayer.appendChild(page);
-  }
-
-  function renderManualHome(body) {
-    // §29: a heavy black-bordered grey selector. Only the modules this version
-    // actually implements are listed — no dead buttons.
-    var selector = at(el("div"), 0, 0, 330, 240);
-    selector.style.cssText += "background:" + C.panelGrey + ";border:6px solid " + C.black + ";" +
-      "padding:10px;display:flex;flex-direction:column;gap:8px;";
-    ["maze", "simon", "according_to_number", "mini_button"].forEach(function (type) {
-      var entry = button(MODULE_NAMES[type],
-        "border:3px solid " + C.black + ";background:" + C.white + ";color:" + C.black + ";" +
-        "font-size:17px;font-weight:700;height:46px;text-align:left;padding-left:12px;",
-        function () { state.manualPage = type; renderManual(); });
-      selector.appendChild(entry);
-    });
-    body.appendChild(selector);
-    body.appendChild(el("div", "position:absolute;left:346px;top:0;width:200px;font-size:13px;" +
-      "line-height:1.5;",
-      "The bomb is still ticking while you read this. Open the page for a bay, " +
-      "learn what it wants, then go back and do it. Exit returns you to the bomb."));
-  }
-
-  function renderManualMaze(body) {
-    body.appendChild(el("div", "position:absolute;left:0;top:0;width:550px;font-size:13px;" +
-      "line-height:1.45;",
-      "Blue is where you are. Guide it to the red destination. Green is the tip " +
-      "that identifies which maze you are in — it is a label, not a target."));
-    var size = 70, cell = size / 4;
-    MAZE_LAYOUTS.forEach(function (layout, index) {
-      var x = (index % 4) * (size + 62) + 4;
-      var y = Math.floor(index / 4) * (size + 44) + 42;
-      var box = el("div", "position:absolute;left:" + x + "px;top:" + y + "px;width:" + size +
-        "px;height:" + size + "px;border:2px solid " + C.black + ";background:" + C.white + ";");
-      // Walls in red (§38), drawn straight from the shared layout data.
-      for (var r = 0; r < MAZE_SIZE; r++) {
-        for (var c = 0; c < MAZE_SIZE; c++) {
-          if (r < MAZE_SIZE - 1 && layout.h[r][c]) {
-            box.appendChild(el("div", "position:absolute;left:" + (c * cell) + "px;top:" +
-              ((r + 1) * cell - 1) + "px;width:" + cell + "px;height:2px;background:" + C.red + ";"));
-          }
-          if (c < MAZE_SIZE - 1 && layout.v[r][c]) {
-            box.appendChild(el("div", "position:absolute;left:" + ((c + 1) * cell - 1) + "px;top:" +
-              (r * cell) + "px;width:2px;height:" + cell + "px;background:" + C.red + ";"));
-          }
-        }
-      }
-      box.appendChild(el("div", "position:absolute;left:" + (layout.tip[1] * cell + 3) + "px;top:" +
-        (layout.tip[0] * cell + 3) + "px;width:" + (cell - 6) + "px;height:" + (cell - 6) +
-        "px;background:#17c40a;border-radius:50%;"));
-      body.appendChild(box);
+    M.render(state.manualLayer, {
+      page: state.manualPage,
+      axis: axisOfBoard(),
+      homeNote: "The bomb is still ticking while you read this. Ask your " +
+        "Grandmaster instead and it stays on the bay — they have this same " +
+        "manual on their console.",
+      onNavigate: function (page) {
+        state.manualPage = page;
+        renderManual();
+      },
+      onExit: closeManual
     });
   }
 
-  function swatch(colour) {
-    return el("div", "width:38px;height:28px;border:2px solid " + C.black + ";" +
-      "background:" + SIMON_PAINT[colour][1] + ";color:" + C.black + ";font-size:18px;" +
-      "display:flex;align-items:center;justify-content:center;", SIMON_SHAPE[colour]);
-  }
-
-  function renderManualSimon(body) {
-    body.appendChild(el("div", "position:absolute;left:0;top:0;width:540px;font-size:14px;",
-      "Press the colour opposite the one that flashed. Never the colour you saw."));
-    SIMON_COLOURS.forEach(function (colour, index) {
-      var row = at(el("div"), 0, 40 + index * 54, 420, 46);
-      row.style.cssText += "display:flex;align-items:center;gap:14px;font-size:20px;" +
-        "font-weight:700;border:3px solid " + C.black + ";background:" + C.white + ";padding:0 12px;";
-      row.appendChild(swatch(colour));
-      row.appendChild(el("div", "width:96px;text-transform:uppercase;", colour));
-      row.appendChild(el("div", "font-size:22px;", "→"));
-      row.appendChild(swatch(SIMON_MAP[colour]));
-      row.appendChild(el("div", "text-transform:uppercase;", SIMON_MAP[colour]));
-      body.appendChild(row);
-    });
-    body.appendChild(el("div", "position:absolute;left:436px;top:44px;width:110px;font-size:12px;" +
-      "line-height:1.5;",
-      "Each stage replays from the start and adds one flash. There are no strikes: " +
-      "the first wrong press is the last one."));
-  }
-
-  function renderManualNumber(body) {
-    var axis = axisLabel();
-    body.appendChild(el("div", "position:absolute;left:0;top:0;width:550px;font-size:13px;" +
-      "line-height:1.45;",
-      "The green 1 identifies the correct number grid — match it to the lit dot on " +
-      "the bay. Find the displayed number in that grid and press its " + axis +
-      ": left = 1, middle = 2, right = 3."));
-    NUMBER_PATTERNS.forEach(function (pattern, index) {
-      var x = (index % 4) * 134 + 4;
-      var y = Math.floor(index / 4) * 126 + 64;
-      var box = el("div", "position:absolute;left:" + x + "px;top:" + y + "px;width:108px;" +
-        "height:108px;border:3px solid " + C.black + ";background:" + C.white + ";");
-      for (var r = 0; r < 3; r++) {
-        for (var c = 0; c < 3; c++) {
-          var value = pattern[r][c];
-          box.appendChild(el("div", "position:absolute;left:" + (c * 34 + 1) + "px;top:" +
-            (r * 34 + 1) + "px;width:32px;height:32px;display:flex;align-items:center;" +
-            "justify-content:center;font-size:18px;font-weight:700;background:" +
-            (value === 1 ? "#17c40a" : C.white) + ";border:" +
-            (value === 1 ? "3px solid " + C.black : "1px solid #bbb") + ";", value));
-        }
-      }
-      body.appendChild(box);
-    });
-  }
-
-  function axisLabel() {
+  // §62: which axis the number bay reads is configurable server-side, so the
+  // page is written from the board rather than from a constant.
+  function axisOfBoard() {
     var modules = state && state.puzzle ? state.puzzle.payload.modules : [];
     for (var i = 0; i < modules.length; i++) {
       if (modules[i].type === "according_to_number") {
@@ -962,21 +786,6 @@
       }
     }
     return "column";
-  }
-
-  function renderManualMini(body) {
-    body.appendChild(el("div", "position:absolute;left:0;top:0;width:540px;font-size:15px;" +
-      "line-height:1.7;white-space:pre-line;",
-      "Wait for the tiny button to turn red.\n" +
-      "When it turns red, press and hold it immediately.\n" +
-      "Keep holding until it turns green.\n" +
-      "The green button shows a two-digit code — that code is what proves the hold.\n" +
-      "Release only after it has turned green."));
-    body.appendChild(el("div", "position:absolute;left:0;top:170px;width:540px;font-size:13px;" +
-      "line-height:1.5;font-weight:700;",
-      "Pressing it before it turns red, reacting too slowly, or letting go early " +
-      "all set the bomb off. Arming it commits you: the bay will not close again " +
-      "until it is done."));
   }
 
   // --- the round -----------------------------------------------------------
@@ -1211,9 +1020,6 @@
 
     // Test hooks: the shared replay and the shared data, with no DOM involved.
     __validate: validate,
-    __data: {
-      MAZE_LAYOUTS: MAZE_LAYOUTS, NUMBER_PATTERNS: NUMBER_PATTERNS,
-      SIMON_MAP: SIMON_MAP, SIMON_COLOURS: SIMON_COLOURS
-    }
+    __data: M.__data
   };
 })();

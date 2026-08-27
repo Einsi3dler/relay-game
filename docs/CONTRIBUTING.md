@@ -47,7 +47,7 @@ things at once?".)
 | **Game 8 — LANE SHIFT** | Game module + renderer | `backend/games/game8_lane_shift.py`, `frontend/games/lane_shift.js`, `tests/games/test_game8_*.py`, `tests/games/fixtures/lane_shift_cases.json` |
 | **Game 9 — SHADOW CAST** | Game module + renderer | `backend/games/game9_shadow_cast.py`, `frontend/games/shadow_cast.js`, `tests/games/test_game9_*.py`, `tests/games/fixtures/shadow_cast_cases.json` |
 | **Game 10 — THREADLINE** | Game module + renderer | `backend/games/game10_threadline.py`, `frontend/games/threadline.js`, `tests/games/test_game10_*.py`, `tests/games/fixtures/threadline_cases.json` |
-| **Game 11 — BOMB DEFUSE** | Game module + renderer | `backend/games/game11_bomb_defuse.py`, `frontend/games/bomb_defuse.js`, `tests/games/test_game11_*.py`, `tests/games/fixtures/bomb_defuse_cases.json` |
+| **Game 11 — BOMB DEFUSE** | Game module + renderer + the Grandmaster's manual console | `backend/games/game11_bomb_defuse.py`, `frontend/games/bomb_defuse.js`, `frontend/games/bomb_manual.js`, `tests/games/test_game11_*.py`, `tests/games/test_bomb_manual.py`, `tests/games/fixtures/bomb_defuse_cases.json` |
 | **RPS DUEL (Duelist)** | Duel module + renderer | `backend/games/duel1_rps.py`, `backend/games/duel_base.py`, `frontend/duels/rps_duel.js`, `tests/games/test_duel1_rps*.py`, `tests/test_duels.py` |
 | **Frontend** | App shell + leader dashboard + fallback | `frontend/index.html`, `frontend/app.js`, `frontend/style.css`, `frontend/games/fallback.js` |
 

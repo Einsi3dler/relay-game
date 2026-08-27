@@ -24,15 +24,19 @@ from backend.games.game11_bomb_defuse import (
 )
 
 FIXTURE = Path(__file__).parent / "fixtures" / "bomb_defuse_cases.json"
-RENDERER = Path(__file__).parents[2] / "frontend" / "games" / "bomb_defuse.js"
+FRONTEND = Path(__file__).parents[2] / "frontend" / "games"
+RENDERER = FRONTEND / "bomb_defuse.js"
+MANUAL = FRONTEND / "bomb_manual.js"
 
-# A bare `window` is all the renderer's module body touches; `document` only
-# appears inside mount(), which the parity harness never calls.
+# A bare `window` is all either module body touches; `document` only appears
+# inside mount() and the manual's render(), neither of which this harness calls.
+# The manual loads first because the bomb binds to its tables at module scope.
 HARNESS = """
 const fs = require("fs");
 const vm = require("vm");
 const context = { window: {} };
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(process.argv[4], "utf8"), context);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), context);
 const game = context.window.RelayGames.bomb_defuse;
 const cases = JSON.parse(fs.readFileSync(process.argv[3], "utf8")).cases;
@@ -84,7 +88,7 @@ def test_javascript_matches_the_fixture(tmp_path):
     harness = tmp_path / "harness.js"
     harness.write_text(HARNESS)
     finished = subprocess.run(
-        ["node", str(harness), str(RENDERER), str(FIXTURE)],
+        ["node", str(harness), str(RENDERER), str(FIXTURE), str(MANUAL)],
         capture_output=True, text=True, timeout=60,
     )
     assert finished.returncode == 0, finished.stderr
@@ -93,8 +97,8 @@ def test_javascript_matches_the_fixture(tmp_path):
     for case, got in zip(load_fixture()["cases"], result["verdicts"]):
         assert got == case["expected"], case["name"]
 
-    # The manual is drawn from the renderer's copy of the static data, so a
-    # drifted copy would quietly show the player the wrong walls.
+    # Both seats' manuals and the browser's rules mirror are drawn from one
+    # table, so a drift here would quietly show someone the wrong walls.
     data = result["data"]
     assert data["SIMON_MAP"] == SIMON_MAP
     assert data["SIMON_COLOURS"] == list(SIMON_COLOURS)

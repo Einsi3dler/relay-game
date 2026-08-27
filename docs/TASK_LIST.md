@@ -102,6 +102,11 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   the first game to carry a fuse of its own and the first adapted from a
   two-player design — see the rules note in [GAMES_SPEC.md](GAMES_SPEC.md) for
   the single-seat adaptation and the two unenforceable clocks it accepts.
+  **The second seat landed next**: `bomb_defuse` moved to a new **required**
+  Defuser role (every team fields one — the bomb is the game no team opts out
+  of), and the manual moved onto the Grandmaster's dashboard as the bomb
+  console. Still to come: set-piece missions, multi-stage bombs, and console
+  degradation by level.
 - [ ] More **duel** games for the Duelist role (see
   [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md)) — same rules, different time
   costs. The engine picks between whatever is registered.

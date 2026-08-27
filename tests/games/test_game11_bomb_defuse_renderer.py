@@ -21,7 +21,9 @@ import pytest
 
 from backend.games.game11_bomb_defuse import BombDefuseGame
 
-RENDERER = Path(__file__).parents[2] / "frontend" / "games" / "bomb_defuse.js"
+FRONTEND = Path(__file__).parents[2] / "frontend" / "games"
+RENDERER = FRONTEND / "bomb_defuse.js"
+MANUAL = FRONTEND / "bomb_manual.js"
 
 HARNESS = r"""
 const fs = require("fs");
@@ -100,6 +102,7 @@ const context = {
   console,
 };
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(process.argv[4], "utf8"), context);   // manual first
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), context);
 const game = context.window.RelayGames.bomb_defuse;
 
@@ -514,7 +517,7 @@ def report() -> dict:
             {"full": full, "maze": maze, "simon": simon, "mini": mini}
         ))
         finished = subprocess.run(
-            ["node", str(harness), str(RENDERER), str(puzzles)],
+            ["node", str(harness), str(RENDERER), str(puzzles), str(MANUAL)],
             capture_output=True, text=True, timeout=90,
         )
     assert finished.returncode == 0, finished.stderr
@@ -630,9 +633,11 @@ def test_the_manual_lists_only_the_modules_this_version_implements(report):
 
 def test_each_manual_page_carries_its_rule(report):
     pages = report["manual"]["pages"]
+    # The manual is written in a neutral voice: the same page is read by the
+    # Defuser and, on the console, by their Grandmaster.
     maze = pages["Maze"]
-    assert "Blue is where you are" in maze
-    assert "red destination" in maze
+    assert "Blue is the Defuser's position" in maze
+    assert "red is the way out" in maze
     assert "Green is the tip that identifies which maze" in maze
     simon = pages["Simon Says"]
     for flashed, pressed in (("RED", "BLUE"), ("GREEN", "YELLOW")):

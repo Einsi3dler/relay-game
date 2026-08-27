@@ -545,12 +545,32 @@ so the only forgeable thing is the player's effort, not the result.
 
 **BOMB DEFUSE rules note.** The source design in [`bomb.md`](../bomb.md) is a
 two-player co-op: a Defuser who sees the bomb but not the manual, and an Expert
-who sees the manual but not the bomb. The Relay has one seat per game, so **one
-player holds both roles** — the manual is a second full-screen view, and opening
-it hides the bomb while the fuse burns. Bays work the same way: the face is a
-dashboard, and working a bay means opening it over the face. Looking at one
-thing at a time is what the second player used to cost you, and it is the whole
+who sees the manual but not the bomb. The Relay seats both.
+
+- **The Defuser** is a playing member, and the role is **required** — every team
+  fields exactly one, so this is the game no team opts out of
+  ([GAME_DESIGN.md](GAME_DESIGN.md) §2c). The role names the game; the
+  Grandmaster picks who holds it, never what they play.
+- **The Grandmaster is the Expert.** The manual lives on their dashboard as the
+  **bomb console**. It is the manual and *nothing else* — no board, no fuse, no
+  bay progress reaches them — which is both the faithful reading of §4 and the
+  reason the console needs no synchronisation at all: a static page has nothing
+  to keep in step. The Defuser describes the bay; the Grandmaster reads back the
+  rule.
+- **The Defuser keeps their own copy.** Flipping to it hides the bomb while the
+  fuse burns, so asking is faster than looking — but a Grandmaster busy with
+  four other players, silenced, or disconnected only ever *slows* their Defuser
+  down. They can never strand them, which is what keeps the level curve honest.
+
+Bays work the same way as the manual: the face is a dashboard, and working a bay
+means opening it over the face. Looking at one thing at a time is the whole
 adaptation; every other rule in §12–§67 survives intact.
+
+One file backs both screens — `frontend/games/bomb_manual.js` holds the eight
+mazes, the eight number grids and the colour mapping, and the browser's rules
+mirror is built on those same tables. A drift between the seats is therefore
+impossible by construction, and `tests/games/fixtures/bomb_defuse_cases.json`
+locks the tables to Python.
 
 **Sudden death** (§18) drives the loop. There are no strikes: a step into a maze
 wall, a Simon colour echoed instead of translated, a wrong According-to-Number
