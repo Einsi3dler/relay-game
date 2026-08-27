@@ -55,7 +55,8 @@ PERKS: dict[str, dict] = {
     "skim":        {"name": "Skim",        "kind": "attack",  "cost": 2, "amount": 1,
                     "desc": "Steal 1 from the opponent's pool."},
     "silence":     {"name": "Silence",     "kind": "attack",  "cost": 3, "seconds": 30,
-                    "desc": "Blind the enemy Grandmaster for 30s."},
+                    "desc": "Blind the enemy Grandmaster for 30s — roster, "
+                            "feed and bomb manual."},
     # --- attacks: screen effects (cosmetic) ---
     "wobble":      {"name": "Wobble",      "kind": "attack",  "cost": 2, "seconds": 12,
                     "effect": "wobble",

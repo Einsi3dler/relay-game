@@ -556,7 +556,8 @@ who sees the manual but not the bomb. The Relay seats both.
   bay progress reaches them — which is both the faithful reading of §4 and the
   reason the console needs no synchronisation at all: a static page has nothing
   to keep in step. The Defuser describes the bay; the Grandmaster reads back the
-  rule.
+  rule. **Silence blanks it**: the perk that takes a Grandmaster's roster takes
+  their manual with it, and the card sits marked 🔇 until it lapses.
 - **The Defuser keeps their own copy.** Flipping to it hides the bomb while the
   fuse burns, so asking is faster than looking — but a Grandmaster busy with
   four other players, silenced, or disconnected only ever *slows* their Defuser

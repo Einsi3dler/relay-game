@@ -704,6 +704,53 @@ def shell() -> dict:
         ],
     })
 
+    # Silence: the console blanks, and comes back on its own.
+    engine = _engine()
+    match, seats, leaders = _ready_lobby(engine)
+    assert engine.start_match(match, now=NOW).changed
+    clear_snapshot = match.public(leaders["alpha"].id)
+    match.teams["bravo"].currency = 99
+    assert engine.buy_perk(
+        match, leaders["bravo"].id, "silence", now=NOW
+    ).ok, "Silence should land on alpha"
+    silenced_snapshot = match.public(leaders["alpha"].id)
+    assert silenced_snapshot["teams"]["alpha"]["silenced_until"] is not None
+    silence_seconds = config.PERKS["silence"]["seconds"]
+    scenarios.append({
+        "name": "console_silenced",
+        "config": _config_body(engine),
+        "session": {"matchId": match.id, "playerId": leaders["alpha"].id},
+        "snapshots": [silenced_snapshot],
+        "actions": [
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "jammed"},
+            # Silence is masked in the view, so nothing on the server fires
+            # when it lapses: watchSilence has to ask for the snapshot itself.
+            {"do": "advance", "ms": silence_seconds * 1000 + 1000},
+            {"do": "record", "as": "lapsed"},
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "returned"},
+        ],
+    })
+
+    # ...and it holds the page the Grandmaster was reading out.
+    scenarios.append({
+        "name": "console_silenced_mid_page",
+        "config": _config_body(engine),
+        "session": {"matchId": match.id, "playerId": leaders["alpha"].id},
+        "snapshots": [clear_snapshot, silenced_snapshot],
+        "actions": [
+            {"do": "deliver", "snapshot": 0},
+            {"do": "click", "in": "leader-bomb-mount", "text": "The mini button"},
+            {"do": "record", "as": "reading"},
+            {"do": "deliver", "snapshot": 1},
+            {"do": "record", "as": "jammed"},
+            {"do": "advance", "ms": silence_seconds * 1000 + 1000},
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "returned"},
+        ],
+    })
+
     # A server that does not register the bomb fields no Defuser, and the
     # console has nothing to be the second seat for.
     bombless = _engine(with_bomb=False)
@@ -911,6 +958,42 @@ def test_the_console_tears_down_when_the_match_ends(shell):
     assert finished["console"]["mount_children"] == 0
     # The resize handler is the one thing that outlives the DOM if it leaks.
     assert finished["console"]["resize_listeners"] == 0
+
+
+def test_silence_takes_the_manual_too(shell):
+    """A silenced Grandmaster already loses the roster and the who-cleared
+    feed. Leaving them the one page that still helps would make the perk a
+    half-measure — and on a board with a withheld page, the Defuser can hear
+    the difference (docs/GAME_DESIGN.md §2c)."""
+    jammed = shell["console_silenced"]["records"]["jammed"]["console"]
+    # The card stays: a console that vanished would read as a bug.
+    assert jammed["card_hidden"] is False
+    assert "🔇" in jammed["sub"] and "jammed" in jammed["sub"]
+    assert jammed["texts"] == ["🔇 ?"]      # the manual is gone, whole
+    assert "The Bomb:" not in jammed["texts"]
+    assert jammed["reachable"] == []        # nothing left to click
+
+
+def test_the_console_asks_for_itself_back_when_silence_lapses(shell):
+    """Silence is masked in the view layer, so no server timer fires when it
+    ends — `watchSilence` re-requests the snapshot that redraws the console."""
+    sent = shell["console_silenced"]["sent"]
+    assert {"type": "request_state"} in sent
+    returned = shell["console_silenced"]["records"]["returned"]["console"]
+    assert returned["card_hidden"] is False
+    assert "The Bomb:" in returned["texts"]
+    assert "Maze" in returned["reachable"]
+
+
+def test_silence_holds_the_page_the_grandmaster_was_reading(shell):
+    """It lifts in seconds and the Defuser is still stood at the same bay, so
+    coming back to the selector would cost a page turn for nothing."""
+    records = shell["console_silenced_mid_page"]["records"]
+    assert "Wait for the tiny button to turn red." in \
+        " ".join(records["reading"]["console"]["texts"])
+    assert records["jammed"]["console"]["texts"] == ["🔇 ?"]
+    assert "Wait for the tiny button to turn red." in \
+        " ".join(records["returned"]["console"]["texts"])
 
 
 def test_no_defuser_means_no_console(shell):

@@ -819,6 +819,31 @@
       card.hidden = true;
       return;
     }
+    // Silence jams the manual too. A silenced Grandmaster already loses the
+    // roster and the who-cleared feed; leaving them the one page that still
+    // helps would make the perk a half-measure, and the Defuser can hear the
+    // difference. The card stays — a console that vanished would read as a
+    // bug rather than as the attack it is.
+    if (team.silenced_until && parseDeadline(team.silenced_until) > Date.now()) {
+      if (bombConsole.mounted) {
+        // Keep the page. This lifts in seconds and the Defuser will still be
+        // stood in front of the same bay when it does.
+        var openPage = bombConsole.page;
+        teardownBombConsole();
+        bombConsole.page = openPage;
+      }
+      card.hidden = false;
+      $("leader-bomb-sub").textContent =
+        "🔇 Silenced — the manual is jammed. " + defuser.name +
+        " is on the bomb without you until it clears.";
+      var jammed = $("leader-bomb-mount");
+      jammed.innerHTML = "";
+      var pill = document.createElement("div");
+      pill.className = "muted";           // the same "🔇 ?" statusPill shows
+      pill.textContent = "🔇 ?";
+      jammed.appendChild(pill);
+      return;
+    }
     card.hidden = false;
     $("leader-bomb-sub").textContent =
       defuser.name + " is on the bomb" + (defuser.connected ? "" : " (offline)") +

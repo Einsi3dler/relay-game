@@ -142,6 +142,13 @@ rather than looking like a deadlock.
 **The Grandmaster is the Expert.** BOMB DEFUSE is a two-player co-op wearing one
 seat: the bomb explains nothing, and the manual that explains it lives on the
 **Grandmaster's dashboard**. The Defuser asks; the Grandmaster reads it out.
+
+**Silence takes the manual too.** The perk that blinds a Grandmaster to their
+own roster and who-cleared feed blanks the bomb console with it. The card
+stays, marked 🔇 exactly as a hidden teammate is, so a jammed console reads as
+the attack it is rather than as a bug; it holds the page it was open at and
+comes back on its own when the perk lapses.
+
 The Defuser keeps a copy of the manual too — flipping to it costs fuse, so a
 Grandmaster on the console is a *speed advantage*, never a dependency. A
 Grandmaster who is busy with four other players, or disconnected, slows their
