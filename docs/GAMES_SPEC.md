@@ -614,6 +614,19 @@ impossible. Python and JavaScript run the same replay and the same manual data,
 locked together by `tests/games/fixtures/bomb_defuse_cases.json`; the renderer
 uses it in `partial` mode so a wrong action detonates where the player makes it.
 
+**Practice missions (set pieces).** The module also ships a ladder of *authored*
+bombs — fixed bays, fixed fuse, the same board every time — served through
+practice mode as `kind=<mission id>` and listed at
+`GET /api/practice/{game_id}/missions`. Four drills teach one bay each, then
+three missions build up to a two-bank gauntlet. They are **practice-only, by
+rule**: a bomb you can memorise is exactly the "shared, static, Google-able
+answer" §0 rules out, so `generate_main` never serves one and a test asserts no
+generated board ever matches an authored one. They matter because the bomb is
+now the game no team opts out of — every Defuser has to meet these four bays
+somewhere, and every Grandmaster has to find their way around the console before
+it counts. The hook is duck-typed (`missions()` / `generate_mission()`), so no
+other game grows a method it has no use for.
+
 **BOMB DEFUSE anti-cheat caveat (accepted, and larger than most).** This is a
 lookup game, so its manual is public by definition — the eight mazes, the eight
 number grids and the colour mapping ship in the renderer, and the payload names

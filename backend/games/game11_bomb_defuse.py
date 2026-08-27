@@ -4,15 +4,18 @@ pressed once.
 
 Per `bomb.md`. The source game is a two-player co-op — a Defuser who can see
 the bomb but not the manual, and an Expert who can see the manual but not the
-bomb. The Relay has no second seat, so **one player holds both roles**: the
-manual is a second full-screen view of the same board, and flipping to it hides
-the bomb while the fuse keeps burning. That flip *is* the game. Everything else
-in the source design survives intact.
+bomb. The Relay seats both: the **Defuser** is a required role every team must
+field, and their **Grandmaster** holds the manual on the leader dashboard
+(docs/GAME_DESIGN.md §2c). The Defuser keeps a copy too, but flipping to it
+hides the bomb while the fuse burns — so asking is faster than looking, and a
+Grandmaster who is busy elsewhere only ever slows their Defuser down.
 
 Four module types (`bomb.md` §12): MAZE, SIMON SAYS, ACCORDING TO NUMBER, and
 the MINI BUTTON. Which ones are live is drawn per board; how many is the level's
 job, 1 at level 1 up to 4 in the bonus-only tiers. Solving a module closes an
-orange shutter over its bay; only when every live bay is shut may OK be pressed.
+orange shutter over its bay; only when every live bay is shut may OK be pressed
+— and a board comes in **banks**, so on the deepest tiers that OK arms the next
+bank rather than ending the bomb.
 
 **Sudden death** (§18) is the spine of the design: there are no strikes, and any
 wrong action detonates the bomb. That maps cleanly onto the Relay loop — the
@@ -641,6 +644,143 @@ def _reference_moves(payload: dict) -> list[dict]:
     return moves
 
 
+# --- practice missions (set pieces) --------------------------------------
+# Authored bombs: fixed bays, fixed fuse, the same board every time. They are
+# **practice only** and deliberately never served as a match board — a bomb you
+# can memorise is exactly the "shared, static, Google-able answer" the library's
+# anti-cheat rules rule out (docs/GAMES_SPEC.md §0.1). What they are for is
+# learning: the bomb is the one game no team opts out of, so every Defuser has
+# to meet these four bays somewhere, and every Grandmaster has to find their way
+# around the console before it matters.
+#
+# A spec names only what makes the mission the mission; `_mission_module` fills
+# in the ids and the shared timings. Every mission is walked by its own
+# reference transcript in the tests, so an unwalkable authored maze or a wrong
+# According-to-Number display fails loudly rather than shipping.
+MISSIONS: tuple[dict, ...] = (
+    {
+        "id": "maze_drill",
+        "name": "Drill · the maze",
+        "blurb": "One maze, one long fuse. Find the green tip in the manual, "
+                 "then walk blue to red without touching a wall.",
+        "banks": [{"fuse_seconds": 150, "modules": [
+            {"type": "maze", "bay": 0, "tip": [0, 1], "player": [3, 3], "goal": [0, 0]},
+        ]}],
+    },
+    {
+        "id": "simon_drill",
+        "name": "Drill · Simon Says",
+        "blurb": "Three stages. The mapping never changes, so this is the one "
+                 "page worth memorising.",
+        "banks": [{"fuse_seconds": 150, "modules": [
+            {"type": "simon", "bay": 1, "sequence": ["red", "green", "yellow"]},
+        ]}],
+    },
+    {
+        "id": "numbers_drill",
+        "name": "Drill · according to number",
+        "blurb": "Three lookups against one grid. Match the lit dot to the "
+                 "green 1 and read off the column.",
+        "banks": [{"fuse_seconds": 150, "modules": [
+            {"type": "according_to_number", "bay": 2, "tip": [0, 0],
+             "displays": [3, 8, 5]},
+        ]}],
+    },
+    {
+        "id": "button_drill",
+        "name": "Drill · the mini button",
+        "blurb": "A forgiving window and a short hold. Arming it commits you, "
+                 "so read the page first.",
+        "banks": [{"fuse_seconds": 120, "modules": [
+            {"type": "mini_button", "bay": 3, "delay_ms": 2500, "code": 47,
+             "reaction_window_ms": 1100, "required_hold_ms": 600},
+        ]}],
+    },
+    {
+        "id": "first_bomb",
+        "name": "Mission · first bomb",
+        "blurb": "Two bays and a real fuse. This is roughly a level-four board.",
+        "banks": [{"fuse_seconds": 105, "modules": [
+            {"type": "maze", "bay": 0, "tip": [2, 1], "player": [0, 0], "goal": [3, 3]},
+            {"type": "according_to_number", "bay": 3, "tip": [1, 1],
+             "displays": [4, 9, 2, 6]},
+        ]}],
+    },
+    {
+        "id": "second_bank",
+        "name": "Mission · it comes in banks",
+        "blurb": "Shut the first bank and a second arms behind it on a shorter "
+                 "fuse. Do not relax when the shutters fall.",
+        "banks": [
+            {"fuse_seconds": 100, "modules": [
+                {"type": "simon", "bay": 1,
+                 "sequence": ["blue", "blue", "yellow", "red"]},
+                {"type": "mini_button", "bay": 4, "delay_ms": 3200, "code": 61},
+            ]},
+            {"fuse_seconds": 70, "modules": [
+                {"type": "maze", "bay": 2, "tip": [3, 0], "player": [0, 3], "goal": [3, 3]},
+                {"type": "according_to_number", "bay": 5, "tip": [2, 2],
+                 "displays": [7, 1, 9]},
+            ]},
+        ],
+    },
+    {
+        "id": "the_gauntlet",
+        "name": "Mission · the gauntlet",
+        "blurb": "All four bays, then three more behind them. The hardest board "
+                 "this bomb can be built, and then some.",
+        "banks": [
+            {"fuse_seconds": 135, "modules": [
+                {"type": "maze", "bay": 0, "tip": [1, 2], "player": [3, 0], "goal": [0, 3]},
+                {"type": "simon", "bay": 1,
+                 "sequence": ["green", "red", "yellow", "blue", "green"]},
+                {"type": "according_to_number", "bay": 2, "tip": [2, 0],
+                 "displays": [8, 3, 6, 2, 5]},
+                {"type": "mini_button", "bay": 3, "delay_ms": 4100, "code": 88,
+                 "reaction_window_ms": 620, "required_hold_ms": 950},
+            ]},
+            {"fuse_seconds": 80, "modules": [
+                {"type": "simon", "bay": 4,
+                 "sequence": ["yellow", "blue", "blue", "red"]},
+                {"type": "according_to_number", "bay": 5, "tip": [1, 0],
+                 "displays": [9, 4, 7, 1]},
+                {"type": "maze", "bay": 0, "tip": [3, 2], "player": [0, 0], "goal": [2, 3]},
+            ]},
+        ],
+    },
+)
+
+MISSIONS_BY_ID = {mission["id"]: mission for mission in MISSIONS}
+
+
+def _mission_module(spec: dict, module_id: str) -> dict:
+    """One authored bay, with the boilerplate filled in.
+
+    A spec carries only what makes the bay interesting; the shared timings and
+    the axis come from the same constants a generated board uses, so a mission
+    can never quietly drift from the real game.
+    """
+    module = {"id": module_id, "type": spec["type"], "bay": spec["bay"]}
+    if spec["type"] == "maze":
+        module.update(tip=list(spec["tip"]), player=list(spec["player"]),
+                      goal=list(spec["goal"]))
+    elif spec["type"] == "simon":
+        module.update(stages=len(spec["sequence"]), sequence=list(spec["sequence"]),
+                      flash_ms=SIMON_FLASH_MS, gap_ms=SIMON_GAP_MS,
+                      input_delay_ms=SIMON_INPUT_DELAY_MS)
+    elif spec["type"] == "according_to_number":
+        module.update(tip=list(spec["tip"]), axis=ACCORDING_TO_NUMBER_AXIS,
+                      displays=list(spec["displays"]))
+    else:
+        module.update(
+            delay_ms=spec["delay_ms"],
+            reaction_window_ms=spec.get("reaction_window_ms", 800),
+            required_hold_ms=spec.get("required_hold_ms", 750),
+            code=spec["code"],
+        )
+    return module
+
+
 class BombDefuseGame:
     """Defuse the bomb: solve every live module from the manual, then press OK."""
 
@@ -711,6 +851,52 @@ class BombDefuseGame:
                 "then press OK. One wrong move and it goes off."
             ),
             answer=answer,   # server-only reference; check() replays instead
+            payload=payload,
+        )
+
+    # --- practice missions ---
+    # Not part of the GameModule contract: practice mode asks for these by
+    # duck-typing, and a game without them simply offers main and holding.
+
+    def missions(self) -> list[dict[str, str]]:
+        """The authored practice boards, as `{id, name, blurb}`."""
+        return [
+            {"id": mission["id"], "name": mission["name"], "blurb": mission["blurb"]}
+            for mission in MISSIONS
+        ]
+
+    def generate_mission(self, mission_id: str, seed: int = 0) -> PuzzleInstance:
+        """One authored board. The same bomb every time — `seed` is ignored,
+        which is the whole point of a set piece and also why these never reach
+        a match."""
+        mission = MISSIONS_BY_ID.get(mission_id)
+        if mission is None:
+            raise KeyError(f"no bomb mission {mission_id!r}")
+        made = 0
+        banks = []
+        for bank in mission["banks"]:
+            modules = []
+            for spec in bank["modules"]:
+                modules.append(_mission_module(spec, f"m{made}"))
+                made += 1
+            banks.append({"fuse_seconds": bank["fuse_seconds"], "modules": modules})
+        payload = {
+            "variant": "mission",
+            "mission_id": mission["id"],
+            "difficulty": min(5, 1 + made),
+            "time_hint_seconds": sum(b["fuse_seconds"] for b in banks) // 2,
+            "rules_version": RULES_VERSION,
+            "bays": BAY_COUNT,
+            "banks": banks,
+        }
+        moves = _reference_moves(payload)
+        if not validate(payload, moves)["ok"]:
+            raise RuntimeError(f"bomb mission {mission_id!r} is not defusable")
+        return PuzzleInstance(
+            game_id=self.id,
+            kind="main",
+            prompt=f"{mission['name']} — {mission['blurb']}",
+            answer=json.dumps({"v": RULES_VERSION, "moves": moves}),
             payload=payload,
         )
 

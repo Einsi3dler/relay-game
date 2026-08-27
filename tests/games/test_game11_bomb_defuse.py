@@ -16,9 +16,9 @@ import pytest
 from backend.games.base import normalize_answer
 from backend.games.game11_bomb_defuse import (
     BAY_COUNT, MAIN_LEVEL_PARAMS, MAX_ANSWER_CHARS, MAX_MOVES, MAZE_LAYOUTS,
-    MAZE_SIZE, MODULE_TYPES, NUMBER_PATTERNS, RULES_VERSION, SIMON_COLOURS,
-    SIMON_MAP, BombDefuseGame, _maze_distances, _maze_route, _number_answer,
-    _pattern_for_tip, _reference_moves, _wall_between, validate,
+    MAZE_SIZE, MISSIONS, MODULE_TYPES, NUMBER_PATTERNS, RULES_VERSION,
+    SIMON_COLOURS, SIMON_MAP, BombDefuseGame, _maze_distances, _maze_route,
+    _number_answer, _pattern_for_tip, _reference_moves, _wall_between, validate,
 )
 
 LEVELS = range(1, len(MAIN_LEVEL_PARAMS) + 1)
@@ -501,3 +501,75 @@ def test_a_defusal_transcript_fits_the_answer_caps(game):
         puzzle = game.generate_main(seed, 13)
         assert len(puzzle.answer) <= MAX_ANSWER_CHARS
         assert len(moves_of(puzzle)) <= MAX_MOVES
+
+
+# --- practice missions (set pieces) -------------------------------------
+
+
+def test_every_mission_is_defusable(game):
+    """An authored board gets the same quality gate a generated one does."""
+    assert [m["id"] for m in game.missions()] == [m["id"] for m in MISSIONS]
+    for entry in game.missions():
+        puzzle = game.generate_mission(entry["id"])
+        assert game.check(puzzle, puzzle.answer) is True
+        assert puzzle.payload["mission_id"] == entry["id"]
+        assert puzzle.payload["variant"] == "mission"
+        assert puzzle.payload["rules_version"] == RULES_VERSION
+        assert entry["name"] and entry["blurb"]
+
+
+def test_a_mission_is_the_same_bomb_every_time(game):
+    # The point of a set piece: repeatable, so you can drill it. Which is also
+    # exactly why they are practice-only — see the anti-cheat note below.
+    for entry in game.missions():
+        first = game.generate_mission(entry["id"], seed=1)
+        second = game.generate_mission(entry["id"], seed=999_999)
+        assert first.payload == second.payload
+        assert first.answer == second.answer
+        assert first.id != second.id           # instance ids are still fresh
+
+
+def test_missions_never_reach_a_match_board(game):
+    """`generate_main` draws; it never serves an authored board.
+
+    A memorisable bomb is the "shared, static, Google-able answer" the library
+    rules out (docs/GAMES_SPEC.md §0), so a mission must not be reachable
+    through the generator the engine calls.
+    """
+    authored = {
+        json.dumps(game.generate_mission(entry["id"]).payload["banks"], sort_keys=True)
+        for entry in game.missions()
+    }
+    for seed in range(120):
+        for level in LEVELS:
+            drawn = json.dumps(
+                game.generate_main(seed, level).payload["banks"], sort_keys=True
+            )
+            assert drawn not in authored
+        assert "mission_id" not in game.generate_main(seed, 1).payload
+
+
+def test_an_unknown_mission_is_refused(game):
+    with pytest.raises(KeyError):
+        game.generate_mission("no_such_mission")
+
+
+def test_the_ladder_teaches_one_bay_at_a_time_then_builds(game):
+    drills = [entry for entry in MISSIONS if entry["id"].endswith("_drill")]
+    # One drill per module type, each a single bay, so a first-timer meets the
+    # four bays separately before meeting them together.
+    assert len(drills) == len(MODULE_TYPES)
+    taught = set()
+    for drill in drills:
+        bays = [m for bank in drill["banks"] for m in bank["modules"]]
+        assert len(bays) == 1
+        taught.add(bays[0]["type"])
+    assert taught == set(MODULE_TYPES)
+
+    def size(entry):
+        return sum(len(bank["modules"]) for bank in entry["banks"])
+
+    # ...and the missions after the drills only get bigger.
+    ladder = [entry for entry in MISSIONS if not entry["id"].endswith("_drill")]
+    assert [size(entry) for entry in ladder] == sorted(size(e) for e in ladder)
+    assert max(len(entry["banks"]) for entry in ladder) > 1

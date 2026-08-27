@@ -201,6 +201,32 @@ def test_practice_rejects_unknown_game_and_kind(client):
     assert client.post("/api/practice/echo?kind=bogus").status_code == 400
 
 
+def test_practice_missions_are_listed_and_playable(client):
+    from backend.games.game11_bomb_defuse import BombDefuseGame
+
+    # Only the games that ship a ladder have one; the rest answer empty.
+    assert client.get("/api/practice/echo/missions").json() == {"missions": []}
+    assert client.get("/api/practice/tetris/missions").status_code == 404
+    missions = client.get("/api/practice/bomb_defuse/missions").json()["missions"]
+    assert missions and all({"id", "name", "blurb"} == set(m) for m in missions)
+
+    game = BombDefuseGame()
+    for mission in missions:
+        body = client.post(f"/api/practice/bomb_defuse?kind={mission['id']}").json()
+        assert body["puzzle"]["game_id"] == "bomb_defuse"
+        assert "answer" not in body["puzzle"]
+        check = {
+            "seed": body["seed"], "kind": mission["id"],
+            "answer": game.generate_mission(mission["id"]).answer,
+        }
+        assert client.post("/api/practice/bomb_defuse/check", json=check
+                           ).json()["correct"] is True
+
+    # A mission id is not a kind another game will answer to.
+    assert client.post("/api/practice/echo?kind=maze_drill").status_code == 400
+    assert client.post("/api/practice/bomb_defuse?kind=no_such").status_code == 400
+
+
 def test_get_config(client):
     body = client.get("/api/config").json()
     assert body["teams"] == ["alpha", "bravo"]

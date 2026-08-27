@@ -105,8 +105,11 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   **The second seat landed next**: `bomb_defuse` moved to a new **required**
   Defuser role (every team fields one — the bomb is the game no team opts out
   of), and the manual moved onto the Grandmaster's dashboard as the bomb
-  console. Still to come: set-piece missions, multi-stage bombs, and console
-  degradation by level.
+  console. Then **banks** (rules version 2 — a board escalates into a second
+  bank of bays on a fresh fuse, on the bonus tiers) and a **practice mission
+  ladder** (authored boards, practice-only by rule). Still open: whether the
+  Defuser's own manual should thin out at high levels so the Grandmaster becomes
+  necessary rather than merely faster — see the note in GAMES_SPEC.md.
 - [ ] More **duel** games for the Duelist role (see
   [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md)) — same rules, different time
   costs. The engine picks between whatever is registered.
