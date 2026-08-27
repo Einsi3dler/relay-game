@@ -7,8 +7,12 @@ the bomb but not the manual, and an Expert who can see the manual but not the
 bomb. The Relay seats both: the **Defuser** is a required role every team must
 field, and their **Grandmaster** holds the manual on the leader dashboard
 (docs/GAME_DESIGN.md §2c). The Defuser keeps a copy too, but flipping to it
-hides the bomb while the fuse burns — so asking is faster than looking, and a
-Grandmaster who is busy elsewhere only ever slows their Defuser down.
+hides the bomb while the fuse burns — so asking is faster than looking, and for
+the first seven levels a Grandmaster who is busy elsewhere only ever slows
+their Defuser down. From `WITHHOLD_FROM_LEVEL` the board also withholds one
+page from the Defuser's copy, and the console becomes the only copy of it in
+the match: on a deep board an absent Grandmaster strands their Defuser on one
+bay, which is what makes the second seat the game rather than a convenience.
 
 Four module types (`bomb.md` §12): MAZE, SIMON SAYS, ACCORDING TO NUMBER, and
 the MINI BUTTON. Which ones are live is drawn per board; how many is the level's
@@ -139,6 +143,18 @@ MINI_MAX_DELAY_MS = 6000
 MINI_CODE_MIN = 10           # the two-digit code the green state reveals
 MINI_CODE_MAX = 99
 
+# --- the withheld page (§2c: the Grandmaster becomes necessary) ---------
+# From this tier up, the Defuser's own copy of the manual is missing one page
+# and their Grandmaster's console is the only copy of it in the match. Below it
+# the second seat is a speed advantage and nothing more.
+#
+# Never more than one page: a board with two dead pages is not a harder lookup,
+# it is a board you cannot start. A level-8 board fields three bays of distinct
+# types, so one withheld page always leaves two the Defuser can still read
+# alone — the board slows down, it does not stop.
+WITHHOLD_FROM_LEVEL = 8
+WITHHELD_PAGES = 1
+
 # --- answer limits (expansion spec §4: cap before parsing) --------------
 MAX_ANSWER_CHARS = 8000
 MAX_MOVES = 200              # comfortably over a level-13 board's ~50
@@ -218,9 +234,37 @@ HOLDING_PARAMS = {
 }
 
 
+def _clamp_level(level: int) -> int:
+    """`level` as the table reads it. Everything level-dependent goes through
+    this, or a level past the last row would draw a *different* board from the
+    row it clamps to."""
+    return min(max(level, 1), len(MAIN_LEVEL_PARAMS))
+
+
 def _params_for_level(level: int) -> dict:
     """Main-board knobs for `level`, clamped to the table."""
-    return MAIN_LEVEL_PARAMS[min(max(level, 1), len(MAIN_LEVEL_PARAMS)) - 1]
+    return MAIN_LEVEL_PARAMS[_clamp_level(level) - 1]
+
+
+def _withheld_pages(seed: int, level: int, banks: list[dict]) -> list[str]:
+    """Which manual pages this board keeps from the Defuser (§2c).
+
+    Only ever a page for a bay that is actually on the board: withholding the
+    Simon page from a bomb with no Simon bay reads as a bug rather than as
+    difficulty, and costs the Defuser nothing, which is worse.
+
+    Drawn from a stream of its own rather than from the board's `rng`, so
+    adding this changed no bomb anyone can generate — the same seed still
+    builds the same bays it always did.
+    """
+    tier = _clamp_level(level)
+    if tier < WITHHOLD_FROM_LEVEL:
+        return []
+    live = sorted({module["type"] for bank in banks for module in bank["modules"]})
+    if not live:
+        return []
+    picker = random.Random(f"withheld:{seed}:{tier}")
+    return sorted(picker.sample(live, min(WITHHELD_PAGES, len(live))))
 
 
 Cell = tuple[int, int]
@@ -822,6 +866,11 @@ class BombDefuseGame:
             "rules_version": RULES_VERSION,
             "bays": BAY_COUNT,
             "banks": banks,
+            # Practice keeps the whole manual: a drill you cannot look up is
+            # not a drill. Only a match board thins out.
+            "withheld_pages": (
+                _withheld_pages(seed, level, banks) if kind == "main" else []
+            ),
         }
 
         moves = _reference_moves(payload)
@@ -888,6 +937,7 @@ class BombDefuseGame:
             "rules_version": RULES_VERSION,
             "bays": BAY_COUNT,
             "banks": banks,
+            "withheld_pages": [],   # a set piece you cannot look up is not one
         }
         moves = _reference_moves(payload)
         if not validate(payload, moves)["ok"]:

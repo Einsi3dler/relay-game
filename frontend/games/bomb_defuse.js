@@ -785,18 +785,31 @@
   // --- the manual (§27-§30, §68-§71) --------------------------------------
 
   function renderManual() {
+    var withheld = withheldOfBoard();
     M.render(state.manualLayer, {
       page: state.manualPage,
       axis: axisOfBoard(),
-      homeNote: "The bomb is still ticking while you read this. Ask your " +
-        "Grandmaster instead and it stays on the bay — they have this same " +
-        "manual on their console.",
+      withheld: withheld,
+      homeNote: withheld.length
+        ? "This copy is not complete — the greyed page is only on your " +
+          "Grandmaster's console. For the rest, the bomb is still ticking " +
+          "while you read: asking keeps you on the bay."
+        : "The bomb is still ticking while you read this. Ask your " +
+          "Grandmaster instead and it stays on the bay — they have this same " +
+          "manual on their console.",
       onNavigate: function (page) {
         state.manualPage = page;
         renderManual();
       },
       onExit: closeManual
     });
+  }
+
+  // §2c: from the deep tiers up the board names a page this copy does not
+  // carry. The Grandmaster's console is the only one in the match that does.
+  function withheldOfBoard() {
+    var payload = state && state.puzzle ? state.puzzle.payload : null;
+    return (payload && payload.withheld_pages) || [];
   }
 
   // §62: which axis the number bay reads is configurable server-side, so the

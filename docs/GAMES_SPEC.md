@@ -558,10 +558,17 @@ who sees the manual but not the bomb. The Relay seats both.
   to keep in step. The Defuser describes the bay; the Grandmaster reads back the
   rule. **Silence blanks it**: the perk that takes a Grandmaster's roster takes
   their manual with it, and the card sits marked 🔇 until it lapses.
-- **The Defuser keeps their own copy.** Flipping to it hides the bomb while the
-  fuse burns, so asking is faster than looking — but a Grandmaster busy with
-  four other players, silenced, or disconnected only ever *slows* their Defuser
-  down. They can never strand them, which is what keeps the level curve honest.
+- **The Defuser keeps their own copy — up to a point.** Flipping to it hides
+  the bomb while the fuse burns, so asking is faster than looking. Below
+  `WITHHOLD_FROM_LEVEL` (8) that is the whole of it: a Grandmaster busy with
+  four other players, silenced, or disconnected only *slows* their Defuser
+  down. From level 8 the board also names one `withheld_pages` entry, and that
+  page is missing from the Defuser's copy and present only on the console — so
+  on a deep board an absent Grandmaster can strand their Defuser on one bay.
+  The entry is drawn per `(seed, level)` from a stream of its own, always names
+  a bay that is on the board, and is never more than one, so the rest of the
+  bomb stays workable while the Defuser asks. Practice boards and the authored
+  missions withhold nothing.
 
 **Banks** (rules version 2). A board is a list of *banks*, each with its own
 bays and its own fuse. Shut every bay in the armed bank and press OK and the

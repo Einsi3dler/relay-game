@@ -117,12 +117,13 @@ function reachable(root) {
 const report = { pages: {}, reachable: {}, nav: [], exits: 0 };
 const host = element("div");
 
-function draw(page, axis) {
+function draw(page, axis, withheld) {
   manual.render(host, {
     page: page,
     axis: axis || "column",
+    withheld: withheld || [],
     homeNote: "HOME NOTE",
-    onNavigate: function (next) { report.nav.push(next); draw(next, axis); },
+    onNavigate: function (next) { report.nav.push(next); draw(next, axis, withheld); },
     onExit: function () { report.exits += 1; },
   });
 }
@@ -147,6 +148,21 @@ click(host, "Exit");
 // The axis is configurable, and the page is written from it (§62).
 draw("according_to_number", "row");
 report.rowAxis = texts(host).join(" | ");
+
+// A copy with a page withheld (§2c): the Defuser's own manual on a deep board.
+// The console never passes the option, which is what keeps its copy whole.
+draw("home", "column", ["simon"]);
+report.withheld = {
+  home: texts(host).join(" | "),
+  buttons: buttons(host).map(function (b) { return b.textContent; }),
+  reachable: reachable(host),
+};
+report.nav = [];
+click(host, "Maze");                       // a page it still has opens
+report.withheld.nav = report.nav.slice();
+// ...and a caller holding a stale id is still not handed the missing page.
+draw("simon", "column", ["simon"]);
+report.withheld.forced = texts(host).join(" | ");
 
 // Re-rendering replaces the page instead of stacking copies of it.
 draw("home");
@@ -240,6 +256,43 @@ def test_every_control_on_every_page_can_be_clicked(report):
 def test_rendering_twice_replaces_the_page(report):
     # The console redraws in place; stacking copies would double every control.
     assert report["hostChildren"] == 1
+
+
+def test_a_withheld_page_greys_out_and_names_who_has_it(report):
+    """From the deep tiers the Defuser's copy comes up short and the
+    Grandmaster's console is the only copy of that page (§2c). The entry stays
+    in place — a page that vanished would read as a shorter manual, not as one
+    somebody else is holding."""
+    withheld = report["withheld"]
+    assert "Simon Says — ask your Grandmaster" in withheld["home"]
+    # The other three are untouched.
+    for name in ("Maze", "According to number", "The mini button"):
+        assert name in withheld["buttons"]
+        assert name in withheld["reachable"]
+
+
+def test_a_withheld_page_is_not_a_control(report):
+    """A greyed entry is still something a click has to reach — or, here,
+    deliberately not reach. A disabled button would be something to jab at
+    while the fuse burns; there is no page behind this one at all."""
+    withheld = report["withheld"]
+    assert "Simon Says" not in withheld["buttons"]
+    assert not any(
+        label.startswith("Simon Says") for label in withheld["reachable"]
+    ), withheld["reachable"]
+    assert "Exit" in withheld["reachable"]        # the way out still works
+    assert withheld["nav"] == ["maze"]            # and the rest still navigate
+
+
+def test_a_withheld_page_cannot_be_reached_by_a_stale_page_id(report):
+    """The selector offers no way in, but the caller keeps the page id — a
+    board that withheld the page the Defuser was already reading must not hand
+    it over anyway."""
+    forced = report["withheld"]["forced"]
+    assert "This page is missing from your copy" in forced
+    assert "Your Grandmaster has it" in forced
+    # None of the actual rule leaks through with it.
+    assert "NO STRIKES" not in forced.upper()
 
 
 def test_the_manual_exposes_the_shared_tables(report):

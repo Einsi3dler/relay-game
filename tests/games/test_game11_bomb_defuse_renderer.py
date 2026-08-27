@@ -19,7 +19,11 @@ from pathlib import Path
 
 import pytest
 
-from backend.games.game11_bomb_defuse import RULES_VERSION, BombDefuseGame
+from backend.games.game11_bomb_defuse import (
+    RULES_VERSION,
+    WITHHELD_PAGES,
+    BombDefuseGame,
+)
 
 FRONTEND = Path(__file__).parents[2] / "frontend" / "games"
 RENDERER = FRONTEND / "bomb_defuse.js"
@@ -366,9 +370,10 @@ report.fatal = fatal;
   game.unmount();
 }
 
-// 7. The manual: every page, and Exit walking back out.
+// 7. The manual: every page, and Exit walking back out. On a shallow board —
+// a deep one comes a page short (§2c) and that is scenario 7b.
 {
-  const { container } = mount(puzzles.full);
+  const { container } = mount(puzzles.maze);
   click(byText(container, "📖  MANUAL"));
   const home = screen(container);
   const pages = {};
@@ -379,6 +384,37 @@ report.fatal = fatal;
   });
   click(byText(container, "Exit"));             // ...and back to the bomb
   report.manual = { home: home, pages: pages, back_on_bomb: screen(container) };
+  game.unmount();
+}
+
+// 7b. The withheld page: on a deep board the Defuser's own copy is missing
+// one, and the only copy of it in the match is on the Grandmaster's console.
+{
+  const { container } = mount(puzzles.full);
+  click(byText(container, "📖  MANUAL"));
+  const withheld = puzzles.full.payload.withheld_pages;
+  const names = {
+    maze: "Maze", simon: "Simon Says",
+    according_to_number: "According to number", mini_button: "The mini button",
+  };
+  report.withheld = {
+    pages: withheld,
+    screen: screen(container),
+    // The entry is not a button at all: there is nothing here to press.
+    buttons: all(container)
+      .filter((n) => n.tagName === "button")
+      .map((n) => n.textContent),
+    reachable: reachable(container),
+  };
+  // The pages it *does* have still open and still walk back.
+  const open = Object.keys(names).filter((t) => withheld.indexOf(t) === -1);
+  report.withheld.still_navigable = open.map((type) => {
+    click(byText(container, names[type]));
+    const seen = screen(container);
+    click(byText(container, "Exit"));
+    return seen.indexOf(names[type]) !== -1;
+  });
+  report.withheld.name_of_missing = names[withheld[0]];
   game.unmount();
 }
 
@@ -491,12 +527,16 @@ function reachable(container) {
     live["panel:" + module.type] = reachable(container);
     if (module.type !== "mini_button") click(byText(container, "✕ BOMB"));
   });
-  click(byText(container, "📖  MANUAL"));
-  live["manual:home"] = reachable(container);
+  game.unmount();
+
+  // The manual's own pages, from a board whose copy is whole.
+  const whole = mount(puzzles.maze);
+  click(byText(whole.container, "📖  MANUAL"));
+  live["manual:home"] = reachable(whole.container);
   ["Maze", "Simon Says", "According to number", "The mini button"].forEach((name) => {
-    click(byText(container, name));
-    live["manual:" + name] = reachable(container);
-    click(byText(container, "Exit"));
+    click(byText(whole.container, name));
+    live["manual:" + name] = reachable(whole.container);
+    click(byText(whole.container, "Exit"));
   });
   report.reachable = live;
   game.unmount();
@@ -712,6 +752,41 @@ def test_each_manual_page_carries_its_rule(report):
 
 def test_exit_walks_back_out_of_the_manual(report):
     assert "Give up" in report["manual"]["back_on_bomb"]
+
+
+# --- the withheld page (§2c) --------------------------------------------
+
+
+def test_a_deep_board_hands_the_defuser_a_manual_with_a_page_missing(report):
+    """From WITHHOLD_FROM_LEVEL up, the Grandmaster stops being a speed
+    advantage and becomes the only copy of one page in the match."""
+    withheld = report["withheld"]
+    assert len(withheld["pages"]) == WITHHELD_PAGES
+    assert withheld["name_of_missing"] + " — ask your Grandmaster" in \
+        withheld["screen"]
+    # ...and the home note says the copy is short before they go looking.
+    assert "This copy is not complete" in withheld["screen"]
+
+
+def test_the_withheld_entry_is_not_a_control(report):
+    """A disabled button is still something to click at while the fuse burns.
+    There is no page behind this one, so there is nothing to press."""
+    withheld = report["withheld"]
+    missing = withheld["name_of_missing"]
+    assert missing not in withheld["buttons"]
+    assert missing + " — ask your Grandmaster" not in withheld["buttons"]
+    assert not any(
+        label.startswith(missing) for label in withheld["reachable"]
+    ), withheld["reachable"]
+
+
+def test_the_pages_the_board_did_leave_still_work(report):
+    """One page short is meant to slow a lone Defuser down, not stop them: a
+    deep board fields three bays of distinct types, so two stay readable."""
+    withheld = report["withheld"]
+    assert len(withheld["still_navigable"]) == 3
+    assert all(withheld["still_navigable"])
+    assert "Exit" in withheld["reachable"]
 
 
 # --- lifecycle ----------------------------------------------------------
