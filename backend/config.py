@@ -95,7 +95,8 @@ SCREEN_EFFECTS = ("wobble", "static", "mirror", "blackout")
 #                  player duels the opposing Duelist instead of solving.
 ROLES: dict[str, dict] = {
     "logician":         {"name": "Logician",         "games": ["sweep", "threadline"]},
-    "technocrat":       {"name": "Technocrat",       "games": ["rewire", "lane_shift"]},
+    "technocrat":       {"name": "Technocrat",       "games": ["rewire", "lane_shift",
+                                                               "bomb_defuse"]},
     "spatial_reasoner": {"name": "Spatial Reasoner", "games": ["mirror_run", "shadow_cast"]},
     "puzzle_master":    {"name": "Puzzle Master",    "games": ["decant", "stackdrop"]},
     "spymaster":        {"name": "Spymaster",        "games": ["echo", "overprint"]},

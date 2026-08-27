@@ -47,7 +47,7 @@ Roles are defined in `config.ROLES`:
 | Role | Games it may be assigned |
 | --- | --- |
 | Logician | Sweep, Threadline |
-| Technocrat | Rewire, Lane Shift |
+| Technocrat | Rewire, Lane Shift, Bomb Defuse |
 | Spatial Reasoner | Mirror Run, Shadow Cast |
 | Puzzle Master | Decant, Stackdrop |
 | Spymaster | Echo, Overprint |

@@ -96,6 +96,12 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   §18 first wave (MIRROR RUN, OVERPRINT, STACKDROP, LANE SHIFT, SHADOW CAST,
   THREADLINE); GRAVITY SHIFT, PRESSURE VALVES, SIGNAL BUFFER, TETHER, FOLDLINE
   and ORBIT SYNC are the next batch.
+  **BOMB DEFUSE** (game 11, the Technocrat's third game) shipped from
+  [`bomb.md`](../bomb.md): backend module, renderer with the bomb face, four
+  puzzle bays and the full Expert manual, Python/JS parity fixture, docs. It is
+  the first game to carry a fuse of its own and the first adapted from a
+  two-player design — see the rules note in [GAMES_SPEC.md](GAMES_SPEC.md) for
+  the single-seat adaptation and the two unenforceable clocks it accepts.
 - [ ] More **duel** games for the Duelist role (see
   [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md)) — same rules, different time
   costs. The engine picks between whatever is registered.

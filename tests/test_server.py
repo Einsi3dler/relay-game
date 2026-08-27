@@ -198,7 +198,8 @@ def test_get_config(client):
     assert body["roles"]["duelist"]["games"] == ["rps_duel"]
     library_ids = {entry["id"] for entry in body["library"]}
     assert {"rewire", "sweep", "mirror_run", "decant", "echo", "overprint",
-            "stackdrop", "lane_shift", "shadow_cast", "threadline"} <= library_ids
+            "stackdrop", "lane_shift", "shadow_cast", "threadline",
+            "bomb_defuse"} <= library_ids
     assert "rps_duel" not in library_ids  # the server picks duels, not the leader
 
 
