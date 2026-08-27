@@ -55,6 +55,7 @@
         <button data-game="lane_shift">📦 LANE SHIFT</button>
         <button data-game="shadow_cast">🧊 SHADOW CAST</button>
         <button data-game="threadline">🧵 THREADLINE</button>
+        <button data-game="bomb_defuse">💣 BOMB DEFUSE</button>
       </div>
       <div class="kind-row">
         <span class="label">Puzzle type:</span>
@@ -63,6 +64,11 @@
         <span class="spacer"></span>
         <button id="new-puzzle" class="mini-btn">🔄 New puzzle</button>
       </div>
+      <div class="kind-row" id="mission-row" hidden>
+        <span class="label">Missions:</span>
+        <span id="mission-buttons"></span>
+      </div>
+      <p class="sub" id="mission-blurb"></p>
     </div>
 
     <div id="puzzle-card" class="card">
@@ -97,14 +103,18 @@
   <script src="/static/games/lane_shift.js" defer></script>
   <script src="/static/games/shadow_cast.js" defer></script>
   <script src="/static/games/threadline.js" defer></script>
+  <script src="/static/games/bomb_manual.js" defer></script>
+  <script src="/static/games/bomb_defuse.js" defer></script>
   <script defer>
     document.addEventListener("DOMContentLoaded", function () {
       "use strict";
       var $ = function (id) { return document.getElementById(id); };
       var GAMES = ["rewire", "sweep", "mirror_run", "decant", "echo", "overprint",
-                   "stackdrop", "lane_shift", "shadow_cast", "threadline"];
+                   "stackdrop", "lane_shift", "shadow_cast", "threadline",
+                   "bomb_defuse"];
 
       var current = { game: "rewire", kind: "main", seed: null, puzzle: null };
+      var missions = [];
       var mounted = null;
       var startedAt = null;
       var loading = false;
@@ -132,6 +142,37 @@
         });
         $("kind-main").classList.toggle("active", current.kind === "main");
         $("kind-holding").classList.toggle("active", current.kind === "holding");
+        renderMissions();
+      }
+
+      // Authored practice boards, for the games that ship them. The same bomb
+      // every time, which is what makes it a drill rather than a race.
+      function renderMissions() {
+        var row = $("mission-row");
+        var host = $("mission-buttons");
+        row.hidden = !missions.length;
+        $("mission-blurb").textContent = "";
+        host.innerHTML = "";
+        missions.forEach(function (mission) {
+          var button = document.createElement("button");
+          button.textContent = mission.name;
+          button.classList.toggle("active", current.kind === mission.id);
+          button.addEventListener("click", function () {
+            if (current.kind === mission.id) return;
+            current.kind = mission.id;
+            loadPuzzle();
+          });
+          if (current.kind === mission.id) $("mission-blurb").textContent = mission.blurb;
+          host.appendChild(button);
+        });
+      }
+
+      function loadMissions() {
+        missions = [];
+        return fetch("/api/practice/" + current.game + "/missions")
+          .then(function (r) { return r.ok ? r.json() : { missions: [] }; })
+          .then(function (body) { missions = body.missions || []; })
+          .catch(function () { missions = []; });
       }
 
       function loadPuzzle() {
@@ -197,7 +238,8 @@
         var game = e.target.getAttribute && e.target.getAttribute("data-game");
         if (!game || game === current.game) return;
         current.game = game;
-        loadPuzzle();
+        current.kind = "main";       // a mission id means nothing to another game
+        loadMissions().then(loadPuzzle);
       });
       $("kind-main").addEventListener("click", function () {
         if (current.kind === "main") return;
@@ -212,7 +254,7 @@
       $("new-puzzle").addEventListener("click", loadPuzzle);
       $("again-btn").addEventListener("click", loadPuzzle);
 
-      loadPuzzle();
+      loadMissions().then(loadPuzzle);
     });
   </script>
 </body>

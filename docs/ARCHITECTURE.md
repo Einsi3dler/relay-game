@@ -63,7 +63,8 @@ backend/
   `PLAYERS_PER_TEAM=4`, `MIN_PLAYERS_PER_TEAM=4`, `CURRENCY_PER_CLEAR`,
   `CURRENCY_BONUS_FIRST/REPEAT`, `BONUS_LEVEL_OFFSET`, the `PERKS` catalogue
   (plus `SCREEN_EFFECTS`, the effect ids the client can render),
-  the `ROLES` catalogue (with the `role_allows`/`role_assignable` helpers),
+  the `ROLES` catalogue (with the `role_allows`/`role_assignable`/
+  `role_fixed_game`/`required_roles` helpers),
   `SUBMIT_MIN_INTERVAL_MS=300`, and `MATCH_TTL_SECONDS=1800`. Nothing else in
   the codebase should contain these literals. (Per-level game difficulty knobs
   live in each game module's own `MAIN_LEVEL_PARAMS` table, not here.)

@@ -48,7 +48,7 @@ Contributors each own a slice (see [docs/TASK_LIST.md](docs/TASK_LIST.md)):
 
 - **Core/engine** — match state, level gating, timers, economy/perks, WebSocket protocol.
 - **Game modules** (REWIRE, SWEEP, MIRROR RUN, DECANT, ECHO, OVERPRINT, STACKDROP,
-  LANE SHIFT, SHADOW CAST, THREADLINE, …) — one owner per game.
+  LANE SHIFT, SHADOW CAST, THREADLINE, BOMB DEFUSE, …) — one owner per game.
 - **Duel modules** (RPS DUEL, …) — games for the Duelist role, a different
   interface from the rest (see [docs/DUEL_MODULE_SPEC.md](docs/DUEL_MODULE_SPEC.md)).
 - **Frontend** — the browser client (play view + leader dashboard).

@@ -96,6 +96,20 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   §18 first wave (MIRROR RUN, OVERPRINT, STACKDROP, LANE SHIFT, SHADOW CAST,
   THREADLINE); GRAVITY SHIFT, PRESSURE VALVES, SIGNAL BUFFER, TETHER, FOLDLINE
   and ORBIT SYNC are the next batch.
+  **BOMB DEFUSE** (game 11, the Technocrat's third game) shipped from
+  [`bomb.md`](../bomb.md): backend module, renderer with the bomb face, four
+  puzzle bays and the full Expert manual, Python/JS parity fixture, docs. It is
+  the first game to carry a fuse of its own and the first adapted from a
+  two-player design — see the rules note in [GAMES_SPEC.md](GAMES_SPEC.md) for
+  the single-seat adaptation and the two unenforceable clocks it accepts.
+  **The second seat landed next**: `bomb_defuse` moved to a new **required**
+  Defuser role (every team fields one — the bomb is the game no team opts out
+  of), and the manual moved onto the Grandmaster's dashboard as the bomb
+  console. Then **banks** (rules version 2 — a board escalates into a second
+  bank of bays on a fresh fuse, on the bonus tiers) and a **practice mission
+  ladder** (authored boards, practice-only by rule). Still open: whether the
+  Defuser's own manual should thin out at high levels so the Grandmaster becomes
+  necessary rather than merely faster — see the note in GAMES_SPEC.md.
 - [ ] More **duel** games for the Duelist role (see
   [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md)) — same rules, different time
   costs. The engine picks between whatever is registered.

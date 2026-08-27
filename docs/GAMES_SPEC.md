@@ -1,8 +1,8 @@
 # The Relay — The Game Library (detailed spec)
 
 The concrete design for the library games: REWIRE, SWEEP, MIRROR RUN, DECANT,
-ECHO (this doc), plus OVERPRINT, STACKDROP, LANE SHIFT, SHADOW CAST, THREADLINE and the
-expansion candidates in
+ECHO (this doc), plus OVERPRINT, STACKDROP, LANE SHIFT, SHADOW CAST, THREADLINE,
+BOMB DEFUSE and the expansion candidates in
 [`game/RELAY_EXPANSION_GAMES_README.md`](../game/RELAY_EXPANSION_GAMES_README.md).
 In v2 there is no stage order — the **team leader assigns one game per player**
 (see [GAME_DESIGN.md](GAME_DESIGN.md) §2). Each game owner builds against the
@@ -457,6 +457,7 @@ tedious to transcribe. Normal play is faster than tool-assisted transcription.
 | **LANE SHIFT** | Scheduling | One action per turn, then the belt moves | `{"v":1,"actions":[["toggle","s0"],["pass"]]}` | replay turns → every packet in its matching exit |
 | **SHADOW CAST** | Spatial | Six quarter-turn buttons (X/Y/Z, each way) | `{"v":1,"turns":["x+","y-"]}` | replay turns → both projections match their targets |
 | **THREADLINE** | Routing | Tap/drag/arrow-key a cable cell by cell | `{"v":1,"path":[[7,0],[6,0]]}` | walk the route → anchors in order, no reuse, inside both caps |
+| **BOMB DEFUSE** | Manual lookup | Open a bay, work it, press OK | `{"v":2,"moves":[{"m":"m0","a":"n"},{"m":"ok"}]}` | replay every bay's actions → each bank shut in turn, the last OK defuses |
 
 **STACKDROP rules note.** The module ships two pin kinds — flat pins *hold* a
 ball, slanted pins *roll* it one cell down-slope — which extends
@@ -541,6 +542,113 @@ accepted weakness class as SWEEP's board and ECHO's flash sequence (§0): the
 payload is inspectable, the *checker* is not bypassable. The reference route is
 never sent, no claimed verdict is read, and the server re-walks whatever arrives,
 so the only forgeable thing is the player's effort, not the result.
+
+**BOMB DEFUSE rules note.** The source design in [`bomb.md`](../bomb.md) is a
+two-player co-op: a Defuser who sees the bomb but not the manual, and an Expert
+who sees the manual but not the bomb. The Relay seats both.
+
+- **The Defuser** is a playing member, and the role is **required** — every team
+  fields exactly one, so this is the game no team opts out of
+  ([GAME_DESIGN.md](GAME_DESIGN.md) §2c). The role names the game; the
+  Grandmaster picks who holds it, never what they play.
+- **The Grandmaster is the Expert.** The manual lives on their dashboard as the
+  **bomb console**. It is the manual and *nothing else* — no board, no fuse, no
+  bay progress reaches them — which is both the faithful reading of §4 and the
+  reason the console needs no synchronisation at all: a static page has nothing
+  to keep in step. The Defuser describes the bay; the Grandmaster reads back the
+  rule.
+- **The Defuser keeps their own copy.** Flipping to it hides the bomb while the
+  fuse burns, so asking is faster than looking — but a Grandmaster busy with
+  four other players, silenced, or disconnected only ever *slows* their Defuser
+  down. They can never strand them, which is what keeps the level curve honest.
+
+**Banks** (rules version 2). A board is a list of *banks*, each with its own
+bays and its own fuse. Shut every bay in the armed bank and press OK and the
+next bank arms behind it on a fresh countdown; the last one defuses the bomb.
+Levels 1–10 are a single bank — an ordinary bomb — and the bonus-only tiers
+11–13 are the ones that come in two, which is what makes them a different board
+rather than just a wider one. Three rules follow from it, all enforced in the
+replay: a bay of a bank that is not armed is refused (`wrong_bank`), whether it
+has not come up yet or has already shut behind you; OK with a bay of the armed
+bank still open is still the explosion; and only the final OK ends the bomb, so
+a transcript that stops one OK short is `missing_ok`. §13's
+no-two-of-a-kind rule is **per bank** — a later bank may reuse a type, since the
+first instance is shuttered by then and the player is reading a fresh board.
+
+Bays work the same way as the manual: the face is a dashboard, and working a bay
+means opening it over the face. Looking at one thing at a time is the whole
+adaptation; every other rule in §12–§67 survives intact.
+
+One file backs both screens — `frontend/games/bomb_manual.js` holds the eight
+mazes, the eight number grids and the colour mapping, and the browser's rules
+mirror is built on those same tables. A drift between the seats is therefore
+impossible by construction, and `tests/games/fixtures/bomb_defuse_cases.json`
+locks the tables to Python.
+
+**Sudden death** (§18) drives the loop. There are no strikes: a step into a maze
+wall, a Simon colour echoed instead of translated, a wrong According-to-Number
+button, a mini button touched early or released early, OK pressed with a bay
+still open, Give Up, or the fuse reaching zero all detonate. The renderer plays
+the explosion, holds MISSION FAILED for five seconds, then submits
+`{"v":1,"failed":reason}` — which `check` rejects, so the engine serves a fresh
+board at the same level. That *is* §20's "generate a completely new random
+bomb", and it is why a failed board is never restartable in place: nobody gets
+to learn a maze by walking into its walls.
+
+Two rulings resolve gaps the source material left open. §61 gives the
+According-to-Number bay a display, three buttons and progress boxes but no way
+to tell *which* of the eight grids is live, while §58 and §71 both say the green
+`1` identifies it — so the bay renders that cell as a 3×3 of dots with one lit,
+which the player matches to the manual. And the maze's green tip is a **label,
+not a hazard**: generation keeps the start and the goal off it, but stepping
+through it is legal (§37 only rules it out as a destination).
+
+The level curve runs bays 1 → 3 by level 6 and all four on a bonus board (there
+are four module types, which is what caps it), with Simon 4 → 6 stages,
+According to Number 4 → 6 stages, maze runs of 4 → 12 steps, and the mini
+button's reaction window tightening 700 → 600 ms as its required hold grows
+750 → 1000 ms. The `fuse_seconds` column *rises* wherever a bay is added and
+tightens level by level after that, because a fuse is only difficulty relative
+to the work it covers — three bays inside the two-bay fuse is not hard, it is
+impossible. Python and JavaScript run the same replay and the same manual data,
+locked together by `tests/games/fixtures/bomb_defuse_cases.json`; the renderer
+uses it in `partial` mode so a wrong action detonates where the player makes it.
+
+**Practice missions (set pieces).** The module also ships a ladder of *authored*
+bombs — fixed bays, fixed fuse, the same board every time — served through
+practice mode as `kind=<mission id>` and listed at
+`GET /api/practice/{game_id}/missions`. Four drills teach one bay each, then
+three missions build up to a two-bank gauntlet. They are **practice-only, by
+rule**: a bomb you can memorise is exactly the "shared, static, Google-able
+answer" §0 rules out, so `generate_main` never serves one and a test asserts no
+generated board ever matches an authored one. They matter because the bomb is
+now the game no team opts out of — every Defuser has to meet these four bays
+somewhere, and every Grandmaster has to find their way around the console before
+it counts. The hook is duck-typed (`missions()` / `generate_mission()`), so no
+other game grows a method it has no use for.
+
+**BOMB DEFUSE anti-cheat caveat (accepted, and larger than most).** This is a
+lookup game, so its manual is public by definition — the eight mazes, the eight
+number grids and the colour mapping ship in the renderer, and the payload names
+which of them is live. A scripted client could therefore compute the whole
+defusal. That is inherent: the tested skill is *reading the manual fast under a
+fuse*, not knowing a secret. The checker is still not bypassable — the server
+replays every action against the board and reads no claimed verdict — so what a
+script forges is the player's effort, not the result, the same accepted class as
+SWEEP's board and ECHO's flash sequence (§0).
+
+Two things here are **unenforceable by construction** and are documented rather
+than dressed up. The **fuse** is a clock the browser keeps, and the repo never
+trusts client-reported elapsed time, so it is pressure on an honest player and
+nothing more — the same standing as §0.4's "the level puzzle has no hard limit".
+The **mini button** is a reaction test, and no client-side reaction test can be
+proven server-side. Its hold code narrows the gap without closing it: reaching
+the green state is what reveals the two-digit code the transcript must carry, so
+a forged transcript has to model the module's state machine rather than assert
+"solved" — but the code is in the payload, because the renderer has to display
+it, and a script can read it there. Treated exactly like the cosmetic
+screen-effect perks in `config.PERKS`: real for the people playing, not claimed
+to be more.
 
 ## Per-game deliverables (each game owner)
 

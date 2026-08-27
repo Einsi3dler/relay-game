@@ -399,6 +399,18 @@
         return;
       }
 
+      if (roleIsFixed(player.role)) {
+        // A fixed role names its own game — you choose who holds it, not what
+        // they play.
+        var locked = document.createElement("span");
+        locked.className = "muted";
+        locked.textContent = "💣 " + gameName(player.assigned_game) +
+          " — the role fixes it";
+        row.appendChild(locked);
+        rows.appendChild(row);
+        return;
+      }
+
       var select = document.createElement("select");
       select.className = "assign-select";
       var placeholder = document.createElement("option");
@@ -475,6 +487,20 @@
               p.name + ".";
           }
         });
+        // Required roles: the bomb is the game no team opts out of.
+        requiredRoles().forEach(function (roleId) {
+          if (blocker) return;
+          var roleName = serverConfig.roles[roleId].name;
+          var holders = playing.filter(function (p) { return p.role === roleId; });
+          if (holders.length > 1) {
+            blocker = "Team " + team.name + " can only field one " + roleName + ".";
+          } else if (!holders.length) {
+            blocker = playing.length < 2 && duelistsOf(team).length
+              ? "Team " + team.name + " needs a " + roleName + ", but its only " +
+                "player is a Duelist — drop the Duelist or add a player."
+              : "Team " + team.name + " needs a " + roleName + ".";
+          }
+        });
         if (!blocker && duelistsOf(team).length > 1) {
           blocker = "Team " + team.name + " can only field one Duelist.";
         }
@@ -496,6 +522,27 @@
   function duelistsOf(team) {
     return (team.players || []).filter(function (p) {
       return !p.is_leader && p.role === "duelist";
+    });
+  }
+
+  // Both read the catalogue rather than naming roles, so a new fixed or
+  // required role needs no client change (mirror of backend/config.py).
+  function roleIsFixed(roleId) {
+    var roles = (serverConfig && serverConfig.roles) || {};
+    return !!(roleId && roles[roleId] && roles[roleId].fixed);
+  }
+
+  function requiredRoles() {
+    var roles = (serverConfig && serverConfig.roles) || {};
+    var library = (serverConfig && serverConfig.library) || [];
+    return Object.keys(roles).filter(function (roleId) {
+      if (!roles[roleId].required) return false;
+      // Only a gate if this server actually ships the role's game, matching
+      // RelayEngine._required_roles.
+      var games = roles[roleId].games || [];
+      return !games.length || games.some(function (gameId) {
+        return library.some(function (entry) { return entry.id === gameId; });
+      });
     });
   }
 
@@ -749,6 +796,87 @@
 
   // --- leader dashboard ---
 
+  // The Grandmaster's bomb console: the Expert's half of BOMB DEFUSE
+  // (docs/GAME_DESIGN.md §2c). It is the manual and nothing else — no board, no
+  // fuse, no bay progress — so there is nothing to keep in sync and the whole
+  // thing is a page turner over frontend/games/bomb_manual.js. The Defuser says
+  // what they are looking at; this says what it means.
+  var bombConsole = { page: "home", mounted: false };
+
+  function renderBombConsole(state, team) {
+    var card = $("leader-bomb-card");
+    var manual = window.RelayBombManual;
+    var defuser = null;
+    (team.players || []).forEach(function (player) {
+      if (!player.is_leader && player.assigned_game === "bomb_defuse") {
+        defuser = player;
+      }
+    });
+    // Only while the team actually fields one, and only once the match is on:
+    // in the lobby there is no bomb to read for.
+    if (!manual || !defuser || state.status !== "active") {
+      if (bombConsole.mounted) teardownBombConsole();
+      card.hidden = true;
+      return;
+    }
+    card.hidden = false;
+    $("leader-bomb-sub").textContent =
+      defuser.name + " is on the bomb" + (defuser.connected ? "" : " (offline)") +
+      " and cannot see this. They describe the bay; you read them the rule.";
+
+    // Re-rendering on every snapshot would fight the page you are reading, so
+    // the console redraws only when its own page changes.
+    if (bombConsole.mounted) return;
+    var mount = $("leader-bomb-mount");
+    mount.innerHTML = "";
+    var frame = document.createElement("div");
+    frame.style.cssText = "position:relative;width:100%;overflow:hidden;";
+    var surface = document.createElement("div");
+    surface.style.cssText = "position:absolute;left:0;top:0;width:" + manual.W +
+      "px;height:" + manual.H + "px;transform-origin:top left;";
+    frame.appendChild(surface);
+    mount.appendChild(frame);
+    bombConsole.mounted = true;
+
+    function scaleConsole() {
+      var available = frame.clientWidth || manual.W;
+      var scale = Math.max(0.5, Math.min(available / manual.W, 1.4));
+      surface.style.transform = "scale(" + scale + ")";
+      frame.style.height = Math.round(manual.H * scale) + "px";
+    }
+
+    function draw() {
+      manual.render(surface, {
+        page: bombConsole.page,
+        axis: "column",
+        homeNote: "Your Defuser can flip to this too, but it costs them fuse. " +
+          "Keep the page they need open and they never have to look away.",
+        onNavigate: function (page) { bombConsole.page = page; draw(); },
+        // Exit on the console's home page is a no-op: there is no bomb behind
+        // it to go back to, and the card is not dismissible.
+        onExit: function () { bombConsole.page = "home"; draw(); }
+      });
+      scaleConsole();
+    }
+    draw();
+    if (!bombConsole.resizeHandler) {
+      bombConsole.resizeHandler = function () { scaleConsole(); };
+      window.addEventListener("resize", bombConsole.resizeHandler);
+    }
+  }
+
+  function teardownBombConsole() {
+    if (bombConsole.resizeHandler) {
+      window.removeEventListener("resize", bombConsole.resizeHandler);
+      bombConsole.resizeHandler = null;
+    }
+    bombConsole.mounted = false;
+    bombConsole.page = "home";
+    var mount = $("leader-bomb-mount");
+    if (mount) mount.innerHTML = "";
+    $("leader-bomb-card").hidden = true;
+  }
+
   function statusPill(player) {
     // Silenced: the server nulls the progress fields rather than lying about
     // them, so there is genuinely nothing to show.
@@ -785,6 +913,7 @@
       (locked ? " · ⛔ duel penalty — the team can't advance yet" : "");
     watchSilence(team);
     renderDuel(state, "leader-duel-card", "leader-duel-mount");
+    renderBombConsole(state, team);
 
     var roster = $("leader-roster");
     roster.innerHTML = "";
@@ -940,6 +1069,7 @@
   function renderResult(state) {
     finished = true;
     unmountPuzzle();
+    teardownBombConsole();
     clearInterval(timerHandle);
     clearInterval(frozenHandle);
     clearTimeout(silenceHandle);

@@ -223,8 +223,16 @@ async def get_config() -> dict:
         "level_count": config.LEVEL_COUNT,
         "wait_seconds": config.WAIT_SECONDS,
         "perks": {perk_id: dict(perk) for perk_id, perk in config.PERKS.items()},
+        # `fixed`/`required` reach the client because the lobby mirrors both
+        # rules: a fixed role shows no game picker, and a missing required role
+        # is one of the reasons the start button stays disabled.
         "roles": {
-            role_id: {"name": role["name"], "games": role["games"]}
+            role_id: {
+                "name": role["name"],
+                "games": role["games"],
+                "fixed": bool(role.get("fixed")),
+                "required": bool(role.get("required")),
+            }
             for role_id, role in config.ROLES.items()
         },
         "library": engine.registry.library(),
@@ -245,14 +253,39 @@ class PracticeCheckBody(BaseModel):
     answer: str
 
 
+def _missions(module) -> list[dict]:
+    """A game's authored practice boards, or [] if it offers none.
+
+    Duck-typed on purpose: `missions`/`generate_mission` are not part of the
+    GameModule contract, so a game that wants a training ladder can add one
+    without every other game growing a method it has no use for.
+    """
+    catalogue = getattr(module, "missions", None)
+    return list(catalogue()) if callable(catalogue) else []
+
+
 def _practice_puzzle(game_id: str, kind: str, seed: int):
     module = PRACTICE_MODULES.get(game_id)
     if module is None:
         raise HTTPException(status_code=404, detail=f"unknown game '{game_id}'")
-    if kind not in ("main", "holding"):
-        raise HTTPException(status_code=400, detail="kind must be 'main' or 'holding'")
-    generate = module.generate_main if kind == "main" else module.generate_holding
-    return module, generate(seed)
+    if kind in ("main", "holding"):
+        generate = module.generate_main if kind == "main" else module.generate_holding
+        return module, generate(seed)
+    if kind in {mission["id"] for mission in _missions(module)}:
+        # An authored board: the same bomb every time, which is why these are
+        # practice-only and never reach a match.
+        return module, module.generate_mission(kind, seed)
+    raise HTTPException(
+        status_code=400, detail=f"unknown practice kind '{kind}' for '{game_id}'"
+    )
+
+
+@app.get("/api/practice/{game_id}/missions")
+async def practice_missions(game_id: str) -> dict:
+    module = PRACTICE_MODULES.get(game_id)
+    if module is None:
+        raise HTTPException(status_code=404, detail=f"unknown game '{game_id}'")
+    return {"missions": _missions(module)}
 
 
 @app.post("/api/practice/{game_id}")

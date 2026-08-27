@@ -288,6 +288,7 @@ that document is the gameplay / validation / anti-cheat truth for each. Keep the
 | **LANE SHIFT** — one action per turn while the conveyor keeps moving | Scheduling | [G8] |
 | **SHADOW CAST** — turn the block until both of its shadows match | Spatial | [G9] |
 | **THREADLINE** — draw one cable through the anchors in order, inside the bend budget | Routing | [G10] |
+| **BOMB DEFUSE** — solve every live bay from the manual, then press OK, before the fuse runs out | Manual lookup | [G11] |
 
 The legacy `puzzles.py` generators are inspiration only — reimplement against
 **this** contract (do not import from `legacy/`).

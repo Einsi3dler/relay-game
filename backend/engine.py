@@ -414,11 +414,35 @@ class RelayEngine:
             return EngineResult.rejected(
                 f"{config.ROLES[role_id]['name']} has no games yet"
             )
+        fixed_game = config.role_fixed_game(role_id)
+        if fixed_game is not None:
+            # A fixed role carries one game, so a second holder would put two
+            # teammates on it and break game uniqueness the moment the role
+            # lands. Refuse here rather than at start: the Grandmaster gets the
+            # feedback on the click that caused it.
+            holder = next(
+                (
+                    member
+                    for member in self._playing_members(
+                        match, match.teams[target.team_id]
+                    )
+                    if member.id != target.id and member.role == role_id
+                ),
+                None,
+            )
+            if holder is not None:
+                return EngineResult.rejected(
+                    f"{holder.name} is already the {config.ROLES[role_id]['name']}"
+                )
         target.role = role_id
         if config.role_is_duel(role_id):
             # The Duelist doesn't get a choice of game — the server picks it,
             # so the "everyone needs a game" start gate is already satisfied.
             target.assigned_game = self.registry.pick_duel(_new_seed()).id
+        elif fixed_game is not None:
+            # Same idea, but the role names the game itself: the Grandmaster
+            # chooses who defuses, never what they play.
+            target.assigned_game = fixed_game
         elif target.assigned_game is not None and not (
             # Moving *off* the duel role must also drop the server's pick: a
             # duel id is not a registered game, so the Generalist (which allows
@@ -456,6 +480,12 @@ class RelayEngine:
             return EngineResult.rejected(
                 f"the server picks the {config.ROLES[target.role]['name']}'s game"
             )
+        fixed_game = config.role_fixed_game(target.role)
+        if fixed_game is not None:
+            return EngineResult.rejected(
+                f"the {config.ROLES[target.role]['name']} always plays "
+                f"{self.registry.by_id(fixed_game).name}"
+            )
         if not self.registry.has(game_id):
             return EngineResult.rejected(f"unknown game {game_id!r}")
         if target.role is None:
@@ -478,6 +508,22 @@ class RelayEngine:
             match, result, f"{target.name} will play {module.name}.", "info"
         )
         return result
+
+    def _required_roles(self) -> list[str]:
+        """Required roles *this* registry can actually satisfy.
+
+        A required role only gates the start if its game is registered. The
+        engine validates against the library it was handed, never against a
+        game id it assumes exists — so a trimmed deployment, or a test running
+        on a fake library, still starts. In production the bomb is registered
+        and the gate always bites.
+        """
+        live = []
+        for role_id in config.required_roles():
+            fixed = config.role_fixed_game(role_id)
+            if fixed is None or self.registry.has(fixed):
+                live.append(role_id)
+        return live
 
     def start_blocker(self, match: Match) -> str | None:
         """Why the match can't start yet, or None when it can."""
@@ -503,6 +549,26 @@ class RelayEngine:
                 return (
                     f"team {team.name}: assign a game to {', '.join(unassigned)}"
                 )
+            # Required roles: the bomb is the game no team opts out of, so
+            # every team names exactly one Defuser or the match can't start.
+            for role_id in self._required_roles():
+                role_name = config.ROLES[role_id]["name"]
+                holders = [p for p in playing if p.role == role_id]
+                if len(holders) > 1:
+                    return f"team {team.name} can only field one {role_name}"
+                if not holders:
+                    if len(playing) < 2 and any(
+                        config.role_is_duel(p.role) for p in playing
+                    ):
+                        # The squeeze at small table sizes: a Duelist and a
+                        # Defuser are two forced seats and this team has room
+                        # for one. Say so, rather than looking like a deadlock.
+                        return (
+                            f"team {team.name} needs a {role_name}, but its "
+                            f"only player is a Duelist — drop the Duelist or "
+                            f"add a player"
+                        )
+                    return f"team {team.name} needs a {role_name}"
             if len(self._duelists(match, team)) > 1:
                 return f"team {team.name} can only field one Duelist"
         # The Duelist is mirrored: a duel needs two seats, so one team fielding
