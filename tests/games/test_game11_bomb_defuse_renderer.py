@@ -372,6 +372,103 @@ report.fatal = fatal;
   };
 }
 
+// 9. Hit testing. Firing a handler on a node found by label proves the handler
+// works; it does not prove a click could ever reach it. This walks the real
+// geometry and paint order and asks the question a browser asks — at the centre
+// of each control, what is on top? — then reports which controls a player could
+// actually press in each view.
+function num(css, prop) {
+  // A unitless zero is still a zero: `left:0` has to parse, or a full-surface
+  // layer reads as having no box at all and stops counting as a blocker.
+  const hits = [...css.matchAll(
+    new RegExp("(?:^|;)\\s*" + prop + ":\\s*(-?[\\d.]+)(?:px)?\\s*(?=;|$)", "g"))];
+  return hits.length ? parseFloat(hits[hits.length - 1][1]) : null;
+}
+function rectOf(node) {
+  const css = node.style.cssText;
+  const w = num(css, "width"), h = num(css, "height");
+  let x = num(css, "left"), y = num(css, "top");
+  if (x === null || y === null || w === null || h === null) return null;
+  for (let p = node.parentNode; p; p = p.parentNode) {
+    const px = num(p.style.cssText, "left"), py = num(p.style.cssText, "top");
+    if (px !== null) x += px;
+    if (py !== null) y += py;
+  }
+  return { x, y, w, h };
+}
+// A control laid out by flex has no box of its own; stand in its container's,
+// which is what decides whether something is over it anyway.
+function boxOf(node) {
+  for (let n = node; n; n = n.parentNode) {
+    const box = rectOf(n);
+    if (box) return box;
+  }
+  return null;
+}
+function chain(node) {
+  const out = [];
+  for (let n = node; n; n = n.parentNode) out.unshift(n);
+  return out;
+}
+function painted(node) {
+  return chain(node).every((n) => n.style.display
+    ? n.style.display !== "none"                       // an assignment wins...
+    : n.style.cssText.indexOf("display:none") === -1); // ...over the shorthand
+}
+function catchesPointer(node) {
+  let on = true;                       // the default is to receive them
+  chain(node).forEach((n) => {
+    if (n.style.cssText.indexOf("pointer-events:none") !== -1) on = false;
+    else if (n.style.cssText.indexOf("pointer-events:auto") !== -1) on = true;
+  });
+  return on;
+}
+function reachable(container) {
+  const surface = find(container, (n) => n.style.cssText.indexOf("transform-origin") !== -1);
+  const order = all(surface);
+  const out = [];
+  order.forEach((target, index) => {
+    const wired = (target.listeners.click || []).length ||
+                  (target.listeners.pointerdown || []).length;
+    if (!wired || !painted(target) || !catchesPointer(target)) return;
+    const box = boxOf(target);
+    if (!box) return;
+    const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+    const kin = new Set(all(target));
+    const blocked = order.slice(index + 1).some((other) => {
+      if (kin.has(other) || !painted(other) || !catchesPointer(other)) return false;
+      const over = rectOf(other);
+      return over !== null && cx >= over.x && cx <= over.x + over.w &&
+             cy >= over.y && cy <= over.y + over.h;
+    });
+    if (!blocked) out.push(target.attrs["aria-label"] || target.textContent || target.tagName);
+  });
+  return out;
+}
+{
+  const live = {};
+  const { container } = mount(puzzles.full);
+  live.face = reachable(container);
+  puzzles.full.payload.modules.forEach((module) => {
+    const name = {
+      maze: "Maze", simon: "Simon Says",
+      according_to_number: "According to number", mini_button: "The mini button",
+    }[module.type];
+    click(byLabel(container, "Open the " + name + " bay"));
+    live["panel:" + module.type] = reachable(container);
+    if (module.type !== "mini_button") click(byText(container, "✕ BOMB"));
+  });
+  click(byText(container, "📖  MANUAL"));
+  live["manual:home"] = reachable(container);
+  ["Maze", "Simon Says", "According to number", "The mini button"].forEach((name) => {
+    click(byText(container, name));
+    live["manual:" + name] = reachable(container);
+    click(byText(container, "Exit"));
+  });
+  report.reachable = live;
+  game.unmount();
+}
+
 process.stdout.write(JSON.stringify(report));
 """
 
@@ -564,3 +661,64 @@ def test_unmount_leaves_nothing_running_and_remounting_starts_clean(report):
     assert life["detached"] == 0              # the root came out of the container
     assert life["remount_is_fresh"] is True
     assert life["remount_scheduled"] is True  # ...and a new fuse is running
+
+# --- can a click actually land? -----------------------------------------
+
+
+def test_every_control_on_the_bomb_face_can_be_clicked(report):
+    """A click has to *reach* a control, not just have a handler bound to it.
+
+    The empty panel overlay used to span the whole 590x440 surface and sat above
+    the bomb face, so every click landed on the overlay instead and the bomb was
+    dead to the touch. Firing handlers by label could never catch that; this
+    walks the real geometry and paint order.
+    """
+    face = report["reachable"]["face"]
+    for module in ("Maze", "Simon Says", "According to number", "The mini button"):
+        assert f"Open the {module} bay" in face
+    assert "OK — bays are still open" in face
+    assert "Give up" in face
+    assert "📖  MANUAL" in face
+    assert "🔊 SOUND ON" in face
+
+
+@pytest.mark.parametrize(
+    "panel,controls",
+    [
+        ("maze", ["Step north", "Step south", "Step east", "Step west"]),
+        ("simon", ["red", "blue", "green", "yellow"]),
+        ("according_to_number", ["1", "2", "3"]),
+        ("mini_button", ["ARM THE BUTTON"]),
+    ],
+)
+def test_every_control_inside_an_open_bay_can_be_clicked(report, panel, controls):
+    live = report["reachable"]["panel:" + panel]
+    for control in controls:
+        assert control in live, f"{control} is unreachable in the {panel} panel"
+
+
+def test_the_simon_replay_control_can_be_clicked(report):
+    # It reads "PLAYING" rather than "PLAY THE FLASHES" here, because opening
+    # the bay starts the first stage.
+    live = report["reachable"]["panel:simon"]
+    assert any(control.startswith("▶") for control in live), live
+
+
+def test_an_open_bay_covers_the_bomb_but_not_the_manual(report):
+    live = report["reachable"]["panel:maze"]
+    # Deliberate: the panel sits over the housing, so you close it to reach the
+    # bays, OK and Give up again...
+    assert "Give up" not in live
+    assert "Open the Simon Says bay" not in live
+    # ...but the strip under the housing stays live, so you can always go and
+    # read the rules for the bay you just opened.
+    assert "📖  MANUAL" in live
+    assert "✕ BOMB" in live
+
+
+def test_every_manual_page_can_be_navigated(report):
+    home = report["reachable"]["manual:home"]
+    for name in ("Maze", "Simon Says", "According to number", "The mini button"):
+        assert name in home
+        assert "Exit" in report["reachable"]["manual:" + name]
+    assert "Exit" in home

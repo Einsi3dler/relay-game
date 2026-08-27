@@ -507,7 +507,7 @@
   function panelShell(title, closable) {
     var panel = at(el("div"), HOUSE.x, HOUSE.y, HOUSE.w, HOUSE.h);
     panel.style.cssText += "background:" + C.bombGreyLight + ";border:5px solid " + C.black + ";" +
-      "font-family:Arial,Helvetica,sans-serif;";
+      "font-family:Arial,Helvetica,sans-serif;pointer-events:auto;";
     var head = at(el("div"), 0, 0, HOUSE.w - 10, 40);
     head.style.cssText += "background:" + C.black + ";color:" + C.white + ";display:flex;" +
       "align-items:center;justify-content:space-between;padding:0 10px;";
@@ -824,7 +824,7 @@
   function manualShell(title) {
     var page = at(el("div"), 0, 0, W, H);
     page.style.cssText += "background:" + C.manualBg + ";color:" + C.black + ";" +
-      "font-family:Arial,Helvetica,sans-serif;";
+      "font-family:Arial,Helvetica,sans-serif;pointer-events:auto;";
     page.appendChild(el("div", "position:absolute;left:20px;top:14px;font-size:28px;" +
       "font-weight:700;", title));
     var exit = button("Exit", "border:0;background:" + C.manualExitBlue + ";color:" + C.white + ";" +
@@ -1172,9 +1172,10 @@
         "px;transform-origin:top left;background:" + C.bgBlue + ";" +
         "font-family:Arial,Helvetica,sans-serif;");
       state.faceLayer = el("div", "position:absolute;left:0;top:0;width:" + W + "px;height:" + H + "px;");
-      state.panelLayer = el("div", "position:absolute;left:0;top:0;width:" + W + "px;height:" + H + "px;");
+      state.panelLayer = el("div", "position:absolute;left:0;top:0;width:" + W + "px;height:" +
+        H + "px;pointer-events:none;");
       state.manualLayer = el("div", "position:absolute;left:0;top:0;width:" + W + "px;height:" + H +
-        "px;display:none;");
+        "px;display:none;pointer-events:none;");
       state.surface.appendChild(state.faceLayer);
       state.surface.appendChild(state.panelLayer);
       state.surface.appendChild(state.manualLayer);
