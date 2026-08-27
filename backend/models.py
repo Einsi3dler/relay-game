@@ -26,6 +26,17 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def is_future(deadline: str | None) -> bool:
+    """True while a UTC ISO deadline hasn't passed yet.
+
+    View-layer deadline checks read the wall clock: unlike the engine, `public()`
+    is called at broadcast time and takes no injected `now`.
+    """
+    return deadline is not None and datetime.fromisoformat(deadline) > datetime.now(
+        timezone.utc
+    )
+
+
 def green(player: Player) -> bool:
     """A player is green (cleared) when they've solved their level and hold it.
 
@@ -69,6 +80,10 @@ class Player:
     timer_deadline: str | None = None  # UTC ISO; drives the client countdown
     timer_kind: str | None = None  # "wait" | None
     frozen_until: str | None = None  # UTC ISO; submits rejected until then
+    # Cosmetic sabotage: config.SCREEN_EFFECTS id -> UTC ISO deadline. Bounded
+    # by the catalogue (an id overwrites its own entry) and never needs a timer
+    # — a lapsed deadline simply stops being sent.
+    screen_effects: dict[str, str] = field(default_factory=dict)
     earned_level: int = 0  # highest level base currency was paid for
     bonus_streak: int = 0  # successful bonuses this level (first pays more)
     bonus_earned: int = 0  # this level's bonus pay — forfeited on bonus failure
@@ -80,6 +95,15 @@ class Player:
         if self.status == "bonus":
             return self.current_bonus
         return None
+
+    def live_effects(self) -> dict[str, str]:
+        """Screen effects still running. A lapsed one needs no cleanup — it just
+        stops appearing in the view, so reconnects and level changes are free."""
+        return {
+            effect: deadline
+            for effect, deadline in self.screen_effects.items()
+            if is_future(deadline)
+        }
 
     def public(self) -> dict[str, Any]:
         return {
@@ -104,6 +128,9 @@ class Player:
             "timer_deadline": self.timer_deadline,
             "choice_pending": self.choice_pending,
             "frozen_until": self.frozen_until,
+            # Only the victim is told they're being sabotaged: fog of war means
+            # the buyer never learns which opponent the server picked.
+            "screen_effects": self.live_effects(),
         }
 
 
@@ -117,28 +144,51 @@ class Team:
     finished: bool = False
     currency: int = 0  # team pool, spent only by the leader
     shield_active: bool = False  # blocks the next incoming attack perk
+    reflect_active: bool = False  # bounces the next attack back at its buyer
+    insurance_active: bool = False  # the next failed bonus keeps its earnings
+    silenced_until: str | None = None  # UTC ISO; this team's own Grandmaster is blind
     leader_id: str | None = None
     handoff_used_level: int = 0  # last level a mid-match leader handoff happened
     duel_streak: int = 0  # consecutive duel wins; drives the doubling payout
     duel_penalty_until: str | None = None  # UTC ISO; advance is locked until then
     duel_penalty_level: int = 0  # level the live penalty was stamped at (once each)
 
-    def public(self, players: dict[str, Player]) -> dict[str, Any]:
-        """Full view: own team for its leader, and everyone in the lobby."""
+    def public(
+        self, players: dict[str, Player], silenced: bool = False
+    ) -> dict[str, Any]:
+        """Full view: own team for its leader, and everyone in the lobby.
+
+        Under `silenced` (the Silence perk) the progress read-out is masked —
+        `green_count` and every playing member's status go null. The shape is
+        unchanged so the client can render "?" rather than break. Note the
+        *enemy* leader keeps their `include_green` summary of this team: Silence
+        blinds a Grandmaster to their own roster, which is the whole joke.
+        """
         members = [players[player_id] for player_id in self.player_ids]
+        roster = [member.public() for member in members]
+        if silenced:
+            for view in roster:
+                if not view["is_leader"]:
+                    view["green"] = None
+                    view["status"] = "hidden"
         return {
             "id": self.id,
             "name": self.name,
             "level": self.level,
             "roster_size": self.roster_size,
             "finished": self.finished,
-            "green_count": sum(1 for member in members if green(member)),
+            "green_count": None if silenced else sum(
+                1 for member in members if green(member)
+            ),
             "currency": self.currency,
             "shield_active": self.shield_active,
+            "reflect_active": self.reflect_active,
+            "insurance_active": self.insurance_active,
+            "silenced_until": self.silenced_until,
             "leader_id": self.leader_id,
             "duel_streak": self.duel_streak,
             "duel_penalty_until": self.duel_penalty_until,
-            "players": [member.public() for member in members],
+            "players": roster,
         }
 
     def summary(
@@ -267,7 +317,7 @@ class Match:
             return team.summary(self.players)
         if me.is_leader:
             if team.id == me.team_id:
-                return team.public(self.players)
+                return team.public(self.players, silenced=is_future(team.silenced_until))
             return team.summary(self.players, include_green=True)
         if team.id == me.team_id:
             return team.summary(self.players)
@@ -277,7 +327,15 @@ class Match:
         """MatchPublic; `me` is filled only for the requesting player."""
         me = self.players.get(player_id) if player_id is not None else None
         events = self.events[-PUBLIC_EVENT_LIMIT:]
-        if self.status != "lobby" and (me is None or not me.is_leader):
+        # A silenced Grandmaster loses the who-cleared feed too, or the masked
+        # roster above would be trivially reconstructed from the event log.
+        my_team = self.teams.get(me.team_id or "") if me else None
+        sees_progress = (
+            me is not None
+            and me.is_leader
+            and not (my_team is not None and is_future(my_team.silenced_until))
+        )
+        if self.status != "lobby" and not sees_progress:
             events = [e for e in events if e.kind not in LEADER_ONLY_EVENT_KINDS]
         return {
             "id": self.id,

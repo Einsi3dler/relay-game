@@ -45,12 +45,17 @@ MAX_ANSWER_CHARS = 400
 
 
 def _params_for_level(level: int) -> dict:
-    """Main-board knobs for `level`, clamped to 1..10; level 1 == the
+    """Main-board knobs for `level`, clamped to 1..13; level 1 == the
     original board (depth (10,18), relaxed (8,22), cap 30). The depth band
     slides up one step per level; size tops out at 7 — size 8 leaves too
     little headroom in the generation attempt budget.
+
+    Levels 11..13 are BONUS-ONLY tiers (docs/TASK_LIST.md V5): they exist so a
+    team at the top of the ladder still gets a bonus board harder than the one
+    they just cleared. Only the depth band and wall density climb there — size
+    is already at its ceiling.
     """
-    lvl = min(max(level, 1), 10)
+    lvl = min(max(level, 1), 13)
     lo = 9 + lvl
     hi = lo + 8
     relaxed = (lo - 2, hi + 4)
@@ -60,7 +65,7 @@ def _params_for_level(level: int) -> dict:
         "relaxed_depth": relaxed,
         "wall_p": 0.18 if lvl <= 5 else (0.20 if lvl <= 8 else 0.22),
         "move_cap": relaxed[1] + 8,
-        "difficulty": 2 if lvl <= 3 else (3 if lvl <= 7 else 4),
+        "difficulty": 2 if lvl <= 3 else (3 if lvl <= 7 else (4 if lvl <= 10 else 5)),
         "time_hint": 30 + (lvl - 1) * 25 // 9,
     }
 

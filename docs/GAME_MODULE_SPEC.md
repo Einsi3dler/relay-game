@@ -93,12 +93,15 @@ class GameModule(Protocol):
   unguessable — see [ARCHITECTURE.md](ARCHITECTURE.md) §"Seeds"; your module just
   consumes them.) Set `game_id` to `self.id`. **Never derive board size/difficulty
   from `seed`** (that would randomise fairness between players). `level` (1-based,
-  1..`LEVEL_COUNT`) is the sanctioned difficulty knob and every shipped game now
-  **scales with it**: level 1 == the game's original board, difficulty rising to
-  level 10, deterministic per `(seed, level)`. Each game reads a per-level
-  `MAIN_LEVEL_PARAMS` table (or `_params_for_level`); the same generator serves
-  the harder bonus board when the engine passes a higher `level`. Same seed +
-  same level must always yield the same puzzle.
+  1..`LEVEL_COUNT + BONUS_LEVEL_OFFSET`) is the sanctioned difficulty knob and
+  every shipped game **scales with it**: level 1 == the game's original board,
+  difficulty rising to level 10, deterministic per `(seed, level)`. Each game
+  reads a per-level `MAIN_LEVEL_PARAMS` table (or `_params_for_level`), which
+  must have **`LEVEL_COUNT + BONUS_LEVEL_OFFSET` rows (13)**: levels 11..13 are
+  **bonus-only tiers**, never served as a main board, and they exist so a team
+  on the last level still gets a bonus board harder than the one they just
+  cleared. Clamp anything outside the table. Same seed + same level must always
+  yield the same puzzle.
 - **`generate_holding(seed)`** — same, with `kind="holding"`; a quick few-second
   variant. **v2 uses it only for practice mode** (`/api/practice`) — it no longer
   appears in the match loop.
@@ -258,9 +261,14 @@ Put them in `tests/games/test_gameN_<name>.py`. Minimum bar:
    deterministic output.
 8. **Level scaling:** `generate_main(seed, level)` scales difficulty
    deterministically with `level` — level 1 == your original board, harder by
-   level 10, guaranteed-solvable at every level, same `(seed, level)` → same
-   puzzle. Ship tests per level band (determinism, monotonic knobs,
-   level-1-equals-original, solvable at all levels).
+   level 10, harder again through the bonus-only tiers 11..13,
+   guaranteed-solvable at every level, same `(seed, level)` → same puzzle. Ship
+   tests per level band (determinism, monotonic knobs, level-1-equals-original,
+   solvable at **all 13** levels, bonus tiers measurably past level 10).
+9. **Generation stays fast:** a bonus board is generated synchronously when a
+   player opts in, so a deep tier that takes ~a second blocks the match. If a
+   tier's difficulty gate makes generation expensive, **back the knobs off** —
+   never raise the generator's attempt/node budget to compensate.
 
 ## 9. The game library
 

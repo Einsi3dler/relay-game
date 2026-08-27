@@ -54,18 +54,33 @@ browser's dev-tools console (client errors). Keep both visible.
       stays blocked until every playing member has a role *and* a game.
 - [ ] Reconnect works: refresh a tab mid-match and the correct view returns
       (a solving player gets a fresh board; cleared/bonus resume their state).
-- [ ] Grandmaster handoff (full swap) works once per level, and perks
-      (freeze/scramble/shield/extend-wait) land as expected.
+- [ ] Grandmaster handoff (full swap) works once per level, and all 13 perks
+      land as expected. Specifically check the ones with awkward edges:
+      Reflect (the attack comes home to its buyer, and cannot bounce twice),
+      Silence (the victim's own Grandmaster goes blind, and *recovers* on its
+      own when the 30s lapse), Clock Burn (burning past the deadline lapses the
+      wait immediately), and Insurance (spent only on a failure that costs
+      something).
+- [ ] Screen-effect perks (wobble/static/mirror/blackout) disrupt without
+      breaking: clicks still land on the tile you can see — check MIRROR RUN's
+      swipe and THREADLINE's buttons in particular — the countdown and currency
+      stay readable, and the effect stops on its own at its deadline.
+- [ ] With the OS "reduce motion" setting on, a screen effect still costs the
+      victim something (the substitute blur pulse), rather than doing nothing.
 
 ### V5 — do the difficulty curves feel right? (**AC: L1 ≈ today, L10 clearly but not brutally harder, bonus harder than the current level**)
 
-For each game, note solve times per level band (1–3, 4–6, 7–10):
+For each game, note solve times per level band (1–3, 4–6, 7–10, bonus 11–13):
 
 - [ ] Level 1 feels like the original difficulty (no regression).
 - [ ] Level 10 is clearly harder but still **calm** — not frustrating or
       brutal (the design goal is a relaxed race, not a stress test).
 - [ ] The bonus board (current level + `BONUS_LEVEL_OFFSET`) feels genuinely
-      harder than the level the team is on.
+      harder than the level the team is on — **including at levels 8–10**,
+      where it comes from the bonus-only tiers 11–13.
+- [ ] The bonus tiers aren't a cliff. DECANT, OVERPRINT, SHADOW CAST and
+      STACKDROP are near their ceilings by level 10 and had the least room to
+      climb; SHADOW CAST's tiers 12 and 13 are identical bar the time hint.
 - [ ] Note any game whose curve spikes or flattens badly — that game's
       `MAIN_LEVEL_PARAMS` table (or `_params_for_level`) is where to adjust.
 
@@ -79,8 +94,11 @@ Track per team across the match:
 - [ ] **Bonus success rate:** roughly what fraction of bonus attempts succeed.
       Very high → bonus too easy/cheap to attempt; very low → not worth it.
 - [ ] **Perks bought per team, and which:** are perks bought at all? Does one
-      perk dominate every purchase (freeze is the strongest — it also hits
-      bonus players)? Does any perk never get bought?
+      perk dominate every purchase? Freeze was the suspected dominant buy
+      before the catalogue grew — Wobble and Static now also reach bonus
+      players for less, so watch whether Freeze still wins. Does any perk never
+      get bought? Reflect at 4 is the most expensive thing in the shop; Skim
+      deliberately loses the buyer currency.
 - [ ] **Wait timer:** does the 180s hold ever actually lapse, and does that
       feel fair when it does?
 
@@ -96,7 +114,7 @@ Fill this in during/after the playtest and bring it to the V7 tuning discussion.
 | Avg solve time, L1 / L5 / L10 | | | per game if it varies |
 | Bonus attempts / waits | | | |
 | Bonus success rate | | | |
-| Perks bought (by type) | | | |
+| Perks bought (by type) | | | all 13 — note any never bought |
 | Wait timer lapses | | | |
 | Felt too easy / too hard where? | | | |
 
@@ -104,7 +122,10 @@ Proposed config changes from this data (V7):
 
 - `WAIT_SECONDS`: keep 180 / change to ___ because ___
 - `CURRENCY_BONUS_FIRST` / `_REPEAT`: keep 3 / 1 / change because ___
-- Perk costs (freeze 3 / scramble 2 / shield 2 / extend_wait 1): ___
+- Perk costs — attacks (freeze 3 / scramble 2 / clock_burn 3 / skim 2 /
+  silence 3 / wobble 2 / static 2 / mirror 3 / blackout 3): ___
+- Perk costs — defense (shield 2 / reflect 4 / insurance 2 / extend_wait 1): ___
+- Screen-effect durations (wobble 12s / static 10s / mirror 10s / blackout 4s): ___
 - Per-game curve tweaks: ___
 
 ---

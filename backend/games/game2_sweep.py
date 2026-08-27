@@ -18,10 +18,12 @@ MAIN_ROWS, MAIN_COLS, MAIN_MINES = 6, 6, 6
 HOLD_ROWS, HOLD_COLS, HOLD_MINES = 3, 3, 1
 MAX_ROLLS = 50
 
-# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10,
-# level 1 == the original board. Density stays under ~19% so no-guess boards
-# keep rolling well inside MAX_ROLLS; the ease-by-dropping-mines fallback
-# remains the safety net.
+# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..13,
+# level 1 == the original board. Density stays under ~19% at every tier so
+# no-guess boards keep rolling well inside MAX_ROLLS; the ease-by-dropping-mines
+# fallback remains the safety net. Levels 11..13 are BONUS-ONLY tiers (a team
+# never plays them as a main board) — they keep `level + BONUS_LEVEL_OFFSET`
+# climbing at the top of the ladder.
 MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"rows": 6, "cols": 6, "mines": 6, "difficulty": 2, "time_hint": 40},   # 1
     {"rows": 6, "cols": 6, "mines": 6, "difficulty": 2, "time_hint": 40},   # 2
@@ -33,6 +35,9 @@ MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"rows": 8, "cols": 8, "mines": 10, "difficulty": 3, "time_hint": 60},  # 8
     {"rows": 8, "cols": 8, "mines": 11, "difficulty": 4, "time_hint": 65},  # 9
     {"rows": 8, "cols": 8, "mines": 12, "difficulty": 4, "time_hint": 70},  # 10
+    {"rows": 9, "cols": 9, "mines": 14, "difficulty": 4, "time_hint": 78},    # 11 bonus
+    {"rows": 9, "cols": 9, "mines": 15, "difficulty": 5, "time_hint": 85},    # 12 bonus
+    {"rows": 10, "cols": 10, "mines": 18, "difficulty": 5, "time_hint": 95},  # 13 bonus
 )
 
 

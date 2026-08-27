@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from backend import config
 from backend.games.game4_echo import (
     MAIN_LENGTH, MAIN_LEVEL_PARAMS, MAIN_PADS, EchoGame, _params_for_level,
 )
@@ -64,7 +65,7 @@ def test_reset_safe_and_deterministic_after():
 
 def test_level_determinism():
     # V5 contract: same (seed, level) always yields the same puzzle.
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 13):
         a = game.generate_main(42, level=level)
         b = game.generate_main(42, level=level)
         assert a.payload == b.payload and a.answer == b.answer
@@ -88,7 +89,7 @@ def test_level_params_monotonic():
 
 
 def test_every_level_generates_scaled_sequences():
-    for level in range(1, 11):
+    for level in range(1, 14):
         params = _params_for_level(level)
         for seed in (3, 44, 90):
             puzzle = game.generate_main(seed, level=level)
@@ -104,3 +105,12 @@ def test_level_ten_visibly_harder():
     base = game.generate_main(42, level=1).payload
     assert len(top["sequence"]) == 9 and len(base["sequence"]) == 5
     assert top["flash_ms"] < base["flash_ms"]
+
+
+def test_bonus_tiers_climb_past_level_ten():
+    """Levels 11..13 are bonus-only: a team on the last level must still be
+    offered something harder than the board they just cleared."""
+    assert len(MAIN_LEVEL_PARAMS) == config.LEVEL_COUNT + config.BONUS_LEVEL_OFFSET
+    top, tier = _params_for_level(10), _params_for_level(13)
+    assert tier["length"] > top["length"]
+    assert tier["flash_ms"] < top["flash_ms"]

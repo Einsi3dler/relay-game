@@ -187,7 +187,10 @@ WHILE the team has not advanced:
 
   ── Cleared player chooses BONUS ─────────────────────────────────────
      status: cleared → bonus  (loses green!)
-     bonus board = THEIR game at level N + BONUS_LEVEL_OFFSET (capped)
+     bonus board = THEIR game at level N + BONUS_LEVEL_OFFSET, capped at
+     LEVEL_COUNT + BONUS_LEVEL_OFFSET (= 13). Levels 11..13 exist in every
+     game's difficulty table as bonus-only tiers, so a team on the last
+     level is still offered a board harder than the one they just cleared.
      the running wait deadline becomes the bonus deadline (no new timer)
 
   ── Bonus solved ─────────────────────────────────────────────────────
@@ -237,6 +240,8 @@ ADVANCE CHECK (for a team):
 | --- | --- | --- | --- |
 | Wait / bonus deadline | `WAIT_SECONDS` | 180 | Holds cleared status; doubles as the bonus deadline. Expiry = lose cleared / fail the bonus. |
 | Freeze (perk) | `PERKS["freeze"]["seconds"]` | 10 | Not a scheduled timer — a `frozen_until` deadline checked lazily on submit. |
+| Screen effects (perks) | `PERKS[...]["seconds"]` | 4–12 | Not scheduled either — deadlines in `Player.screen_effects`, rendered by the client and dropped from the view once past. |
+| Silence (perk) | `PERKS["silence"]["seconds"]` | 30 | A `Team.silenced_until` deadline checked in the *view* layer. No timer fires when it lapses, so the blinded client asks for a fresh snapshot itself. |
 | Duel round | the duel module's `choice_seconds` | 5 | The window both Duelists commit inside. Expiry resolves the round; a Duelist who didn't commit forfeits it. |
 | Duel reveal | `DUEL_REVEAL_SECONDS` | 3 | The beat between rounds where both hands are shown. |
 | Next duel | `DUEL_INTERVAL_SECONDS` | 30 | Gap from one duel resolving to the next starting. |
@@ -276,19 +281,53 @@ diminishing returns, and a bonus failure claws back the level's bonus winnings
 (clamped so the team balance never goes negative — yes, that means the Grandmaster
 can spend loot the solver later forfeits).
 
-### Perks (placeholder catalogue, `config.PERKS`)
+### Perks (`config.PERKS`)
 
-| Perk | Kind | Effect |
+**Attacks — enforced by the server**
+
+| Perk | Cost | Effect |
 | --- | --- | --- |
-| Freeze | attack | A **random** opponent who is solving or in a bonus can't submit for ~10s (lazy `frozen_until` check). |
-| Scramble | attack | A **random** solving opponent gets a forced fresh instance. |
-| Shield | defense | Blocks the **next** incoming attack, then is consumed. One at a time. |
-| Extend Wait | defense | +60s on a chosen cleared teammate's wait timer. |
+| Freeze | 3 | A **random** opponent who is solving or in a bonus can't submit for ~10s (lazy `frozen_until` check). |
+| Scramble | 2 | A **random** solving opponent gets a forced fresh instance. |
+| Clock Burn | 3 | Burns 30s off a **random** cleared opponent's wait timer. Burning past *now* is legal — the wait lapses at once and they lose cleared status. |
+| Skim | 2 | Steals 1 from the opponent's pool. Costs more than it takes on purpose: attrition and purchase-denial, never farming. |
+| Silence | 3 | For 30s the victim team's **own Grandmaster** loses their roster read-out *and* the who-cleared event feed. The enemy leader still sees them — that's the joke. |
+
+**Attacks — screen effects (cosmetic)**
+
+| Perk | Cost | Effect |
+| --- | --- | --- |
+| Wobble | 2 | A **random** opponent's board and prompt wobble out of phase for 12s. |
+| Static | 2 | Animated noise over a random opponent's board for 10s. |
+| Mirror | 3 | Flips a random opponent's board horizontally for 10s (the prompt stays readable). |
+| Blackout | 3 | Blacks a random opponent's board out entirely for 4s. |
+
+Screen effects are **not enforceable** — the server stamps a deadline in
+`Player.screen_effects` and the *client* renders it, so a determined player can
+disable one in devtools. They are priced as annoyances, not counters. They never
+touch a clock, which is what makes them the safe attack class for any future
+game that runs its own timer. Each has a `prefers-reduced-motion` substitute, so
+the victim's OS settings can't neutralise the buy.
+
+**Defense**
+
+| Perk | Cost | Effect |
+| --- | --- | --- |
+| Shield | 2 | Blocks the **next** incoming attack, then is consumed. One at a time. |
+| Reflect | 4 | Bounces the next attack back at its buyer, then is consumed. Resolves **before** Shield, and a bounced attack ignores the buyer's own Shield and Reflect — that rule is what stops two Reflects ping-ponging forever. |
+| Insurance | 2 | The next failed bonus keeps its earnings instead of forfeiting them. Only spent on a failure that would actually have cost something. |
+| Extend Wait | 1 | +60s on a chosen cleared teammate's wait timer. |
+
+The one-at-a-time defenses hold until something consumes them — they do not
+lapse at a level boundary.
 
 Attack targets are picked by the **server at random** among valid opponents
-(fog of war — the Grandmaster can't see opponent detail). A blocked attack still
-costs the attacker; an attack with **no valid target is rejected and not
-charged**. Purchases are Grandmaster-only, during an active match only.
+(fog of war — the Grandmaster can't see opponent detail, and never learns who
+was hit). A Duelist is never a valid target: they sit in `duelling`, which is in
+no attack's target statuses. A blocked attack still costs the attacker; an
+attack with **no valid target is rejected and not charged**, and a rejected buy
+consumes nothing — not the opponent's Shield, not their Reflect, not a coin.
+Purchases are Grandmaster-only, during an active match only.
 
 ## 8. Explicitly out of scope
 
@@ -305,6 +344,12 @@ Cut on purpose — **do not add these** without a design decision:
 | The Grandmaster disconnects mid-match | The team plays on but can't buy perks or receive a handoff until the Grandmaster returns. There is no mid-match Grandmaster *claim* — only the Grandmaster can give the seat away (§11). |
 | Team is all cleared but one player's socket is dead | Advancement still fires (server-authoritative). |
 | A frozen player's freeze lapses | Cleared lazily on their next submit; no timer fires. |
+| A screen effect lapses | Nothing fires. The deadline simply stops being sent, and the client drops the class. Reconnecting mid-effect resumes with the time left, because the server sends a deadline rather than a duration. |
+| The same attack is bought twice on one victim | Deadlines stack **forward** — the later expiry wins, so a second buy can never cut the first one short. |
+| An attack is bought and no opponent is a valid target | Rejected, not wasted: no charge, and nothing on the defending team is consumed. A Duelist is never a valid target. |
+| An attack hits a team holding both Shield and Reflect | Reflect resolves first and the Shield is left standing. The bounced attack lands on the buyer and ignores the buyer's own Shield and Reflect, so it can never bounce a second time. |
+| A bonus fails while the team holds Insurance | The earnings are kept and the Insurance is consumed — but only if there were earnings to lose. A failure that would have cost nothing leaves it held. |
+| A silenced Grandmaster's Silence lapses | No server timer fires (the mask lives in the view layer), so the client requests a fresh snapshot at the deadline. |
 | Fewer players (local testing) | Lower `min_players`; the advance check uses the **frozen playing roster** from match start. |
 
 ## 10. The Grandmaster dashboard
@@ -316,7 +361,10 @@ a voice call, so human relaying is the design, not a gap.
 The Grandmaster sees:
 
 - Own team: every member's status (who is cleared / in bonus / solving), their
-  assigned games, `green_count`, team level, currency, shield state.
+  assigned games, `green_count`, team level, currency, and the active defenses
+  (shield / reflect / insurance) — **unless the team is Silenced**, which nulls
+  the per-member status, the `green_count` and the who-cleared event feed for
+  the length of the perk.
 - Opponent: **current level and cleared-count only** — never per-player detail.
 - The perk shop, and the the Grandmaster-seat handoff control.
 - The event feed, including the Grandmaster-only "X cleared / X lost cleared"

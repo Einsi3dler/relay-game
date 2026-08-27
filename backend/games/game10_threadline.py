@@ -76,11 +76,13 @@ ROUTE_BUDGET = 6000          # DFS steps per route attempt
 SOLVE_BUDGET = 200_000       # DFS steps for the independent solver (tests)
 MAX_ANSWER_CHARS = 1200      # ~30 cells of "[r, c], " and change
 
-# Main difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10, level 1
+# Main difficulty curve (docs/TASK_LIST.md V5): one row per level 1..13, level 1
 # == the board above. The route gets longer and turns more, obstacles and
 # anchors multiply, ports start appearing at level 5 — and the two knobs that
 # *tighten* are `bend_slack` (spare bends over the reference route, 3 -> 0) and
-# `bend_freedom` (how far the cap may sit above the forced minimum, 4 -> 2).
+# `bend_freedom` (how far the cap may sit above the forced minimum, 4 -> 1).
+# Levels 11..13 are BONUS-ONLY tiers, never served as a main board: `bend_slack`
+# is already 0 by level 9, so they lean on route length, anchors and ports.
 MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"anchors": 3, "blocked": 5, "edges": (12, 18), "min_bends": 4, "bend_slack": 3,
      "bend_freedom": 4, "edge_slack": 6, "ports": 0, "difficulty": 2, "time_hint": 30},  # 1
@@ -102,6 +104,12 @@ MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
      "bend_freedom": 2, "edge_slack": 2, "ports": 2, "difficulty": 5, "time_hint": 53},  # 9
     {"anchors": 5, "blocked": 10, "edges": (16, 24), "min_bends": 7, "bend_slack": 0,
      "bend_freedom": 2, "edge_slack": 2, "ports": 2, "difficulty": 5, "time_hint": 56},  # 10
+    {"anchors": 5, "blocked": 11, "edges": (17, 25), "min_bends": 7, "bend_slack": 0,
+     "bend_freedom": 2, "edge_slack": 2, "ports": 3, "difficulty": 5, "time_hint": 60},  # 11 bonus
+    {"anchors": 6, "blocked": 11, "edges": (17, 26), "min_bends": 8, "bend_slack": 0,
+     "bend_freedom": 1, "edge_slack": 1, "ports": 3, "difficulty": 5, "time_hint": 64},  # 12 bonus
+    {"anchors": 6, "blocked": 12, "edges": (18, 26), "min_bends": 8, "bend_slack": 0,
+     "bend_freedom": 1, "edge_slack": 1, "ports": 3, "difficulty": 5, "time_hint": 68},  # 13 bonus
 )
 
 # Holding is practice-mode only: a short route, one obstacle, a roomy cap, and

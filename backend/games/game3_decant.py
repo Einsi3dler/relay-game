@@ -25,10 +25,13 @@ HOLD_COLOURS, HOLD_TUBES, HOLD_SCRAMBLE = 2, 3, 2
 CAPACITY = 4
 MAX_MOVES = 60
 
-# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10,
+# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..13,
 # level 1 == the original board. Colours cap at 5 (the renderer palette has 5
-# entries) and min_pours at 11 — the run-count bound tops out at
-# blocks - colours = 15, and floors past 12 start missing the gate.
+# entries) and min_pours at 12 — the run-count bound tops out at
+# blocks - colours = 15, and floors past 12 start missing the gate. Tube count
+# deliberately never rises past 7: more tubes means more free space, which makes
+# the board EASIER. That leaves scramble depth as the bonus tiers' main lever.
+# Levels 11..13 are BONUS-ONLY tiers, never served as a main board.
 MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"colours": 4, "tubes": 6, "scramble": 20, "min_pours": 7, "difficulty": 3, "time_hint": 40},   # 1
     {"colours": 4, "tubes": 6, "scramble": 20, "min_pours": 7, "difficulty": 3, "time_hint": 40},   # 2
@@ -40,6 +43,9 @@ MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"colours": 5, "tubes": 7, "scramble": 31, "min_pours": 10, "difficulty": 4, "time_hint": 65},  # 8
     {"colours": 5, "tubes": 7, "scramble": 33, "min_pours": 11, "difficulty": 4, "time_hint": 70},  # 9
     {"colours": 5, "tubes": 7, "scramble": 36, "min_pours": 11, "difficulty": 5, "time_hint": 75},  # 10
+    {"colours": 5, "tubes": 7, "scramble": 39, "min_pours": 11, "difficulty": 5, "time_hint": 80},  # 11 bonus
+    {"colours": 5, "tubes": 7, "scramble": 42, "min_pours": 12, "difficulty": 5, "time_hint": 85},  # 12 bonus
+    {"colours": 5, "tubes": 7, "scramble": 45, "min_pours": 12, "difficulty": 5, "time_hint": 90},  # 13 bonus
 )
 
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 
+from backend import config
 from backend.games.base import PuzzleInstance, normalize_answer
 from backend.games.game10_threadline import (
     BEND_CAP_MAX,
@@ -91,7 +92,9 @@ def test_different_seeds_give_different_boards():
 
 
 def test_main_board_sits_inside_the_spec_windows():
-    for level in range(1, len(MAIN_LEVEL_PARAMS) + 1):
+    # Only the levels a team actually plays. Tiers above LEVEL_COUNT are
+    # bonus-only and deliberately climb past the main-board spec windows.
+    for level in range(1, config.LEVEL_COUNT + 1):
         params = _params_for_level(level)
         for seed in range(6):
             puzzle = game.generate_main(seed, level)
@@ -139,7 +142,7 @@ def test_ports_only_appear_from_the_level_they_are_scheduled():
 
 def test_every_generated_board_is_solvable_from_the_payload_alone():
     """The spec's solvability gate — a solver that never sees the reference."""
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 13):
         for seed in range(25):
             puzzle = game.generate_main(seed, level)
             route = solve(puzzle.payload)

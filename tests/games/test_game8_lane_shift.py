@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 
+from backend import config
 from backend.games.base import PuzzleInstance
 from backend.games.game8_lane_shift import (
     DOWN,
@@ -348,7 +349,7 @@ def test_reset_safe_and_deterministic_after():
 
 
 def test_level_determinism():
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 13):
         a = game.generate_main(42, level=level)
         b = game.generate_main(42, level=level)
         assert a.payload == b.payload and a.answer == b.answer
@@ -379,11 +380,11 @@ def test_level_params_monotonic():
 
 def test_levels_out_of_range_are_clamped():
     assert _params_for_level(0) == _params_for_level(1)
-    assert _params_for_level(99) == _params_for_level(10)
+    assert _params_for_level(99) == _params_for_level(len(MAIN_LEVEL_PARAMS))
 
 
 def test_every_level_generates_solvable_scaled_boards():
-    for level in range(1, 11):
+    for level in range(1, 14):
         params = _params_for_level(level)
         for seed in (3, 44):
             puzzle = game.generate_main(seed, level=level)
@@ -405,3 +406,17 @@ def test_level_ten_visibly_harder():
     assert top["packets"] > MAIN_PACKETS and top["switches"] > MAIN_SWITCHES
     assert top["min_actions"] > MAIN_MIN_ACTIONS
     assert top["holds"] > MAIN_HOLDS
+
+
+def test_bonus_tiers_climb_past_level_ten():
+    """Levels 11..13 are bonus-only: a team on the last level must still be
+    offered something harder than the board they just cleared."""
+    assert len(MAIN_LEVEL_PARAMS) == config.LEVEL_COUNT + config.BONUS_LEVEL_OFFSET
+    top, tier = _params_for_level(10), _params_for_level(13)
+    assert tier["columns"] > top["columns"]
+    assert tier["packets"] > top["packets"]
+    assert tier["switches"] > top["switches"]
+    assert tier["lanes"] == top["lanes"]  # one exit per shape glyph
+    # min_actions is a generation GATE: raising it past 4 pushed board
+    # generation over a second each, which would stall a live match.
+    assert tier["min_actions"] == top["min_actions"]

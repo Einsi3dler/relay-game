@@ -43,9 +43,11 @@ SCRAMBLE_ATTEMPTS = 60         # per generated target
 MAX_SOLUTIONS = 24             # reject boards more ambiguous than this
 MAX_ANSWER_CHARS = 600
 
-# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10,
+# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..13,
 # level 1 == the original board. Layers cap at 4 (the renderer has 4 layer
-# styles); min_misplaced always stays <= layers.
+# styles); min_misplaced always stays <= layers. With both at their ceiling by
+# level 10, the BONUS-ONLY tiers 11..13 climb on stamp size and board size
+# instead — they are never served as a main board.
 MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"size": 6, "layers": 3, "cells": (2, 5), "max_overlap": 2, "min_misplaced": 2, "difficulty": 2, "time_hint": 30},  # 1
     {"size": 6, "layers": 3, "cells": (2, 5), "max_overlap": 2, "min_misplaced": 2, "difficulty": 2, "time_hint": 30},  # 2
@@ -57,6 +59,9 @@ MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"size": 7, "layers": 4, "cells": (3, 5), "max_overlap": 3, "min_misplaced": 3, "difficulty": 4, "time_hint": 48},  # 8
     {"size": 7, "layers": 4, "cells": (3, 5), "max_overlap": 3, "min_misplaced": 3, "difficulty": 4, "time_hint": 48},  # 9
     {"size": 7, "layers": 4, "cells": (3, 6), "max_overlap": 3, "min_misplaced": 4, "difficulty": 4, "time_hint": 55},  # 10
+    {"size": 7, "layers": 4, "cells": (4, 6), "max_overlap": 3, "min_misplaced": 4, "difficulty": 5, "time_hint": 62},  # 11 bonus
+    {"size": 7, "layers": 4, "cells": (4, 7), "max_overlap": 3, "min_misplaced": 4, "difficulty": 5, "time_hint": 68},  # 12 bonus
+    {"size": 8, "layers": 4, "cells": (4, 7), "max_overlap": 3, "min_misplaced": 4, "difficulty": 5, "time_hint": 75},  # 13 bonus
 )
 
 
