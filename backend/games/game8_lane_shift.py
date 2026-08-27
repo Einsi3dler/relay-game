@@ -78,8 +78,18 @@ SCHEDULE_NODES = 2000        # search budget for one schedule hunt
 SOLVER_NODES = 15000         # search budget; boards that overrun are rejected
 MAX_ANSWER_CHARS = 900
 
-# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10,
-# level 1 == the board above. Lanes cap at 4 (one exit per shape glyph).
+# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..13,
+# level 1 == the board above. Lanes cap at 4 (one exit per shape glyph), so the
+# BONUS-ONLY tiers 11..13 climb on columns, packets, switches and blockers —
+# they are never served as a main board. Deeper tiers cost the solver more
+# nodes; anything that overruns SOLVER_NODES is rejected at generation.
+#
+# Generation cost is why the bonus tiers look the way they do. `min_actions` is
+# a *gate* — it throws boards away — and raising it to 5 pushed generation past
+# a second per board, so it stays at 4. `holds` and `blockers` are expensive for
+# the same reason and climb only one step each. Wider boards with more packets
+# are the CHEAP way to add difficulty here: they give the solver more room, so
+# they generate faster than level 10 does while giving a player more to track.
 MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"lanes": 3, "columns": 6, "packets": 3, "switches": 2, "holds": 0, "blockers": 0, "turns": (5, 12), "min_actions": 2, "difficulty": 3, "time_hint": 35},  # 1
     {"lanes": 3, "columns": 6, "packets": 3, "switches": 2, "holds": 0, "blockers": 0, "turns": (5, 12), "min_actions": 2, "difficulty": 3, "time_hint": 35},  # 2
@@ -91,6 +101,9 @@ MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"lanes": 4, "columns": 7, "packets": 4, "switches": 4, "holds": 1, "blockers": 1, "turns": (6, 15), "min_actions": 3, "difficulty": 4, "time_hint": 48},  # 8
     {"lanes": 4, "columns": 7, "packets": 4, "switches": 4, "holds": 1, "blockers": 1, "turns": (6, 15), "min_actions": 3, "difficulty": 4, "time_hint": 48},  # 9
     {"lanes": 4, "columns": 8, "packets": 5, "switches": 4, "holds": 1, "blockers": 2, "turns": (7, 16), "min_actions": 4, "difficulty": 5, "time_hint": 55},  # 10
+    {"lanes": 4, "columns": 9, "packets": 6, "switches": 5, "holds": 1, "blockers": 2, "turns": (8, 18), "min_actions": 4, "difficulty": 5, "time_hint": 62},  # 11 bonus
+    {"lanes": 4, "columns": 9, "packets": 6, "switches": 5, "holds": 2, "blockers": 2, "turns": (8, 18), "min_actions": 4, "difficulty": 5, "time_hint": 68},  # 12 bonus
+    {"lanes": 4, "columns": 9, "packets": 6, "switches": 5, "holds": 2, "blockers": 3, "turns": (8, 19), "min_actions": 4, "difficulty": 5, "time_hint": 75},  # 13 bonus
 )
 
 HOLDING_PARAMS = {

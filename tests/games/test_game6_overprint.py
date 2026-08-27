@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 
+from backend import config
 from backend.games.game6_overprint import (
     MAIN_CELLS,
     MAIN_LAYERS,
@@ -230,7 +231,7 @@ def test_reset_safe_and_deterministic_after():
 
 def test_level_determinism():
     # V5 contract: same (seed, level) always yields the same puzzle.
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 13):
         a = game.generate_main(42, level=level)
         b = game.generate_main(42, level=level)
         assert a.payload == b.payload and a.answer == b.answer
@@ -257,7 +258,7 @@ def test_level_params_monotonic():
 
 
 def test_every_level_generates_solvable_scaled_boards():
-    for level in range(1, 11):
+    for level in range(1, 14):
         params = _params_for_level(level)
         for seed in (3, 44, 90):
             puzzle = game.generate_main(seed, level=level)
@@ -272,3 +273,16 @@ def test_level_ten_visibly_harder():
     assert top["size"] > MAIN_SIZE
     assert top["layers"] > MAIN_LAYERS
     assert top["min_misplaced"] > 2
+
+
+def test_bonus_tiers_climb_past_level_ten():
+    """Levels 11..13 are bonus-only: a team on the last level must still be
+    offered something harder than the board they just cleared."""
+    assert len(MAIN_LEVEL_PARAMS) == config.LEVEL_COUNT + config.BONUS_LEVEL_OFFSET
+    top, tier = _params_for_level(10), _params_for_level(13)
+    assert tier["size"] > top["size"]
+    assert tier["cells"] > top["cells"]
+    # Layers are at the renderer's 4-style ceiling by level 10, and
+    # min_misplaced may never pass the layer count.
+    assert tier["layers"] == top["layers"] == 4
+    assert tier["min_misplaced"] <= tier["layers"]

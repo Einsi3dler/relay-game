@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import random
 
+from backend import config
 from backend.games.game1_rewire import (
     MAIN_COLS, MAIN_LEVEL_PARAMS, MAIN_ROWS, RewireGame, _build_board,
     _params_for_level, open_edges,
@@ -104,7 +105,7 @@ def test_shape_edge_rotation_math():
 
 def test_level_determinism():
     # V5 contract: same (seed, level) always yields the same puzzle.
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 13):
         a = game.generate_main(42, level=level)
         b = game.generate_main(42, level=level)
         assert a.payload == b.payload and a.answer == b.answer
@@ -127,7 +128,7 @@ def test_level_params_monotonic():
 
 
 def test_every_level_generates_solvable_scaled_boards():
-    for level in range(1, 11):
+    for level in range(1, 14):
         params = _params_for_level(level)
         for seed in (3, 44, 90):
             puzzle = game.generate_main(seed, level=level)
@@ -143,3 +144,12 @@ def test_level_ten_visibly_harder():
     base = game.generate_main(42, level=1).payload
     assert top["rows"] * top["cols"] > base["rows"] * base["cols"]
     assert len(top["sinks"]) > len(base["sinks"])
+
+
+def test_bonus_tiers_climb_past_level_ten():
+    """Levels 11..13 are bonus-only: a team on the last level must still be
+    offered something harder than the board they just cleared."""
+    assert len(MAIN_LEVEL_PARAMS) == config.LEVEL_COUNT + config.BONUS_LEVEL_OFFSET
+    top, tier = _params_for_level(10), _params_for_level(13)
+    assert tier["rows"] * tier["cols"] > top["rows"] * top["cols"]
+    assert tier["sinks"] > top["sinks"]

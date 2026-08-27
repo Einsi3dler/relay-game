@@ -17,9 +17,10 @@ HOLD_PADS, HOLD_LENGTH = 4, 3
 FLASH_MS, GAP_MS = 450, 250
 
 # Main-sequence difficulty curve (docs/TASK_LIST.md V5): one row per level
-# 1..10, level 1 == the original puzzle. Length carries the difficulty; the
+# 1..13, level 1 == the original puzzle. Length carries the difficulty; the
 # flash speed-up is modest to keep the calm feel. Pads stay 9 — the renderer
-# lays out a sqrt(pads) grid with a 9-colour palette.
+# lays out a sqrt(pads) grid with a 9-colour palette. Levels 11..13 are
+# BONUS-ONLY tiers, never served as a main board.
 MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"length": 5, "flash_ms": 450, "gap_ms": 250, "difficulty": 2, "time_hint": 20},  # 1
     {"length": 5, "flash_ms": 450, "gap_ms": 250, "difficulty": 2, "time_hint": 20},  # 2
@@ -31,6 +32,9 @@ MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"length": 8, "flash_ms": 390, "gap_ms": 210, "difficulty": 3, "time_hint": 28},  # 8
     {"length": 9, "flash_ms": 360, "gap_ms": 200, "difficulty": 4, "time_hint": 30},  # 9
     {"length": 9, "flash_ms": 360, "gap_ms": 200, "difficulty": 4, "time_hint": 30},  # 10
+    {"length": 10, "flash_ms": 340, "gap_ms": 190, "difficulty": 4, "time_hint": 33},  # 11 bonus
+    {"length": 11, "flash_ms": 320, "gap_ms": 180, "difficulty": 5, "time_hint": 36},  # 12 bonus
+    {"length": 12, "flash_ms": 300, "gap_ms": 170, "difficulty": 5, "time_hint": 39},  # 13 bonus
 )
 
 

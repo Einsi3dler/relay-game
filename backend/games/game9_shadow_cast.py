@@ -89,11 +89,14 @@ HOLD_ACTION_CAP = 6
 GEN_ATTEMPTS = 300
 MAX_ANSWER_CHARS = 400
 
-# Main difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10, level 1
-# == the board above. `voxels` tops out under the spec's ceiling of 10 and
+# Main difficulty curve (docs/TASK_LIST.md V5): one row per level 1..13, level 1
+# == the board above. `voxels` tops out at the spec's ceiling of 10 and
 # `distance` at the rotation graph's diameter of 3; `max_equivalent` is the one
 # knob that *falls* with difficulty — fewer orientations casting the target
-# shadows means the pose has to be pinned down more exactly.
+# shadows means the pose has to be pinned down more exactly. Levels 11..13 are
+# BONUS-ONLY tiers, never served as a main board; with only two knobs left free
+# they run out of headroom at `max_equivalent: 1` (a uniquely determined pose),
+# so tiers 12 and 13 differ only in the time hint.
 MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"voxels": 6, "max_equivalent": 4, "distance": 2, "difficulty": 2, "time_hint": 30},  # 1
     {"voxels": 6, "max_equivalent": 4, "distance": 2, "difficulty": 2, "time_hint": 30},  # 2
@@ -105,6 +108,9 @@ MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"voxels": 8, "max_equivalent": 2, "distance": 3, "difficulty": 4, "time_hint": 42},  # 8
     {"voxels": 8, "max_equivalent": 2, "distance": 3, "difficulty": 4, "time_hint": 42},  # 9
     {"voxels": 9, "max_equivalent": 2, "distance": 3, "difficulty": 5, "time_hint": 48},  # 10
+    {"voxels": 10, "max_equivalent": 2, "distance": 3, "difficulty": 5, "time_hint": 54},  # 11 bonus
+    {"voxels": 10, "max_equivalent": 1, "distance": 3, "difficulty": 5, "time_hint": 58},  # 12 bonus
+    {"voxels": 10, "max_equivalent": 1, "distance": 3, "difficulty": 5, "time_hint": 62},  # 13 bonus
 )
 
 # A 3-or-4 cube shape cannot be fully chiral, so holding asks for half the

@@ -8,8 +8,13 @@ server layer (main.py + TimerService) owns the clock and the sockets.
 Deadlines are keyed by *scope*, and a scope holds at most one at a time: a
 player id owns the wait timer (which doubles as the bonus deadline), while the
 cross-team duel owns DUEL_SCOPE and each team owns `_team_scope()` for its duel
-penalty. Freeze is a lazy deadline checked on submit. Any future deadline that
-must run concurrently with an existing one needs its own scope, or to be lazy.
+penalty. Most perk deadlines are deliberately *lazy* and hold no scope at all:
+freeze is checked on submit, screen effects are checked by the client, and
+Silence is checked in the view layer. Any future deadline that must run
+concurrently with an existing one needs its own scope, or to be lazy.
+
+Attack perks are resolved validate-then-mutate (see `_apply_attack`): an attack
+that cannot land is rejected without consuming a shield, a reflect or a coin.
 """
 
 from __future__ import annotations
@@ -46,6 +51,42 @@ def _new_seed() -> int:
 
 def _parse_iso(value: str) -> datetime:
     return datetime.fromisoformat(value)
+
+
+def _extend_deadline(current: str | None, moment: datetime, seconds: int) -> str:
+    """`moment + seconds`, but never earlier than a deadline already running.
+
+    Buying the same attack twice must stack forward, never cut the first one
+    short — the naive `now + seconds` would do exactly that.
+    """
+    deadline = moment + timedelta(seconds=seconds)
+    if current is not None and _parse_iso(current) > deadline:
+        return current
+    return deadline.isoformat()
+
+
+# Victim statuses each enforced attack can land on. A perk that is absent here
+# and carries no "effect" hits the TEAM rather than a player, so it picks no
+# target at all (Skim, Silence).
+_ATTACK_TARGET_STATUSES: dict[str, tuple[str, ...]] = {
+    "freeze": ("solving", "bonus"),
+    "scramble": ("solving",),
+    "clock_burn": ("cleared",),
+}
+
+
+def _attack_target_statuses(perk_id: str, perk: dict) -> tuple[str, ...]:
+    """Which victim statuses this attack may pick from; empty for team attacks.
+
+    A Duelist is never in one of these statuses (they sit in `duelling`), which
+    is precisely why attack perks can't touch them.
+    """
+    effect = perk.get("effect")
+    if effect is not None:
+        # A screen effect only bites while a board is actually on screen — and
+        # an id no renderer knows is a catalogue typo, not a legal attack.
+        return ("solving", "bonus") if effect in config.SCREEN_EFFECTS else ()
+    return _ATTACK_TARGET_STATUSES.get(perk_id, ())
 
 
 @dataclass
@@ -652,14 +693,12 @@ class RelayEngine:
             return EngineResult.rejected("no choice to make")
         team = match.teams[player.team_id]
         module = self.registry.by_id(player.assigned_game)
-        level = min(
-            team.level + match.config_snapshot["bonus_level_offset"],
-            match.config_snapshot["level_count"],
-        )
         player.choice_pending = False
         player.status = "bonus"
         # The running wait deadline stays: it is now the bonus deadline.
-        player.current_bonus = module.generate_main(_new_seed(), level=level)
+        player.current_bonus = module.generate_main(
+            _new_seed(), level=self._bonus_level(match, team)
+        )
         return EngineResult(changed=True)
 
     def on_wait_expired(
@@ -709,14 +748,42 @@ class RelayEngine:
 
         result = EngineResult(changed=True)
         if perk["kind"] == "attack":
-            opponent = self._opponent_team(match, team)
-            applied = self._apply_attack(match, opponent, perk_id, perk, result, now)
-            if not applied.ok:
-                return applied
-        elif perk_id == "shield":
+            applied = self._apply_attack(match, team, perk_id, perk, result, now)
+        else:
+            applied = self._apply_defense(match, team, perk_id, perk, target_id, result)
+        if not applied.ok:
+            return applied
+
+        team.currency -= perk["cost"]
+        result.perk_used = {"perk_id": perk_id, "by_team_id": team.id}
+        self._add_event(
+            match, result, f"Team {team.name} used {perk['name']}.", "perk"
+        )
+        return result
+
+    def _apply_defense(
+        self,
+        match: Match,
+        team: Team,
+        perk_id: str,
+        perk: dict,
+        target_id: str | None,
+        result: EngineResult,
+    ) -> EngineResult:
+        """Defensive perks act on the buyer's own team. The one-at-a-time perks
+        hold until something consumes them — they don't lapse at a level."""
+        if perk_id == "shield":
             if team.shield_active:
                 return EngineResult.rejected("shield already active")
             team.shield_active = True
+        elif perk_id == "reflect":
+            if team.reflect_active:
+                return EngineResult.rejected("reflect already active")
+            team.reflect_active = True
+        elif perk_id == "insurance":
+            if team.insurance_active:
+                return EngineResult.rejected("insurance already active")
+            team.insurance_active = True
         elif perk_id == "extend_wait":
             target = match.players.get(target_id or "")
             if target is None or target.team_id != team.id:
@@ -734,25 +801,28 @@ class RelayEngine:
             )
         else:
             return EngineResult.rejected(f"unknown perk {perk_id!r}")
-
-        team.currency -= perk["cost"]
-        result.perk_used = {"perk_id": perk_id, "by_team_id": team.id}
-        self._add_event(
-            match, result, f"Team {team.name} used {perk['name']}.", "perk"
-        )
         return result
 
     def _apply_attack(
         self,
         match: Match,
-        opponent: Team,
+        buyer: Team,
         perk_id: str,
         perk: dict,
         result: EngineResult,
         now: datetime | None,
     ) -> EngineResult:
-        if opponent.shield_active:
-            opponent.shield_active = False  # the shield eats the attack
+        """Resolve an attack bought by `buyer` against the other team.
+
+        Ordered validate-then-mutate on purpose: an attack that can't land is
+        *rejected, not wasted*, and a rejection must leave shields, reflects and
+        currency exactly as it found them.
+        """
+        opponent = self._opponent_team(match, buyer)
+        reflected = opponent.reflect_active
+        if not reflected and opponent.shield_active:
+            # The shield eats the attack whole — no target is ever chosen.
+            opponent.shield_active = False
             self._add_event(
                 match,
                 result,
@@ -760,21 +830,88 @@ class RelayEngine:
                 "perk",
             )
             return result
-        statuses = ("solving", "bonus") if perk_id == "freeze" else ("solving",)
-        candidates = [
-            p
-            for p in self._playing_members(match, opponent)
-            if p.status in statuses
-        ]
-        if not candidates:
-            return EngineResult.rejected("no valid target right now")
-        target = random.choice(candidates)  # fog of war: the server picks
-        if perk_id == "freeze":
-            deadline = (now or utc_now()) + timedelta(seconds=perk["seconds"])
-            target.frozen_until = deadline.isoformat()
-        else:  # scramble: forced reroll
-            self._serve_main(match, target)
+
+        # A reflected attack comes home to the buyer, and the buyer's own shield
+        # or reflect cannot stop it. That rule is what stops two Reflects from
+        # ping-ponging an attack between the teams forever.
+        victim = buyer if reflected else opponent
+        target: Player | None = None
+        statuses = _attack_target_statuses(perk_id, perk)
+        if statuses:
+            candidates = [
+                player
+                for player in self._playing_members(match, victim)
+                if player.status in statuses
+            ]
+            if perk_id == "clock_burn":  # needs a running wait deadline to burn
+                candidates = [p for p in candidates if p.timer_deadline is not None]
+            if not candidates:
+                return EngineResult.rejected("no valid target right now")
+            target = random.choice(candidates)  # fog of war: the server picks
+        elif perk_id == "skim":
+            if victim.currency <= 0:
+                return EngineResult.rejected("their pool is already empty")
+        elif perk_id == "silence":
+            if victim.leader_id is None:
+                return EngineResult.rejected("they have no Grandmaster to blind")
+        else:
+            return EngineResult.rejected(f"unknown perk {perk_id!r}")
+
+        if reflected:
+            opponent.reflect_active = False
+            self._add_event(
+                match, result, f"Team {opponent.name} reflected the attack!", "perk"
+            )
+        self._land_attack(match, victim, target, perk_id, perk, result, now)
         return result
+
+    def _land_attack(
+        self,
+        match: Match,
+        victim: Team,
+        target: Player | None,
+        perk_id: str,
+        perk: dict,
+        result: EngineResult,
+        now: datetime | None,
+    ) -> None:
+        """Apply a validated attack. Every deadline this sets is pushed out with
+        `_extend_deadline`, so buying the same attack twice can never *shorten*
+        the effect already running."""
+        moment = now or utc_now()
+        effect = perk.get("effect")
+        if effect and target is not None:
+            target.screen_effects[effect] = _extend_deadline(
+                target.screen_effects.get(effect), moment, perk["seconds"]
+            )
+        elif perk_id == "freeze" and target is not None:
+            target.frozen_until = _extend_deadline(
+                target.frozen_until, moment, perk["seconds"]
+            )
+        elif perk_id == "scramble" and target is not None:
+            # A solving player holds no wait timer, so there is nothing to cancel.
+            self._serve_main(match, target)
+        elif perk_id == "clock_burn" and target is not None:
+            deadline = _parse_iso(target.timer_deadline) - timedelta(
+                seconds=perk["seconds"]
+            )
+            # A burn past `now` is legal: the timer service clamps the delay to
+            # zero, the wait lapses at once and the victim loses cleared status.
+            target.timer_deadline = deadline.isoformat()
+            result.schedule.append(
+                TimerRequest(
+                    scope_id=target.id, kind="wait", deadline=target.timer_deadline
+                )
+            )
+        elif perk_id == "skim":
+            taker = self._opponent_team(match, victim)
+            amount = min(perk["amount"], victim.currency)
+            victim.currency -= amount
+            taker.currency += amount
+        elif perk_id == "silence":
+            victim.silenced_until = _extend_deadline(
+                victim.silenced_until, moment, perk["seconds"]
+            )
 
     def _opponent_team(self, match: Match, team: Team) -> Team:
         return next(t for t in match.teams.values() if t.id != team.id)
@@ -802,14 +939,26 @@ class RelayEngine:
         elif match.status == "active" and player.status == "bonus":
             team = match.teams[player.team_id]
             module = self.registry.by_id(player.assigned_game)
-            level = min(
-                team.level + match.config_snapshot["bonus_level_offset"],
-                match.config_snapshot["level_count"],
+            player.current_bonus = module.generate_main(
+                _new_seed(), level=self._bonus_level(match, team)
             )
-            player.current_bonus = module.generate_main(_new_seed(), level=level)
         return result
 
     # --- internals ---
+
+    def _bonus_level(self, match: Match, team: Team) -> int:
+        """The level a bonus board is generated at: BONUS_LEVEL_OFFSET tiers
+        above the team's own level.
+
+        The ceiling is `level_count + bonus_level_offset` — levels 11..13 exist
+        in every game's table as bonus-only tiers (V5), so a team on the last
+        level still gets a board harder than the one they just cleared.
+        """
+        snapshot = match.config_snapshot
+        return min(
+            team.level + snapshot["bonus_level_offset"],
+            snapshot["level_count"] + snapshot["bonus_level_offset"],
+        )
 
     def _playing_members(self, match: Match, team: Team) -> list[Player]:
         return [
@@ -844,7 +993,18 @@ class RelayEngine:
         """Wrong bonus answer or bonus deadline expiry: back to solving and
         forfeit this level's bonus earnings (base clear pay stays)."""
         team = match.teams[player.team_id]
-        team.currency = max(0, team.currency - player.bonus_earned)
+        if team.insurance_active and player.bonus_earned:
+            # Insurance is only spent on a failure that would actually cost
+            # something — a bonus that had earned nothing doesn't burn it.
+            team.insurance_active = False
+            self._add_event(
+                match,
+                result,
+                f"Insurance covered {player.name}'s failed bonus.",
+                "perk",
+            )
+        else:
+            team.currency = max(0, team.currency - player.bonus_earned)
         player.bonus_earned = 0
         result.cancel.append(player.id)
         self._serve_main(match, player)

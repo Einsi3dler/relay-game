@@ -16,6 +16,8 @@
   var duelTimerHandle = null;
   var timerHandle = null;
   var frozenHandle = null;
+  var effectsHandle = null;
+  var silenceHandle = null;
   var toastHandle = null;
   var overlayHandle = null;
   var reconnectDelay = 500;
@@ -552,6 +554,7 @@
     }
     startCountdown(me.timer_deadline, me.status);
     renderFrozen(me.frozen_until);
+    renderScreenEffects(me.screen_effects);
     renderDuel(state, "duel-card", "duel-mount");
   }
 
@@ -707,9 +710,49 @@
     frozenHandle = setInterval(tick, 250);
   }
 
+  // Cosmetic sabotage (the wobble/static/mirror/blackout perks). The server
+  // sends `{effect: deadline}` and only ever to the victim; the class goes on
+  // the puzzle card alone, so the countdown and currency stay readable and the
+  // body-level frozen overlay stays put (a transformed ancestor would capture
+  // its fixed positioning). CSS handles prefers-reduced-motion.
+  var SCREEN_EFFECTS = ["wobble", "static", "mirror", "blackout"];
+
+  function renderScreenEffects(effects) {
+    clearInterval(effectsHandle);
+    var card = $("puzzle-card");
+    if (!card) return;
+    var deadlines = effects || {};
+    var tick = function () {
+      var live = 0;
+      SCREEN_EFFECTS.forEach(function (effect) {
+        var iso = deadlines[effect];
+        var on = !!iso && parseDeadline(iso) > Date.now();
+        card.classList.toggle("fx-" + effect, on);
+        if (on) live += 1;
+      });
+      if (!live) clearInterval(effectsHandle);
+    };
+    tick();
+    // Deadline-driven, so a reconnect mid-effect resumes with the time left and
+    // a backgrounded tab corrects itself on the next tick.
+    effectsHandle = setInterval(tick, 200);
+  }
+
+  function clearScreenEffects() {
+    clearInterval(effectsHandle);
+    var card = $("puzzle-card");
+    if (!card) return;
+    SCREEN_EFFECTS.forEach(function (effect) {
+      card.classList.remove("fx-" + effect);
+    });
+  }
+
   // --- leader dashboard ---
 
   function statusPill(player) {
+    // Silenced: the server nulls the progress fields rather than lying about
+    // them, so there is genuinely nothing to show.
+    if (player.status === "hidden") return ["🔇 ?", "pill"];
     if (player.green) {
       return player.role === "duelist"
         ? ["duel won ⚔️", "pill green"] : ["cleared ✅", "pill green"];
@@ -729,11 +772,18 @@
     $("leader-currency").textContent = "🪙 " + team.currency;
     var locked = team.duel_penalty_until &&
       parseDeadline(team.duel_penalty_until) > Date.now();
+    var silenced = team.silenced_until &&
+      parseDeadline(team.silenced_until) > Date.now();
     $("leader-status-line").textContent =
-      team.green_count + "/" + team.roster_size + " cleared" +
+      (silenced
+        ? "🔇 Silenced — you can't see who has cleared"
+        : team.green_count + "/" + team.roster_size + " cleared") +
       (team.shield_active ? " · 🛡️ shield up" : "") +
+      (team.reflect_active ? " · 🪞 reflect up" : "") +
+      (team.insurance_active ? " · 🧾 insured" : "") +
       (team.duel_streak ? " · ⚔️ duel streak " + team.duel_streak : "") +
       (locked ? " · ⛔ duel penalty — the team can't advance yet" : "");
+    watchSilence(team);
     renderDuel(state, "leader-duel-card", "leader-duel-mount");
 
     var roster = $("leader-roster");
@@ -766,6 +816,19 @@
     renderFeed(state.events, "leader-feed");
   }
 
+  // Silence is masked in the *view*, so nothing on the server fires when it
+  // lapses. Ask for a fresh snapshot the moment it does, or the dashboard would
+  // stay blind until the next unrelated broadcast.
+  function watchSilence(team) {
+    clearTimeout(silenceHandle);
+    if (!team.silenced_until) return;
+    var left = parseDeadline(team.silenced_until) - Date.now();
+    if (left <= 0) return;
+    silenceHandle = setTimeout(function () {
+      send({ type: "request_state" });
+    }, left + 250);
+  }
+
   function renderPerkGrid(state, team) {
     var grid = $("perk-grid");
     grid.innerHTML = "";
@@ -782,6 +845,12 @@
       cost.className = "muted";
       cost.textContent = "🪙 " + perk.cost;
       card.appendChild(cost);
+      if (perk.desc) {
+        var desc = document.createElement("div");
+        desc.className = "perk-desc";
+        desc.textContent = perk.desc;
+        card.appendChild(desc);
+      }
       var target = null;
       if (perkId === "extend_wait") {
         target = document.createElement("select");
@@ -873,6 +942,8 @@
     unmountPuzzle();
     clearInterval(timerHandle);
     clearInterval(frozenHandle);
+    clearTimeout(silenceHandle);
+    clearScreenEffects();
     $("choice-overlay").hidden = true;
     $("frozen-overlay").hidden = true;
     show("view-result");

@@ -67,7 +67,8 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 - `puzzle_id` **must** match the player's current puzzle id, or the server replies
   `error` ("Puzzle is no longer active") and ignores it.
 - A **frozen** player's submits are rejected with `error` ("You are frozen")
-  until their `frozen_until` deadline passes.
+  until their `frozen_until` deadline passes. `screen_effects` never blocks a
+  submit — those perks are cosmetic and client-rendered.
 - Submissions arriving faster than `SUBMIT_MIN_INTERVAL_MS` (config, default 300)
   per player → `error` ("Too fast.") and are ignored.
 - Unknown `type` → `error` ("Unknown message type.").
@@ -79,7 +80,7 @@ lightweight nudges for animations/toasts; never require them for correctness.
 
 | `type` | Fields | When |
 | --- | --- | --- |
-| `state_snapshot` | `state: <MatchPublic>` | After every state change, on connect, and on `request_state`/`heartbeat`. **The source of truth.** |
+| `state_snapshot` | `state: <MatchPublic>` | After every state change, on connect, and on `request_state`/`heartbeat`. **The source of truth.** A silenced Grandmaster's client should `request_state` when `silenced_until` lapses: the mask lives in the view layer, so no server timer fires to lift it. |
 | `error` | `error: str` | The last client message was invalid. |
 | `event` | `event: <Event>` | A log line to append. **`green`/`lost_green` events go to Grandmaster sockets only** (who cleared is Grandmaster-only knowledge); everything else is broadcast. |
 | `level_advanced` | `team_id: str`, `level: int` | A team advanced — trigger a transition animation. |
@@ -138,9 +139,17 @@ Snapshots are personalised. Which team shape a viewer gets:
   "level": 2,                            // 1..level_count, independent per team
   "roster_size": 4,                      // PLAYING members (Grandmaster excluded)
   "finished": false,
-  "green_count": 3,                      // cleared players right now
+  "green_count": 3,                      // cleared players right now; NULL while
+                                         //   silenced (see silenced_until)
   "currency": 5,                         // the team pool the Grandmaster spends
   "shield_active": false,
+  "reflect_active": false,               // bounces the next attack at its buyer
+  "insurance_active": false,             // next failed bonus keeps its earnings
+  "silenced_until": null,                // UTC ISO; while live, THIS team's own
+                                         //   Grandmaster loses green_count, every
+                                         //   playing member's status/green (they
+                                         //   read "hidden"/null), and the
+                                         //   green/lost_green event feed
   "leader_id": "p_...",
   "players": [ <PlayerPublic>, ... ]
 }
@@ -176,7 +185,13 @@ Snapshots are personalised. Which team shape a viewer gets:
   "timer_kind": "wait | null",
   "timer_deadline": "2026-07-02T12:03:00Z",  // UTC ISO; null if no active timer
   "choice_pending": true,                    // cleared and still owes wait-or-bonus
-  "frozen_until": null                       // UTC ISO while frozen by a perk
+  "frozen_until": null,                      // UTC ISO while frozen by a perk
+  "screen_effects": { "wobble": "2026-07-02T12:00:12Z" }
+                                             // cosmetic sabotage: effect id ->
+                                             //   UTC ISO deadline. Private to the
+                                             //   victim (never in PlayerPublic),
+                                             //   and lapsed entries are dropped
+                                             //   rather than sent as past dates
 }
 ```
 

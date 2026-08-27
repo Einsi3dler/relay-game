@@ -388,6 +388,38 @@ def test_choice_and_perk_flow_over_websocket(client, fake_games):
         assert "Grandmaster" in ws.receive_json()["error"]  # players can't buy
 
 
+def test_screen_effect_perk_reaches_only_the_victim_over_websocket(client, fake_games):
+    """End to end: the Grandmaster buys Wobble, the server picks the victim, and
+    the deadline arrives in exactly one opposing player's own snapshot."""
+    match_id = create_match(client)
+    ids = fill_match(client, match_id)
+    # Two clears fund the shop (+1 each on a first clear). Two of four is short
+    # of the roster, so the team can't advance and reroll everyone's board.
+    for player_id in ids["alpha"][:2]:
+        with connect(client, match_id, player_id) as (ws, me):
+            ws.send_json({"type": "submit_answer",
+                          "puzzle_id": me["current_puzzle"]["id"], "answer": MAIN_OK})
+            assert ws.receive_json()["state"]["me"]["status"] == "cleared"
+    with connect(client, match_id, ids["alpha-lead"]) as (ws, _):
+        ws.send_json({"type": "buy_perk", "perk_id": "wobble"})
+        for _ in range(5):  # a perk_used nudge may land before the snapshot
+            message = ws.receive_json()
+            assert message["type"] != "error", message
+            if message["type"] == "state_snapshot":
+                break
+    hit = [
+        set(me["screen_effects"])
+        for me in (_reconnect_me(client, match_id, pid) for pid in ids["bravo"])
+        if me["screen_effects"]
+    ]
+    assert hit == [{"wobble"}]  # exactly one victim, server's choice
+
+
+def _reconnect_me(client, match_id: str, player_id: str) -> dict:
+    with connect(client, match_id, player_id) as (_, me):
+        return me
+
+
 def test_give_leader_over_websocket(client, fake_games):
     match_id = create_match(client)
     ids = fill_match(client, match_id)

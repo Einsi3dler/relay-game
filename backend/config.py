@@ -33,13 +33,57 @@ DUEL_WIN_CURRENCY = 2        # paid to the winning team, doubling per...
 DUEL_CURRENCY_CAP = 8        # ...consecutive win, capped here
 
 # Perk catalogue: leader-only purchases from the team currency pool.
-# "seconds" is the effect duration/extension where the perk has one.
+#   "seconds" — the effect duration/extension where the perk has one.
+#   "amount"  — currency moved, for the perks that move currency.
+#   "effect"  — marks a SCREEN-EFFECT perk: the server stamps a deadline on the
+#               victim and the client renders it. These are cosmetic and
+#               therefore *unenforceable* — a determined player can disable one
+#               in devtools — so they are priced as annoyances, not counters.
+#               Every other attack is enforced server-side.
+# An attack that would land on nobody is rejected, not wasted (see
+# RelayEngine._apply_attack), so a perk never costs currency for no effect.
 PERKS: dict[str, dict] = {
-    "freeze":      {"name": "Freeze",      "kind": "attack",  "cost": 3, "seconds": 10},
-    "scramble":    {"name": "Scramble",    "kind": "attack",  "cost": 2},
-    "shield":      {"name": "Shield",      "kind": "defense", "cost": 2},
-    "extend_wait": {"name": "Extend Wait", "kind": "defense", "cost": 1, "seconds": 60},
+    # --- attacks: enforced ---
+    "freeze":      {"name": "Freeze",      "kind": "attack",  "cost": 3, "seconds": 10,
+                    "desc": "A random opponent can't submit for 10s."},
+    "scramble":    {"name": "Scramble",    "kind": "attack",  "cost": 2,
+                    "desc": "A random solving opponent gets a fresh board."},
+    "clock_burn":  {"name": "Clock Burn",  "kind": "attack",  "cost": 3, "seconds": 30,
+                    "desc": "Burn 30s off a random cleared opponent's wait."},
+    # Skim costs more than it takes on purpose: it is attrition that hurts you
+    # too (net -1 each), a way to deny a purchase, never a way to farm.
+    "skim":        {"name": "Skim",        "kind": "attack",  "cost": 2, "amount": 1,
+                    "desc": "Steal 1 from the opponent's pool."},
+    "silence":     {"name": "Silence",     "kind": "attack",  "cost": 3, "seconds": 30,
+                    "desc": "Blind the enemy Grandmaster for 30s."},
+    # --- attacks: screen effects (cosmetic) ---
+    "wobble":      {"name": "Wobble",      "kind": "attack",  "cost": 2, "seconds": 12,
+                    "effect": "wobble",
+                    "desc": "A random opponent's board wobbles for 12s."},
+    "static":      {"name": "Static",      "kind": "attack",  "cost": 2, "seconds": 10,
+                    "effect": "static",
+                    "desc": "Screen noise over a random opponent's board."},
+    "mirror":      {"name": "Mirror",      "kind": "attack",  "cost": 3, "seconds": 10,
+                    "effect": "mirror",
+                    "desc": "Flip a random opponent's board for 10s."},
+    "blackout":    {"name": "Blackout",    "kind": "attack",  "cost": 3, "seconds": 4,
+                    "effect": "blackout",
+                    "desc": "Black out a random opponent's board for 4s."},
+    # --- defense ---
+    "shield":      {"name": "Shield",      "kind": "defense", "cost": 2,
+                    "desc": "Blocks the next incoming attack."},
+    "reflect":     {"name": "Reflect",     "kind": "defense", "cost": 4,
+                    "desc": "Bounces the next attack back at its buyer."},
+    "insurance":   {"name": "Insurance",   "kind": "defense", "cost": 2,
+                    "desc": "A failed bonus keeps its earnings this level."},
+    "extend_wait": {"name": "Extend Wait", "kind": "defense", "cost": 1, "seconds": 60,
+                    "desc": "+60s on a chosen cleared teammate's wait."},
 }
+
+# Screen-effect ids the client knows how to render. Kept here so the engine can
+# reject a mistyped `effect` in the catalogue rather than stamping a deadline
+# no renderer will ever pick up.
+SCREEN_EFFECTS = ("wobble", "static", "mirror", "blackout")
 
 # Role catalogue (docs/TASK_LIST.md V8): the Grandmaster (team leader) assigns
 # each player a role in the lobby; the game picker then only offers that

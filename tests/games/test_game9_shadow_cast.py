@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from collections import Counter, deque
 
+from backend import config
 from backend.games.base import PuzzleInstance
 from backend.games.game9_shadow_cast import (
     HOLD_ACTION_CAP,
@@ -241,7 +242,7 @@ def test_every_turn_visibly_moves_the_object():
 
 
 def test_target_shadows_pin_down_at_most_the_level_allowance():
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 13):
         allowed = _params_for_level(level)["max_equivalent"]
         for seed in range(20):
             payload = game.generate_main(seed, level=level).payload
@@ -249,7 +250,7 @@ def test_target_shadows_pin_down_at_most_the_level_allowance():
 
 
 def test_start_is_exactly_the_level_distance_from_solved():
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 13):
         wanted = _params_for_level(level)["distance"]
         for seed in range(20):
             payload = game.generate_main(seed, level=level).payload
@@ -435,7 +436,7 @@ def test_reset_safe_and_deterministic_after():
 
 
 def test_level_determinism():
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 13):
         a = game.generate_main(42, level=level)
         b = game.generate_main(42, level=level)
         assert a.payload == b.payload and a.answer == b.answer
@@ -462,11 +463,11 @@ def test_level_params_monotonic():
 
 def test_levels_out_of_range_are_clamped():
     assert _params_for_level(0) == _params_for_level(1)
-    assert _params_for_level(99) == _params_for_level(10)
+    assert _params_for_level(99) == _params_for_level(len(MAIN_LEVEL_PARAMS))
 
 
 def test_every_level_generates_scaled_boards():
-    for level in range(1, 11):
+    for level in range(1, 14):
         params = _params_for_level(level)
         for seed in (3, 44):
             board = game.generate_main(seed, level=level)
@@ -484,3 +485,14 @@ def test_level_ten_visibly_harder():
     assert top["distance"] > MAIN_DISTANCE
     assert top["max_equivalent"] < MAIN_EQUIVALENT
     assert top["difficulty"] > _params_for_level(1)["difficulty"]
+
+
+def test_bonus_tiers_climb_past_level_ten():
+    """Levels 11..13 are bonus-only: a team on the last level must still be
+    offered something harder than the board they just cleared. This game runs
+    out of headroom first — only voxels and max_equivalent are left free."""
+    assert len(MAIN_LEVEL_PARAMS) == config.LEVEL_COUNT + config.BONUS_LEVEL_OFFSET
+    top, tier = _params_for_level(10), _params_for_level(13)
+    assert tier["voxels"] > top["voxels"]
+    assert tier["max_equivalent"] < top["max_equivalent"]
+    assert tier["distance"] == top["distance"]  # the rotation graph's diameter

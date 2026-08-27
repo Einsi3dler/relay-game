@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.games.base import PuzzleInstance
 from backend.models import Event, Match, Player, Team, green
+
+
+def _future(seconds: int = 30) -> str:
+    """A deadline the view layer will read as still running. View-layer checks
+    use the wall clock, so these can't be pinned to a fixed test instant."""
+    return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat()
 
 
 def make_puzzle(kind: str = "main", game_id: str = "rewire") -> PuzzleInstance:
@@ -110,6 +117,7 @@ def test_leader_sees_own_team_full_and_opponent_summary():
     own = out["teams"]["alpha"]
     assert set(own) == {"id", "name", "level", "roster_size", "finished",
                         "green_count", "currency", "shield_active",
+                        "reflect_active", "insurance_active", "silenced_until",
                         "leader_id", "duel_streak", "duel_penalty_until",
                         "players"}
     assert own["currency"] == 5 and own["shield_active"] is True
@@ -119,6 +127,51 @@ def test_leader_sees_own_team_full_and_opponent_summary():
                              "green_count", "duel_penalty_until"}
     assert opponent["green_count"] == 1  # Cara is cleared
     assert opponent["level"] == 1
+
+
+def test_silence_masks_the_roster_from_the_teams_own_leader():
+    """The Silence perk blinds a Grandmaster to their OWN team. The shape of the
+    view is unchanged — the progress values go null so the client can render a
+    "?" rather than break."""
+    match = make_match()
+    match.teams["alpha"].silenced_until = _future()
+    own = match.public("p_lead")["teams"]["alpha"]
+    assert own["green_count"] is None
+    playing = [p for p in own["players"] if not p["is_leader"]]
+    assert [p["status"] for p in playing] == ["hidden", "hidden"]
+    assert all(p["green"] is None for p in playing)
+    # Not progress info, so it survives: the leader can still see the shop.
+    assert own["currency"] == 5 and own["silenced_until"] is not None
+    # The *enemy* leader keeps their read-out of the silenced team.
+    match.players["p_cara"].is_leader = True
+    assert match.public("p_cara")["teams"]["alpha"]["green_count"] == 0
+
+
+def test_silence_also_hides_the_who_cleared_feed():
+    """Otherwise the masked roster is trivially reconstructed from the log."""
+    match = make_match()
+    match.events = [
+        Event(message="Alice cleared Level 2.", kind="green"),
+        Event(message="Team Alpha used Freeze.", kind="perk"),
+    ]
+    assert [e["kind"] for e in match.public("p_lead")["events"]] == ["green", "perk"]
+    match.teams["alpha"].silenced_until = _future()
+    assert [e["kind"] for e in match.public("p_lead")["events"]] == ["perk"]
+
+
+def test_a_lapsed_silence_stops_masking():
+    match = make_match()
+    match.teams["alpha"].silenced_until = "2020-01-01T00:00:00+00:00"
+    own = match.public("p_lead")["teams"]["alpha"]
+    assert own["green_count"] == 0 and own["players"][1]["status"] == "solving"
+
+
+def test_screen_effects_only_report_live_deadlines():
+    match = make_match()
+    dave = match.players["p_dave"]
+    dave.screen_effects = {"wobble": _future(), "static": "2020-01-01T00:00:00+00:00"}
+    assert set(match.public("p_dave")["me"]["screen_effects"]) == {"wobble"}
+    assert "screen_effects" not in dave.public()  # never in the roster view
 
 
 def test_player_sees_only_own_level_and_no_opponent_progress():
@@ -157,7 +210,7 @@ def test_player_private_adds_puzzle_timer_choice_freeze():
     assert set(out) == {"id", "name", "team_id", "status", "green", "connected",
                         "is_leader", "role", "assigned_game", "current_puzzle",
                         "timer_kind", "timer_deadline", "choice_pending",
-                        "frozen_until"}
+                        "frozen_until", "screen_effects"}
     assert out["current_puzzle"]["game_id"] == "sweep"  # the bonus puzzle
     assert out["timer_kind"] == "wait"
     assert match.public("p_cara")["me"]["choice_pending"] is True

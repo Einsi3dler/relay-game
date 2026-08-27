@@ -441,7 +441,7 @@ def test_choose_bonus_serves_harder_instance_on_same_deadline(engine):
     assert result.ok and player.status == "bonus"
     assert not green(player)  # bonus resets cleared status
     assert player.choice_pending is False
-    bonus_level = min(1 + config.BONUS_LEVEL_OFFSET, LEVELS)
+    bonus_level = min(1 + config.BONUS_LEVEL_OFFSET, LEVELS + config.BONUS_LEVEL_OFFSET)
     assert f"L{bonus_level}" in player.current_bonus.prompt  # harder instance
     assert player.current_bonus.game_id == "g1"  # their own game
     assert player.timer_deadline == deadline  # same running deadline
@@ -706,6 +706,198 @@ def test_extend_wait_pushes_a_teammates_deadline(engine):
         match, leaders["alpha"].id, "extend_wait", target_id=opponent.id
     )
     assert result.ok is False  # teammates only
+
+
+# --- perks: screen effects (cosmetic sabotage) ---
+
+def test_screen_effect_stamps_a_deadline_only_the_victim_can_see(engine):
+    match, members, leaders = full_match(engine)
+    match.teams["alpha"].currency = 10
+    make_all_cleared_except(engine, match, members["bravo"], members["bravo"][0])
+    target = members["bravo"][0]
+    result = engine.buy_perk(match, leaders["alpha"].id, "wobble", now=NOW)
+    assert result.ok
+    expected = (NOW + timedelta(seconds=config.PERKS["wobble"]["seconds"])).isoformat()
+    assert target.screen_effects == {"wobble": expected}
+    # Fog of war: the effect rides the victim's private view, never the public
+    # roster the buying leader reads.
+    assert "screen_effects" not in target.public()
+
+
+def test_screen_effects_stack_forward_and_never_shorten(engine):
+    """Deadlines are pushed out, never overwritten — an out-of-order or skewed
+    second buy must not cut the running effect short."""
+    match, members, leaders = full_match(engine)
+    match.teams["alpha"].currency = 20
+    make_all_cleared_except(engine, match, members["bravo"], members["bravo"][0])
+    target = members["bravo"][0]
+    assert engine.buy_perk(match, leaders["alpha"].id, "wobble", now=NOW).ok
+    long_deadline = target.screen_effects["wobble"]
+    assert engine.buy_perk(
+        match, leaders["alpha"].id, "wobble", now=NOW - timedelta(seconds=5)
+    ).ok
+    assert target.screen_effects["wobble"] == long_deadline  # not shortened
+    # A different effect id is a separate deadline, not a replacement.
+    assert engine.buy_perk(match, leaders["alpha"].id, "static", now=NOW).ok
+    assert set(target.screen_effects) == {"wobble", "static"}
+
+
+def test_screen_effects_reach_bonus_players_but_never_a_duellist(engine):
+    match, members, leaders = full_match(engine)
+    match.teams["alpha"].currency = 10
+    straggler = members["bravo"][0]
+    solve(engine, match, straggler)
+    engine.choose_bonus(match, straggler.id, now=NOW)
+    make_all_cleared_except(engine, match, members["bravo"], straggler)
+    result = engine.buy_perk(match, leaders["alpha"].id, "mirror", now=NOW)
+    assert result.ok and "mirror" in straggler.screen_effects
+
+
+# --- perks: Reflect ---
+
+def test_reflect_bounces_an_attack_back_at_its_buyer(engine):
+    match, members, leaders = full_match(engine)
+    alpha, bravo = match.teams["alpha"], match.teams["bravo"]
+    alpha.currency = bravo.currency = 10
+    assert engine.buy_perk(match, leaders["bravo"].id, "reflect").ok
+    assert engine.buy_perk(match, leaders["bravo"].id, "reflect").ok is False  # once
+    result = engine.buy_perk(match, leaders["alpha"].id, "freeze", now=NOW)
+    assert result.ok
+    assert bravo.reflect_active is False  # consumed
+    assert all(p.frozen_until is None for p in members["bravo"])  # they're untouched
+    assert sum(p.frozen_until is not None for p in members["alpha"]) == 1  # it came home
+    assert alpha.currency == 10 - config.PERKS["freeze"]["cost"]  # still charged
+
+
+def test_reflect_beats_shield_and_a_bounced_attack_cannot_bounce_again(engine):
+    """Both teams holding Reflect must not ping-pong an attack forever: the
+    bounced attack lands on the buyer, ignoring their own defenses."""
+    match, members, leaders = full_match(engine)
+    alpha, bravo = match.teams["alpha"], match.teams["bravo"]
+    alpha.currency = bravo.currency = 20
+    assert engine.buy_perk(match, leaders["bravo"].id, "reflect").ok
+    assert engine.buy_perk(match, leaders["bravo"].id, "shield").ok
+    assert engine.buy_perk(match, leaders["alpha"].id, "reflect").ok
+    assert engine.buy_perk(match, leaders["alpha"].id, "freeze", now=NOW).ok
+    assert bravo.reflect_active is False  # reflect resolves before shield
+    assert bravo.shield_active is True  # ...so the shield is untouched
+    assert alpha.reflect_active is True  # the buyer's own reflect never fires
+    assert sum(p.frozen_until is not None for p in members["alpha"]) == 1
+
+
+def test_a_reflected_attack_with_no_target_consumes_nothing(engine):
+    """The validate-then-mutate rule: a rejected buy must leave reflect, shield
+    and currency exactly as it found them."""
+    match, members, leaders = full_match(engine)
+    alpha, bravo = match.teams["alpha"], match.teams["bravo"]
+    alpha.currency = bravo.currency = 10
+    assert engine.buy_perk(match, leaders["bravo"].id, "reflect").ok
+    # Scramble needs a *solving* victim, and the bounce would land on alpha — so
+    # leave alpha with nobody solving. Bonus first, so the last clear doesn't
+    # advance the team and hand everyone a fresh board.
+    straggler = members["alpha"][0]
+    solve(engine, match, straggler)
+    engine.choose_bonus(match, straggler.id, now=NOW)
+    make_all_cleared_except(engine, match, members["alpha"], straggler)
+    banked = (alpha.currency, bravo.currency)  # clearing paid out along the way
+    result = engine.buy_perk(match, leaders["alpha"].id, "scramble", now=NOW)
+    assert result.ok is False and "target" in result.error
+    assert bravo.reflect_active is True  # NOT consumed by a rejected attack
+    assert (alpha.currency, bravo.currency) == banked  # nobody charged
+
+
+# --- perks: Skim, Clock Burn, Silence, Insurance ---
+
+def test_skim_moves_currency_and_is_refused_on_an_empty_pool(engine):
+    match, _, leaders = full_match(engine)
+    alpha, bravo = match.teams["alpha"], match.teams["bravo"]
+    alpha.currency, bravo.currency = 10, 5
+    cost = config.PERKS["skim"]["cost"]
+    amount = config.PERKS["skim"]["amount"]
+    assert engine.buy_perk(match, leaders["alpha"].id, "skim", now=NOW).ok
+    assert bravo.currency == 5 - amount
+    # Attrition, not farming: the buyer pays more than they take.
+    assert alpha.currency == 10 + amount - cost
+    bravo.currency = 0
+    result = engine.buy_perk(match, leaders["alpha"].id, "skim", now=NOW)
+    assert result.ok is False and "empty" in result.error
+    assert alpha.currency == 10 + amount - cost  # no charge
+
+
+def test_clock_burn_shortens_a_cleared_opponents_wait(engine):
+    match, members, leaders = full_match(engine)
+    match.teams["alpha"].currency = 10
+    result = engine.buy_perk(match, leaders["alpha"].id, "clock_burn", now=NOW)
+    assert result.ok is False and "target" in result.error  # nobody cleared yet
+    target = members["bravo"][0]
+    solve(engine, match, target)
+    before = datetime.fromisoformat(target.timer_deadline)
+    result = engine.buy_perk(match, leaders["alpha"].id, "clock_burn", now=NOW)
+    assert result.ok
+    burned = before - timedelta(seconds=config.PERKS["clock_burn"]["seconds"])
+    assert target.timer_deadline == burned.isoformat()
+    assert [(r.scope_id, r.kind) for r in result.schedule] == [(target.id, "wait")]
+
+
+def test_silence_stamps_a_deadline_on_the_victim_team(engine):
+    match, _, leaders = full_match(engine)
+    match.teams["alpha"].currency = 10
+    result = engine.buy_perk(match, leaders["alpha"].id, "silence", now=NOW)
+    assert result.ok
+    expected = (NOW + timedelta(seconds=config.PERKS["silence"]["seconds"])).isoformat()
+    assert match.teams["bravo"].silenced_until == expected
+    assert match.teams["alpha"].silenced_until is None  # the buyer keeps their eyes
+
+
+def test_insurance_covers_one_failed_bonus(engine):
+    match, members, leaders = full_match(engine)
+    player = members["alpha"][0]
+    team = match.teams["alpha"]
+    solve(engine, match, player)
+    engine.choose_bonus(match, player.id, now=NOW)
+    solve_bonus(engine, match, player)  # +3 (first bonus)
+    team.currency += 10
+    assert engine.buy_perk(match, leaders["alpha"].id, "insurance").ok
+    assert engine.buy_perk(match, leaders["alpha"].id, "insurance").ok is False  # once
+    banked = team.currency
+    result = solve_bonus_after_rechain(engine, match, player, answer="nope")
+    assert result.correct is False
+    assert team.currency == banked  # earnings kept, not forfeited
+    assert team.insurance_active is False  # consumed
+    assert player.bonus_earned == 0
+
+
+def test_insurance_is_not_burned_by_a_failure_that_costs_nothing(engine):
+    match, members, leaders = full_match(engine)
+    player = members["alpha"][0]
+    team = match.teams["alpha"]
+    team.currency = 10
+    assert engine.buy_perk(match, leaders["alpha"].id, "insurance").ok
+    solve(engine, match, player)
+    engine.choose_bonus(match, player.id, now=NOW)
+    result = solve_bonus(engine, match, player, answer="nope")  # nothing earned yet
+    assert result.correct is False and player.bonus_earned == 0
+    assert team.insurance_active is True  # still held for a failure that hurts
+
+
+# --- the bonus difficulty ladder ---
+
+def test_bonus_level_climbs_past_the_last_level(engine):
+    """The bonus board used to clamp at LEVEL_COUNT, so a team on the final
+    level was handed a board exactly as hard as the one they had just cleared.
+    Bonus tiers run to LEVEL_COUNT + BONUS_LEVEL_OFFSET (V5)."""
+    match, members, _ = full_match(engine)
+    team = match.teams["alpha"]
+    player = members["alpha"][0]
+    team.level = LEVELS
+    solve(engine, match, player)
+    assert engine.choose_bonus(match, player.id, now=NOW).ok
+    top_tier = LEVELS + config.BONUS_LEVEL_OFFSET
+    assert f"L{top_tier}" in player.current_bonus.prompt
+    # Reconnecting mid-bonus re-rolls the board at the same tier.
+    engine.on_disconnect(match, player.id)
+    engine.on_reconnect(match, player.id)
+    assert f"L{top_tier}" in player.current_bonus.prompt
 
 
 # --- leader handoff mid-match ---

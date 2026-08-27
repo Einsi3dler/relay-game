@@ -27,10 +27,12 @@ SHAPE_EDGES = {
 MAIN_ROWS, MAIN_COLS = 4, 4
 HOLDING_ROWS, HOLDING_COLS = 2, 2
 
-# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10,
+# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..13,
 # level 1 == the original board. Moderate climb — bigger grids and more sinks,
 # never degree-4 tiles (the builder caps degree at 3; the renderer has no
-# cross tile).
+# cross tile). Levels 11..13 are BONUS-ONLY tiers: a team never plays them as a
+# main board, they exist so `level + BONUS_LEVEL_OFFSET` still climbs at the
+# top of the ladder.
 MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"rows": 4, "cols": 4, "sinks": 2, "difficulty": 2, "time_hint": 35},  # 1
     {"rows": 4, "cols": 4, "sinks": 2, "difficulty": 2, "time_hint": 35},  # 2
@@ -42,6 +44,9 @@ MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"rows": 5, "cols": 5, "sinks": 3, "difficulty": 3, "time_hint": 50},  # 8
     {"rows": 5, "cols": 6, "sinks": 4, "difficulty": 4, "time_hint": 60},  # 9
     {"rows": 5, "cols": 6, "sinks": 4, "difficulty": 4, "time_hint": 60},  # 10
+    {"rows": 6, "cols": 6, "sinks": 4, "difficulty": 4, "time_hint": 66},  # 11 bonus
+    {"rows": 6, "cols": 6, "sinks": 5, "difficulty": 5, "time_hint": 72},  # 12 bonus
+    {"rows": 6, "cols": 7, "sinks": 5, "difficulty": 5, "time_hint": 78},  # 13 bonus
 )
 
 

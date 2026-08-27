@@ -86,9 +86,11 @@ WALL_FILL = 0.14             # share of leftover cells that become wall structur
 MAX_ANSWER_CHARS = 400
 MAX_PERMUTATION_CHECK = 720  # 6! — work cap on the order-sensitivity gate
 
-# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..10,
+# Main-board difficulty curve (docs/TASK_LIST.md V5): one row per level 1..13,
 # level 1 == the board above. Balls cap at 4 (one per KINDS glyph) and pins at
-# 7 (the spec's main ceiling).
+# 7 (the spec's main ceiling). Both are maxed by level 10, so the BONUS-ONLY
+# tiers 11..13 climb on board size, removal depth and hazards instead — a team
+# never plays them as a main board.
 MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"rows": 8, "cols": 6, "balls": 2, "pins": 4, "depth": (2, 4), "hazards": 1, "difficulty": 2, "time_hint": 30},  # 1
     {"rows": 8, "cols": 6, "balls": 2, "pins": 4, "depth": (2, 4), "hazards": 1, "difficulty": 2, "time_hint": 30},  # 2
@@ -100,6 +102,9 @@ MAIN_LEVEL_PARAMS: tuple[dict, ...] = (
     {"rows": 9, "cols": 7, "balls": 3, "pins": 6, "depth": (3, 6), "hazards": 2, "difficulty": 4, "time_hint": 46},  # 8
     {"rows": 9, "cols": 7, "balls": 3, "pins": 6, "depth": (3, 6), "hazards": 2, "difficulty": 4, "time_hint": 46},  # 9
     {"rows": 9, "cols": 7, "balls": 4, "pins": 7, "depth": (3, 6), "hazards": 2, "difficulty": 4, "time_hint": 55},  # 10
+    {"rows": 10, "cols": 7, "balls": 4, "pins": 7, "depth": (4, 6), "hazards": 2, "difficulty": 5, "time_hint": 62},  # 11 bonus
+    {"rows": 10, "cols": 7, "balls": 4, "pins": 7, "depth": (4, 7), "hazards": 3, "difficulty": 5, "time_hint": 68},  # 12 bonus
+    {"rows": 10, "cols": 8, "balls": 4, "pins": 7, "depth": (4, 7), "hazards": 3, "difficulty": 5, "time_hint": 75},  # 13 bonus
 )
 
 HOLDING_PARAMS = {

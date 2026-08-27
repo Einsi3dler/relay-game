@@ -321,3 +321,66 @@ input:focus { border-color: var(--sun); }
   .duel-reveal .duel-hand { animation: none; }
   .duel-move { transition: none; }
 }
+
+/* --- screen-effect perks (wobble / static / mirror / blackout) -------------
+   Cosmetic sabotage the server stamps on ONE opponent. Every class lands on
+   #puzzle-card only, so the HUD, the wait countdown and the body-level frozen
+   overlay stay readable and correctly positioned. Transforms are hit-tested
+   after they apply, so a click always lands on the tile you can see. Only
+   `transform`, `opacity` and `filter` animate — nothing that triggers layout. */
+
+.perk-desc { color: var(--muted); font-size: 0.75rem; line-height: 1.3; }
+
+.fx-wobble { animation: fx-wobble 1.1s ease-in-out infinite; }
+.fx-wobble .prompt { animation: fx-wobble-prompt 1.7s ease-in-out infinite; }
+@keyframes fx-wobble {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  20%  { transform: translate(-5px, 2px) rotate(-0.9deg); }
+  40%  { transform: translate(4px, -3px) rotate(1.1deg); }
+  60%  { transform: translate(-3px, -2px) rotate(0.5deg); }
+  80%  { transform: translate(5px, 3px) rotate(-1.2deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+/* Deliberately out of phase with the card, so the card reads as unstable
+   rather than as one clean shudder. */
+@keyframes fx-wobble-prompt {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  33%  { transform: translate(4px, -2px) rotate(1deg); }
+  66%  { transform: translate(-4px, 2px) rotate(-1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+/* Flips the board, not the prompt: the instructions stay legible, the puzzle
+   does not. A scaleX on the mount keeps clicks landing where they look. */
+.fx-mirror #puzzle-mount { transform: scaleX(-1); }
+
+.fx-static, .fx-blackout { position: relative; }
+.fx-static::after, .fx-blackout::after {
+  content: ""; position: absolute; inset: 0; z-index: 5;
+  border-radius: var(--radius); pointer-events: none;
+}
+.fx-static::after {
+  background-image: repeating-linear-gradient(
+    0deg, rgba(0,0,0,0.55) 0 2px, rgba(255,255,255,0.35) 2px 4px);
+  opacity: 0.5;
+  animation: fx-static 0.32s steps(4) infinite;
+}
+@keyframes fx-static {
+  0%   { transform: translateY(0); opacity: 0.5; }
+  50%  { transform: translateY(-2px); opacity: 0.36; }
+  100% { transform: translateY(-4px); opacity: 0.5; }
+}
+.fx-blackout::after { background: #05050a; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The perk must still cost the victim something — swap the motion for a
+     legibility hit rather than silently doing nothing, which would make the
+     buy a coin-flip on the victim's OS settings. */
+  .fx-wobble, .fx-wobble .prompt { animation: none; }
+  .fx-wobble #puzzle-mount { animation: fx-blur-pulse 1.4s ease-in-out infinite; }
+  .fx-static::after { animation: none; }
+  @keyframes fx-blur-pulse {
+    0%, 100% { filter: blur(0); opacity: 1; }
+    50%      { filter: blur(2.5px); opacity: 0.72; }
+  }
+}

@@ -32,6 +32,15 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   harder but still calm. · [G1..G6]
   **AC:** level 1 ≈ today's difficulty; level 10 clearly harder; the bonus
   board is genuinely harder than the current level.
+  **Bonus tiers (follow-up, shipped):** the tables originally stopped at 10 rows
+  and `choose_bonus` clamped to `LEVEL_COUNT`, so a team on level 10 was handed a
+  bonus board of *identical* difficulty — the last part of the AC was unmet for
+  levels 8–10. All ten tables now run to 13 rows (11..13 are bonus-only tiers)
+  and the engine clamps at `LEVEL_COUNT + BONUS_LEVEL_OFFSET` via one shared
+  `RelayEngine._bonus_level`. Several games were at renderer/spec ceilings by
+  level 10 and climb on whatever knob was left; LANE SHIFT's tiers are shaped by
+  generation cost (its `min_actions` gate pushed board generation past a second,
+  so it stays at 4). Perceived difficulty of the new tiers is for V6/V7.
 - [ ] **V6 Full playtest** — two full teams + Grandmasters in real browsers,
   play to a win; file bugs. Run it with [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md).
   **AC:** a match completes with no server errors. · [ALL]
@@ -40,6 +49,24 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   `backend/config.py`); [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md) captures what to
   measure. Re-tune from V6 data. **AC:** bonuses feel worth the risk; perks
   get bought but don't dominate. · [ALL]
+- [x] **V7b Perk catalogue** — grown from 4 to 13, to give the Grandmaster a
+  real decision and to stop Freeze being the obvious buy every time. Adds
+  enforced attacks (Clock Burn, Skim, Silence), four **screen-effect** attacks
+  (Wobble, Static, Mirror, Blackout — cosmetic, client-rendered, therefore
+  unenforceable and priced as annoyances), and two defenses (Reflect,
+  Insurance). `_apply_attack` is now validate-then-mutate so a rejected buy
+  consumes nothing, and a bounced attack ignores the buyer's own defenses so
+  two Reflects can't ping-pong. All costs/durations remain **provisional**.
+  · [C + Frontend]
+  **Note for a timed game (e.g. bomb defusal):** every shipped game has no
+  internal clock and no fail state, which the enforced attacks quietly assume.
+  On a timed game Scramble *helps* the victim (fresh instance = fresh clock) and
+  Freeze becomes lethal rather than annoying. Screen effects are safe by
+  construction — they never touch a clock. Before such a game lands, give the
+  module contract a capability flag (e.g. `timed = True` / `perk_policy`) that
+  `_apply_attack` honours when picking a victim, exactly as it already skips
+  Duelists. Adding it with today's behaviour as the default costs nothing now;
+  retrofitting it later means editing every module.
 - [x] **V8 Real roles** — the placeholder `config.ROLES` grouping is replaced by
   the designed catalogue (Logician, Technocrat, Spatial Reasoner, Puzzle
   Master, Spymaster, Generalist, and the Duelist); the team leader is

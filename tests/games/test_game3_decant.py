@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from backend import config
 from backend.games.game3_decant import (
     CAPACITY,
     MAIN_COLOURS,
@@ -141,7 +142,7 @@ def test_reset_safe_and_deterministic_after():
 
 def test_level_determinism():
     # V5 contract: same (seed, level) always yields the same puzzle.
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 13):
         a = game.generate_main(42, level=level)
         b = game.generate_main(42, level=level)
         assert a.payload == b.payload and a.answer == b.answer
@@ -163,7 +164,7 @@ def test_level_params_monotonic():
 
 
 def test_every_level_generates_solvable_scaled_boards():
-    for level in range(1, 11):
+    for level in range(1, 14):
         params = _params_for_level(level)
         for seed in (3, 44, 90):
             tubes, solution = game._build(seed, "main", level)
@@ -181,3 +182,15 @@ def test_level_ten_visibly_harder():
     # The run-count lower bound must clear the level-10 floor (no fallback).
     assert _colour_runs(tubes) - params["colours"] >= params["min_pours"]
     assert params["min_pours"] > MAIN_MIN_POURS
+
+
+def test_bonus_tiers_climb_past_level_ten():
+    """Levels 11..13 are bonus-only: a team on the last level must still be
+    offered something harder than the board they just cleared."""
+    assert len(MAIN_LEVEL_PARAMS) == config.LEVEL_COUNT + config.BONUS_LEVEL_OFFSET
+    top, tier = _params_for_level(10), _params_for_level(13)
+    assert tier["scramble"] > top["scramble"]
+    assert tier["min_pours"] > top["min_pours"]
+    # More tubes would mean more free space and an EASIER board, so the tiers
+    # must never buy difficulty that way.
+    assert tier["tubes"] == top["tubes"]

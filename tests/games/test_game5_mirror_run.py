@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from collections import deque
 
+from backend import config
 from backend.games.game5_mirror_run import (
     HOLD_SIZE,
     MAIN_DEPTH,
@@ -49,7 +50,7 @@ def test_generated_boards_are_solvable_and_unsolved():
 def test_main_depth_in_band_and_under_cap():
     # The primary band can spill into the relaxed band by design, so the
     # relaxed band is the hard bound at every level.
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 13):
         params = _params_for_level(level)
         lo, hi = params["relaxed_depth"]
         for seed in range(10):
@@ -191,7 +192,7 @@ def test_reset_safe_and_deterministic_after():
 
 def test_level_determinism():
     # V5 contract: same (seed, level) always yields the same puzzle.
-    for level in (1, 5, 10):
+    for level in (1, 5, 10, 13):
         a = game.generate_main(42, level=level)
         b = game.generate_main(42, level=level)
         assert a.payload == b.payload and a.answer == b.answer
@@ -207,7 +208,7 @@ def test_level_one_matches_original_board():
 
 
 def test_level_params_monotonic():
-    for level in range(1, 10):
+    for level in range(1, 13):
         easier, harder = _params_for_level(level), _params_for_level(level + 1)
         assert easier["size"] <= harder["size"]
         assert easier["depth"][0] < harder["depth"][0]
@@ -218,7 +219,7 @@ def test_level_params_monotonic():
 
 
 def test_every_level_generates_solvable_scaled_boards():
-    for level in range(1, 11):
+    for level in range(1, 14):
         params = _params_for_level(level)
         for seed in (3, 44, 90):
             puzzle = game.generate_main(seed, level=level)
@@ -230,3 +231,15 @@ def test_level_ten_visibly_harder():
     top = _params_for_level(10)
     assert top["size"] > MAIN_SIZE
     assert top["depth"][0] > MAIN_DEPTH[0]
+
+
+def test_bonus_tiers_climb_past_level_ten():
+    """Levels 11..13 are bonus-only: a team on the last level must still be
+    offered something harder than the board they just cleared. MIRROR RUN has
+    no params table — the formula clamps at 13 instead."""
+    top, tier = _params_for_level(10), _params_for_level(13)
+    assert tier["depth"][0] > top["depth"][0]
+    assert tier["difficulty"] > top["difficulty"]
+    assert tier["size"] == top["size"]  # size is already at its ceiling
+    ceiling = config.LEVEL_COUNT + config.BONUS_LEVEL_OFFSET
+    assert _params_for_level(ceiling + 9) == _params_for_level(ceiling)

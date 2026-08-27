@@ -61,7 +61,8 @@ backend/
 
 - **`config.py`** — single home for `WAIT_SECONDS=180`, `LEVEL_COUNT=10`,
   `PLAYERS_PER_TEAM=4`, `MIN_PLAYERS_PER_TEAM=4`, `CURRENCY_PER_CLEAR`,
-  `CURRENCY_BONUS_FIRST/REPEAT`, `BONUS_LEVEL_OFFSET`, the `PERKS` catalogue,
+  `CURRENCY_BONUS_FIRST/REPEAT`, `BONUS_LEVEL_OFFSET`, the `PERKS` catalogue
+  (plus `SCREEN_EFFECTS`, the effect ids the client can render),
   the `ROLES` catalogue (with the `role_allows`/`role_assignable` helpers),
   `SUBMIT_MIN_INTERVAL_MS=300`, and `MATCH_TTL_SECONDS=1800`. Nothing else in
   the codebase should contain these literals. (Per-level game difficulty knobs
@@ -170,7 +171,18 @@ browser. Approach:
   each). Advancing a level or winning **cancels all** of a team's timers.
 - **A scope is usually a player id** — the wait deadline is the only player-scoped
   timer, and the freeze perk is deliberately a lazy `frozen_until` check on submit
-  rather than a second one. Cross-team mechanics own their own scopes so their
+  rather than a second one. Most perks are lazy for the same reason: the
+  screen-effect deadlines in `Player.screen_effects` are read by the *client*, and
+  `Team.silenced_until` is read by the *view* layer. None needs a scope, and none
+  can be displaced by another. The one consequence to know: because nothing fires
+  when Silence lapses, the blinded client asks for a fresh snapshot itself
+  (`request_state`) — a server timer there would have collided with the team's
+  duel-penalty scope.
+- Clock Burn is the exception that *reuses* a scope rather than adding one: it
+  rewrites a player's existing wait deadline and reschedules the same `wait`
+  timer. A burn past `now` is legal — `TimerService` clamps the delay to zero and
+  the wait lapses immediately.
+- Cross-team mechanics own their own scopes so their
   clocks can run *concurrently* with a player's wait timer without displacing it:
   `"duel"` for the duel phase clock and `"team:<id>"` for a team's duel penalty.
   Player ids are 8-char uuid hex, so they never collide with those literals.
