@@ -367,7 +367,7 @@
       "font-family:Arial,Helvetica,sans-serif;font-size:64px;font-weight:700;" +
       "color:" + C.red + ";text-align:center;line-height:1;", timerReadout());
     state.timerText.setAttribute("role", "timer");
-    state.timerText.setAttribute("aria-label", isBlackout()
+    state.timerText.setAttribute("aria-label", isDarkFuse()
       ? "The timer is dark — ask your Grandmaster"
       : "Seconds left on the fuse");
     timerCell.appendChild(state.timerText);
@@ -808,13 +808,13 @@
     });
   }
 
-  // §7 inverted: on a blackout board the timer is on the bomb but not on
+  // §7 inverted: on a dark-fuse board the timer is on the bomb but not on
   // *your* bomb. No number, no fuse of our own, no tick — the Grandmaster's
   // console holds the only countdown in the match, and the server holds the
   // deadline that actually ends the board.
-  function isBlackout() {
+  function isDarkFuse() {
     var payload = state && state.puzzle ? state.puzzle.payload : null;
-    return !!(payload && payload.blackout);
+    return !!(payload && payload.hidden_deadline);
   }
 
   // §2c: from the deep tiers up the board names a page this copy does not
@@ -892,7 +892,7 @@
       "font-size:46px;text-align:center;",
       "BANK " + (bank + 1) + " ARMED"));
     banner.appendChild(el("div", "color:#ddd;font-size:16px;",
-      isBlackout()
+      isDarkFuse()
         ? "A fresh fuse you cannot see. Ask."
         : armedBank().fuse_seconds + "s on the new fuse."));
     banner.setAttribute("role", "alert");
@@ -998,7 +998,7 @@
     screen.appendChild(el("div", "color:" + C.green + ";font-weight:700;font-size:56px;" +
       "text-align:center;", "BOMB DEFUSED"));
     screen.appendChild(el("div", "color:#bdf5bd;font-size:16px;",
-      isBlackout() ? "Stopped. Ask them how close that was."
+      isDarkFuse() ? "Stopped. Ask them how close that was."
                    : "Stopped with " + seconds + "s left."));
     screen.setAttribute("role", "status");
     state.faceLayer.appendChild(screen);
@@ -1010,7 +1010,7 @@
   // "--" rather than a blank cell: a dark readout is a bomb telling you it
   // will not say, which is the point. An empty box reads as broken.
   function timerReadout() {
-    return isBlackout() ? "--" : String(state.remaining);
+    return isDarkFuse() ? "--" : String(state.remaining);
   }
 
   // The server's deadline for the whole board, or null for a practice board
@@ -1025,7 +1025,7 @@
   }
 
   function startFuse() {
-    if (isBlackout()) {
+    if (isDarkFuse()) {
       // No clock at all, rather than one that is merely hidden: a fuse running
       // where nobody can see it would still be the client deciding when the
       // board ends, and on this board that is the server's call.
@@ -1093,7 +1093,7 @@
   function updateBoard(puzzle) {
     if (!state || state.status !== "active" || !puzzle) return;
     state.puzzle = puzzle;
-    if (isBlackout() || !state.clock) return;    // no clock of ours to move
+    if (isDarkFuse() || !state.clock) return;    // no clock of ours to move
     var boardEnd = boardDeadline();
     if (boardEnd === null || state.boardEnd === null) return;
     var gained = boardEnd - state.boardEnd;

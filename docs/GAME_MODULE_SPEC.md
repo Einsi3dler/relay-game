@@ -191,6 +191,7 @@ game. Use these optional `payload` keys and it "just works":
 | `hint: str` | Renders a small hint line under the prompt. |
 | `sequence: [...]` / `values: [...]` | Passed through for a game that adds richer rendering later. Safe to include. |
 | `time_limit_seconds: int` | **A hard, server-enforced deadline for this board.** See below. |
+| `hidden_deadline: true` | That deadline is withheld from the player and sent to their Grandmaster instead. See below. |
 
 Keep everything JSON-serialisable (str/int/float/bool/list/dict). **Never** put the
 answer in the payload. If your game needs custom rendering, coordinate with the
@@ -236,6 +237,39 @@ Three things to know before you opt in:
   lapses the player simply gets another board. If your game wants a losing
   screen first, draw it and submit something `check` rejects, as BOMB DEFUSE
   does — the engine answers a wrong board and a lapsed one identically.
+
+#### `hidden_deadline` — the clock goes to the other seat
+
+Set `payload["hidden_deadline"] = True` alongside `time_limit_seconds` and the
+engine routes that deadline to the team's **Grandmaster** instead of to the
+player working the board:
+
+- The player's `me.puzzle_deadline` is `null` and their puzzle carries no
+  `deadline`. Their client has nothing to count.
+- The Grandmaster's roster entry for that player carries `board_deadline`
+  instead, and the leader dashboard draws it.
+- **Exactly one seat is ever sent it.** Same instant, one copy — which is what
+  makes this a visibility rule rather than a synchronisation problem, and the
+  reason a leader dashboard can hold a live clock without becoming a second
+  copy of the board.
+- Silence takes it too. A silenced Grandmaster loses the roster, the feed and
+  the clock, so for those seconds the deadline is in nobody's hands. Design for
+  that rather than around it.
+
+Your renderer must then keep **no clock of its own** on such a board — not even
+a hidden one. A clock running where nobody can see it is still the client
+deciding when the board ends, and here that is the server's call. Blank the
+readout rather than removing it, since a missing element reads as broken, and
+check that nothing else on screen leaks the number by the back door: banners,
+end screens, anything that used to print seconds.
+
+It needs `time_limit_seconds` to mean anything. Without one there is no
+deadline to hide, and the board simply has no limit.
+
+BOMB DEFUSE calls this its **dark fuse** and turns it on for the bonus-only
+tiers, where the bomb's timer cell reads `--` and the Grandmaster's console is
+the only countdown in the match. (Not to be confused with the **Blackout perk**
+in `config.PERKS`, which is an unrelated four-second screen effect.)
 
 **Bonus boards get no deadline of their own** — they already run against the
 remaining wait deadline, and two clocks on one bar is one too many.

@@ -385,7 +385,7 @@ input:focus { border-color: var(--sun); }
   }
 }
 
-/* The bomb console's only live element: on a blackout board the Defuser's face
+/* The bomb console's only live element: on a dark-fuse board the Defuser's face
    shows no number, so this is the one clock in the match (GAME_DESIGN §2c). */
 .bomb-clock {
   font-variant-numeric: tabular-nums;

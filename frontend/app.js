@@ -859,7 +859,7 @@
   // what they are looking at; this says what it means.
   var bombConsole = { page: "home", mounted: false };
 
-  // On a blackout board the Defuser's face shows no number and runs no fuse of
+  // On a dark-fuse board the Defuser's face shows no number and runs no fuse of
   // its own; the server sends the deadline here instead. This is the console's
   // first live element and a deliberate departure from "the manual and nothing
   // else" — it is still not board state, just the one clock, on the one seat

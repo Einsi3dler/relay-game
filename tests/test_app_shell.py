@@ -816,13 +816,13 @@ def shell() -> dict:
         ],
     })
 
-    # --- blackout: the console grows a clock ------------------------------
+    # --- a dark fuse: the console grows a clock ------------------------------
     dark = _engine()
     match, seats, leaders = _ready_lobby(dark)
     assert dark.start_match(match, now=NOW).changed
     defuser = seats["alpha"][0]
     assert defuser.assigned_game == "bomb_defuse"
-    defuser.current_main.payload["blackout"] = True
+    defuser.current_main.payload["hidden_deadline"] = True
     defuser.current_main.payload["time_limit_seconds"] = BOARD_LIMIT
     dark._arm_board_deadline(match, defuser, EngineResult(), NOW)
     dark_snapshot = match.public(leaders["alpha"].id)
@@ -1107,7 +1107,7 @@ def test_silence_holds_the_page_the_grandmaster_was_reading(shell):
         " ".join(records["returned"]["console"]["texts"])
 
 
-def test_the_console_grows_a_clock_on_a_blackout_board(shell):
+def test_the_console_grows_a_clock_on_a_dark_fuse_board(shell):
     """Its first live element, and a deliberate departure from "the manual and
     nothing else" — still not board state, just the one clock in the match, on
     the one seat allowed to read it out (docs/GAME_DESIGN.md §2c)."""

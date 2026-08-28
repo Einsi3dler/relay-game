@@ -128,7 +128,7 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   to the console too — the Defuser's face reads `--` and keeps no fuse. That
   answers the open question and reverses the old "a Grandmaster never strands
   their Defuser" rule, which GAME_DESIGN.md §2c and GAMES_SPEC.md now state the
-  other way round. Blackout rides on the engine's new opt-in board deadline
+  other way round. The **dark fuse** rides on the engine's new opt-in board deadline
   (`payload["time_limit_seconds"]`, GAME_MODULE_SPEC.md §6), which is also
   §0.4's stretch hardening landing for the first time.
 - [ ] More **duel** games for the Duelist role (see

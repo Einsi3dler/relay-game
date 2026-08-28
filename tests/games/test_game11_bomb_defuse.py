@@ -17,7 +17,7 @@ from backend.games.base import normalize_answer
 from backend.games.game11_bomb_defuse import (
     BAY_COUNT, MAIN_LEVEL_PARAMS, MAX_ANSWER_CHARS, MAX_MOVES, MAZE_LAYOUTS,
     MAZE_SIZE, MISSIONS, MODULE_TYPES, NUMBER_PATTERNS, RULES_VERSION,
-    BLACKOUT_FROM_LEVEL, SIMON_COLOURS, SIMON_MAP, WITHHELD_PAGES,
+    DARK_FUSE_FROM_LEVEL, SIMON_COLOURS, SIMON_MAP, WITHHELD_PAGES,
     WITHHOLD_FROM_LEVEL,
     BombDefuseGame, _maze_distances, _maze_route, _number_answer,
     _pattern_for_tip, _reference_moves, _wall_between, validate,
@@ -556,59 +556,73 @@ def test_the_withheld_draw_changed_no_bomb_anyone_can_generate(game):
             assert _reference_moves(plain)      # the board still replays
 
 
-# --- blackout (§2c: the Grandmaster holds the clock) ----------------------
+# --- dark fuse (§2c: the Grandmaster holds the clock) ----------------------
 
 
-def test_blackout_starts_at_the_first_bonus_tier():
+def test_dark_fuse_starts_at_the_first_bonus_tier():
     from backend import config
-    assert BLACKOUT_FROM_LEVEL == config.LEVEL_COUNT + 1
+    assert DARK_FUSE_FROM_LEVEL == config.LEVEL_COUNT + 1
 
 
 def test_the_main_ladder_keeps_its_own_clock(game):
     """A bonus board is chosen; the ladder is not. The hardest compound state
     this game reaches — a page withheld, the clock gone, two banks — is always
     something a player opted into."""
-    for level in range(1, BLACKOUT_FROM_LEVEL):
-        assert game.generate_main(3, level).payload["blackout"] is False
+    for level in range(1, DARK_FUSE_FROM_LEVEL):
+        assert game.generate_main(3, level).payload["hidden_deadline"] is False
 
 
 def test_the_bonus_tiers_hand_the_clock_to_the_grandmaster(game):
-    for level in range(BLACKOUT_FROM_LEVEL, len(MAIN_LEVEL_PARAMS) + 1):
-        assert game.generate_main(3, level).payload["blackout"] is True
+    for level in range(DARK_FUSE_FROM_LEVEL, len(MAIN_LEVEL_PARAMS) + 1):
+        assert game.generate_main(3, level).payload["hidden_deadline"] is True
 
 
-def test_blackout_is_a_tier_property_not_a_draw(game):
+def test_dark_fuse_is_a_tier_property_not_a_draw(game):
     """A bomb whose timer is sometimes there and sometimes not teaches
     nothing — the Defuser could not learn to ask."""
     for level in (1, 10, 11, 13):
-        expected = level >= BLACKOUT_FROM_LEVEL
+        expected = level >= DARK_FUSE_FROM_LEVEL
         for seed in range(40):
-            assert game.generate_main(seed, level).payload["blackout"] is expected
+            assert game.generate_main(seed, level).payload["hidden_deadline"] is expected
 
 
-def test_every_blackout_board_carries_the_deadline_that_replaces_its_fuse(game):
+def test_every_dark_fuse_board_carries_the_deadline_that_replaces_its_fuse(game):
     """The clock has to go *somewhere*, and the server-owned board deadline is
     where — without it a blacked-out board would have no limit at all."""
-    for level in range(BLACKOUT_FROM_LEVEL, len(MAIN_LEVEL_PARAMS) + 1):
+    for level in range(DARK_FUSE_FROM_LEVEL, len(MAIN_LEVEL_PARAMS) + 1):
         payload = game.generate_main(5, level).payload
         assert payload["time_limit_seconds"] > 0
 
 
-def test_blackout_lines_up_exactly_with_banks(game):
+def test_dark_fuse_lines_up_exactly_with_banks(game):
     """One coherent step up rather than two landing on different levels — and
     the reason no generated board is multi-bank with a visible fuse."""
     for level in range(1, len(MAIN_LEVEL_PARAMS) + 1):
         payload = game.generate_main(8, level).payload
-        assert payload["blackout"] is (len(payload["banks"]) > 1)
+        assert payload["hidden_deadline"] is (len(payload["banks"]) > 1)
+
+
+def test_the_dark_fuse_is_not_the_blackout_perk(game):
+    """Two unrelated things nearly wore the same name. `config.PERKS["blackout"]`
+    is a four-second screen effect an opponent buys; the dark fuse is a property
+    of the board. Keeping the board key out of the perk's namespace is what
+    stops a playtest note meaning either one."""
+    from backend import config
+
+    payload = game.generate_main(1, 13).payload
+    assert payload["hidden_deadline"] is True
+    assert "blackout" not in payload
+    assert "blackout" in config.PERKS          # still there, still a perk
+    assert config.PERKS["blackout"]["effect"] in config.SCREEN_EFFECTS
 
 
 def test_practice_keeps_its_clock(game):
     """Nobody is on a console in practice, so a blacked-out drill would just be
     a drill with no clock."""
     for seed in range(20):
-        assert game.generate_holding(seed).payload["blackout"] is False
+        assert game.generate_holding(seed).payload["hidden_deadline"] is False
     for mission in game.missions():
-        assert game.generate_mission(mission["id"]).payload["blackout"] is False
+        assert game.generate_mission(mission["id"]).payload["hidden_deadline"] is False
 
 
 def test_levels_outside_the_table_clamp(game):

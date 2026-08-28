@@ -100,7 +100,7 @@ class Player:
             return self.current_bonus
         return None
 
-    def board_is_blackout(self) -> bool:
+    def deadline_is_hidden(self) -> bool:
         """True when this board's deadline belongs to the team's Grandmaster
         rather than to the player working it (GAME_MODULE_SPEC §6).
 
@@ -111,7 +111,7 @@ class Player:
         return bool(
             puzzle is not None
             and self.puzzle_deadline is not None
-            and puzzle.payload.get("blackout")
+            and puzzle.payload.get("hidden_deadline")
         )
 
     def live_effects(self) -> dict[str, str]:
@@ -140,9 +140,9 @@ class Player:
         """PlayerPrivate: PlayerPublic plus the puzzle this player may see."""
         puzzle = self.current_puzzle()
         view = puzzle.public() if puzzle else None
-        # Blackout: the clock goes to the Grandmaster instead (see
+        # Dark fuse: the clock goes to the Grandmaster instead (see
         # `Team.public`), so this seat is sent neither copy of it.
-        mine = None if self.board_is_blackout() else self.puzzle_deadline
+        mine = None if self.deadline_is_hidden() else self.puzzle_deadline
         if view is not None and mine is not None:
             # Also inside the puzzle, because a renderer that draws a clock of
             # its own already looks there and takes no other argument. One
@@ -195,11 +195,11 @@ class Team:
         members = [players[player_id] for player_id in self.player_ids]
         roster = [member.public() for member in members]
         for member, view in zip(members, roster):
-            # The other half of the blackout rule: a board that withheld its
+            # The other half of the dark-fuse rule: a board that withheld its
             # deadline from the player sends it here, to the one seat that can
             # read it out. Null on every ordinary board — the player has it.
             view["board_deadline"] = (
-                member.puzzle_deadline if member.board_is_blackout() else None
+                member.puzzle_deadline if member.deadline_is_hidden() else None
             )
         if silenced:
             for view in roster:
