@@ -12,6 +12,7 @@
   var socket = null;
   var lastState = null;
   var mounted = null;      // { puzzleId, renderer }
+  var heldSubmit = null;   // an answer held back while frozen — see mountPuzzle
   var mountedDuel = null;  // { duelId, renderer, mountId }
   var duelTimerHandle = null;
   var timerHandle = null;
@@ -608,6 +609,7 @@
       startCountdown(me.timer_deadline, me.status);
     }
     renderFrozen(me.frozen_until);
+    flushHeldSubmit(me);
     renderScreenEffects(me.screen_effects);
     renderDuel(state, "duel-card", "duel-mount");
   }
@@ -696,16 +698,29 @@
 
   // Mount by game_id from window.RelayGames; unmount the old first.
   function mountPuzzle(puzzle) {
-    if (mounted && mounted.puzzleId === puzzle.id) return; // same instance
+    if (mounted && mounted.puzzleId === puzzle.id) {
+      // Same instance — but not necessarily the same *board*: a deadline can
+      // move under a live board (a Freeze pushes it out), and a renderer that
+      // draws its own clock has to be told. Optional, so a renderer without
+      // one is unaffected.
+      if (mounted.renderer.update) mounted.renderer.update(puzzle);
+      return;
+    }
     unmountPuzzle();
     var renderer = window.RelayGames[puzzle.game_id] || window.RelayGames.fallback;
     var api = {
       submit: function (answer) {
-        send({
+        var message = {
           type: "submit_answer",
           puzzle_id: puzzle.id,
           answer: String(answer),
-        });
+        };
+        // A freeze makes the server refuse submits, and some games — the bomb —
+        // submit exactly once, at the end. Sending it now would have the answer
+        // thrown away with no way to send it again, so hold it until the freeze
+        // lifts (`flushHeldSubmit`, on the next snapshot).
+        if (frozenNow()) { heldSubmit = message; return; }
+        send(message);
       },
       setReady: function () {},
     };
@@ -713,11 +728,31 @@
     mounted = { puzzleId: puzzle.id, renderer: renderer };
   }
 
+  function frozenNow() {
+    var until = lastState && lastState.me && lastState.me.frozen_until;
+    return !!until && parseDeadline(until) > Date.now();
+  }
+
+  // Send a held answer once the freeze lapses — but only while the board it
+  // answers is still the one being served. A board that has moved on (a
+  // Scramble, a lapsed deadline) makes it stale, and the server would refuse
+  // it anyway.
+  function flushHeldSubmit(me) {
+    if (!heldSubmit) return;
+    var puzzle = me && me.current_puzzle;
+    if (!puzzle || puzzle.id !== heldSubmit.puzzle_id) { heldSubmit = null; return; }
+    if (frozenNow()) return;
+    var message = heldSubmit;
+    heldSubmit = null;
+    send(message);
+  }
+
   function unmountPuzzle() {
     if (mounted) {
       mounted.renderer.unmount();
       mounted = null;
     }
+    heldSubmit = null;
     $("puzzle-mount").innerHTML = "";
   }
 

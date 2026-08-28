@@ -93,15 +93,19 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   every new game widens the library the Grandmaster picks from.
   **THREADLINE** (game 10, the Logician's second game) shipped: backend module,
   renderer, Python/JS parity fixture, docs. That completes the expansion spec's
-  **Update (V10):** BOMB DEFUSE has landed and the engine now knows what a timed
-  game is — `payload["time_limit_seconds"]` is exactly the capability flag this
-  note asked for, and `_apply_attack` could read it. Neither perk's behaviour
-  *changed* (the bomb's client fuse already burned through a Freeze, and
-  Scramble already handed over a fresh one), but both are now measurable, and
-  both are asserted in `tests/test_puzzle_deadline.py` as deliberate: Scramble
-  gives a fresh board a fresh deadline, and a Freeze does not pause one. Making
-  `_apply_attack` skip or re-price a timed victim is still unbuilt, and is the
-  natural next step here. · [C]
+  **Done (V10).** `payload["time_limit_seconds"]` turned out to be exactly the
+  capability flag this note asked for, and `_apply_attack` now reads it. Rather
+  than skipping a timed victim — which would have made the Defuser, a *required*
+  role, permanently immune to two of the five attacks — both perks were made to
+  land properly: **Freeze** pushes the board deadline out by however long it
+  locks the player out (the overlay covers the whole screen, so it was costing
+  the board rather than the ten seconds it is priced at), and **Scramble**
+  serves its fresh board on the *old* board's deadline (a fresh clock rescued a
+  victim who was eighty seconds into a ninety-second board — the attack was
+  measurably helping). Screen effects were and remain safe by construction.
+  The shell also holds a submitted answer back while its player is frozen
+  instead of letting the server discard it, which a game that submits once at
+  the end — the bomb — otherwise loses outright. · [C]
 
   §18 first wave (MIRROR RUN, OVERPRINT, STACKDROP, LANE SHIFT, SHADOW CAST,
   THREADLINE); GRAVITY SHIFT, PRESSURE VALVES, SIGNAL BUFFER, TETHER, FOLDLINE

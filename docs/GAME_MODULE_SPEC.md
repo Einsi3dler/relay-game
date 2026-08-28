@@ -215,15 +215,27 @@ the engine gives that board a deadline of its own:
   and `me.current_puzzle.deadline` for a renderer that draws a clock of its own
   and takes no other argument.
 
-Two things to know before you opt in:
+Three things to know before you opt in:
 
 - **The published deadline is not the one that fires.** The engine kills the
   board `config.PUZZLE_GRACE_SECONDS` after the deadline it told the player
   about, so an answer already in flight when the clock runs out still counts.
   Draw the published one; the grace is not the player's time.
-- **A freeze does not pause it.** Your client's own clock does not know what a
-  freeze is, and a server deadline that paused would put the two out of step.
-  Size the limit so a few seconds of sabotage is not fatal.
+- **The attack perks know about you.** The enforced attacks were written when
+  no game had a clock, and two of them read wrong on a timed board, so both are
+  special-cased:
+  - **Freeze** pushes your deadline out by exactly as long as it locks the
+    player out. The frozen overlay covers the whole screen, so a freeze that
+    let the clock run would cost the board rather than the ten seconds it is
+    priced at. **Your renderer must follow the deadline when it moves** — see
+    `update` in §10.
+  - **Scramble** hands over a fresh board on the *old* board's deadline. A
+    fresh clock would make the attack a gift: a victim eighty seconds into a
+    ninety-second board would be rescued by it.
+- **A board deadline is not a fail state the engine understands.** When it
+  lapses the player simply gets another board. If your game wants a losing
+  screen first, draw it and submit something `check` rejects, as BOMB DEFUSE
+  does — the engine answers a wrong board and a lapsed one identically.
 
 **Bonus boards get no deadline of their own** — they already run against the
 remaining wait deadline, and two clocks on one bar is one too many.
@@ -351,6 +363,21 @@ three things versus a plain text puzzle:
    registers itself so the play view can mount it by `game_id`.
 
 ### Renderer interface
+
+`mount(host, puzzle, api)` and `unmount()` are required. `update(puzzle)` is
+**optional** and is called when the *same* puzzle id arrives again with
+something changed — today that is only a board deadline the server has moved
+(see `time_limit_seconds` in §6). A renderer that draws no clock of its own can
+leave it out. Snapshots arrive constantly and mostly carry no change at all, so
+`update` must be idempotent: shift by how much a value *grew*, never re-apply a
+fixed amount.
+
+The shell also **holds a submitted answer back while the player is frozen**
+rather than letting the server refuse it, and sends it when the freeze lifts.
+That matters for a game that submits exactly once at the end: without it a
+completed board is thrown away and the renderer, which has already drawn its
+win screen, never finds out.
+
 
 ```js
 // frontend/games/<id>.js  — one per action game, written by the game owner.

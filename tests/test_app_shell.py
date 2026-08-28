@@ -342,16 +342,21 @@ function boot(scenario) {
   // A stub game renderer: the shell only needs *a* renderer to mount, and the
   // real ones have their own harnesses.
   const mounts = [];
+  const api = { submit: null };
   context.window.RelayGames = {
     fallback: {
-      mount(host, puzzle) { mounts.push(puzzle.game_id); host.appendChild(element("div")); },
-      unmount() {},
+      mount(host, puzzle, given) {
+        mounts.push(puzzle.game_id);
+        api.submit = given.submit;
+        host.appendChild(element("div"));
+      },
+      unmount() { api.submit = null; },
     },
   };
   context.window.RelayDuels = { fallback: { mount() {}, update() {}, unmount() {} } };
   vm.runInContext(APP_SRC, context);
 
-  return { byId, sockets, windowListeners, mounts, document };
+  return { byId, sockets, windowListeners, mounts, document, api };
 }
 
 // --- driving one shell ---------------------------------------------------
@@ -453,6 +458,8 @@ function probe(shell) {
     },
     timers: clock.timers.size,
     mounted_games: shell.mounts.slice(),
+    sent_submits: (shell.sockets[0].sent || [])
+      .filter((m) => m.type === "submit_answer").length,
   };
 }
 
@@ -476,6 +483,9 @@ PLAN.scenarios.forEach((scenario) => {
       fire(byText(shell.byId[action.in], action.text), "click");
     } else if (action.do === "advance") {
       advance(action.ms);
+    } else if (action.do === "submit") {
+      if (!shell.api.submit) throw new Error(scenario.name + ": nothing mounted");
+      shell.api.submit(action.answer);
     } else if (action.do === "stamp") {
       // The page a console is turned to lives in a module variable, so it
       // survives a rebuild. Marking the mounted surface is what makes the
@@ -868,6 +878,40 @@ def shell() -> dict:
         ],
     })
 
+    # --- a frozen player's answer is held, not lost ------------------------
+    # Some games submit exactly once, at the end (the bomb presses OK and that
+    # is the whole transcript). Sending that into a freeze has the server throw
+    # it away with no way to send it again.
+    frozen = _engine()
+    match, seats, leaders = _ready_lobby(frozen)
+    assert frozen.start_match(match, now=NOW).changed
+    solver = seats["alpha"][1]
+    for other in seats["alpha"]:
+        if other is not solver:
+            board = other.current_main
+            frozen.submit_answer(match, other.id, board.id, board.answer, now=NOW)
+    match.teams["bravo"].currency = 99
+    assert frozen.buy_perk(match, leaders["bravo"].id, "freeze", now=NOW).ok
+    assert solver.frozen_until is not None, "the freeze should land on the solver"
+    freeze_seconds = config.PERKS["freeze"]["seconds"]
+    frozen_snapshot = match.public(solver.id)
+    solver.frozen_until = None
+    thawed_snapshot = match.public(solver.id)
+    scenarios.append({
+        "name": "held_submit",
+        "config": _config_body(frozen),
+        "session": {"matchId": match.id, "playerId": solver.id},
+        "snapshots": [frozen_snapshot, thawed_snapshot],
+        "actions": [
+            {"do": "deliver", "snapshot": 0},
+            {"do": "submit", "answer": "the-one-and-only-answer"},
+            {"do": "record", "as": "while_frozen"},
+            {"do": "advance", "ms": freeze_seconds * 1000 + 500},
+            {"do": "deliver", "snapshot": 1},
+            {"do": "record", "as": "thawed"},
+        ],
+    })
+
     plan = {"now_ms": NOW_MS, "scenarios": scenarios}
     with tempfile.TemporaryDirectory() as tmp:
         harness = Path(tmp) / "harness.js"
@@ -1165,6 +1209,19 @@ def test_a_lapsed_board_deadline_also_hands_over_to_the_server(shell):
     lapsed = shell["board_deadline"]["records"]["lapsed"]["countdown"]
     assert lapsed["label"] == "⏳ Time's up — waiting for the server…"
     assert lapsed["fill"] == "0%"
+
+
+def test_an_answer_submitted_while_frozen_is_held_not_lost(shell):
+    """A freeze makes the server refuse submits. A game that submits once, at
+    the end, would have its whole answer thrown away — the bomb draws BOMB
+    DEFUSED and then never hears back."""
+    sent = shell["held_submit"]["sent"]
+    submits = [m for m in sent if m["type"] == "submit_answer"]
+    # Nothing went out while the freeze was up...
+    assert shell["held_submit"]["records"]["while_frozen"]["sent_submits"] == 0
+    # ...and exactly one went out after it lifted, unchanged.
+    assert len(submits) == 1
+    assert submits[0]["answer"] == "the-one-and-only-answer"
 
 
 def test_the_bar_goes_away_again_and_stops_ticking(shell):

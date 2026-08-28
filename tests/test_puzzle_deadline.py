@@ -281,40 +281,96 @@ def test_the_grandmaster_handoff_moves_the_deadline_with_the_seat(engine):
 # --- the interaction surface ----------------------------------------------
 
 
-def test_scramble_hands_over_a_fresh_board_and_a_fresh_deadline(engine):
-    """A Scramble that left the old deadline running would be a much harsher
-    perk than the one in the catalogue."""
-    match, members, leaders = match_of(engine)
-    victim = members["alpha"][0]
-    bravo = match.teams["bravo"]
-    bravo.currency = 99
-    # Only the capped seat can be picked: the other is not solving.
-    assert solve(engine, match, members["alpha"][1]).correct is True
-    before = victim.current_main.id
+def only_solver(engine, match, members) -> object:
+    """Clear every alpha seat but the capped one, so an attack can only pick it."""
+    for player in members["alpha"][1:]:
+        assert solve(engine, match, player).correct is True
+    return members["alpha"][0]
 
-    later = NOW + timedelta(seconds=30)
-    result = engine.buy_perk(match, leaders["bravo"].id, "scramble", now=later)
+
+def test_scramble_takes_your_work_but_not_your_clock(engine):
+    """The attack that used to *help* its victim. A fresh board with a fresh
+    deadline hands a player 80 seconds back when they were 80 seconds into a
+    90-second board — the enemy paying 2 coins to rescue them. The new board
+    inherits the clock the old one was running against, which is exactly what
+    Scramble costs on an untimed game: your work, and nothing else."""
+    match, members, leaders = match_of(engine)
+    victim = only_solver(engine, match, members)
+    match.teams["bravo"].currency = 99
+    before_board = victim.current_main.id
+    before_deadline = victim.puzzle_deadline
+
+    late = NOW + timedelta(seconds=LIMIT - 10)      # ten seconds from the end
+    result = engine.buy_perk(match, leaders["bravo"].id, "scramble", now=late)
     assert result.ok
-    assert victim.current_main.id != before
-    assert deadline_of(victim) == later + timedelta(seconds=LIMIT)
+    assert victim.current_main.id != before_board   # the work is gone...
+    assert victim.puzzle_deadline == before_deadline  # ...the clock is not
+    # The backstop still points at the same instant.
+    request = fuse_requests(result)[0]
+    assert request.scope_id == _fuse_scope(victim.id)
+    assert datetime.fromisoformat(request.deadline) == \
+        deadline_of(victim) + timedelta(seconds=config.PUZZLE_GRACE_SECONDS)
+
+
+def test_a_freeze_gives_back_the_time_it_locks_away(engine):
+    """The freeze overlay covers the whole screen, so a frozen player cannot
+    touch their board at all. On a timed game that made a 3-coin annoyance into
+    a board-killer. The deadline now moves with the freeze: it costs the player
+    their input for those seconds, not the board."""
+    match, members, leaders = match_of(engine)
+    victim = only_solver(engine, match, members)
+    match.teams["bravo"].currency = 99
+    before = deadline_of(victim)
+
+    later = NOW + timedelta(seconds=10)
+    result = engine.buy_perk(match, leaders["bravo"].id, "freeze", now=later)
+    assert result.ok
+    seconds = config.PERKS["freeze"]["seconds"]
+    assert victim.frozen_until == (later + timedelta(seconds=seconds)).isoformat()
+    assert deadline_of(victim) == before + timedelta(seconds=seconds)
     assert fuse_requests(result)[0].scope_id == _fuse_scope(victim.id)
 
 
-def test_a_freeze_does_not_pause_the_board_deadline(engine):
-    """Deliberate. The client's own clock keeps burning through a freeze — the
-    bomb's fuse does not know what a freeze is — so a server deadline that
-    paused would put the two out of step, which is worse than the perk being
-    slightly meaner. A freeze is seconds against a board budget of minutes."""
+def test_stacking_two_freezes_never_pays_out_more_than_it_locks_away(engine):
+    """`_extend_deadline` stacks a second freeze *forward* rather than
+    restarting it, so the board deadline has to move by however much the frozen
+    window actually grew — not by the perk's full duration each time, which
+    would turn a double freeze into free time."""
     match, members, leaders = match_of(engine)
-    victim = members["alpha"][0]
+    victim = only_solver(engine, match, members)
     match.teams["bravo"].currency = 99
-    assert solve(engine, match, members["alpha"][1]).correct is True
-    armed = victim.puzzle_deadline
+    seconds = config.PERKS["freeze"]["seconds"]
+    before = deadline_of(victim)
 
-    later = NOW + timedelta(seconds=10)
-    assert engine.buy_perk(match, leaders["bravo"].id, "freeze", now=later).ok
-    assert victim.frozen_until is not None
-    assert victim.puzzle_deadline == armed
+    assert engine.buy_perk(match, leaders["bravo"].id, "freeze", now=NOW).ok
+    # Half way through the first one: the second only adds the overhang.
+    midway = NOW + timedelta(seconds=seconds / 2)
+    assert engine.buy_perk(match, leaders["bravo"].id, "freeze", now=midway).ok
+
+    frozen_for = (
+        datetime.fromisoformat(victim.frozen_until) - NOW
+    ).total_seconds()
+    gained = (deadline_of(victim) - before).total_seconds()
+    assert gained == frozen_for == seconds * 1.5
+
+
+def test_an_untimed_board_is_untouched_by_either(engine):
+    """Both rules key off the board's own deadline, so a game that asks for
+    none plays exactly as it did before any of this landed."""
+    match, members, leaders = match_of(engine)
+    loose = members["alpha"][1]
+    match.teams["bravo"].currency = 99
+    for player in match.players.values():
+        if player.team_id == "alpha" and player is not loose and not player.is_leader:
+            assert solve(engine, match, player).correct is True
+    board = loose.current_main.id
+
+    assert engine.buy_perk(match, leaders["bravo"].id, "freeze", now=NOW).ok
+    assert loose.frozen_until is not None
+    assert loose.puzzle_deadline is None
+    assert engine.buy_perk(match, leaders["bravo"].id, "scramble", now=NOW).ok
+    assert loose.current_main.id != board       # still a real setback
+    assert loose.puzzle_deadline is None
 
 
 def test_a_bonus_board_runs_against_the_wait_deadline_not_a_board_one(engine):

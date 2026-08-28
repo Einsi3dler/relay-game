@@ -1029,6 +1029,7 @@
       // No clock at all, rather than one that is merely hidden: a fuse running
       // where nobody can see it would still be the client deciding when the
       // board ends, and on this board that is the server's call.
+      state.boardEnd = null;
       if (state.timerText) state.timerText.textContent = timerReadout();
       return;
     }
@@ -1041,6 +1042,7 @@
     // bank somehow overran it.
     var bankEnd = Date.now() + armedBank().fuse_seconds * 1000;
     var boardEnd = boardDeadline();
+    state.boardEnd = boardEnd;      // remembered so `update` can see it move
     state.deadline = boardEnd === null ? bankEnd : Math.min(bankEnd, boardEnd);
     state.remaining = Math.max(
       0, Math.ceil((state.deadline - Date.now()) / 1000)
@@ -1085,11 +1087,33 @@
   }
 
   window.RelayGames = window.RelayGames || {};
+  // The shell calls this when the same board arrives with something changed.
+  // Only one thing can: the server's deadline, pushed out by a Freeze. Re-anchor
+  // the fuse to it rather than letting the face detonate on the old instant.
+  function updateBoard(puzzle) {
+    if (!state || state.status !== "active" || !puzzle) return;
+    state.puzzle = puzzle;
+    if (isBlackout() || !state.clock) return;    // no clock of ours to move
+    var boardEnd = boardDeadline();
+    if (boardEnd === null || state.boardEnd === null) return;
+    var gained = boardEnd - state.boardEnd;
+    if (gained <= 0) return;                     // it only ever moves outward
+    // Shift by the *growth*, not to the new instant: the bank's own fuse may
+    // be what this face is counting, and the player was locked out of the bank
+    // for exactly as long.
+    state.boardEnd = boardEnd;
+    state.deadline += gained;
+    state.remaining = Math.max(
+      0, Math.ceil((state.deadline - Date.now()) / 1000)
+    );
+    if (state.timerText) state.timerText.textContent = timerReadout();
+  }
+
   window.RelayGames["bomb_defuse"] = {
     mount: function (container, puzzle, api) {
       state = {
         puzzle: puzzle, api: api, status: "active", view: "bomb",
-        manualPage: "home", openId: null, moves: [],
+        manualPage: "home", openId: null, moves: [], boardEnd: null,
         result: validate(puzzle.payload, [], true),
         bank: 0,
         remaining: puzzle.payload.banks[0].fuse_seconds,
@@ -1130,6 +1154,7 @@
       rescale();
     },
 
+    update: updateBoard,
     unmount: function () {
       if (!state) return;                 // idempotent
       stopClocks();

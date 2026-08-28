@@ -997,14 +997,27 @@ class RelayEngine:
                 target.screen_effects.get(effect), moment, perk["seconds"]
             )
         elif perk_id == "freeze" and target is not None:
+            was = _parse_iso(target.frozen_until) if target.frozen_until else None
             target.frozen_until = _extend_deadline(
                 target.frozen_until, moment, perk["seconds"]
             )
+            if target.puzzle_deadline is not None:
+                # A timed board must not burn down while its player is shut out
+                # of it: the freeze costs them the input, not the board. Pushed
+                # by however much the frozen window actually *grew*, so stacking
+                # two freezes never pays out more time than it locks away.
+                start = was if was is not None and was > moment else moment
+                added = (_parse_iso(target.frozen_until) - start).total_seconds()
+                target.puzzle_deadline = (
+                    _parse_iso(target.puzzle_deadline) + timedelta(seconds=added)
+                ).isoformat()
+                self._schedule_board_deadline(match, target, result)
         elif perk_id == "scramble" and target is not None:
             # A solving player holds no wait timer, so there is nothing to
-            # cancel there — but the board they were on had its own
-            # deadline, and the fresh board gets a fresh one.
-            self._serve_main(match, target, result, now)
+            # cancel there. The fresh board inherits the *old* board's deadline:
+            # a Scramble takes your work, and on a timed game a fresh clock
+            # would make the attack a gift late in a board.
+            self._serve_main(match, target, result, now, keep_deadline=True)
         elif perk_id == "clock_burn" and target is not None:
             deadline = _parse_iso(target.timer_deadline) - timedelta(
                 seconds=perk["seconds"]
@@ -1091,12 +1104,17 @@ class RelayEngine:
         player: Player,
         result: EngineResult,
         now: datetime | None = None,
+        keep_deadline: bool = False,
     ) -> None:
         """Fresh main instance of the player's own game at the team's level.
 
         The single funnel for a solving board — a wrong answer, a Scramble, a
         reconnect, a level advance and a leader handoff all come through here —
         which is why the board deadline is armed here and nowhere else.
+
+        `keep_deadline` hands the fresh board the clock the old one was running
+        against, rather than a new one. Only a Scramble uses it: an attack that
+        restarted the clock would *help* its victim on a timed game.
         """
         team = match.teams[player.team_id]
         module = self.registry.by_id(player.assigned_game)
@@ -1107,7 +1125,36 @@ class RelayEngine:
         player.choice_pending = False
         player.timer_kind = None
         player.timer_deadline = None
-        self._arm_board_deadline(match, player, result, now)
+        self._arm_board_deadline(match, player, result, now, keep=keep_deadline)
+
+    def _board_limit(self, player: Player) -> float | None:
+        """The board's own time limit in seconds, or None if it asks for none."""
+        puzzle = player.current_main
+        if puzzle is None:
+            return None
+        raw = puzzle.payload.get("time_limit_seconds")
+        return float(raw) if isinstance(raw, (int, float)) and raw > 0 else None
+
+    def _schedule_board_deadline(
+        self, match: Match, player: Player, result: EngineResult
+    ) -> None:
+        """(Re)schedule the backstop for whatever `puzzle_deadline` now says.
+
+        Separate from arming it because a deadline can *move* after it is set —
+        a Freeze pushes it out — and the timer has to follow.
+        """
+        grace = match.config_snapshot.get(
+            "puzzle_grace_seconds", config.PUZZLE_GRACE_SECONDS
+        )
+        result.schedule.append(
+            TimerRequest(
+                scope_id=_fuse_scope(player.id),
+                kind="puzzle",
+                deadline=(
+                    _parse_iso(player.puzzle_deadline) + timedelta(seconds=grace)
+                ).isoformat(),
+            )
+        )
 
     def _arm_board_deadline(
         self,
@@ -1115,6 +1162,7 @@ class RelayEngine:
         player: Player,
         result: EngineResult,
         now: datetime | None,
+        keep: bool = False,
     ) -> None:
         """Give the freshly served board its deadline, if its game asks for one.
 
@@ -1128,30 +1176,16 @@ class RelayEngine:
         clock runs out is still counted — slack the player never sees and an
         honest one never needs.
         """
-        puzzle = player.current_main
-        limit = None
-        if puzzle is not None:
-            raw = puzzle.payload.get("time_limit_seconds")
-            if isinstance(raw, (int, float)) and raw > 0:
-                limit = float(raw)
+        limit = self._board_limit(player)
         if limit is None:
             player.puzzle_deadline = None
             result.cancel.append(_fuse_scope(player.id))
             return
-        moment = now or utc_now()
-        player.puzzle_deadline = (moment + timedelta(seconds=limit)).isoformat()
-        grace = match.config_snapshot.get(
-            "puzzle_grace_seconds", config.PUZZLE_GRACE_SECONDS
-        )
-        result.schedule.append(
-            TimerRequest(
-                scope_id=_fuse_scope(player.id),
-                kind="puzzle",
-                deadline=(
-                    moment + timedelta(seconds=limit + grace)
-                ).isoformat(),
-            )
-        )
+        if not (keep and player.puzzle_deadline is not None):
+            player.puzzle_deadline = (
+                (now or utc_now()) + timedelta(seconds=limit)
+            ).isoformat()
+        self._schedule_board_deadline(match, player, result)
 
     def _clear_board_deadline(self, player: Player, result: EngineResult) -> None:
         """The player is off this board: the backstop goes with it."""

@@ -525,6 +525,45 @@ report.fatal = fatal;
   game.unmount();
 }
 
+// 8c. A Freeze pushes the server's deadline out under a live board. The shell
+// hands the same puzzle back with the new instant; the face has to follow it,
+// or it detonates on a deadline the server has already moved.
+{
+  const board = JSON.parse(JSON.stringify(puzzles.served));
+  const fuse = board.payload.banks[0].fuse_seconds;
+  const first = clock.now + fuse * 1000;
+  board.deadline = new Date(first).toISOString().replace("Z", "+00:00");
+  const { container } = mount(board);
+  const before = texts(container)[0];
+  advance(4000);
+  const burned = texts(container)[0];
+
+  const frozen = JSON.parse(JSON.stringify(board));
+  frozen.deadline = new Date(first + 10000).toISOString().replace("Z", "+00:00");
+  game.update(frozen);
+  report.frozenBoard = {
+    at_mount: before,
+    after4s: burned,
+    after_freeze: texts(container)[0],
+  };
+  advance(1000);
+  report.frozenBoard.still_ticking = texts(container)[0];
+  // ...and the same update arriving twice does not pay out twice.
+  game.update(frozen);
+  report.frozenBoard.repeated = texts(container)[0];
+  game.unmount();
+}
+
+// 8d. A blackout board keeps no clock, so an update has nothing to move.
+{
+  const { container } = mount(puzzles.full);
+  const moved = JSON.parse(JSON.stringify(puzzles.full));
+  moved.deadline = new Date(clock.now + 999000).toISOString().replace("Z", "+00:00");
+  game.update(moved);
+  report.frozenBlackout = { readout: texts(container)[0] };
+  game.unmount();
+}
+
 // 9. Hit testing. Firing a handler on a node found by label proves the handler
 // works; it does not prove a click could ever reach it. This walks the real
 // geometry and paint order and asks the question a browser asks — at the centre
@@ -947,6 +986,29 @@ def test_a_board_with_no_server_deadline_keeps_its_own_clock(report):
     the fuse works exactly as it always did."""
     served = report["served"]
     assert served["without_deadline"] == str(served["fuse"])
+
+
+def test_the_face_follows_a_deadline_the_server_moves(report):
+    """A Freeze pushes the board deadline out — it costs the player their input
+    for those seconds, not the board. The face has to follow, or it detonates
+    on an instant the server has already moved past."""
+    moved = report["frozenBoard"]
+    assert int(moved["after4s"]) == int(moved["at_mount"]) - 4
+    # Ten seconds handed back, all at once.
+    assert int(moved["after_freeze"]) == int(moved["after4s"]) + 10
+    assert int(moved["still_ticking"]) == int(moved["after_freeze"]) - 1
+
+
+def test_the_same_update_twice_pays_out_once(report):
+    """Snapshots arrive constantly and carry the same deadline every time. The
+    face shifts by how much the deadline *grew*, so a repeat is a no-op."""
+    moved = report["frozenBoard"]
+    assert moved["repeated"] == moved["still_ticking"]
+
+
+def test_an_update_moves_nothing_on_a_blackout_board(report):
+    """There is no clock here to move: the server owns it outright."""
+    assert report["frozenBlackout"]["readout"] == "--"
 
 
 # --- lifecycle ----------------------------------------------------------

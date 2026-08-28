@@ -651,6 +651,16 @@ somewhere, and every Grandmaster has to find their way around the console before
 it counts. The hook is duck-typed (`missions()` / `generate_mission()`), so no
 other game grows a method it has no use for.
 
+**BOMB DEFUSE and the attack perks.** It is the only game with a clock and a
+fail state, and the enforced attacks were written on the assumption that no
+game had either. Both of the ones that read wrong on it are special-cased in
+`_apply_attack` rather than aimed elsewhere — see
+[GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §6. A **Freeze** pushes the board
+deadline out by as long as it locks the Defuser out, so it costs them their
+hands and not their bomb; a **Scramble** takes their work but leaves the clock
+where it was, so it can no longer hand a Defuser eighty seconds back. Screen
+effects never touch a clock and needed nothing.
+
 **BOMB DEFUSE anti-cheat caveat (accepted, and larger than most).** This is a
 lookup game, so its manual is public by definition — the eight mazes, the eight
 number grids and the colour mapping ship in the renderer, and the payload names
