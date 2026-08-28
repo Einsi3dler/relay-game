@@ -190,10 +190,52 @@ game. Use these optional `payload` keys and it "just works":
 | `options: [str, ...]` | Renders `prompt` + one button per option (multiple-choice). |
 | `hint: str` | Renders a small hint line under the prompt. |
 | `sequence: [...]` / `values: [...]` | Passed through for a game that adds richer rendering later. Safe to include. |
+| `time_limit_seconds: int` | **A hard, server-enforced deadline for this board.** See below. |
 
 Keep everything JSON-serialisable (str/int/float/bool/list/dict). **Never** put the
 answer in the payload. If your game needs custom rendering, coordinate with the
 Frontend owner — but a text or multiple-choice puzzle needs **zero** frontend work.
+
+### `time_limit_seconds` — a board the server will take away
+
+By default a main board has no hard limit: the only pressure is the race
+([GAMES_SPEC.md](GAMES_SPEC.md) §0.4). Emit `payload["time_limit_seconds"]` and
+the engine gives that board a deadline of its own:
+
+- It is armed wherever a main board is served — a wrong answer, a Scramble, a
+  reconnect, a level advance, a Grandmaster handoff — and cancelled the moment
+  the player stops solving it.
+- It rides its own timer scope (`fuse:<player_id>`), so it runs *alongside* a
+  wait timer rather than displacing one.
+- When it passes, the engine serves a **fresh board at the same level**, exactly
+  as a wrong answer does. Losing the board is the whole penalty: no currency
+  moves, no cleared status is touched, the level does not change.
+- The deadline reaches the player twice from one source: `me.puzzle_deadline`
+  for the shell, which draws it on the timer bar a solving player leaves free,
+  and `me.current_puzzle.deadline` for a renderer that draws a clock of its own
+  and takes no other argument.
+
+Two things to know before you opt in:
+
+- **The published deadline is not the one that fires.** The engine kills the
+  board `config.PUZZLE_GRACE_SECONDS` after the deadline it told the player
+  about, so an answer already in flight when the clock runs out still counts.
+  Draw the published one; the grace is not the player's time.
+- **A freeze does not pause it.** Your client's own clock does not know what a
+  freeze is, and a server deadline that paused would put the two out of step.
+  Size the limit so a few seconds of sabotage is not fatal.
+
+**Bonus boards get no deadline of their own** — they already run against the
+remaining wait deadline, and two clocks on one bar is one too many.
+
+BOMB DEFUSE is the only game that opts in today, and its entry is honest about
+what it buys: a bank arming is a client-side event, so the server cannot own a
+*per-bank* deadline without the client reporting one, which is the
+client-claimed time this repo refuses to trust. What it owns is the **whole
+board's budget**, the sum of the bank fuses. Levels 1–10 are single-bank, so
+there the budget *is* the fuse, exactly; on the two-bank bonus tiers it is the
+sum, and a player could spend one bank's slack on the next. The per-bank
+countdown on the bomb's face is still the client's.
 
 ## 7. Copy-paste template
 

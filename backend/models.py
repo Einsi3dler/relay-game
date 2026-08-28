@@ -79,6 +79,10 @@ class Player:
     choice_pending: bool = False  # cleared and still owes a wait-or-bonus choice
     timer_deadline: str | None = None  # UTC ISO; drives the client countdown
     timer_kind: str | None = None  # "wait" | None
+    # UTC ISO; set only while solving a board whose game caps it
+    # (`payload["time_limit_seconds"]`). Its own deadline, on its own timer
+    # scope, so it never displaces the wait countdown.
+    puzzle_deadline: str | None = None
     frozen_until: str | None = None  # UTC ISO; submits rejected until then
     # Cosmetic sabotage: config.SCREEN_EFFECTS id -> UTC ISO deadline. Bounded
     # by the catalogue (an id overwrites its own entry) and never needs a timer
@@ -121,11 +125,18 @@ class Player:
     def private(self) -> dict[str, Any]:
         """PlayerPrivate: PlayerPublic plus the puzzle this player may see."""
         puzzle = self.current_puzzle()
+        view = puzzle.public() if puzzle else None
+        if view is not None and self.puzzle_deadline is not None:
+            # Also inside the puzzle, because a renderer that draws a clock of
+            # its own already looks there and takes no other argument. One
+            # source, two placements — they cannot disagree.
+            view["deadline"] = self.puzzle_deadline
         return {
             **self.public(),
-            "current_puzzle": puzzle.public() if puzzle else None,
+            "current_puzzle": view,
             "timer_kind": self.timer_kind,
             "timer_deadline": self.timer_deadline,
+            "puzzle_deadline": self.puzzle_deadline,
             "choice_pending": self.choice_pending,
             "frozen_until": self.frozen_until,
             # Only the victim is told they're being sabotaged: fog of war means

@@ -871,6 +871,13 @@ class BombDefuseGame:
             "withheld_pages": (
                 _withheld_pages(seed, level, banks) if kind == "main" else []
             ),
+            # The one honest thing the server can hold (docs/GAME_MODULE_SPEC.md).
+            # A bank arming is a client-side event, so a per-bank deadline would
+            # need the client to report it — client-claimed time, which this repo
+            # refuses to trust. The sum of the fuses is the whole board's budget,
+            # and no client that honours its own fuses can ever reach it. The
+            # per-bank countdown on the face stays exactly as it was.
+            "time_limit_seconds": sum(bank["fuse_seconds"] for bank in banks),
         }
 
         moves = _reference_moves(payload)
@@ -938,6 +945,7 @@ class BombDefuseGame:
             "bays": BAY_COUNT,
             "banks": banks,
             "withheld_pages": [],   # a set piece you cannot look up is not one
+            "time_limit_seconds": sum(b["fuse_seconds"] for b in banks),
         }
         moves = _reference_moves(payload)
         if not validate(payload, moves)["ok"]:

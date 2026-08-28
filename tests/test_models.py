@@ -209,8 +209,8 @@ def test_player_private_adds_puzzle_timer_choice_freeze():
     out = match.public("p_bob")["me"]
     assert set(out) == {"id", "name", "team_id", "status", "green", "connected",
                         "is_leader", "role", "assigned_game", "current_puzzle",
-                        "timer_kind", "timer_deadline", "choice_pending",
-                        "frozen_until", "screen_effects"}
+                        "timer_kind", "timer_deadline", "puzzle_deadline",
+                        "choice_pending", "frozen_until", "screen_effects"}
     assert out["current_puzzle"]["game_id"] == "sweep"  # the bonus puzzle
     assert out["timer_kind"] == "wait"
     assert match.public("p_cara")["me"]["choice_pending"] is True

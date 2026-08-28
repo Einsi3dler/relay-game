@@ -25,6 +25,8 @@ from backend.games.game11_bomb_defuse import (
     BombDefuseGame,
 )
 
+SERVED_AGO_MS = 12_000   # the gap between the server serving and this mount
+
 FRONTEND = Path(__file__).parents[2] / "frontend" / "games"
 RENDERER = FRONTEND / "bomb_defuse.js"
 MANUAL = FRONTEND / "bomb_manual.js"
@@ -102,7 +104,7 @@ const context = {
     },
   },
   document: { createElement: element },
-  Date: { now: () => clock.now },
+  Date: { now: () => clock.now, parse: Date.parse },
   console,
 };
 vm.createContext(context);
@@ -441,6 +443,40 @@ report.fatal = fatal;
   };
 }
 
+// 8b. The server's board deadline. On a single-bank board it *is* the fuse,
+// so the face counts the server's clock rather than one it started itself.
+{
+  const single = JSON.parse(JSON.stringify(puzzles.served));
+  const fuse = single.payload.banks[0].fuse_seconds;
+  const agoMs = single.__servedAgo;
+  // Built against the harness clock *now*, not against the clock's starting
+  // value: earlier scenarios have moved it, and a deadline baked in Python
+  // would already be in the past by the time this runs.
+  single.deadline = new Date(
+    clock.now - agoMs + fuse * 1000
+  ).toISOString().replace("Z", "+00:00");     // as Python emits it
+
+  const { container } = mount(single);
+  report.served = {
+    fuse: fuse,
+    // The board was served `agoMs` before this mount, so an unanchored face
+    // reads the whole fuse and an anchored one reads that much less.
+    served_ago_s: agoMs / 1000,
+    at_mount: texts(container)[0],
+  };
+  advance(5000);
+  report.served.after5s = texts(container)[0];
+  game.unmount();
+
+  // Same board, no deadline: the face falls back to its own clock, which is
+  // what a practice board does.
+  const loose = JSON.parse(JSON.stringify(single));
+  delete loose.deadline;
+  const second = mount(loose);
+  report.served.without_deadline = texts(second.container)[0];
+  game.unmount();
+}
+
 // 9. Hit testing. Firing a handler on a node found by label proves the handler
 // works; it does not prove a click could ever reach it. This walks the real
 // geometry and paint order and asks the question a browser asks — at the centre
@@ -576,6 +612,15 @@ def report() -> dict:
     simon, _ = board(game, 1, 1, "simon")
     mini, mini_puzzle = board(game, 1, 1, "mini_button")
 
+    # A single-bank board as the engine hands it over: the deadline the server
+    # published, stamped into the puzzle view exactly as `Player.private` does,
+    # for a board served SERVED_AGO ago.
+    served, _ = board(game, 3, 10)
+    assert len(served["payload"]["banks"]) == 1, "levels 1-10 are single-bank"
+    assert served["payload"]["time_limit_seconds"] == \
+        served["payload"]["banks"][0]["fuse_seconds"]
+    served["__servedAgo"] = SERVED_AGO_MS   # the harness dates it from this
+
     # Which way is a wall from the maze bay's start cell?
     from backend.games.game11_bomb_defuse import MAZE_LAYOUTS, _wall_between
     module = maze["payload"]["banks"][0]["modules"][0]
@@ -590,9 +635,10 @@ def report() -> dict:
         harness = Path(tmp) / "harness.js"
         harness.write_text(HARNESS)
         puzzles = Path(tmp) / "puzzles.json"
-        puzzles.write_text(json.dumps(
-            {"full": full, "maze": maze, "simon": simon, "mini": mini}
-        ))
+        puzzles.write_text(json.dumps({
+            "full": full, "maze": maze, "simon": simon, "mini": mini,
+            "served": served,
+        }))
         finished = subprocess.run(
             ["node", str(harness), str(RENDERER), str(puzzles), str(MANUAL)],
             capture_output=True, text=True, timeout=90,
@@ -787,6 +833,27 @@ def test_the_pages_the_board_did_leave_still_work(report):
     assert len(withheld["still_navigable"]) == 3
     assert all(withheld["still_navigable"])
     assert "Exit" in withheld["reachable"]
+
+
+# --- the server's board deadline ----------------------------------------
+
+
+def test_the_face_counts_the_servers_clock_not_its_own(report):
+    """Levels 1-10 are single-bank, so the board budget the server publishes is
+    the bank fuse exactly. Anchoring the face to it means the number the
+    Defuser reads is the number the server is counting down — a face that
+    started its own clock at mount would be ahead by the whole serve gap."""
+    served = report["served"]
+    started_at = served["fuse"] - served["served_ago_s"]
+    assert served["at_mount"] == str(int(started_at))
+    assert served["after5s"] == str(int(started_at) - 5)
+
+
+def test_a_board_with_no_server_deadline_keeps_its_own_clock(report):
+    """Practice has no engine behind it, so there is nothing to anchor to and
+    the fuse works exactly as it always did."""
+    served = report["served"]
+    assert served["without_deadline"] == str(served["fuse"])
 
 
 # --- lifecycle ----------------------------------------------------------

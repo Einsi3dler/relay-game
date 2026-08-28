@@ -992,9 +992,31 @@
 
   // --- the fuse (§8: an absolute deadline, never a frame count) ------------
 
+  // The server's deadline for the whole board, or null for a practice board
+  // that has no server behind it. It is an absolute instant, so it survives a
+  // remount and cannot be walked backwards by a client clock.
+  function boardDeadline() {
+    var iso = state && state.puzzle ? state.puzzle.deadline : null;
+    if (!iso) return null;
+    // Trim Python microseconds for Safari's sake, as the shell does.
+    var at = Date.parse(String(iso).replace(/(\.\d{3})\d+/, "$1"));
+    return isFinite(at) ? at : null;
+  }
+
   function startFuse() {
-    state.remaining = armedBank().fuse_seconds;
-    state.deadline = Date.now() + state.remaining * 1000;
+    // Whichever runs out first ends this bank. On a single-bank board — every
+    // board levels 1 to 10 — the server's deadline *is* the fuse, and taking
+    // it from there rather than from `Date.now()` is what makes the number on
+    // the face the same number the server is counting. On a multi-bank board
+    // the bank's own fuse is shorter than what is left of the budget, so the
+    // face keeps its per-bank drama and the budget only shows if an earlier
+    // bank somehow overran it.
+    var bankEnd = Date.now() + armedBank().fuse_seconds * 1000;
+    var boardEnd = boardDeadline();
+    state.deadline = boardEnd === null ? bankEnd : Math.min(bankEnd, boardEnd);
+    state.remaining = Math.max(
+      0, Math.ceil((state.deadline - Date.now()) / 1000)
+    );
     // Paint the new number now rather than at the first tick: arming a bank
     // resets the clock, and a second of the *old* fuse on screen reads as the
     // bomb ignoring you.

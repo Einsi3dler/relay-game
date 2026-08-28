@@ -162,6 +162,48 @@ def test_wait_timer_fires_engine_hook_and_drops_cleared():
     asyncio.run(scenario())
 
 
+def test_a_board_deadline_routes_through_the_real_server_hook(monkeypatch):
+    """`_timer_fired` sends everything non-`duel_` to `on_wait_expired`, so the
+    new kind needed a branch — and that branch has to unwrap `fuse:<id>` back
+    into a player id. Both are tested through the real function, because a
+    hand-wired callback would prove neither."""
+    import backend.main as server
+
+    async def scenario():
+        engine = make_engine()
+        # `_timer_fired` reaches for the module-level engine, which is the
+        # point of routing through it — so the fake library goes there.
+        monkeypatch.setattr(server.engine, "registry", engine.registry)
+        match, members, _ = full_match(engine)
+        player = members["alpha"][0]
+        # Opt this seat's board in, as a capped game's payload would.
+        player.current_main.payload["time_limit_seconds"] = 30
+        result = EngineResult()
+        engine._arm_board_deadline(match, player, result, None)
+        board = player.current_main.id
+        assert player.puzzle_deadline is not None
+        assert result.schedule[0].scope_id == f"fuse:{player.id}"
+        assert result.schedule[0].kind == "puzzle"
+
+        await server.store.add(match)
+        try:
+            # Not due yet: the routing works, the engine declines.
+            await server._timer_fired(match.id, f"fuse:{player.id}", "puzzle")
+            assert player.current_main.id == board
+            # Due: the same route serves a fresh board.
+            player.puzzle_deadline = (
+                datetime.now(timezone.utc) - timedelta(seconds=1)
+            ).isoformat()
+            await server._timer_fired(match.id, f"fuse:{player.id}", "puzzle")
+            assert player.current_main.id != board
+            assert player.status == "solving"
+        finally:
+            await server.store.remove(match.id)
+            server.timers.cancel_match(match.id)
+
+    asyncio.run(scenario())
+
+
 # --- per-match serialization ---
 
 def test_concurrent_final_submits_are_serialized_and_deterministic():

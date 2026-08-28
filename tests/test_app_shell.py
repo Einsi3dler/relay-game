@@ -30,7 +30,7 @@ from pathlib import Path
 import pytest
 
 from backend import config
-from backend.engine import RelayEngine
+from backend.engine import EngineResult, RelayEngine
 from backend.registry import REGISTERED_MODULES, GameRegistry
 
 ROOT = Path(__file__).parents[1]
@@ -804,6 +804,32 @@ def shell() -> dict:
         ],
     })
 
+    # --- the board deadline on the same bar -------------------------------
+    # A game that caps its board (docs/GAME_MODULE_SPEC.md). The real bomb
+    # would do, but the bar is engine-generic, so the test is too.
+    capped = _engine()
+    match, seats, leaders = _ready_lobby(capped)
+    assert capped.start_match(match, now=NOW).changed
+    boarder = seats["alpha"][1]
+    boarder.current_main.payload["time_limit_seconds"] = BOARD_LIMIT
+    capped._arm_board_deadline(match, boarder, EngineResult(), NOW)
+    board_snapshot = match.public(boarder.id)
+    assert board_snapshot["me"]["puzzle_deadline"] is not None
+    scenarios.append({
+        "name": "board_deadline",
+        "config": _config_body(capped),
+        "session": {"matchId": match.id, "playerId": boarder.id},
+        "snapshots": [board_snapshot],
+        "actions": [
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "armed"},
+            {"do": "advance", "ms": 20_000},
+            {"do": "record", "as": "later"},
+            {"do": "advance", "ms": BOARD_LIMIT * 1000},
+            {"do": "record", "as": "lapsed"},
+        ],
+    })
+
     plan = {"now_ms": NOW_MS, "scenarios": scenarios}
     with tempfile.TemporaryDirectory() as tmp:
         harness = Path(tmp) / "harness.js"
@@ -821,6 +847,9 @@ def shell() -> dict:
     report["_defuser_name"] = defuser_name
     report["_wait_seconds"] = wait_seconds
     return report
+
+
+BOARD_LIMIT = 90
 
 
 # --- the harness itself --------------------------------------------------
@@ -1037,6 +1066,28 @@ def test_the_bonus_deadline_is_the_same_bar_with_a_different_name(shell):
 def test_a_lapsed_countdown_hands_over_to_the_server(shell):
     """The client never decides the deadline passed — it says so and waits."""
     lapsed = shell["countdown"]["records"]["lapsed"]["countdown"]
+    assert lapsed["label"] == "⏳ Time's up — waiting for the server…"
+    assert lapsed["fill"] == "0%"
+
+
+def test_a_capped_board_draws_its_deadline_on_the_same_bar(shell):
+    """A solving player holds no wait timer, so the bar is free — and a board
+    that caps itself is exactly what it is free for."""
+    armed = shell["board_deadline"]["records"]["armed"]["countdown"]
+    assert armed["bar_hidden"] is False and armed["label_hidden"] is False
+    assert armed["label"] == f"⏱️ Board deadline: {BOARD_LIMIT}s"
+    # Full width spans the game's own limit, not the wait — the bar would be a
+    # sliver at 90 of 180 seconds otherwise.
+    assert armed["fill"] == "100%"
+    later = shell["board_deadline"]["records"]["later"]["countdown"]
+    assert later["label"] == f"⏱️ Board deadline: {BOARD_LIMIT - 20}s"
+    assert 70 < float(later["fill"].rstrip("%")) < 80
+
+
+def test_a_lapsed_board_deadline_also_hands_over_to_the_server(shell):
+    """The client never decides a board is over — the same rule the wait timer
+    follows, and the reason the server keeps a grace on top."""
+    lapsed = shell["board_deadline"]["records"]["lapsed"]["countdown"]
     assert lapsed["label"] == "⏳ Time's up — waiting for the server…"
     assert lapsed["fill"] == "0%"
 

@@ -37,10 +37,15 @@ Every game obeys these rules:
    shares. That round trip is slower than solving it.
 4. **Time-boxed where it counts.** The bonus board runs against the remaining
    wait deadline (`WAIT_SECONDS` — see [GAME_DESIGN.md](GAME_DESIGN.md) §5). The
-   level puzzle has **no hard limit**: the only pressure is the race itself,
-   which is *soft* — a player already behind loses little by taking minutes
-   with a solver. Accept this for now; a hard per-puzzle limit is the stretch
-   hardening, and it matters most for search-friendly games (esp. DECANT).
+   level puzzle has **no hard limit by default**: the only pressure is the race
+   itself, which is *soft* — a player already behind loses little by taking
+   minutes with a solver. The stretch hardening has since landed as an **opt-in**
+   (`payload["time_limit_seconds"]`, see
+   [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §6): a game that emits it gets a
+   server-owned deadline on its board, and a lapsed one serves a fresh board
+   exactly as a wrong answer does. BOMB DEFUSE is the only game that takes it up
+   so far; the search-friendly ones (esp. DECANT) are where it would matter
+   next.
 5. **Server-authoritative validation.** The server never trusts a "yes I solved it"
    flag; it **replays/recomputes** correctness from the submitted interaction (§ per
    game). The client cannot fake a win.
@@ -645,11 +650,19 @@ replays every action against the board and reads no claimed verdict — so what 
 script forges is the player's effort, not the result, the same accepted class as
 SWEEP's board and ECHO's flash sequence (§0).
 
-Two things here are **unenforceable by construction** and are documented rather
-than dressed up. The **fuse** is a clock the browser keeps, and the repo never
-trusts client-reported elapsed time, so it is pressure on an honest player and
-nothing more — the same standing as §0.4's "the level puzzle has no hard limit".
-The **mini button** is a reaction test, and no client-side reaction test can be
+One of the two things that used to be **unenforceable by construction** now has
+a backstop, and the other still does not. The **fuse** is a clock the browser
+keeps, and the repo never trusts client-reported elapsed time — so the server
+holds the one deadline it can honestly own: the **whole board's budget**, the
+sum of the bank fuses, via `payload["time_limit_seconds"]`
+([GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §6). Say plainly what that is and is
+not. Levels 1–10 are single-bank, so on every main board the budget *is* the
+fuse and the server enforces it exactly; the face even counts the server's clock
+rather than one it started itself. On the two-bank bonus tiers the budget is the
+sum, so unspent time from the first bank carries into the second — a per-bank
+deadline would need the client to report when a bank armed, which is precisely
+the client-claimed time being refused. Either way it is a backstop an honest
+player never reaches, not a per-bank enforcement. The **mini button** is a reaction test, and no client-side reaction test can be
 proven server-side. Its hold code narrows the gap without closing it: reaching
 the green state is what reveals the two-digit code the transcript must carry, so
 a forged transcript has to model the module's state machine rather than assert

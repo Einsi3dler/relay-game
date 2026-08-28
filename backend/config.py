@@ -22,6 +22,13 @@ CURRENCY_BONUS_FIRST = 3     # first successful bonus of a level
 CURRENCY_BONUS_REPEAT = 1    # each later bonus that level (diminishing returns)
 BONUS_LEVEL_OFFSET = 3       # bonus puzzle = own game at level + this offset
 
+# A game may cap its own board with `payload["time_limit_seconds"]`
+# (docs/GAME_MODULE_SPEC.md). The engine publishes that deadline to the player
+# and kills the board this many seconds later — slack the player never sees,
+# covering an answer already in flight when the deadline passes. Games without
+# the key are unlimited, which is still the default.
+PUZZLE_GRACE_SECONDS = 5
+
 # --- Duels (the Duelist role; docs/DUEL_MODULE_SPEC.md) ---
 # A Duelist earns green for their team by beating the opposing Duelist. These
 # are the engine-side costs; the move set and the per-round choice window come

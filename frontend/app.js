@@ -599,7 +599,13 @@
     } else {
       unmountPuzzle();
     }
-    startCountdown(me.timer_deadline, me.status);
+    // A solving player holds no wait timer, so the bar is free for the board's
+    // own deadline where the game asks for one (docs/GAME_MODULE_SPEC.md).
+    if (me.status === "solving" && me.puzzle_deadline) {
+      startCountdown(me.puzzle_deadline, "puzzle", puzzle);
+    } else {
+      startCountdown(me.timer_deadline, me.status);
+    }
     renderFrozen(me.frozen_until);
     renderScreenEffects(me.screen_effects);
     renderDuel(state, "duel-card", "duel-mount");
@@ -714,17 +720,19 @@
     $("puzzle-mount").innerHTML = "";
   }
 
-  // Countdown driven by timer_deadline; server stays authoritative.
-  function startCountdown(deadlineIso, status) {
+  // Countdown driven by a server deadline; the server stays authoritative in
+  // every case — the bar says what is left, it never decides anything.
+  function startCountdown(deadlineIso, status, puzzle) {
     clearInterval(timerHandle);
     var bar = $("timer-bar"), label = $("timer-label");
     if (!deadlineIso) { bar.hidden = true; label.hidden = true; return; }
     var deadline = parseDeadline(deadlineIso);
-    var total = ((lastState && lastState.config.wait_seconds) ||
-      (serverConfig && serverConfig.wait_seconds) || 180) * 1000;
+    var total = countdownSeconds(status, puzzle) * 1000;
     bar.hidden = false;
     label.hidden = false;
-    var prefix = status === "bonus" ? "🔥 Bonus deadline: " : "⏳ Holding cleared: ";
+    var prefix = status === "bonus" ? "🔥 Bonus deadline: "
+      : status === "puzzle" ? "⏱️ Board deadline: "
+      : "⏳ Holding cleared: ";
     var tick = function () {
       var left = Math.max(0, deadline - Date.now());
       $("timer-fill").style.width = Math.min(100, (left / total) * 100) + "%";
@@ -736,6 +744,18 @@
     };
     tick();
     timerHandle = setInterval(tick, 250);
+  }
+
+  // How long the bar's full width represents. A board deadline spans the
+  // game's own limit; everything else spans the wait. The grace the server
+  // adds on top is deliberately not counted — it is not the player's time.
+  function countdownSeconds(status, puzzle) {
+    if (status === "puzzle") {
+      var limit = puzzle && puzzle.payload && puzzle.payload.time_limit_seconds;
+      if (limit) return limit;
+    }
+    return (lastState && lastState.config.wait_seconds) ||
+      (serverConfig && serverConfig.wait_seconds) || 180;
   }
 
   function renderFrozen(frozenIso) {
