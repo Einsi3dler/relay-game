@@ -535,7 +535,12 @@ def test_advance_on_fourth_clear(engine):
         assert "L2" in player.current_main.prompt  # at the new level
         assert player.timer_deadline is None
     assert result.schedule == []  # no wait timer survives the advance
-    assert set(result.cancel) == {p.id for p in members["alpha"]}
+    # Both of a member's scopes go: the wait timer, and the board deadline the
+    # game they are being re-served may or may not ask for.
+    assert set(result.cancel) == (
+        {p.id for p in members["alpha"]}
+        | {f"fuse:{p.id}" for p in members["alpha"]}
+    )
 
 
 def test_bonus_player_blocks_advance(engine):

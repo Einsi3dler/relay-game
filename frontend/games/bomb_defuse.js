@@ -365,8 +365,11 @@
       "display:flex;align-items:center;justify-content:center;";
     state.timerText = el("div",
       "font-family:Arial,Helvetica,sans-serif;font-size:64px;font-weight:700;" +
-      "color:" + C.red + ";text-align:center;line-height:1;", String(state.remaining));
+      "color:" + C.red + ";text-align:center;line-height:1;", timerReadout());
     state.timerText.setAttribute("role", "timer");
+    state.timerText.setAttribute("aria-label", isBlackout()
+      ? "The timer is dark — ask your Grandmaster"
+      : "Seconds left on the fuse");
     timerCell.appendChild(state.timerText);
     state.faceLayer.appendChild(timerCell);
 
@@ -785,18 +788,40 @@
   // --- the manual (§27-§30, §68-§71) --------------------------------------
 
   function renderManual() {
+    var withheld = withheldOfBoard();
     M.render(state.manualLayer, {
       page: state.manualPage,
       axis: axisOfBoard(),
-      homeNote: "The bomb is still ticking while you read this. Ask your " +
-        "Grandmaster instead and it stays on the bay — they have this same " +
-        "manual on their console.",
+      withheld: withheld,
+      homeNote: withheld.length
+        ? "This copy is not complete — the greyed page is only on your " +
+          "Grandmaster's console. For the rest, the bomb is still ticking " +
+          "while you read: asking keeps you on the bay."
+        : "The bomb is still ticking while you read this. Ask your " +
+          "Grandmaster instead and it stays on the bay — they have this same " +
+          "manual on their console.",
       onNavigate: function (page) {
         state.manualPage = page;
         renderManual();
       },
       onExit: closeManual
     });
+  }
+
+  // §7 inverted: on a blackout board the timer is on the bomb but not on
+  // *your* bomb. No number, no fuse of our own, no tick — the Grandmaster's
+  // console holds the only countdown in the match, and the server holds the
+  // deadline that actually ends the board.
+  function isBlackout() {
+    var payload = state && state.puzzle ? state.puzzle.payload : null;
+    return !!(payload && payload.blackout);
+  }
+
+  // §2c: from the deep tiers up the board names a page this copy does not
+  // carry. The Grandmaster's console is the only one in the match that does.
+  function withheldOfBoard() {
+    var payload = state && state.puzzle ? state.puzzle.payload : null;
+    return (payload && payload.withheld_pages) || [];
   }
 
   // §62: which axis the number bay reads is configurable server-side, so the
@@ -867,7 +892,9 @@
       "font-size:46px;text-align:center;",
       "BANK " + (bank + 1) + " ARMED"));
     banner.appendChild(el("div", "color:#ddd;font-size:16px;",
-      armedBank().fuse_seconds + "s on the new fuse."));
+      isBlackout()
+        ? "A fresh fuse you cannot see. Ask."
+        : armedBank().fuse_seconds + "s on the new fuse."));
     banner.setAttribute("role", "alert");
     state.panelLayer.appendChild(banner);
     SOUND.click();
@@ -971,7 +998,8 @@
     screen.appendChild(el("div", "color:" + C.green + ";font-weight:700;font-size:56px;" +
       "text-align:center;", "BOMB DEFUSED"));
     screen.appendChild(el("div", "color:#bdf5bd;font-size:16px;",
-      "Stopped with " + seconds + "s left."));
+      isBlackout() ? "Stopped. Ask them how close that was."
+                   : "Stopped with " + seconds + "s left."));
     screen.setAttribute("role", "status");
     state.faceLayer.appendChild(screen);
     state.api.submit(JSON.stringify({ v: RULES_VERSION, moves: state.moves }));
@@ -979,9 +1007,46 @@
 
   // --- the fuse (§8: an absolute deadline, never a frame count) ------------
 
+  // "--" rather than a blank cell: a dark readout is a bomb telling you it
+  // will not say, which is the point. An empty box reads as broken.
+  function timerReadout() {
+    return isBlackout() ? "--" : String(state.remaining);
+  }
+
+  // The server's deadline for the whole board, or null for a practice board
+  // that has no server behind it. It is an absolute instant, so it survives a
+  // remount and cannot be walked backwards by a client clock.
+  function boardDeadline() {
+    var iso = state && state.puzzle ? state.puzzle.deadline : null;
+    if (!iso) return null;
+    // Trim Python microseconds for Safari's sake, as the shell does.
+    var at = Date.parse(String(iso).replace(/(\.\d{3})\d+/, "$1"));
+    return isFinite(at) ? at : null;
+  }
+
   function startFuse() {
-    state.remaining = armedBank().fuse_seconds;
-    state.deadline = Date.now() + state.remaining * 1000;
+    if (isBlackout()) {
+      // No clock at all, rather than one that is merely hidden: a fuse running
+      // where nobody can see it would still be the client deciding when the
+      // board ends, and on this board that is the server's call.
+      state.boardEnd = null;
+      if (state.timerText) state.timerText.textContent = timerReadout();
+      return;
+    }
+    // Whichever runs out first ends this bank. On a single-bank board — every
+    // board levels 1 to 10 — the server's deadline *is* the fuse, and taking
+    // it from there rather than from `Date.now()` is what makes the number on
+    // the face the same number the server is counting. On a multi-bank board
+    // the bank's own fuse is shorter than what is left of the budget, so the
+    // face keeps its per-bank drama and the budget only shows if an earlier
+    // bank somehow overran it.
+    var bankEnd = Date.now() + armedBank().fuse_seconds * 1000;
+    var boardEnd = boardDeadline();
+    state.boardEnd = boardEnd;      // remembered so `update` can see it move
+    state.deadline = boardEnd === null ? bankEnd : Math.min(bankEnd, boardEnd);
+    state.remaining = Math.max(
+      0, Math.ceil((state.deadline - Date.now()) / 1000)
+    );
     // Paint the new number now rather than at the first tick: arming a bank
     // resets the clock, and a second of the *old* fuse on screen reads as the
     // bomb ignoring you.
@@ -1022,11 +1087,33 @@
   }
 
   window.RelayGames = window.RelayGames || {};
+  // The shell calls this when the same board arrives with something changed.
+  // Only one thing can: the server's deadline, pushed out by a Freeze. Re-anchor
+  // the fuse to it rather than letting the face detonate on the old instant.
+  function updateBoard(puzzle) {
+    if (!state || state.status !== "active" || !puzzle) return;
+    state.puzzle = puzzle;
+    if (isBlackout() || !state.clock) return;    // no clock of ours to move
+    var boardEnd = boardDeadline();
+    if (boardEnd === null || state.boardEnd === null) return;
+    var gained = boardEnd - state.boardEnd;
+    if (gained <= 0) return;                     // it only ever moves outward
+    // Shift by the *growth*, not to the new instant: the bank's own fuse may
+    // be what this face is counting, and the player was locked out of the bank
+    // for exactly as long.
+    state.boardEnd = boardEnd;
+    state.deadline += gained;
+    state.remaining = Math.max(
+      0, Math.ceil((state.deadline - Date.now()) / 1000)
+    );
+    if (state.timerText) state.timerText.textContent = timerReadout();
+  }
+
   window.RelayGames["bomb_defuse"] = {
     mount: function (container, puzzle, api) {
       state = {
         puzzle: puzzle, api: api, status: "active", view: "bomb",
-        manualPage: "home", openId: null, moves: [],
+        manualPage: "home", openId: null, moves: [], boardEnd: null,
         result: validate(puzzle.payload, [], true),
         bank: 0,
         remaining: puzzle.payload.banks[0].fuse_seconds,
@@ -1067,6 +1154,7 @@
       rescale();
     },
 
+    update: updateBoard,
     unmount: function () {
       if (!state) return;                 // idempotent
       stopClocks();

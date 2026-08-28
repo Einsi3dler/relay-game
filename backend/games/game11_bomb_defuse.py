@@ -7,8 +7,12 @@ the bomb but not the manual, and an Expert who can see the manual but not the
 bomb. The Relay seats both: the **Defuser** is a required role every team must
 field, and their **Grandmaster** holds the manual on the leader dashboard
 (docs/GAME_DESIGN.md §2c). The Defuser keeps a copy too, but flipping to it
-hides the bomb while the fuse burns — so asking is faster than looking, and a
-Grandmaster who is busy elsewhere only ever slows their Defuser down.
+hides the bomb while the fuse burns — so asking is faster than looking, and for
+the first seven levels a Grandmaster who is busy elsewhere only ever slows
+their Defuser down. From `WITHHOLD_FROM_LEVEL` the board also withholds one
+page from the Defuser's copy, and the console becomes the only copy of it in
+the match: on a deep board an absent Grandmaster strands their Defuser on one
+bay, which is what makes the second seat the game rather than a convenience.
 
 Four module types (`bomb.md` §12): MAZE, SIMON SAYS, ACCORDING TO NUMBER, and
 the MINI BUTTON. Which ones are live is drawn per board; how many is the level's
@@ -139,6 +143,40 @@ MINI_MAX_DELAY_MS = 6000
 MINI_CODE_MIN = 10           # the two-digit code the green state reveals
 MINI_CODE_MAX = 99
 
+# --- the withheld page (§2c: the Grandmaster becomes necessary) ---------
+# From this tier up, the Defuser's own copy of the manual is missing one page
+# and their Grandmaster's console is the only copy of it in the match. Below it
+# the second seat is a speed advantage and nothing more.
+#
+# Never more than one page: a board with two dead pages is not a harder lookup,
+# it is a board you cannot start. A level-8 board fields three bays of distinct
+# types, so one withheld page always leaves two the Defuser can still read
+# alone — the board slows down, it does not stop.
+WITHHOLD_FROM_LEVEL = 8
+WITHHELD_PAGES = 1
+
+# --- blackout (§7: the timer is on the bomb, and the bomb is not yours) --
+# The deepest tier and the bonus-only boards behind it hand the *clock* to the
+# Grandmaster as well as the manual: the Defuser's face shows no number, runs
+# no fuse of its own, and the only countdown in the match is the one on the
+# console. That is only honest because the board's deadline is real server
+# state (docs/GAME_MODULE_SPEC.md §6) — without it a blacked-out board would
+# simply have no limit at all.
+#
+# The bonus-only tiers, and only those. Two reasons, both load-bearing:
+#
+#   - A bonus board is *chosen*. The hardest compound state this game can
+#     reach — a page withheld, the clock gone, and two banks — is then always
+#     something a player opted into, never something the ladder imposed on
+#     them. Level 10 stays hard (§2c's withheld page) without becoming a
+#     different game.
+#   - It lines up exactly with banks, which are bonus-only too. So a blacked-out
+#     board is the same board that comes in banks: one coherent step up rather
+#     than two unrelated ones landing on different levels.
+# 11 is the first bonus-only tier. The level table is defined below this
+# point, so the tie is asserted in the tests rather than computed here.
+BLACKOUT_FROM_LEVEL = 11
+
 # --- answer limits (expansion spec §4: cap before parsing) --------------
 MAX_ANSWER_CHARS = 8000
 MAX_MOVES = 200              # comfortably over a level-13 board's ~50
@@ -218,9 +256,44 @@ HOLDING_PARAMS = {
 }
 
 
+def _clamp_level(level: int) -> int:
+    """`level` as the table reads it. Everything level-dependent goes through
+    this, or a level past the last row would draw a *different* board from the
+    row it clamps to."""
+    return min(max(level, 1), len(MAIN_LEVEL_PARAMS))
+
+
 def _params_for_level(level: int) -> dict:
     """Main-board knobs for `level`, clamped to the table."""
-    return MAIN_LEVEL_PARAMS[min(max(level, 1), len(MAIN_LEVEL_PARAMS)) - 1]
+    return MAIN_LEVEL_PARAMS[_clamp_level(level) - 1]
+
+
+def _withheld_pages(seed: int, level: int, banks: list[dict]) -> list[str]:
+    """Which manual pages this board keeps from the Defuser (§2c).
+
+    Only ever a page for a bay that is actually on the board: withholding the
+    Simon page from a bomb with no Simon bay reads as a bug rather than as
+    difficulty, and costs the Defuser nothing, which is worse.
+
+    Drawn from a stream of its own rather than from the board's `rng`, so
+    adding this changed no bomb anyone can generate — the same seed still
+    builds the same bays it always did.
+    """
+    tier = _clamp_level(level)
+    if tier < WITHHOLD_FROM_LEVEL:
+        return []
+    live = sorted({module["type"] for bank in banks for module in bank["modules"]})
+    if not live:
+        return []
+    picker = random.Random(f"withheld:{seed}:{tier}")
+    return sorted(picker.sample(live, min(WITHHELD_PAGES, len(live))))
+
+
+def _blackout(level: int) -> bool:
+    """Whether this board's clock belongs to the Grandmaster rather than the
+    Defuser. A tier property, not a draw: a bomb whose timer is sometimes there
+    and sometimes not teaches nothing."""
+    return _clamp_level(level) >= BLACKOUT_FROM_LEVEL
 
 
 Cell = tuple[int, int]
@@ -822,6 +895,21 @@ class BombDefuseGame:
             "rules_version": RULES_VERSION,
             "bays": BAY_COUNT,
             "banks": banks,
+            # Practice keeps the whole manual: a drill you cannot look up is
+            # not a drill. Only a match board thins out.
+            "withheld_pages": (
+                _withheld_pages(seed, level, banks) if kind == "main" else []
+            ),
+            # The one honest thing the server can hold (docs/GAME_MODULE_SPEC.md).
+            # A bank arming is a client-side event, so a per-bank deadline would
+            # need the client to report it — client-claimed time, which this repo
+            # refuses to trust. The sum of the fuses is the whole board's budget,
+            # and no client that honours its own fuses can ever reach it. The
+            # per-bank countdown on the face stays exactly as it was.
+            "time_limit_seconds": sum(bank["fuse_seconds"] for bank in banks),
+            # Practice has no Grandmaster to hand the clock to, so a blacked-out
+            # drill would just be a drill with no clock.
+            "blackout": kind == "main" and _blackout(level),
         }
 
         moves = _reference_moves(payload)
@@ -888,6 +976,9 @@ class BombDefuseGame:
             "rules_version": RULES_VERSION,
             "bays": BAY_COUNT,
             "banks": banks,
+            "withheld_pages": [],   # a set piece you cannot look up is not one
+            "time_limit_seconds": sum(b["fuse_seconds"] for b in banks),
+            "blackout": False,      # ...and neither does a set piece
         }
         moves = _reference_moves(payload)
         if not validate(payload, moves)["ok"]:

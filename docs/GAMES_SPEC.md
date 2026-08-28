@@ -37,10 +37,15 @@ Every game obeys these rules:
    shares. That round trip is slower than solving it.
 4. **Time-boxed where it counts.** The bonus board runs against the remaining
    wait deadline (`WAIT_SECONDS` — see [GAME_DESIGN.md](GAME_DESIGN.md) §5). The
-   level puzzle has **no hard limit**: the only pressure is the race itself,
-   which is *soft* — a player already behind loses little by taking minutes
-   with a solver. Accept this for now; a hard per-puzzle limit is the stretch
-   hardening, and it matters most for search-friendly games (esp. DECANT).
+   level puzzle has **no hard limit by default**: the only pressure is the race
+   itself, which is *soft* — a player already behind loses little by taking
+   minutes with a solver. The stretch hardening has since landed as an **opt-in**
+   (`payload["time_limit_seconds"]`, see
+   [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §6): a game that emits it gets a
+   server-owned deadline on its board, and a lapsed one serves a fresh board
+   exactly as a wrong answer does. BOMB DEFUSE is the only game that takes it up
+   so far; the search-friendly ones (esp. DECANT) are where it would matter
+   next.
 5. **Server-authoritative validation.** The server never trusts a "yes I solved it"
    flag; it **replays/recomputes** correctness from the submitted interaction (§ per
    game). The client cannot fake a win.
@@ -552,15 +557,34 @@ who sees the manual but not the bomb. The Relay seats both.
   ([GAME_DESIGN.md](GAME_DESIGN.md) §2c). The role names the game; the
   Grandmaster picks who holds it, never what they play.
 - **The Grandmaster is the Expert.** The manual lives on their dashboard as the
-  **bomb console**. It is the manual and *nothing else* — no board, no fuse, no
-  bay progress reaches them — which is both the faithful reading of §4 and the
-  reason the console needs no synchronisation at all: a static page has nothing
-  to keep in step. The Defuser describes the bay; the Grandmaster reads back the
-  rule.
-- **The Defuser keeps their own copy.** Flipping to it hides the bomb while the
-  fuse burns, so asking is faster than looking — but a Grandmaster busy with
-  four other players, silenced, or disconnected only ever *slows* their Defuser
-  down. They can never strand them, which is what keeps the level curve honest.
+  **bomb console**. On an ordinary board it is the manual and *nothing else* —
+  no board, no fuse, no bay progress reaches them — which is both the faithful
+  reading of §4 and the reason the console needs no synchronisation: a static
+  page has nothing to keep in step. On a `blackout` board (the bonus-only tiers
+  11–13) it grows exactly one live element, a countdown of the server's board
+  deadline, because that deadline has been withheld from the Defuser and sent
+  here instead. One instant, one copy, one seat — still a visibility rule
+  rather than a sync channel. The Defuser describes the bay; the Grandmaster reads back the
+  rule. **Silence blanks it**: the perk that takes a Grandmaster's roster takes
+  their manual with it, and the card sits marked 🔇 until it lapses.
+- **The Defuser keeps their own copy — up to a point.** Flipping to it hides
+  the bomb while the fuse burns, so asking is faster than looking. Below
+  `WITHHOLD_FROM_LEVEL` (8) that is the whole of it: a Grandmaster busy with
+  four other players, silenced, or disconnected only *slows* their Defuser
+  down. From level 8 the board also names one `withheld_pages` entry, and that
+  page is missing from the Defuser's copy and present only on the console — so
+  on a deep board an absent Grandmaster can strand their Defuser on one bay.
+  The entry is drawn per `(seed, level)` from a stream of its own, always names
+  a bay that is on the board, and is never more than one, so the rest of the
+  bomb stays workable while the Defuser asks. Practice boards and the authored
+  missions withhold nothing.
+- **And on the bonus tiers, the clock as well.** From `BLACKOUT_FROM_LEVEL`
+  (11) the payload sets `blackout`, the timer cell reads `--`, and the renderer
+  keeps no fuse of its own — a hidden clock would still be the client deciding
+  when the board ends. The server's board deadline is what ends it, and the
+  Grandmaster's console is the only place it can be read. Blackout lines up
+  exactly with banks, so a blacked-out board and a multi-bank board are the
+  same board: one step up rather than two on different levels.
 
 **Banks** (rules version 2). A board is a list of *banks*, each with its own
 bays and its own fuse. Shut every bay in the armed bank and press OK and the
@@ -627,6 +651,16 @@ somewhere, and every Grandmaster has to find their way around the console before
 it counts. The hook is duck-typed (`missions()` / `generate_mission()`), so no
 other game grows a method it has no use for.
 
+**BOMB DEFUSE and the attack perks.** It is the only game with a clock and a
+fail state, and the enforced attacks were written on the assumption that no
+game had either. Both of the ones that read wrong on it are special-cased in
+`_apply_attack` rather than aimed elsewhere — see
+[GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §6. A **Freeze** pushes the board
+deadline out by as long as it locks the Defuser out, so it costs them their
+hands and not their bomb; a **Scramble** takes their work but leaves the clock
+where it was, so it can no longer hand a Defuser eighty seconds back. Screen
+effects never touch a clock and needed nothing.
+
 **BOMB DEFUSE anti-cheat caveat (accepted, and larger than most).** This is a
 lookup game, so its manual is public by definition — the eight mazes, the eight
 number grids and the colour mapping ship in the renderer, and the payload names
@@ -637,11 +671,19 @@ replays every action against the board and reads no claimed verdict — so what 
 script forges is the player's effort, not the result, the same accepted class as
 SWEEP's board and ECHO's flash sequence (§0).
 
-Two things here are **unenforceable by construction** and are documented rather
-than dressed up. The **fuse** is a clock the browser keeps, and the repo never
-trusts client-reported elapsed time, so it is pressure on an honest player and
-nothing more — the same standing as §0.4's "the level puzzle has no hard limit".
-The **mini button** is a reaction test, and no client-side reaction test can be
+One of the two things that used to be **unenforceable by construction** now has
+a backstop, and the other still does not. The **fuse** is a clock the browser
+keeps, and the repo never trusts client-reported elapsed time — so the server
+holds the one deadline it can honestly own: the **whole board's budget**, the
+sum of the bank fuses, via `payload["time_limit_seconds"]`
+([GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §6). Say plainly what that is and is
+not. Levels 1–10 are single-bank, so on every main board the budget *is* the
+fuse and the server enforces it exactly; the face even counts the server's clock
+rather than one it started itself. On the two-bank bonus tiers the budget is the
+sum, so unspent time from the first bank carries into the second — a per-bank
+deadline would need the client to report when a bank armed, which is precisely
+the client-claimed time being refused. Either way it is a backstop an honest
+player never reaches, not a per-bank enforcement. The **mini button** is a reaction test, and no client-side reaction test can be
 proven server-side. Its hold code narrows the gap without closing it: reaching
 the green state is what reveals the two-digit code the transcript must carry, so
 a forged transcript has to model the module's state machine rather than assert

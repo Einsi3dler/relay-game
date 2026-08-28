@@ -142,10 +142,60 @@ rather than looking like a deadlock.
 **The Grandmaster is the Expert.** BOMB DEFUSE is a two-player co-op wearing one
 seat: the bomb explains nothing, and the manual that explains it lives on the
 **Grandmaster's dashboard**. The Defuser asks; the Grandmaster reads it out.
-The Defuser keeps a copy of the manual too — flipping to it costs fuse, so a
-Grandmaster on the console is a *speed advantage*, never a dependency. A
-Grandmaster who is busy with four other players, or disconnected, slows their
-Defuser down; they never strand them.
+
+**Silence takes the manual too.** The perk that blinds a Grandmaster to their
+own roster and who-cleared feed blanks the bomb console with it. The card
+stays, marked 🔇 exactly as a hidden teammate is, so a jammed console reads as
+the attack it is rather than as a bug; it holds the page it was open at and
+comes back on its own when the perk lapses.
+
+The Defuser keeps a copy of the manual too — flipping to it costs fuse, so for
+the first seven levels a Grandmaster on the console is a *speed advantage*: one
+who is busy with four other players, or disconnected, slows their Defuser down
+without ever stranding them.
+
+**From level 8 the copy comes up short.** A deep board withholds one manual
+page from the Defuser — always a page for a bay that is actually on the bomb,
+drawn per board — and the Grandmaster's console is the only copy of it in the
+match. The greyed entry says so in the selector rather than quietly
+disappearing. This is the point at which the second seat stops being a
+convenience and becomes the game: a Defuser alone on a level-10 board can read
+two of their three bays and must ask for the third.
+
+Never more than one page. A board with two dead pages is not a harder lookup,
+it is a board you cannot start, and a deep board fields three bays of distinct
+types precisely so that one withheld page always leaves work the Defuser can
+get on with while they wait for an answer.
+
+**It compounds with Silence, and that is intended.** A silenced Grandmaster on
+a board with a withheld page leaves their Defuser genuinely stuck for the
+duration of the perk — 30 seconds of a fuse around a hundred. A *disconnected*
+Grandmaster is the open-ended case: the fuse runs out, the bomb goes off, and
+the engine answers with a fresh board that draws its own withheld page. Losing
+a board is the cost, not losing the level.
+
+**On the bonus-only tiers the clock goes too.** From level 11 — the boards that
+also come in banks — the bomb's timer cell reads `--`, the Defuser's client
+keeps no fuse at all, and the only countdown in the match is the one that has
+appeared on the Grandmaster's console. Server-owned deadline, one seat sent it,
+the other not: it is a visibility rule, which is the only reason the console
+can hold a live element without becoming a second copy of the board to keep in
+sync.
+
+That makes the console's first live element a departure from "the manual and
+nothing else", and a deliberate one. It is still not board state — no bays, no
+progress, no bank — just the one number, on the one seat allowed to read it
+out. Under Silence it goes with everything else, so for those seconds neither
+seat has the clock.
+
+Bonus tiers rather than the ladder, on purpose: a bonus board is *chosen*, so
+the hardest state this game can reach — a page withheld, the clock gone, two
+banks — is always something a player opted into. Level 10 is hard because of
+the withheld page, not because it is a different game.
+
+Practice keeps the whole manual and its own clock — a drill you cannot look up
+is not a drill, and there is no Grandmaster in practice mode to hand the
+countdown to. So do the authored missions.
 
 ### Lobby / start (host + Grandmasters)
 

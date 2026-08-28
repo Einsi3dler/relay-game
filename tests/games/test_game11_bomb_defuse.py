@@ -17,8 +17,10 @@ from backend.games.base import normalize_answer
 from backend.games.game11_bomb_defuse import (
     BAY_COUNT, MAIN_LEVEL_PARAMS, MAX_ANSWER_CHARS, MAX_MOVES, MAZE_LAYOUTS,
     MAZE_SIZE, MISSIONS, MODULE_TYPES, NUMBER_PATTERNS, RULES_VERSION,
-    SIMON_COLOURS, SIMON_MAP, BombDefuseGame, _maze_distances, _maze_route,
-    _number_answer, _pattern_for_tip, _reference_moves, _wall_between, validate,
+    BLACKOUT_FROM_LEVEL, SIMON_COLOURS, SIMON_MAP, WITHHELD_PAGES,
+    WITHHOLD_FROM_LEVEL,
+    BombDefuseGame, _maze_distances, _maze_route, _number_answer,
+    _pattern_for_tip, _reference_moves, _wall_between, validate,
 )
 
 LEVELS = range(1, len(MAIN_LEVEL_PARAMS) + 1)
@@ -471,10 +473,153 @@ def test_the_bonus_tiers_go_past_level_ten():
     assert bonus[-1]["react_ms"] < played["react_ms"]
 
 
+# --- the withheld page (§2c) --------------------------------------------
+
+
+def test_a_shallow_board_hands_over_the_whole_manual(game):
+    """Below the threshold the Grandmaster is a speed advantage and nothing
+    more, which is the rule the first seven tiers keep."""
+    for level in range(1, WITHHOLD_FROM_LEVEL):
+        for seed in range(30):
+            assert game.generate_main(seed, level).payload["withheld_pages"] == []
+
+
+def test_a_deep_board_withholds_a_page(game):
+    for level in range(WITHHOLD_FROM_LEVEL, len(MAIN_LEVEL_PARAMS) + 1):
+        for seed in range(30):
+            withheld = game.generate_main(seed, level).payload["withheld_pages"]
+            assert len(withheld) == WITHHELD_PAGES
+
+
+def test_a_withheld_page_always_names_a_bay_that_is_on_the_board(game):
+    """Withholding the page for a bay that is not there reads as a bug rather
+    than as difficulty — and costs the Defuser nothing, which is worse."""
+    for level in range(WITHHOLD_FROM_LEVEL, len(MAIN_LEVEL_PARAMS) + 1):
+        for seed in range(120):
+            payload = game.generate_main(seed, level).payload
+            live = {
+                module["type"]
+                for bank in payload["banks"]
+                for module in bank["modules"]
+            }
+            for page in payload["withheld_pages"]:
+                assert page in live, (seed, level, page, live)
+
+
+def test_a_withheld_page_never_takes_the_whole_board(game):
+    """One page short is meant to slow a lone Defuser down, not stop them: a
+    board at these tiers always leaves at least one bay they can still read."""
+    for level in range(WITHHOLD_FROM_LEVEL, len(MAIN_LEVEL_PARAMS) + 1):
+        for seed in range(120):
+            payload = game.generate_main(seed, level).payload
+            live = {
+                module["type"]
+                for bank in payload["banks"]
+                for module in bank["modules"]
+            }
+            assert live - set(payload["withheld_pages"])
+
+
+def test_the_withheld_page_is_deterministic_per_seed(game):
+    for seed in range(40):
+        first = game.generate_main(seed, 10).payload["withheld_pages"]
+        second = game.generate_main(seed, 10).payload["withheld_pages"]
+        assert first == second
+
+
+def test_which_page_is_withheld_actually_varies(game):
+    """A knob that always picks the same page is a level-curve change dressed
+    up as a draw."""
+    seen = {
+        tuple(game.generate_main(seed, 13).payload["withheld_pages"])
+        for seed in range(200)
+    }
+    assert len(seen) >= 3
+
+
+def test_practice_keeps_the_whole_manual(game):
+    """A drill you cannot look up is not a drill, and a set piece with a page
+    missing is not the same set piece for everyone."""
+    for seed in range(20):
+        assert game.generate_holding(seed).payload["withheld_pages"] == []
+    for mission in game.missions():
+        assert game.generate_mission(mission["id"]).payload["withheld_pages"] == []
+
+
+def test_the_withheld_draw_changed_no_bomb_anyone_can_generate(game):
+    """It runs on a stream of its own, so the bays a seed builds are the bays
+    it always built — the parity fixture is locked to exactly that."""
+    for seed in range(60):
+        for level in (1, 8, 13):
+            payload = game.generate_main(seed, level).payload
+            plain = {k: v for k, v in payload.items() if k != "withheld_pages"}
+            assert _reference_moves(plain)      # the board still replays
+
+
+# --- blackout (§2c: the Grandmaster holds the clock) ----------------------
+
+
+def test_blackout_starts_at_the_first_bonus_tier():
+    from backend import config
+    assert BLACKOUT_FROM_LEVEL == config.LEVEL_COUNT + 1
+
+
+def test_the_main_ladder_keeps_its_own_clock(game):
+    """A bonus board is chosen; the ladder is not. The hardest compound state
+    this game reaches — a page withheld, the clock gone, two banks — is always
+    something a player opted into."""
+    for level in range(1, BLACKOUT_FROM_LEVEL):
+        assert game.generate_main(3, level).payload["blackout"] is False
+
+
+def test_the_bonus_tiers_hand_the_clock_to_the_grandmaster(game):
+    for level in range(BLACKOUT_FROM_LEVEL, len(MAIN_LEVEL_PARAMS) + 1):
+        assert game.generate_main(3, level).payload["blackout"] is True
+
+
+def test_blackout_is_a_tier_property_not_a_draw(game):
+    """A bomb whose timer is sometimes there and sometimes not teaches
+    nothing — the Defuser could not learn to ask."""
+    for level in (1, 10, 11, 13):
+        expected = level >= BLACKOUT_FROM_LEVEL
+        for seed in range(40):
+            assert game.generate_main(seed, level).payload["blackout"] is expected
+
+
+def test_every_blackout_board_carries_the_deadline_that_replaces_its_fuse(game):
+    """The clock has to go *somewhere*, and the server-owned board deadline is
+    where — without it a blacked-out board would have no limit at all."""
+    for level in range(BLACKOUT_FROM_LEVEL, len(MAIN_LEVEL_PARAMS) + 1):
+        payload = game.generate_main(5, level).payload
+        assert payload["time_limit_seconds"] > 0
+
+
+def test_blackout_lines_up_exactly_with_banks(game):
+    """One coherent step up rather than two landing on different levels — and
+    the reason no generated board is multi-bank with a visible fuse."""
+    for level in range(1, len(MAIN_LEVEL_PARAMS) + 1):
+        payload = game.generate_main(8, level).payload
+        assert payload["blackout"] is (len(payload["banks"]) > 1)
+
+
+def test_practice_keeps_its_clock(game):
+    """Nobody is on a console in practice, so a blacked-out drill would just be
+    a drill with no clock."""
+    for seed in range(20):
+        assert game.generate_holding(seed).payload["blackout"] is False
+    for mission in game.missions():
+        assert game.generate_mission(mission["id"]).payload["blackout"] is False
+
+
 def test_levels_outside_the_table_clamp(game):
     assert game.generate_main(5, 0).payload == game.generate_main(5, 1).payload
     assert game.generate_main(5, 99).payload == \
         game.generate_main(5, len(MAIN_LEVEL_PARAMS)).payload
+    # Including the withheld draw: a level past the last row must build the row
+    # it clamps to, not a board of its own.
+    for seed in range(40):
+        assert game.generate_main(seed, 99).payload == \
+            game.generate_main(seed, len(MAIN_LEVEL_PARAMS)).payload
 
 
 def test_a_deep_board_is_measurably_bigger_than_a_level_one_board(game):

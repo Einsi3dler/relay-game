@@ -105,10 +105,22 @@
 
   function renderHome(body, options) {
     // §29: a heavy black-bordered grey selector.
+    var withheld = options.withheld || [];
     var selector = at(el("div"), 0, 0, 330, 240);
     selector.style.cssText += "background:" + C.panelGrey + ";border:6px solid " + C.black + ";" +
       "padding:10px;display:flex;flex-direction:column;gap:8px;";
     PAGES.forEach(function (type) {
+      if (withheld.indexOf(type) !== -1) {
+        // A page this copy does not have. Not a disabled button — there is no
+        // control here to press, and drawing one would send the Defuser
+        // clicking at it while the fuse burns. It says who does have it.
+        selector.appendChild(el("div",
+          "border:3px dashed " + C.bombGrey + ";background:" + C.bombGreyLight + ";" +
+          "color:" + C.bombGreyDark + ";font-size:15px;font-weight:700;height:46px;" +
+          "display:flex;align-items:center;padding-left:12px;box-sizing:border-box;",
+          MODULE_NAMES[type] + " — ask your Grandmaster"));
+        return;
+      }
       selector.appendChild(button(MODULE_NAMES[type],
         "border:3px solid " + C.black + ";background:" + C.white + ";color:" + C.black + ";" +
         "font-size:17px;font-weight:700;height:46px;text-align:left;padding-left:12px;",
@@ -234,6 +246,10 @@
    *   onExit      fn()      — Exit was pressed on the home page
    *   axis        "column" | "row" — which axis the number bay reads (§62)
    *   homeNote    the line beside the selector; each seat says its own thing
+   *   withheld    page ids this copy does not have (§2c). The Defuser's copy
+   *               passes the board's `withheld_pages`; the Grandmaster's
+   *               console passes nothing, which is what makes it the only
+   *               copy of those pages in the match.
    */
   function render(host, options) {
     var page = options.page || "home";
@@ -258,6 +274,16 @@
     root.appendChild(body);
     if (page === "home") renderHome(body, options);
     else RENDERERS[page](body, options);
+
+    if (page !== "home" && (options.withheld || []).indexOf(page) !== -1) {
+      // Belt and braces: the selector offers no way in, but a caller holding a
+      // stale page id must not be handed the one page it does not have.
+      clear(body);
+      body.appendChild(el("div", "position:absolute;left:0;top:0;width:540px;" +
+        "font-size:15px;line-height:1.6;font-weight:700;",
+        "This page is missing from your copy. Your Grandmaster has it — " +
+        "describe the bay and they will read it to you."));
+    }
 
     host.appendChild(root);
     return root;

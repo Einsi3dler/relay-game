@@ -88,6 +88,11 @@ async def _timer_fired(match_id: str, scope_id: str, kind: str) -> None:
         touch(match_id)
         if kind.startswith("duel_"):
             result = engine.on_duel_timer(match, scope_id, kind)
+        elif kind == "puzzle":
+            # A board deadline, on its own `fuse:<player_id>` scope so it can
+            # run alongside a wait timer. The engine owns the scope's shape;
+            # this only has to hand back the player id.
+            result = engine.on_puzzle_expired(match, scope_id.split(":", 1)[1])
         else:
             result = engine.on_wait_expired(match, scope_id)
         if result.changed:

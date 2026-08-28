@@ -7,8 +7,10 @@ server layer (main.py + TimerService) owns the clock and the sockets.
 
 Deadlines are keyed by *scope*, and a scope holds at most one at a time: a
 player id owns the wait timer (which doubles as the bonus deadline), while the
-cross-team duel owns DUEL_SCOPE and each team owns `_team_scope()` for its duel
-penalty. Most perk deadlines are deliberately *lazy* and hold no scope at all:
+cross-team duel owns DUEL_SCOPE, each team owns `_team_scope()` for its duel
+penalty, and a player solving a capped board owns `_fuse_scope()` for it — a
+separate scope precisely so a board deadline and a wait deadline can run at
+once. Most perk deadlines are deliberately *lazy* and hold no scope at all:
 freeze is checked on submit, screen effects are checked by the client, and
 Silence is checked in the view layer. Any future deadline that must run
 concurrently with an existing one needs its own scope, or to be lazy.
@@ -38,6 +40,13 @@ DUEL_SCOPE = "duel"
 
 def _team_scope(team_id: str) -> str:
     return f"team:{team_id}"
+
+
+def _fuse_scope(player_id: str) -> str:
+    """The board deadline's own scope, so it runs alongside the wait timer
+    rather than displacing it. Player ids carry a `p_` prefix, so a bare id can
+    never look like one of these."""
+    return f"fuse:{player_id}"
 
 
 def utc_now() -> datetime:
@@ -100,7 +109,8 @@ class TimerRequest:
     """
 
     scope_id: str
-    kind: str  # "wait" | "duel_round" | "duel_reveal" | "duel_next" | "duel_penalty"
+    kind: str  # "wait" | "puzzle" | "duel_round" | "duel_reveal" | "duel_next"
+    #          | "duel_penalty"
     deadline: str  # UTC ISO
 
 
@@ -118,7 +128,7 @@ class EngineResult:
     duel_result: dict | None = None  # a decided duel, for the reveal nudge
     events: list[Event] = field(default_factory=list)
     schedule: list[TimerRequest] = field(default_factory=list)
-    cancel: list[str] = field(default_factory=list)  # player_ids to cancel
+    cancel: list[str] = field(default_factory=list)  # timer scopes to cancel
 
     @staticmethod
     def rejected(message: str) -> EngineResult:
@@ -366,7 +376,7 @@ class RelayEngine:
         leader.earned_level = target.earned_level
         leader.bonus_streak = target.bonus_streak
         leader.bonus_earned = target.bonus_earned
-        self._serve_main(match, leader)
+        self._serve_main(match, leader, result, now)
 
         # Recipient stops playing: any cleared status/timer is gone.
         target.is_leader = True
@@ -378,6 +388,7 @@ class RelayEngine:
         target.choice_pending = False
         target.timer_kind = None
         target.timer_deadline = None
+        self._clear_board_deadline(target, result)
         target.earned_level = 0
         target.bonus_streak = 0
         target.bonus_earned = 0
@@ -625,6 +636,7 @@ class RelayEngine:
         match.status = "active"
         match.config_snapshot = {
             "wait_seconds": config.WAIT_SECONDS,
+            "puzzle_grace_seconds": config.PUZZLE_GRACE_SECONDS,
             "level_count": config.LEVEL_COUNT,
             "players_per_team": config.PLAYERS_PER_TEAM,
             "currency_per_clear": config.CURRENCY_PER_CLEAR,
@@ -648,7 +660,7 @@ class RelayEngine:
             for player in playing:
                 if config.role_is_duel(player.role):
                     continue  # champions duel instead; _start_duel seats them
-                self._serve_main(match, player)
+                self._serve_main(match, player, result, now)
         self._add_event(match, result, "Match started — Level 1!", "info")
         self._start_duel(match, result, now)
         return result
@@ -692,9 +704,11 @@ class RelayEngine:
             return EngineResult.rejected("stale or unknown puzzle")
         module = self.registry.by_id(puzzle.game_id)
         if not module.check(puzzle, answer):
-            # Wrong: stay solving, but on a fresh instance (new seed, attempt+1).
-            self._serve_main(match, player)
-            return EngineResult(correct=False, changed=True)
+            # Wrong: stay solving, but on a fresh instance (new seed,
+            # attempt+1) — and a fresh deadline with it.
+            wrong = EngineResult(correct=False, changed=True)
+            self._serve_main(match, player, wrong, now)
+            return wrong
 
         team = match.teams[player.team_id]
         result = EngineResult(correct=True, changed=True)
@@ -723,7 +737,7 @@ class RelayEngine:
         team = match.teams[player.team_id]
         if not module.check(puzzle, answer):
             result = EngineResult(correct=False, changed=True)
-            self._bonus_fail(match, player, result)
+            self._bonus_fail(match, player, result, now)
             return result
 
         player.bonus_streak += 1
@@ -779,16 +793,48 @@ class RelayEngine:
             return EngineResult(changed=False)
         if player.status == "cleared":
             result = EngineResult(changed=True)
-            self._serve_main(match, player)
+            self._serve_main(match, player, result, now)
             self._add_event(
                 match, result, f"{player.name} lost cleared status.", "lost_green"
             )
             return result
         if player.status == "bonus":
             result = EngineResult(changed=True)
-            self._bonus_fail(match, player, result)
+            self._bonus_fail(match, player, result, now)
             return result
         return EngineResult(changed=False)  # stale timer — no-op
+
+    def on_puzzle_expired(
+        self, match: Match, player_id: str, now: datetime | None = None
+    ) -> EngineResult:
+        """A board's own deadline passed: serve a fresh one, exactly as a wrong
+        answer does.
+
+        Not a penalty beyond that — losing the board *is* the penalty, the same
+        cost §20 of `bomb.md` puts on a detonation. Cleared status, currency and
+        the wait timer are all untouched, because none of them were in play: a
+        player only holds a board deadline while they are solving.
+        """
+        player = match.players.get(player_id)
+        if match.status != "active" or player is None:
+            return EngineResult(changed=False)  # stale timer — no-op
+        if player.status != "solving" or player.puzzle_deadline is None:
+            # They cleared it, took a bonus, or were handed the Grandmaster
+            # seat between the deadline and this call.
+            return EngineResult(changed=False)
+        if _parse_iso(player.puzzle_deadline) > (now or utc_now()):
+            # A timer already past its sleep cannot be cancelled, so a board
+            # re-served in that window would otherwise be killed by the
+            # previous board's clock. The grace makes this free: the timer
+            # fires PUZZLE_GRACE_SECONDS *after* the deadline it is compared
+            # to, so this can never reject a fire that is genuinely due.
+            return EngineResult(changed=False)
+        result = EngineResult(changed=True)
+        self._serve_main(match, player, result, now)
+        self._add_event(
+            match, result, f"{player.name} ran out of time.", "lost_green"
+        )
+        return result
 
     # --- perks ---
 
@@ -951,12 +997,27 @@ class RelayEngine:
                 target.screen_effects.get(effect), moment, perk["seconds"]
             )
         elif perk_id == "freeze" and target is not None:
+            was = _parse_iso(target.frozen_until) if target.frozen_until else None
             target.frozen_until = _extend_deadline(
                 target.frozen_until, moment, perk["seconds"]
             )
+            if target.puzzle_deadline is not None:
+                # A timed board must not burn down while its player is shut out
+                # of it: the freeze costs them the input, not the board. Pushed
+                # by however much the frozen window actually *grew*, so stacking
+                # two freezes never pays out more time than it locks away.
+                start = was if was is not None and was > moment else moment
+                added = (_parse_iso(target.frozen_until) - start).total_seconds()
+                target.puzzle_deadline = (
+                    _parse_iso(target.puzzle_deadline) + timedelta(seconds=added)
+                ).isoformat()
+                self._schedule_board_deadline(match, target, result)
         elif perk_id == "scramble" and target is not None:
-            # A solving player holds no wait timer, so there is nothing to cancel.
-            self._serve_main(match, target)
+            # A solving player holds no wait timer, so there is nothing to
+            # cancel there. The fresh board inherits the *old* board's deadline:
+            # a Scramble takes your work, and on a timed game a fresh clock
+            # would make the attack a gift late in a board.
+            self._serve_main(match, target, result, now, keep_deadline=True)
         elif perk_id == "clock_burn" and target is not None:
             deadline = _parse_iso(target.timer_deadline) - timedelta(
                 seconds=perk["seconds"]
@@ -993,15 +1054,19 @@ class RelayEngine:
         player.connected = False
         return EngineResult(changed=True)
 
-    def on_reconnect(self, match: Match, player_id: str) -> EngineResult:
+    def on_reconnect(
+        self, match: Match, player_id: str, now: datetime | None = None
+    ) -> EngineResult:
         player = match.players.get(player_id)
         if player is None:
             return EngineResult(changed=False)
         player.connected = True
         result = EngineResult(changed=True)
         if match.status == "active" and player.status == "solving":
-            # Fresh instance so a watched/failed board can't be replayed (ECHO).
-            self._serve_main(match, player)
+            # Fresh instance so a watched/failed board can't be replayed
+            # (ECHO) — and the deadline restarts with it, because a board
+            # nobody could see should not have been burning down.
+            self._serve_main(match, player, result, now)
         elif match.status == "active" and player.status == "bonus":
             team = match.teams[player.team_id]
             module = self.registry.by_id(player.assigned_game)
@@ -1033,8 +1098,24 @@ class RelayEngine:
             if not match.players[player_id].is_leader
         ]
 
-    def _serve_main(self, match: Match, player: Player) -> None:
-        """Fresh main instance of the player's own game at the team's level."""
+    def _serve_main(
+        self,
+        match: Match,
+        player: Player,
+        result: EngineResult,
+        now: datetime | None = None,
+        keep_deadline: bool = False,
+    ) -> None:
+        """Fresh main instance of the player's own game at the team's level.
+
+        The single funnel for a solving board — a wrong answer, a Scramble, a
+        reconnect, a level advance and a leader handoff all come through here —
+        which is why the board deadline is armed here and nowhere else.
+
+        `keep_deadline` hands the fresh board the clock the old one was running
+        against, rather than a new one. Only a Scramble uses it: an attack that
+        restarted the clock would *help* its victim on a timed game.
+        """
         team = match.teams[player.team_id]
         module = self.registry.by_id(player.assigned_game)
         player.attempt += 1
@@ -1044,6 +1125,72 @@ class RelayEngine:
         player.choice_pending = False
         player.timer_kind = None
         player.timer_deadline = None
+        self._arm_board_deadline(match, player, result, now, keep=keep_deadline)
+
+    def _board_limit(self, player: Player) -> float | None:
+        """The board's own time limit in seconds, or None if it asks for none."""
+        puzzle = player.current_main
+        if puzzle is None:
+            return None
+        raw = puzzle.payload.get("time_limit_seconds")
+        return float(raw) if isinstance(raw, (int, float)) and raw > 0 else None
+
+    def _schedule_board_deadline(
+        self, match: Match, player: Player, result: EngineResult
+    ) -> None:
+        """(Re)schedule the backstop for whatever `puzzle_deadline` now says.
+
+        Separate from arming it because a deadline can *move* after it is set —
+        a Freeze pushes it out — and the timer has to follow.
+        """
+        grace = match.config_snapshot.get(
+            "puzzle_grace_seconds", config.PUZZLE_GRACE_SECONDS
+        )
+        result.schedule.append(
+            TimerRequest(
+                scope_id=_fuse_scope(player.id),
+                kind="puzzle",
+                deadline=(
+                    _parse_iso(player.puzzle_deadline) + timedelta(seconds=grace)
+                ).isoformat(),
+            )
+        )
+
+    def _arm_board_deadline(
+        self,
+        match: Match,
+        player: Player,
+        result: EngineResult,
+        now: datetime | None,
+        keep: bool = False,
+    ) -> None:
+        """Give the freshly served board its deadline, if its game asks for one.
+
+        Opt-in and generic: the engine reads `payload["time_limit_seconds"]`
+        and knows nothing else about the game (docs/GAME_MODULE_SPEC.md). A
+        game without the key is unlimited, which is still every game but the
+        bomb.
+
+        The deadline the player is *told* is the honest one. The timer fires
+        `PUZZLE_GRACE_SECONDS` later, so an answer already in flight when the
+        clock runs out is still counted — slack the player never sees and an
+        honest one never needs.
+        """
+        limit = self._board_limit(player)
+        if limit is None:
+            player.puzzle_deadline = None
+            result.cancel.append(_fuse_scope(player.id))
+            return
+        if not (keep and player.puzzle_deadline is not None):
+            player.puzzle_deadline = (
+                (now or utc_now()) + timedelta(seconds=limit)
+            ).isoformat()
+        self._schedule_board_deadline(match, player, result)
+
+    def _clear_board_deadline(self, player: Player, result: EngineResult) -> None:
+        """The player is off this board: the backstop goes with it."""
+        player.puzzle_deadline = None
+        result.cancel.append(_fuse_scope(player.id))
 
     def _go_cleared(
         self, match: Match, player: Player, result: EngineResult, now: datetime | None
@@ -1051,10 +1198,15 @@ class RelayEngine:
         player.status = "cleared"
         player.current_main = None
         player.choice_pending = True
+        self._clear_board_deadline(player, result)
         self._start_timer(match, player, "wait", result, now)
 
     def _bonus_fail(
-        self, match: Match, player: Player, result: EngineResult
+        self,
+        match: Match,
+        player: Player,
+        result: EngineResult,
+        now: datetime | None = None,
     ) -> None:
         """Wrong bonus answer or bonus deadline expiry: back to solving and
         forfeit this level's bonus earnings (base clear pay stays)."""
@@ -1073,7 +1225,7 @@ class RelayEngine:
             team.currency = max(0, team.currency - player.bonus_earned)
         player.bonus_earned = 0
         result.cancel.append(player.id)
-        self._serve_main(match, player)
+        self._serve_main(match, player, result, now)
         self._add_event(
             match, result, f"{player.name} failed the bonus.", "lost_green"
         )
@@ -1129,9 +1281,11 @@ class RelayEngine:
         members = self._playing_members(match, team)
         member_ids = {member.id for member in members}
         # Timers scheduled earlier in this same result are now moot. Only the
-        # members' own scopes: duel/team scopes outlive an advance.
-        result.schedule = [r for r in result.schedule if r.scope_id not in member_ids]
-        result.cancel.extend(member_ids)
+        # members' own scopes — their wait timers and their board deadlines;
+        # duel/team scopes outlive an advance.
+        own = member_ids | {_fuse_scope(member_id) for member_id in member_ids}
+        result.schedule = [r for r in result.schedule if r.scope_id not in own]
+        result.cancel.extend(own)
 
         if team.level >= match.config_snapshot["level_count"]:
             team.finished = True
@@ -1146,6 +1300,7 @@ class RelayEngine:
                 member.choice_pending = False
                 member.timer_kind = None
                 member.timer_deadline = None
+                self._clear_board_deadline(member, result)
             self._add_event(match, result, f"Team {team.name} wins!", "win")
             return
 
@@ -1160,7 +1315,7 @@ class RelayEngine:
                 # The champion carries their duel win into the new level; the
                 # next duel is what takes it away again.
                 continue
-            self._serve_main(match, member)
+            self._serve_main(match, member, result, now)
         self._add_event(
             match, result, f"Team {team.name} advances to Level {team.level}!", "advance"
         )

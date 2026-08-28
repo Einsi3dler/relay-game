@@ -1,9 +1,19 @@
 # BOMB DEFUSE — finishing the two-seat design
 
-> **Handoff note.** This is a work order for a fresh session. Everything it
-> describes is unbuilt; everything under "Already shipped" is on the branch and
-> needs no attention. Read [CLAUDE.md](../CLAUDE.md) first — it is binding, and
-> RULE 0 (pull before you work) applies before touching anything.
+> **✅ Delivered.** Items 0–4 are all built and on `main`; this document is kept
+> as the record of *why*, not as a queue. Two decisions moved during the build
+> and the reasons are in the commits: **item 2** withholds a page from level 8
+> (main-ladder tiers, not bonus-only), and **item 4** blacks out from level 11
+> rather than 10, so that blackout lines up exactly with banks and no
+> multi-bank board is left without a readable fuse. The only thing still open
+> from this work is the `_apply_attack` timed-victim policy noted in
+> [TASK_LIST.md](TASK_LIST.md). "Still dropped" below is still dropped.
+>
+> **Original handoff note.** This was a work order for a fresh session.
+> Everything it describes was unbuilt; everything under "Already shipped" was on
+> the branch and needed no attention. Read [CLAUDE.md](../CLAUDE.md) first — it
+> is binding, and RULE 0 (pull before you work) applies before touching
+> anything.
 >
 > - **This document:** `docs/BOMB_TWO_SEAT_PLAN.md`
 > - **Repo:** `/home/einsiedler/Relay`

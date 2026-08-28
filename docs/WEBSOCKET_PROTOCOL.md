@@ -151,7 +151,15 @@ Snapshots are personalised. Which team shape a viewer gets:
                                          //   read "hidden"/null), and the
                                          //   green/lost_green event feed
   "leader_id": "p_...",
-  "players": [ <PlayerPublic>, ... ]
+  "players": [ <PlayerPublic + board_deadline>, ... ]
+                                         // each roster entry adds
+                                         //   "board_deadline": UTC ISO | null —
+                                         //   set only on a `blackout` board, where
+                                         //   the deadline is withheld from the
+                                         //   player and sent to this seat instead.
+                                         //   Null everywhere else (the player has
+                                         //   it), and nulled under Silence with the
+                                         //   rest of the roster
 }
 
 // TeamSummary
@@ -184,6 +192,16 @@ Snapshots are personalised. Which team shape a viewer gets:
                                              // bonus board while bonus, else null
   "timer_kind": "wait | null",
   "timer_deadline": "2026-07-02T12:03:00Z",  // UTC ISO; null if no active timer
+  "puzzle_deadline": null,                   // UTC ISO while solving a board whose
+                                             //   game caps itself (GAME_MODULE_SPEC
+                                             //   §6 `time_limit_seconds`); null for
+                                             //   every other game and every bonus
+                                             //   board. Its own timer scope, so it
+                                             //   runs alongside timer_deadline.
+                                             //   Null on a `blackout` board: the
+                                             //   deadline goes to the team's
+                                             //   Grandmaster instead, as
+                                             //   TeamPublic.players[].board_deadline
   "choice_pending": true,                    // cleared and still owes wait-or-bonus
   "frozen_until": null,                      // UTC ISO while frozen by a perk
   "screen_effects": { "wobble": "2026-07-02T12:00:12Z" }
@@ -204,9 +222,14 @@ Snapshots are personalised. Which team shape a viewer gets:
   "kind": "main | holding",              // matches always serve "main"; "holding"
                                          //   exists only in practice mode
   "prompt": "Rotate the tiles so power reaches every sink.",
-  "payload": { "rows": 4, "cols": 4, "tiles": [ /* ... */ ] }  // game state, never the
-                                                               //   solution — see
-                                                               //   GAME_MODULE_SPEC §6
+  "payload": { "rows": 4, "cols": 4, "tiles": [ /* ... */ ] },  // game state, never the
+                                                                //   solution — see
+                                                                //   GAME_MODULE_SPEC §6
+  "deadline": null              // present only when the board has one: the same
+                                //   instant as PlayerPrivate.puzzle_deadline,
+                                //   repeated here because a renderer that draws a
+                                //   clock of its own already looks in the puzzle
+                                //   and takes no other argument
 }
 ```
 
@@ -220,9 +243,13 @@ Snapshots are personalised. Which team shape a viewer gets:
 
 - The server sends `timer_deadline` (absolute UTC). The client computes
   `remaining = deadline - Date.now()` and animates a countdown locally.
+- `puzzle_deadline` is drawn on the same bar: a solving player holds no wait
+  timer, so it is free. The server kills the board a few seconds *after* the
+  deadline it published (`config.PUZZLE_GRACE_SECONDS`), covering an answer
+  already in flight — that grace is not the player's time and is not drawn.
 - When `remaining` hits 0 the client shows "time's up" but **waits for the server**
-  to apply the consequence (cleared status lost / bonus failed). The client must
-  not itself change status. The same applies to `frozen_until`.
+  to apply the consequence (cleared status lost / bonus failed / a fresh board).
+  The client must not itself change status. The same applies to `frozen_until`.
 - Clock skew is cosmetic; correctness is always the server's.
 
 ## 5. Invariants (test these)

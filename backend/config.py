@@ -22,6 +22,13 @@ CURRENCY_BONUS_FIRST = 3     # first successful bonus of a level
 CURRENCY_BONUS_REPEAT = 1    # each later bonus that level (diminishing returns)
 BONUS_LEVEL_OFFSET = 3       # bonus puzzle = own game at level + this offset
 
+# A game may cap its own board with `payload["time_limit_seconds"]`
+# (docs/GAME_MODULE_SPEC.md). The engine publishes that deadline to the player
+# and kills the board this many seconds later — slack the player never sees,
+# covering an answer already in flight when the deadline passes. Games without
+# the key are unlimited, which is still the default.
+PUZZLE_GRACE_SECONDS = 5
+
 # --- Duels (the Duelist role; docs/DUEL_MODULE_SPEC.md) ---
 # A Duelist earns green for their team by beating the opposing Duelist. These
 # are the engine-side costs; the move set and the per-round choice window come
@@ -55,7 +62,8 @@ PERKS: dict[str, dict] = {
     "skim":        {"name": "Skim",        "kind": "attack",  "cost": 2, "amount": 1,
                     "desc": "Steal 1 from the opponent's pool."},
     "silence":     {"name": "Silence",     "kind": "attack",  "cost": 3, "seconds": 30,
-                    "desc": "Blind the enemy Grandmaster for 30s."},
+                    "desc": "Blind the enemy Grandmaster for 30s — roster, "
+                            "feed and bomb manual."},
     # --- attacks: screen effects (cosmetic) ---
     "wobble":      {"name": "Wobble",      "kind": "attack",  "cost": 2, "seconds": 12,
                     "effect": "wobble",

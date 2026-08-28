@@ -12,12 +12,14 @@
   var socket = null;
   var lastState = null;
   var mounted = null;      // { puzzleId, renderer }
+  var heldSubmit = null;   // an answer held back while frozen — see mountPuzzle
   var mountedDuel = null;  // { duelId, renderer, mountId }
   var duelTimerHandle = null;
   var timerHandle = null;
   var frozenHandle = null;
   var effectsHandle = null;
   var silenceHandle = null;
+  var bombClockHandle = null;
   var toastHandle = null;
   var overlayHandle = null;
   var reconnectDelay = 500;
@@ -599,8 +601,15 @@
     } else {
       unmountPuzzle();
     }
-    startCountdown(me.timer_deadline, me.status);
+    // A solving player holds no wait timer, so the bar is free for the board's
+    // own deadline where the game asks for one (docs/GAME_MODULE_SPEC.md).
+    if (me.status === "solving" && me.puzzle_deadline) {
+      startCountdown(me.puzzle_deadline, "puzzle", puzzle);
+    } else {
+      startCountdown(me.timer_deadline, me.status);
+    }
     renderFrozen(me.frozen_until);
+    flushHeldSubmit(me);
     renderScreenEffects(me.screen_effects);
     renderDuel(state, "duel-card", "duel-mount");
   }
@@ -689,16 +698,29 @@
 
   // Mount by game_id from window.RelayGames; unmount the old first.
   function mountPuzzle(puzzle) {
-    if (mounted && mounted.puzzleId === puzzle.id) return; // same instance
+    if (mounted && mounted.puzzleId === puzzle.id) {
+      // Same instance — but not necessarily the same *board*: a deadline can
+      // move under a live board (a Freeze pushes it out), and a renderer that
+      // draws its own clock has to be told. Optional, so a renderer without
+      // one is unaffected.
+      if (mounted.renderer.update) mounted.renderer.update(puzzle);
+      return;
+    }
     unmountPuzzle();
     var renderer = window.RelayGames[puzzle.game_id] || window.RelayGames.fallback;
     var api = {
       submit: function (answer) {
-        send({
+        var message = {
           type: "submit_answer",
           puzzle_id: puzzle.id,
           answer: String(answer),
-        });
+        };
+        // A freeze makes the server refuse submits, and some games — the bomb —
+        // submit exactly once, at the end. Sending it now would have the answer
+        // thrown away with no way to send it again, so hold it until the freeze
+        // lifts (`flushHeldSubmit`, on the next snapshot).
+        if (frozenNow()) { heldSubmit = message; return; }
+        send(message);
       },
       setReady: function () {},
     };
@@ -706,25 +728,47 @@
     mounted = { puzzleId: puzzle.id, renderer: renderer };
   }
 
+  function frozenNow() {
+    var until = lastState && lastState.me && lastState.me.frozen_until;
+    return !!until && parseDeadline(until) > Date.now();
+  }
+
+  // Send a held answer once the freeze lapses — but only while the board it
+  // answers is still the one being served. A board that has moved on (a
+  // Scramble, a lapsed deadline) makes it stale, and the server would refuse
+  // it anyway.
+  function flushHeldSubmit(me) {
+    if (!heldSubmit) return;
+    var puzzle = me && me.current_puzzle;
+    if (!puzzle || puzzle.id !== heldSubmit.puzzle_id) { heldSubmit = null; return; }
+    if (frozenNow()) return;
+    var message = heldSubmit;
+    heldSubmit = null;
+    send(message);
+  }
+
   function unmountPuzzle() {
     if (mounted) {
       mounted.renderer.unmount();
       mounted = null;
     }
+    heldSubmit = null;
     $("puzzle-mount").innerHTML = "";
   }
 
-  // Countdown driven by timer_deadline; server stays authoritative.
-  function startCountdown(deadlineIso, status) {
+  // Countdown driven by a server deadline; the server stays authoritative in
+  // every case — the bar says what is left, it never decides anything.
+  function startCountdown(deadlineIso, status, puzzle) {
     clearInterval(timerHandle);
     var bar = $("timer-bar"), label = $("timer-label");
     if (!deadlineIso) { bar.hidden = true; label.hidden = true; return; }
     var deadline = parseDeadline(deadlineIso);
-    var total = ((lastState && lastState.config.wait_seconds) ||
-      (serverConfig && serverConfig.wait_seconds) || 180) * 1000;
+    var total = countdownSeconds(status, puzzle) * 1000;
     bar.hidden = false;
     label.hidden = false;
-    var prefix = status === "bonus" ? "🔥 Bonus deadline: " : "⏳ Holding cleared: ";
+    var prefix = status === "bonus" ? "🔥 Bonus deadline: "
+      : status === "puzzle" ? "⏱️ Board deadline: "
+      : "⏳ Holding cleared: ";
     var tick = function () {
       var left = Math.max(0, deadline - Date.now());
       $("timer-fill").style.width = Math.min(100, (left / total) * 100) + "%";
@@ -736,6 +780,18 @@
     };
     tick();
     timerHandle = setInterval(tick, 250);
+  }
+
+  // How long the bar's full width represents. A board deadline spans the
+  // game's own limit; everything else spans the wait. The grace the server
+  // adds on top is deliberately not counted — it is not the player's time.
+  function countdownSeconds(status, puzzle) {
+    if (status === "puzzle") {
+      var limit = puzzle && puzzle.payload && puzzle.payload.time_limit_seconds;
+      if (limit) return limit;
+    }
+    return (lastState && lastState.config.wait_seconds) ||
+      (serverConfig && serverConfig.wait_seconds) || 180;
   }
 
   function renderFrozen(frozenIso) {
@@ -803,6 +859,35 @@
   // what they are looking at; this says what it means.
   var bombConsole = { page: "home", mounted: false };
 
+  // On a blackout board the Defuser's face shows no number and runs no fuse of
+  // its own; the server sends the deadline here instead. This is the console's
+  // first live element and a deliberate departure from "the manual and nothing
+  // else" — it is still not board state, just the one clock, on the one seat
+  // allowed to read it out.
+  function renderConsoleClock(defuser) {
+    clearInterval(bombClockHandle);
+    var box = $("leader-bomb-clock");
+    var iso = defuser && defuser.board_deadline;
+    if (!iso) { box.hidden = true; return; }
+    var deadline = parseDeadline(iso);
+    box.hidden = false;
+    var tick = function () {
+      var left = Math.max(0, deadline - Date.now());
+      box.textContent = left > 0
+        ? "⏱️ " + Math.ceil(left / 1000) + "s — call it out, they cannot see it"
+        : "💥 Out of time — the board is gone.";
+      if (left <= 0) clearInterval(bombClockHandle);
+    };
+    tick();
+    bombClockHandle = setInterval(tick, 250);
+  }
+
+  function hideConsoleClock() {
+    clearInterval(bombClockHandle);
+    var box = $("leader-bomb-clock");
+    if (box) { box.hidden = true; box.textContent = ""; }
+  }
+
   function renderBombConsole(state, team) {
     var card = $("leader-bomb-card");
     var manual = window.RelayBombManual;
@@ -816,13 +901,44 @@
     // in the lobby there is no bomb to read for.
     if (!manual || !defuser || state.status !== "active") {
       if (bombConsole.mounted) teardownBombConsole();
+      hideConsoleClock();
       card.hidden = true;
+      return;
+    }
+    // Silence jams the manual too. A silenced Grandmaster already loses the
+    // roster and the who-cleared feed; leaving them the one page that still
+    // helps would make the perk a half-measure, and the Defuser can hear the
+    // difference. The card stays — a console that vanished would read as a
+    // bug rather than as the attack it is.
+    if (team.silenced_until && parseDeadline(team.silenced_until) > Date.now()) {
+      if (bombConsole.mounted) {
+        // Keep the page. This lifts in seconds and the Defuser will still be
+        // stood in front of the same bay when it does.
+        var openPage = bombConsole.page;
+        teardownBombConsole();
+        bombConsole.page = openPage;
+      }
+      card.hidden = false;
+      hideConsoleClock();     // the server already nulls it; this clears the tick
+      $("leader-bomb-sub").textContent =
+        "🔇 Silenced — the manual is jammed. " + defuser.name +
+        " is on the bomb without you until it clears.";
+      var jammed = $("leader-bomb-mount");
+      jammed.innerHTML = "";
+      var pill = document.createElement("div");
+      pill.className = "muted";           // the same "🔇 ?" statusPill shows
+      pill.textContent = "🔇 ?";
+      jammed.appendChild(pill);
       return;
     }
     card.hidden = false;
     $("leader-bomb-sub").textContent =
       defuser.name + " is on the bomb" + (defuser.connected ? "" : " (offline)") +
-      " and cannot see this. They describe the bay; you read them the rule.";
+      " and cannot see this. They describe the bay; you read them the rule." +
+      (defuser.board_deadline ? " Their timer is dark — you are the clock." : "");
+    // Before the redraw guard: the manual holds its page across snapshots, the
+    // clock has to follow every one of them.
+    renderConsoleClock(defuser);
 
     // Re-rendering on every snapshot would fight the page you are reading, so
     // the console redraws only when its own page changes.
@@ -872,6 +988,7 @@
     }
     bombConsole.mounted = false;
     bombConsole.page = "home";
+    hideConsoleClock();
     var mount = $("leader-bomb-mount");
     if (mount) mount.innerHTML = "";
     $("leader-bomb-card").hidden = true;
@@ -1072,6 +1189,7 @@
     teardownBombConsole();
     clearInterval(timerHandle);
     clearInterval(frozenHandle);
+    clearInterval(bombClockHandle);
     clearTimeout(silenceHandle);
     clearScreenEffects();
     $("choice-overlay").hidden = true;
