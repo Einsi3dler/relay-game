@@ -93,6 +93,16 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   every new game widens the library the Grandmaster picks from.
   **THREADLINE** (game 10, the Logician's second game) shipped: backend module,
   renderer, Python/JS parity fixture, docs. That completes the expansion spec's
+  **Update (V10):** BOMB DEFUSE has landed and the engine now knows what a timed
+  game is — `payload["time_limit_seconds"]` is exactly the capability flag this
+  note asked for, and `_apply_attack` could read it. Neither perk's behaviour
+  *changed* (the bomb's client fuse already burned through a Freeze, and
+  Scramble already handed over a fresh one), but both are now measurable, and
+  both are asserted in `tests/test_puzzle_deadline.py` as deliberate: Scramble
+  gives a fresh board a fresh deadline, and a Freeze does not pause one. Making
+  `_apply_attack` skip or re-price a timed victim is still unbuilt, and is the
+  natural next step here. · [C]
+
   §18 first wave (MIRROR RUN, OVERPRINT, STACKDROP, LANE SHIFT, SHADOW CAST,
   THREADLINE); GRAVITY SHIFT, PRESSURE VALVES, SIGNAL BUFFER, TETHER, FOLDLINE
   and ORBIT SYNC are the next batch.
@@ -107,9 +117,16 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   of), and the manual moved onto the Grandmaster's dashboard as the bomb
   console. Then **banks** (rules version 2 — a board escalates into a second
   bank of bays on a fresh fuse, on the bonus tiers) and a **practice mission
-  ladder** (authored boards, practice-only by rule). Still open: whether the
-  Defuser's own manual should thin out at high levels so the Grandmaster becomes
-  necessary rather than merely faster — see the note in GAMES_SPEC.md.
+  ladder** (authored boards, practice-only by rule).
+  **The second seat is now load-bearing**: from level 8 the board withholds one
+  manual page from the Defuser's own copy (the console holds the only copy in
+  the match), Silence jams the console, and on the bonus tiers the *clock* moves
+  to the console too — the Defuser's face reads `--` and keeps no fuse. That
+  answers the open question and reverses the old "a Grandmaster never strands
+  their Defuser" rule, which GAME_DESIGN.md §2c and GAMES_SPEC.md now state the
+  other way round. Blackout rides on the engine's new opt-in board deadline
+  (`payload["time_limit_seconds"]`, GAME_MODULE_SPEC.md §6), which is also
+  §0.4's stretch hardening landing for the first time.
 - [ ] More **duel** games for the Duelist role (see
   [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md)) — same rules, different time
   costs. The engine picks between whatever is registered.
