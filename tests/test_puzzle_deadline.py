@@ -40,17 +40,17 @@ class Game:
     """A stand-in that opts in or out of a board deadline."""
 
     def __init__(
-        self, game_id: str, limit: int | None, blackout: bool = False
+        self, game_id: str, limit: int | None, hidden: bool = False
     ) -> None:
         self.id = game_id
         self.name = game_id.title()
         self.limit = limit
-        self.blackout = blackout
+        self.hidden = hidden
 
     def _payload(self) -> dict:
         if self.limit is None:
             return {}
-        return {"time_limit_seconds": self.limit, "blackout": self.blackout}
+        return {"time_limit_seconds": self.limit, "hidden_deadline": self.hidden}
 
     def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
         return PuzzleInstance(
@@ -76,7 +76,7 @@ def engine(monkeypatch) -> RelayEngine:
     monkeypatch.setattr(config, "LEVEL_COUNT", 3)
     return RelayEngine(GameRegistry(modules=[
         Game(CAPPED, LIMIT), Game(UNCAPPED, None),
-        Game(DARK, LIMIT, blackout=True),
+        Game(DARK, LIMIT, hidden=True),
     ]))
 
 
@@ -461,7 +461,7 @@ def test_the_grace_is_frozen_at_start_like_every_other_timer(engine):
         config.PUZZLE_GRACE_SECONDS
 
 
-# --- blackout: the same deadline, routed to one seat ----------------------
+# --- dark fuse: the same deadline, routed to one seat ----------------------
 #
 # A visibility rule, not a sync channel. It is only honest because the deadline
 # is real server state: there is nothing to keep in step, because there is only
@@ -481,7 +481,7 @@ def roster_entry(match, leader, player) -> dict:
     return next(view for view in team["players"] if view["id"] == player.id)
 
 
-def test_a_blackout_board_withholds_the_deadline_from_the_player(engine):
+def test_a_dark_fuse_board_withholds_the_deadline_from_the_player(engine):
     match, player, leader = dark_match(engine)
     me = match.public(player.id)["me"]
     assert me["puzzle_deadline"] is None
@@ -490,7 +490,7 @@ def test_a_blackout_board_withholds_the_deadline_from_the_player(engine):
     assert player.puzzle_deadline is not None
 
 
-def test_a_blackout_board_sends_the_deadline_to_the_grandmaster(engine):
+def test_a_dark_fuse_board_sends_the_deadline_to_the_grandmaster(engine):
     match, player, leader = dark_match(engine)
     assert roster_entry(match, leader, player)["board_deadline"] == \
         player.puzzle_deadline
@@ -525,7 +525,7 @@ def test_an_uncapped_board_gives_the_deadline_to_neither(engine):
 
 
 def test_the_deadline_comes_back_to_the_player_when_the_board_changes(engine):
-    """Blackout follows the board, not the player: a fresh board from an
+    """The dark fuse follows the board, not the player: a fresh board from an
     ordinary game hands the clock straight back."""
     match, player, leader = dark_match(engine)
     player.assigned_game = CAPPED
@@ -537,7 +537,7 @@ def test_the_deadline_comes_back_to_the_player_when_the_board_changes(engine):
 def test_silence_takes_the_grandmasters_clock_too(engine):
     """A silenced Grandmaster loses the roster, the feed and the manual. If
     they kept the one number their Defuser cannot see, the perk would be no
-    real blackout at all."""
+    no real dark fuse at all."""
     match, player, leader = dark_match(engine)
     match.teams["bravo"].currency = 99
     assert engine.buy_perk(

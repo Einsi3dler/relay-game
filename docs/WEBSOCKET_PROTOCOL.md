@@ -154,7 +154,7 @@ Snapshots are personalised. Which team shape a viewer gets:
   "players": [ <PlayerPublic + board_deadline>, ... ]
                                          // each roster entry adds
                                          //   "board_deadline": UTC ISO | null —
-                                         //   set only on a `blackout` board, where
+                                         //   set only on a `hidden_deadline` board,
                                          //   the deadline is withheld from the
                                          //   player and sent to this seat instead.
                                          //   Null everywhere else (the player has
@@ -198,7 +198,7 @@ Snapshots are personalised. Which team shape a viewer gets:
                                              //   every other game and every bonus
                                              //   board. Its own timer scope, so it
                                              //   runs alongside timer_deadline.
-                                             //   Null on a `blackout` board: the
+                                             //   Null on a `hidden_deadline` board: the
                                              //   deadline goes to the team's
                                              //   Grandmaster instead, as
                                              //   TeamPublic.players[].board_deadline

@@ -155,7 +155,7 @@ MINI_CODE_MAX = 99
 WITHHOLD_FROM_LEVEL = 8
 WITHHELD_PAGES = 1
 
-# --- blackout (§7: the timer is on the bomb, and the bomb is not yours) --
+# --- dark fuse (§7: the timer is on the bomb, and the bomb is not yours) --
 # The deepest tier and the bonus-only boards behind it hand the *clock* to the
 # Grandmaster as well as the manual: the Defuser's face shows no number, runs
 # no fuse of its own, and the only countdown in the match is the one on the
@@ -175,7 +175,7 @@ WITHHELD_PAGES = 1
 #     than two unrelated ones landing on different levels.
 # 11 is the first bonus-only tier. The level table is defined below this
 # point, so the tie is asserted in the tests rather than computed here.
-BLACKOUT_FROM_LEVEL = 11
+DARK_FUSE_FROM_LEVEL = 11
 
 # --- answer limits (expansion spec §4: cap before parsing) --------------
 MAX_ANSWER_CHARS = 8000
@@ -289,11 +289,11 @@ def _withheld_pages(seed: int, level: int, banks: list[dict]) -> list[str]:
     return sorted(picker.sample(live, min(WITHHELD_PAGES, len(live))))
 
 
-def _blackout(level: int) -> bool:
+def _dark_fuse(level: int) -> bool:
     """Whether this board's clock belongs to the Grandmaster rather than the
     Defuser. A tier property, not a draw: a bomb whose timer is sometimes there
     and sometimes not teaches nothing."""
-    return _clamp_level(level) >= BLACKOUT_FROM_LEVEL
+    return _clamp_level(level) >= DARK_FUSE_FROM_LEVEL
 
 
 Cell = tuple[int, int]
@@ -909,7 +909,7 @@ class BombDefuseGame:
             "time_limit_seconds": sum(bank["fuse_seconds"] for bank in banks),
             # Practice has no Grandmaster to hand the clock to, so a blacked-out
             # drill would just be a drill with no clock.
-            "blackout": kind == "main" and _blackout(level),
+            "hidden_deadline": kind == "main" and _dark_fuse(level),
         }
 
         moves = _reference_moves(payload)
@@ -978,7 +978,7 @@ class BombDefuseGame:
             "banks": banks,
             "withheld_pages": [],   # a set piece you cannot look up is not one
             "time_limit_seconds": sum(b["fuse_seconds"] for b in banks),
-            "blackout": False,      # ...and neither does a set piece
+            "hidden_deadline": False,      # ...and neither does a set piece
         }
         moves = _reference_moves(payload)
         if not validate(payload, moves)["ok"]:

@@ -174,13 +174,16 @@ Grandmaster is the open-ended case: the fuse runs out, the bomb goes off, and
 the engine answers with a fresh board that draws its own withheld page. Losing
 a board is the cost, not losing the level.
 
-**On the bonus-only tiers the clock goes too.** From level 11 — the boards that
-also come in banks — the bomb's timer cell reads `--`, the Defuser's client
+**On the bonus-only tiers the clock goes too — the dark fuse.** From level 11 —
+the boards that also come in banks — the bomb's timer cell reads `--`, the Defuser's client
 keeps no fuse at all, and the only countdown in the match is the one that has
 appeared on the Grandmaster's console. Server-owned deadline, one seat sent it,
 the other not: it is a visibility rule, which is the only reason the console
 can hold a live element without becoming a second copy of the board to keep in
 sync.
+
+(The **Blackout perk** in the shop is a different thing entirely — a four-second
+screen effect. The dark fuse is a property of the board, not a purchase.)
 
 That makes the console's first live element a departure from "the manual and
 nothing else", and a deliberate one. It is still not board state — no bays, no

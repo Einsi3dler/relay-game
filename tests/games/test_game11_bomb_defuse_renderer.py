@@ -270,13 +270,13 @@ const report = {};
   const { container, sent } = mount(puzzles.full);
   const budget = puzzles.full.payload.time_limit_seconds;
   advance((budget + 120) * 1000);
-  report.blackout = {
+  report.darkFuse = {
     readout: texts(container)[0],
     screen: screen(container),
     sent: sent.length,
   };
   game.unmount();
-  report.blackout.left_running = clock.timers.size;
+  report.darkFuse.left_running = clock.timers.size;
 }
 
 // 3c. ...and shutting a bank does not leak the next fuse either.
@@ -286,7 +286,7 @@ const report = {};
   const moves = JSON.parse(puzzles.full.__reference).moves;
   banks[0].modules.forEach((module) => workBay(container, module, moves));
   click(byText(container, "OK"));
-  report.blackoutBank = {
+  report.darkFuseBank = {
     banner: screen(container),
     readout: texts(container)[0],
     // No number anywhere on the banner, from either bank.
@@ -554,13 +554,13 @@ report.fatal = fatal;
   game.unmount();
 }
 
-// 8d. A blackout board keeps no clock, so an update has nothing to move.
+// 8d. A dark-fuse board keeps no clock, so an update has nothing to move.
 {
   const { container } = mount(puzzles.full);
   const moved = JSON.parse(JSON.stringify(puzzles.full));
   moved.deadline = new Date(clock.now + 999000).toISOString().replace("Z", "+00:00");
   game.update(moved);
-  report.frozenBlackout = { readout: texts(container)[0] };
+  report.frozenDarkFuse = { readout: texts(container)[0] };
   game.unmount();
 }
 
@@ -702,7 +702,7 @@ def report() -> dict:
     # A single-bank board as the engine hands it over: the deadline the server
     # published, stamped into the puzzle view exactly as `Player.private` does,
     # for a board served SERVED_AGO ago.
-    # A multi-bank board whose clock is still the player's. Blackout and banks
+    # A multi-bank board whose clock is still the player's. Dark fuse and banks
     # both start at the bonus-only tiers, so no *generated* board is one and
     # not the other — but the authored practice missions are exactly that, and
     # they are the boards these scenarios were always really about.
@@ -710,7 +710,7 @@ def report() -> dict:
     banked = banked_puzzle.public()
     banked["__reference"] = banked_puzzle.answer
     assert len(banked["payload"]["banks"]) == 2
-    assert banked["payload"]["blackout"] is False
+    assert banked["payload"]["hidden_deadline"] is False
 
     served, _ = board(game, 3, 10)
     assert len(served["payload"]["banks"]) == 1, "levels 1-10 are single-bank"
@@ -765,7 +765,7 @@ def test_the_red_countdown_is_the_seconds_left(report):
     assert banked["timer_label"] == "Seconds left on the fuse"
 
 
-def test_a_blackout_board_shows_no_number_at_all(report):
+def test_a_dark_fuse_board_shows_no_number_at_all(report):
     """The bonus-only tiers hand the clock to the Grandmaster. "--" rather than
     a blank cell: a dark readout is the bomb refusing to say, and an empty box
     would read as broken."""
@@ -822,21 +822,21 @@ def test_the_fuse_counts_down_and_then_goes_off(report):
     assert json.loads(fuse["sent"][0])["failed"] == "timer-expired"
 
 
-def test_a_blackout_board_never_ends_itself_on_time(report):
+def test_a_dark_fuse_board_never_ends_itself_on_time(report):
     """A fuse running where nobody can see it would still be the client
     deciding when the board ends. On a blacked-out board the server's deadline
     is the only thing that does — so the client keeps no clock at all."""
-    blackout = report["blackout"]
-    assert "MISSION FAILED" not in blackout["screen"]
-    assert blackout["sent"] == 0            # nothing submitted, nothing failed
-    assert blackout["readout"] == "--"      # still dark, two minutes on
-    assert blackout["left_running"] == 0
+    dark = report["darkFuse"]
+    assert "MISSION FAILED" not in dark["screen"]
+    assert dark["sent"] == 0            # nothing submitted, nothing failed
+    assert dark["readout"] == "--"      # still dark, two minutes on
+    assert dark["left_running"] == 0
 
 
-def test_a_blackout_board_does_not_leak_the_next_fuse(report):
+def test_a_dark_fuse_board_does_not_leak_the_next_fuse(report):
     """The bank banner names the seconds on an ordinary board. Here it must
     not, or the number the face is hiding arrives by the back door."""
-    bank = report["blackoutBank"]
+    bank = report["darkFuseBank"]
     assert "BANK 2 ARMED" in bank["banner"]
     assert "A fresh fuse you cannot see" in bank["banner"]
     assert bank["leaks"] == []
@@ -1006,9 +1006,9 @@ def test_the_same_update_twice_pays_out_once(report):
     assert moved["repeated"] == moved["still_ticking"]
 
 
-def test_an_update_moves_nothing_on_a_blackout_board(report):
+def test_an_update_moves_nothing_on_a_dark_fuse_board(report):
     """There is no clock here to move: the server owns it outright."""
-    assert report["frozenBlackout"]["readout"] == "--"
+    assert report["frozenDarkFuse"]["readout"] == "--"
 
 
 # --- lifecycle ----------------------------------------------------------
