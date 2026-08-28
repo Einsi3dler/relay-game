@@ -20,6 +20,28 @@ python3 -m pip install -e ".[test]"
 ./run.sh                       # uvicorn backend.main:app --reload
 ```
 
+**Reaching the deepest bomb boards.** In normal play a withheld manual page
+starts at level 8, and the dark fuse only on the bonus-only tiers (11–13),
+which a team reaches by being at level 8+ and choosing **Bonus** over waiting.
+That is a long way to play just to look at them.
+
+To see both in the first few minutes, edit
+[`backend/games/game11_bomb_defuse.py`](../backend/games/game11_bomb_defuse.py):
+
+```python
+WITHHOLD_FROM_LEVEL = 3      # a withheld page from level 3 (normally 8)
+DARK_FUSE_FROM_LEVEL = 1     # every board dark from level 1 (normally 11)
+```
+
+**Do not set `WITHHOLD_FROM_LEVEL` below 3.** Levels 1 and 2 field a single
+bay, so withholding one page there leaves the Defuser a board with nothing they
+can read at all — a dead end the real curve guarantees against, because every
+tier from 8 up fields three bays of distinct types. Level 3 is the first with
+two bays, so one withheld page still leaves one readable.
+
+Put both back before recording anything: they change the curve you are
+measuring.
+
 The server serves everything on one origin (default
 `http://127.0.0.1:8000`). To play across machines, run
 `./run.sh --host 0.0.0.0` and share your LAN address.
@@ -68,6 +90,37 @@ browser's dev-tools console (client errors). Keep both visible.
 - [ ] With the OS "reduce motion" setting on, a screen effect still costs the
       victim something (the substitute blur pulse), rather than doing nothing.
 
+### The two-seat bomb — does the second seat actually get used? (**AC: Defusers ask, Grandmasters answer, and neither seat is bored or stranded**)
+
+BOMB DEFUSE is the only game played by two people, and the only one with a
+clock and a fail state, so it is the thing most likely to behave differently
+with real humans than it does in tests. Every team fields exactly one Defuser,
+so every table has one.
+
+- [ ] **Do they actually talk?** The whole design assumes the Defuser describes
+      a bay and the Grandmaster reads back the rule. If Defusers just flip to
+      their own manual and eat the fuse cost instead, the console is decoration
+      — note whether the Grandmaster is ever asked at all, and at which levels.
+- [ ] **Levels 1–7 (whole manual):** the Grandmaster should be a *speed
+      advantage* here and nothing more. A Defuser working alone should be
+      slower, never stuck.
+- [ ] **Levels 8–10 (one page withheld):** the Defuser's copy is missing one
+      page and the console holds the only copy in the match. Does that produce
+      a conversation, or just frustration? Note whether a Defuser ever sat on a
+      dead bay because their Grandmaster was busy with four other players.
+- [ ] **Bonus tiers 11–13 (the dark fuse):** the timer cell reads `--` and the
+      only countdown is on the console. Does the Grandmaster remember to call
+      the time out? Watch for a Defuser who never learns how long they have.
+- [ ] **Silence on a bomb team.** For its 30 seconds the console blanks and, on
+      a dark-fuse board, neither seat has the clock. That is intended — check
+      it reads as an attack landing rather than as the app breaking.
+- [ ] **A disconnected Grandmaster** is the open-ended case: from level 8 their
+      Defuser is genuinely stranded on one bay until they come back. Note how
+      often it happens and how bad it felt.
+- [ ] **Is the Grandmaster too busy?** They buy perks, watch the roster, and now
+      run a manual and a countdown. If the bomb crowds out the rest of the
+      role, that is a finding.
+
 ### V5 — do the difficulty curves feel right? (**AC: L1 ≈ today, L10 clearly but not brutally harder, bonus harder than the current level**)
 
 For each game, note solve times per level band (1–3, 4–6, 7–10, bonus 11–13):
@@ -83,6 +136,10 @@ For each game, note solve times per level band (1–3, 4–6, 7–10, bonus 11�
       climb; SHADOW CAST's tiers 12 and 13 are identical bar the time hint.
 - [ ] Note any game whose curve spikes or flattens badly — that game's
       `MAIN_LEVEL_PARAMS` table (or `_params_for_level`) is where to adjust.
+- [ ] **BOMB DEFUSE climbs on two extra axes**, so watch level 10 especially —
+      it is the "clearly but not brutally harder" line and it now also carries
+      a withheld manual page. If level 10 tips into brutal, raise
+      `WITHHOLD_FROM_LEVEL` before touching the fuse table.
 
 ### V7 — is the economy worth tuning? (**AC: bonuses feel worth the risk; perks get bought but don't dominate**)
 
@@ -96,7 +153,11 @@ Track per team across the match:
 - [ ] **Perks bought per team, and which:** are perks bought at all? Does one
       perk dominate every purchase? Freeze was the suspected dominant buy
       before the catalogue grew — Wobble and Static now also reach bonus
-      players for less, so watch whether Freeze still wins. Does any perk never
+      players for less, so watch whether Freeze still wins. Note that Freeze
+      and Scramble behave differently against a **timed** board (BOMB DEFUSE):
+      Freeze pushes the board deadline out by as long as it locks the Defuser
+      out, and Scramble takes their work but not their clock. Both were
+      measurably wrong before that and are worth watching afresh. Does any perk never
       get bought? Reflect at 4 is the most expensive thing in the shop; Skim
       deliberately loses the buyer currency.
 - [ ] **Wait timer:** does the 180s hold ever actually lapse, and does that
@@ -116,6 +177,9 @@ Fill this in during/after the playtest and bring it to the V7 tuning discussion.
 | Bonus success rate | | | |
 | Perks bought (by type) | | | all 13 — note any never bought |
 | Wait timer lapses | | | |
+| Bomb: times the Grandmaster was asked | | | roughly, per level band |
+| Bomb: boards lost to the fuse | | | and at which levels |
+| Bomb: Defuser stranded on a withheld page? | | | L8+ only; note how long |
 | Felt too easy / too hard where? | | | |
 
 Proposed config changes from this data (V7):
@@ -127,6 +191,8 @@ Proposed config changes from this data (V7):
 - Perk costs — defense (shield 2 / reflect 4 / insurance 2 / extend_wait 1): ___
 - Screen-effect durations (wobble 12s / static 10s / mirror 10s / blackout 4s): ___
 - Per-game curve tweaks: ___
+- BOMB DEFUSE two-seat knobs — `WITHHOLD_FROM_LEVEL` (8) / `DARK_FUSE_FROM_LEVEL`
+  (11) / `PUZZLE_GRACE_SECONDS` (5): ___
 
 ---
 
