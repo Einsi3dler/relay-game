@@ -557,10 +557,14 @@ who sees the manual but not the bomb. The Relay seats both.
   ([GAME_DESIGN.md](GAME_DESIGN.md) §2c). The role names the game; the
   Grandmaster picks who holds it, never what they play.
 - **The Grandmaster is the Expert.** The manual lives on their dashboard as the
-  **bomb console**. It is the manual and *nothing else* — no board, no fuse, no
-  bay progress reaches them — which is both the faithful reading of §4 and the
-  reason the console needs no synchronisation at all: a static page has nothing
-  to keep in step. The Defuser describes the bay; the Grandmaster reads back the
+  **bomb console**. On an ordinary board it is the manual and *nothing else* —
+  no board, no fuse, no bay progress reaches them — which is both the faithful
+  reading of §4 and the reason the console needs no synchronisation: a static
+  page has nothing to keep in step. On a `blackout` board (the bonus-only tiers
+  11–13) it grows exactly one live element, a countdown of the server's board
+  deadline, because that deadline has been withheld from the Defuser and sent
+  here instead. One instant, one copy, one seat — still a visibility rule
+  rather than a sync channel. The Defuser describes the bay; the Grandmaster reads back the
   rule. **Silence blanks it**: the perk that takes a Grandmaster's roster takes
   their manual with it, and the card sits marked 🔇 until it lapses.
 - **The Defuser keeps their own copy — up to a point.** Flipping to it hides
@@ -574,6 +578,13 @@ who sees the manual but not the bomb. The Relay seats both.
   a bay that is on the board, and is never more than one, so the rest of the
   bomb stays workable while the Defuser asks. Practice boards and the authored
   missions withhold nothing.
+- **And on the bonus tiers, the clock as well.** From `BLACKOUT_FROM_LEVEL`
+  (11) the payload sets `blackout`, the timer cell reads `--`, and the renderer
+  keeps no fuse of its own — a hidden clock would still be the client deciding
+  when the board ends. The server's board deadline is what ends it, and the
+  Grandmaster's console is the only place it can be read. Blackout lines up
+  exactly with banks, so a blacked-out board and a multi-bank board are the
+  same board: one step up rather than two on different levels.
 
 **Banks** (rules version 2). A board is a list of *banks*, each with its own
 bays and its own fuse. Shut every bay in the armed bank and press OK and the

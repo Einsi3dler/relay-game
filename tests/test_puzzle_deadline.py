@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from backend import config
-from backend.engine import RelayEngine, _fuse_scope
+from backend.engine import EngineResult, RelayEngine, _fuse_scope
 from backend.games.base import PuzzleInstance
 from backend.registry import GameRegistry
 
@@ -33,18 +33,24 @@ MAIN_OK = "main-ok"
 LIMIT = 60          # the capped game's board budget
 UNCAPPED = "loose"  # a game that never asks for one
 CAPPED = "tight"
+DARK = "dark"       # capped, and routes its deadline to the Grandmaster
 
 
 class Game:
     """A stand-in that opts in or out of a board deadline."""
 
-    def __init__(self, game_id: str, limit: int | None) -> None:
+    def __init__(
+        self, game_id: str, limit: int | None, blackout: bool = False
+    ) -> None:
         self.id = game_id
         self.name = game_id.title()
         self.limit = limit
+        self.blackout = blackout
 
     def _payload(self) -> dict:
-        return {} if self.limit is None else {"time_limit_seconds": self.limit}
+        if self.limit is None:
+            return {}
+        return {"time_limit_seconds": self.limit, "blackout": self.blackout}
 
     def generate_main(self, seed: int, level: int = 1) -> PuzzleInstance:
         return PuzzleInstance(
@@ -68,9 +74,10 @@ class Game:
 @pytest.fixture
 def engine(monkeypatch) -> RelayEngine:
     monkeypatch.setattr(config, "LEVEL_COUNT", 3)
-    return RelayEngine(GameRegistry(
-        modules=[Game(CAPPED, LIMIT), Game(UNCAPPED, None)]
-    ))
+    return RelayEngine(GameRegistry(modules=[
+        Game(CAPPED, LIMIT), Game(UNCAPPED, None),
+        Game(DARK, LIMIT, blackout=True),
+    ]))
 
 
 def match_of(engine: RelayEngine, per_team: int = 2):
@@ -91,7 +98,8 @@ def match_of(engine: RelayEngine, per_team: int = 2):
             members[team_id].append(player)
             assert engine.assign_role(match, leader.id, player.id, "generalist").ok
             assert engine.assign_game(
-                match, leader.id, player.id, CAPPED if seat == 0 else UNCAPPED
+                match, leader.id, player.id,
+                [CAPPED, UNCAPPED, DARK][seat % 3],
             ).ok
     assert engine.host_start(match, match.host_player_id, now=NOW).match_started
     return match, members, leaders
@@ -395,6 +403,94 @@ def test_the_grace_is_frozen_at_start_like_every_other_timer(engine):
     match, _, _ = match_of(engine)
     assert match.config_snapshot["puzzle_grace_seconds"] == \
         config.PUZZLE_GRACE_SECONDS
+
+
+# --- blackout: the same deadline, routed to one seat ----------------------
+#
+# A visibility rule, not a sync channel. It is only honest because the deadline
+# is real server state: there is nothing to keep in step, because there is only
+# ever one copy of it.
+
+
+def dark_match(engine: RelayEngine):
+    """Three seats on alpha: one capped game, one uncapped, one blacked out."""
+    match, members, leaders = match_of(engine, per_team=3)
+    leader, player = leaders["alpha"], members["alpha"][2]
+    assert player.assigned_game == DARK
+    return match, player, leader
+
+
+def roster_entry(match, leader, player) -> dict:
+    team = match.public(leader.id)["teams"][leader.team_id]
+    return next(view for view in team["players"] if view["id"] == player.id)
+
+
+def test_a_blackout_board_withholds_the_deadline_from_the_player(engine):
+    match, player, leader = dark_match(engine)
+    me = match.public(player.id)["me"]
+    assert me["puzzle_deadline"] is None
+    assert "deadline" not in me["current_puzzle"]
+    # The engine still holds it — this is a view rule, not a missing deadline.
+    assert player.puzzle_deadline is not None
+
+
+def test_a_blackout_board_sends_the_deadline_to_the_grandmaster(engine):
+    match, player, leader = dark_match(engine)
+    assert roster_entry(match, leader, player)["board_deadline"] == \
+        player.puzzle_deadline
+
+
+def test_exactly_one_seat_ever_holds_the_deadline(engine):
+    """The whole invariant, both ways round."""
+    match, dark, leader = dark_match(engine)
+    lit = None
+    for member in match.teams["alpha"].player_ids:
+        candidate = match.players[member]
+        if candidate.assigned_game == CAPPED:
+            lit = candidate
+    assert lit is not None
+
+    for player, seat in ((dark, "leader"), (lit, "player")):
+        mine = match.public(player.id)["me"]["puzzle_deadline"]
+        theirs = roster_entry(match, leader, player)["board_deadline"]
+        assert [mine, theirs].count(None) == 1, (player.assigned_game, seat)
+        held = mine or theirs
+        assert held == player.puzzle_deadline
+
+
+def test_an_uncapped_board_gives_the_deadline_to_neither(engine):
+    match, _, leader = dark_match(engine)
+    loose = next(
+        match.players[pid] for pid in match.teams["alpha"].player_ids
+        if match.players[pid].assigned_game == UNCAPPED
+    )
+    assert match.public(loose.id)["me"]["puzzle_deadline"] is None
+    assert roster_entry(match, leader, loose)["board_deadline"] is None
+
+
+def test_the_deadline_comes_back_to_the_player_when_the_board_changes(engine):
+    """Blackout follows the board, not the player: a fresh board from an
+    ordinary game hands the clock straight back."""
+    match, player, leader = dark_match(engine)
+    player.assigned_game = CAPPED
+    engine._serve_main(match, player, EngineResult(), NOW)
+    assert match.public(player.id)["me"]["puzzle_deadline"] is not None
+    assert roster_entry(match, leader, player)["board_deadline"] is None
+
+
+def test_silence_takes_the_grandmasters_clock_too(engine):
+    """A silenced Grandmaster loses the roster, the feed and the manual. If
+    they kept the one number their Defuser cannot see, the perk would be no
+    real blackout at all."""
+    match, player, leader = dark_match(engine)
+    match.teams["bravo"].currency = 99
+    assert engine.buy_perk(
+        match, match.teams["bravo"].leader_id, "silence", now=NOW
+    ).ok
+    assert roster_entry(match, leader, player)["board_deadline"] is None
+    # ...and it is still withheld from the Defuser, so for those seconds the
+    # clock is in nobody's hands. That is the perk landing, not a bug.
+    assert match.public(player.id)["me"]["puzzle_deadline"] is None
 
 
 # --- the bomb, which is the game that asked for this ----------------------

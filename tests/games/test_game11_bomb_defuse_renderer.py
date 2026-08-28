@@ -192,12 +192,28 @@ const report = {};
   const seen = screen(container);
   report.face = {
     timer: byLabel(container, "OK — bays are still open") ? true : false,
-    shows_fuse: seen.indexOf(String(puzzles.full.payload.banks[0].fuse_seconds)) !== -1,
+    // A level-13 board is blacked out, so its readout is dark by design;
+    // `bankedFace` below is where the lit one is checked.
+    readout: texts(container)[0],
+    timer_label: find(container, (n) => n.attrs.role === "timer")
+      .attrs["aria-label"],
     has_give_up: seen.indexOf("Give up") !== -1,
     has_manual: seen.indexOf("📖  MANUAL") !== -1,
     bay_buttons: all(container).filter(
       (n) => (n.attrs["aria-label"] || "").indexOf("Open the ") === 0).length,
     ok_label: byText(container, "OK").attrs["aria-label"],
+  };
+  game.unmount();
+}
+
+// 1b. The same face on a board whose clock is still the player's.
+{
+  const { container } = mount(puzzles.banked);
+  report.bankedFace = {
+    readout: texts(container)[0],
+    fuse: puzzles.banked.payload.banks[0].fuse_seconds,
+    timer_label: find(container, (n) => n.attrs.role === "timer")
+      .attrs["aria-label"],
   };
   game.unmount();
 }
@@ -211,9 +227,9 @@ const report = {};
 
 // 2b. Shutting a bank arms the next one: fresh fuse, fresh bays, a banner.
 {
-  const { container, sent } = mount(puzzles.full);
-  const banks = puzzles.full.payload.banks;
-  const moves = JSON.parse(puzzles.full.__reference).moves;
+  const { container, sent } = mount(puzzles.banked);
+  const banks = puzzles.banked.payload.banks;
+  const moves = JSON.parse(puzzles.banked.__reference).moves;
   advance(4000);                                   // burn some of the first fuse
   const beforeFuse = texts(container)[0];
   banks[0].modules.forEach((module) => workBay(container, module, moves));
@@ -237,14 +253,46 @@ const report = {};
 
 // 3. The fuse: it ticks down, then it goes off.
 {
-  const { container, sent } = mount(puzzles.full);
+  const { container, sent } = mount(puzzles.banked);
   advance(3000);
   const after3s = byLabel(container, "OK — bays are still open") ?
     texts(container)[0] : null;
-  advance(puzzles.full.payload.banks[0].fuse_seconds * 1000);
+  advance(puzzles.banked.payload.banks[0].fuse_seconds * 1000);
   const boom = screen(container);
   advance(5000);
   report.fuse = { after3s: after3s, screen: boom, sent: sent };
+  game.unmount();
+}
+
+// 3b. A blacked-out board runs no clock of its own: time passing does not end
+// it, because on this board that is the server's call.
+{
+  const { container, sent } = mount(puzzles.full);
+  const budget = puzzles.full.payload.time_limit_seconds;
+  advance((budget + 120) * 1000);
+  report.blackout = {
+    readout: texts(container)[0],
+    screen: screen(container),
+    sent: sent.length,
+  };
+  game.unmount();
+  report.blackout.left_running = clock.timers.size;
+}
+
+// 3c. ...and shutting a bank does not leak the next fuse either.
+{
+  const { container } = mount(puzzles.full);
+  const banks = puzzles.full.payload.banks;
+  const moves = JSON.parse(puzzles.full.__reference).moves;
+  banks[0].modules.forEach((module) => workBay(container, module, moves));
+  click(byText(container, "OK"));
+  report.blackoutBank = {
+    banner: screen(container),
+    readout: texts(container)[0],
+    // No number anywhere on the banner, from either bank.
+    leaks: banks.map((bank) => String(bank.fuse_seconds))
+      .filter((seconds) => screen(container).indexOf(seconds) !== -1),
+  };
   game.unmount();
 }
 
@@ -422,7 +470,7 @@ report.fatal = fatal;
 
 // 8. Lifecycle: nothing left running, and a remount starts clean.
 {
-  const first = mount(puzzles.full);
+  const first = mount(puzzles.banked);
   click(byLabel(first.container, "Open the Simon Says bay"));   // schedules flashes
   advance(500);
   game.unmount();
@@ -430,7 +478,7 @@ report.fatal = fatal;
   game.unmount();                                // idempotent
   const madeBefore = clock.made;
 
-  const second = mount(puzzles.full);
+  const second = mount(puzzles.banked);
   const fresh = screen(second.container);
   advance(1000);
   game.unmount();
@@ -438,7 +486,7 @@ report.fatal = fatal;
     left_running: leftRunning,
     window_listeners: (windowListeners.resize || []).length,
     detached: first.container.children.length,
-    remount_is_fresh: fresh.indexOf(String(puzzles.full.payload.banks[0].fuse_seconds)) !== -1,
+    remount_is_fresh: fresh.indexOf(String(puzzles.banked.payload.banks[0].fuse_seconds)) !== -1,
     remount_scheduled: clock.made > madeBefore,
   };
 }
@@ -615,6 +663,16 @@ def report() -> dict:
     # A single-bank board as the engine hands it over: the deadline the server
     # published, stamped into the puzzle view exactly as `Player.private` does,
     # for a board served SERVED_AGO ago.
+    # A multi-bank board whose clock is still the player's. Blackout and banks
+    # both start at the bonus-only tiers, so no *generated* board is one and
+    # not the other — but the authored practice missions are exactly that, and
+    # they are the boards these scenarios were always really about.
+    banked_puzzle = game.generate_mission("second_bank")
+    banked = banked_puzzle.public()
+    banked["__reference"] = banked_puzzle.answer
+    assert len(banked["payload"]["banks"]) == 2
+    assert banked["payload"]["blackout"] is False
+
     served, _ = board(game, 3, 10)
     assert len(served["payload"]["banks"]) == 1, "levels 1-10 are single-bank"
     assert served["payload"]["time_limit_seconds"] == \
@@ -637,7 +695,7 @@ def report() -> dict:
         puzzles = Path(tmp) / "puzzles.json"
         puzzles.write_text(json.dumps({
             "full": full, "maze": maze, "simon": simon, "mini": mini,
-            "served": served,
+            "served": served, "banked": banked,
         }))
         finished = subprocess.run(
             ["node", str(harness), str(RENDERER), str(puzzles), str(MANUAL)],
@@ -646,7 +704,7 @@ def report() -> dict:
     assert finished.returncode == 0, finished.stderr
     out = json.loads(finished.stdout)
     out["_puzzles"] = {"full": full_puzzle, "maze": maze_puzzle,
-                       "mini": mini_puzzle}
+                       "mini": mini_puzzle, "banked": banked_puzzle}
     return out
 
 
@@ -655,11 +713,26 @@ def report() -> dict:
 
 def test_the_face_has_the_controls_the_spec_names(report):
     face = report["face"]
-    assert face["shows_fuse"] is True            # the red countdown (§7)
     assert face["has_give_up"] is True           # §21
     assert face["has_manual"] is True
     assert face["bay_buttons"] == 4              # a level-13 board fields four
     assert face["ok_label"] == "OK — bays are still open"
+
+
+def test_the_red_countdown_is_the_seconds_left(report):
+    """§7's red countdown, on a board whose clock is still the player's."""
+    banked = report["bankedFace"]
+    assert banked["readout"] == str(banked["fuse"])
+    assert banked["timer_label"] == "Seconds left on the fuse"
+
+
+def test_a_blackout_board_shows_no_number_at_all(report):
+    """The bonus-only tiers hand the clock to the Grandmaster. "--" rather than
+    a blank cell: a dark readout is the bomb refusing to say, and an empty box
+    would read as broken."""
+    face = report["face"]
+    assert face["readout"] == "--"
+    assert face["timer_label"] == "The timer is dark — ask your Grandmaster"
 
 
 # --- a real defusal -----------------------------------------------------
@@ -678,17 +751,18 @@ def test_working_every_bay_then_ok_submits_a_transcript_the_server_accepts(repor
 def test_shutting_a_bank_arms_the_next_one(report):
     """A bank is not the board: OK shuts one and the next comes up behind it."""
     turn = report["bankTurn"]
-    assert turn["banks"] == 2, "the level-13 board should come in two banks"
+    banked = report["_puzzles"]["banked"].payload
+    assert turn["banks"] == 2, "this board should come in two banks"
     # Nothing is submitted until the *last* bank is shut.
     assert turn["submitted_yet"] == 0
     assert "BANK 2 ARMED" in turn["banner"]
     # The new bank brings its own fuse, and the face shows it straight away
     # rather than a stale second of the old one.
     assert int(turn["fuse_after"]) != int(turn["fuse_before"])
-    assert int(turn["fuse_after"]) == \
-        report["_puzzles"]["full"].payload["banks"][1]["fuse_seconds"]
+    assert int(turn["fuse_after"]) == banked["banks"][1]["fuse_seconds"]
+    assert f"{banked['banks'][1]['fuse_seconds']}s on the new fuse" in turn["banner"]
     # ...and the bays on the face are the new bank's.
-    second = report["_puzzles"]["full"].payload["banks"][1]["modules"]
+    second = banked["banks"][1]["modules"]
     assert len(turn["open_labels"]) == len(second)
     # Only the final OK ends the bomb.
     assert turn["after_last_ok"]["sent"] == 1
@@ -700,15 +774,34 @@ def test_shutting_a_bank_arms_the_next_one(report):
 
 def test_the_fuse_counts_down_and_then_goes_off(report):
     fuse = report["fuse"]
-    started = report["face"]["shows_fuse"]
-    assert started is True
     # Three seconds in, the display has moved (§8: an absolute deadline).
     assert fuse["after3s"] is not None
-    opening = report["_puzzles"]["full"].payload["banks"][0]["fuse_seconds"]
+    opening = report["_puzzles"]["banked"].payload["banks"][0]["fuse_seconds"]
     assert int(fuse["after3s"]) < opening
     assert "MISSION FAILED" in fuse["screen"]
     assert "The fuse ran out." in fuse["screen"]
     assert json.loads(fuse["sent"][0])["failed"] == "timer-expired"
+
+
+def test_a_blackout_board_never_ends_itself_on_time(report):
+    """A fuse running where nobody can see it would still be the client
+    deciding when the board ends. On a blacked-out board the server's deadline
+    is the only thing that does — so the client keeps no clock at all."""
+    blackout = report["blackout"]
+    assert "MISSION FAILED" not in blackout["screen"]
+    assert blackout["sent"] == 0            # nothing submitted, nothing failed
+    assert blackout["readout"] == "--"      # still dark, two minutes on
+    assert blackout["left_running"] == 0
+
+
+def test_a_blackout_board_does_not_leak_the_next_fuse(report):
+    """The bank banner names the seconds on an ordinary board. Here it must
+    not, or the number the face is hiding arrives by the back door."""
+    bank = report["blackoutBank"]
+    assert "BANK 2 ARMED" in bank["banner"]
+    assert "A fresh fuse you cannot see" in bank["banner"]
+    assert bank["leaks"] == []
+    assert bank["readout"] == "--"
 
 
 # --- sudden death -------------------------------------------------------

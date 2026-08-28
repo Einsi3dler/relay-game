@@ -100,6 +100,20 @@ class Player:
             return self.current_bonus
         return None
 
+    def board_is_blackout(self) -> bool:
+        """True when this board's deadline belongs to the team's Grandmaster
+        rather than to the player working it (GAME_MODULE_SPEC §6).
+
+        A visibility rule and nothing more: the deadline is the same instant
+        either way, and exactly one of the two seats is ever sent it.
+        """
+        puzzle = self.current_puzzle()
+        return bool(
+            puzzle is not None
+            and self.puzzle_deadline is not None
+            and puzzle.payload.get("blackout")
+        )
+
     def live_effects(self) -> dict[str, str]:
         """Screen effects still running. A lapsed one needs no cleanup — it just
         stops appearing in the view, so reconnects and level changes are free."""
@@ -126,17 +140,20 @@ class Player:
         """PlayerPrivate: PlayerPublic plus the puzzle this player may see."""
         puzzle = self.current_puzzle()
         view = puzzle.public() if puzzle else None
-        if view is not None and self.puzzle_deadline is not None:
+        # Blackout: the clock goes to the Grandmaster instead (see
+        # `Team.public`), so this seat is sent neither copy of it.
+        mine = None if self.board_is_blackout() else self.puzzle_deadline
+        if view is not None and mine is not None:
             # Also inside the puzzle, because a renderer that draws a clock of
             # its own already looks there and takes no other argument. One
             # source, two placements — they cannot disagree.
-            view["deadline"] = self.puzzle_deadline
+            view["deadline"] = mine
         return {
             **self.public(),
             "current_puzzle": view,
             "timer_kind": self.timer_kind,
             "timer_deadline": self.timer_deadline,
-            "puzzle_deadline": self.puzzle_deadline,
+            "puzzle_deadline": mine,
             "choice_pending": self.choice_pending,
             "frozen_until": self.frozen_until,
             # Only the victim is told they're being sabotaged: fog of war means
@@ -177,11 +194,21 @@ class Team:
         """
         members = [players[player_id] for player_id in self.player_ids]
         roster = [member.public() for member in members]
+        for member, view in zip(members, roster):
+            # The other half of the blackout rule: a board that withheld its
+            # deadline from the player sends it here, to the one seat that can
+            # read it out. Null on every ordinary board — the player has it.
+            view["board_deadline"] = (
+                member.puzzle_deadline if member.board_is_blackout() else None
+            )
         if silenced:
             for view in roster:
                 if not view["is_leader"]:
                     view["green"] = None
                     view["status"] = "hidden"
+                    # Silence takes the clock with everything else, or a
+                    # silenced Grandmaster would still be useful.
+                    view["board_deadline"] = None
         return {
             "id": self.id,
             "name": self.name,

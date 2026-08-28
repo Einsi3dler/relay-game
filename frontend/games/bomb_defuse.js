@@ -365,8 +365,11 @@
       "display:flex;align-items:center;justify-content:center;";
     state.timerText = el("div",
       "font-family:Arial,Helvetica,sans-serif;font-size:64px;font-weight:700;" +
-      "color:" + C.red + ";text-align:center;line-height:1;", String(state.remaining));
+      "color:" + C.red + ";text-align:center;line-height:1;", timerReadout());
     state.timerText.setAttribute("role", "timer");
+    state.timerText.setAttribute("aria-label", isBlackout()
+      ? "The timer is dark — ask your Grandmaster"
+      : "Seconds left on the fuse");
     timerCell.appendChild(state.timerText);
     state.faceLayer.appendChild(timerCell);
 
@@ -805,6 +808,15 @@
     });
   }
 
+  // §7 inverted: on a blackout board the timer is on the bomb but not on
+  // *your* bomb. No number, no fuse of our own, no tick — the Grandmaster's
+  // console holds the only countdown in the match, and the server holds the
+  // deadline that actually ends the board.
+  function isBlackout() {
+    var payload = state && state.puzzle ? state.puzzle.payload : null;
+    return !!(payload && payload.blackout);
+  }
+
   // §2c: from the deep tiers up the board names a page this copy does not
   // carry. The Grandmaster's console is the only one in the match that does.
   function withheldOfBoard() {
@@ -880,7 +892,9 @@
       "font-size:46px;text-align:center;",
       "BANK " + (bank + 1) + " ARMED"));
     banner.appendChild(el("div", "color:#ddd;font-size:16px;",
-      armedBank().fuse_seconds + "s on the new fuse."));
+      isBlackout()
+        ? "A fresh fuse you cannot see. Ask."
+        : armedBank().fuse_seconds + "s on the new fuse."));
     banner.setAttribute("role", "alert");
     state.panelLayer.appendChild(banner);
     SOUND.click();
@@ -984,13 +998,20 @@
     screen.appendChild(el("div", "color:" + C.green + ";font-weight:700;font-size:56px;" +
       "text-align:center;", "BOMB DEFUSED"));
     screen.appendChild(el("div", "color:#bdf5bd;font-size:16px;",
-      "Stopped with " + seconds + "s left."));
+      isBlackout() ? "Stopped. Ask them how close that was."
+                   : "Stopped with " + seconds + "s left."));
     screen.setAttribute("role", "status");
     state.faceLayer.appendChild(screen);
     state.api.submit(JSON.stringify({ v: RULES_VERSION, moves: state.moves }));
   }
 
   // --- the fuse (§8: an absolute deadline, never a frame count) ------------
+
+  // "--" rather than a blank cell: a dark readout is a bomb telling you it
+  // will not say, which is the point. An empty box reads as broken.
+  function timerReadout() {
+    return isBlackout() ? "--" : String(state.remaining);
+  }
 
   // The server's deadline for the whole board, or null for a practice board
   // that has no server behind it. It is an absolute instant, so it survives a
@@ -1004,6 +1025,13 @@
   }
 
   function startFuse() {
+    if (isBlackout()) {
+      // No clock at all, rather than one that is merely hidden: a fuse running
+      // where nobody can see it would still be the client deciding when the
+      // board ends, and on this board that is the server's call.
+      if (state.timerText) state.timerText.textContent = timerReadout();
+      return;
+    }
     // Whichever runs out first ends this bank. On a single-bank board — every
     // board levels 1 to 10 — the server's deadline *is* the fuse, and taking
     // it from there rather than from `Date.now()` is what makes the number on

@@ -155,6 +155,28 @@ MINI_CODE_MAX = 99
 WITHHOLD_FROM_LEVEL = 8
 WITHHELD_PAGES = 1
 
+# --- blackout (§7: the timer is on the bomb, and the bomb is not yours) --
+# The deepest tier and the bonus-only boards behind it hand the *clock* to the
+# Grandmaster as well as the manual: the Defuser's face shows no number, runs
+# no fuse of its own, and the only countdown in the match is the one on the
+# console. That is only honest because the board's deadline is real server
+# state (docs/GAME_MODULE_SPEC.md §6) — without it a blacked-out board would
+# simply have no limit at all.
+#
+# The bonus-only tiers, and only those. Two reasons, both load-bearing:
+#
+#   - A bonus board is *chosen*. The hardest compound state this game can
+#     reach — a page withheld, the clock gone, and two banks — is then always
+#     something a player opted into, never something the ladder imposed on
+#     them. Level 10 stays hard (§2c's withheld page) without becoming a
+#     different game.
+#   - It lines up exactly with banks, which are bonus-only too. So a blacked-out
+#     board is the same board that comes in banks: one coherent step up rather
+#     than two unrelated ones landing on different levels.
+# 11 is the first bonus-only tier. The level table is defined below this
+# point, so the tie is asserted in the tests rather than computed here.
+BLACKOUT_FROM_LEVEL = 11
+
 # --- answer limits (expansion spec §4: cap before parsing) --------------
 MAX_ANSWER_CHARS = 8000
 MAX_MOVES = 200              # comfortably over a level-13 board's ~50
@@ -265,6 +287,13 @@ def _withheld_pages(seed: int, level: int, banks: list[dict]) -> list[str]:
         return []
     picker = random.Random(f"withheld:{seed}:{tier}")
     return sorted(picker.sample(live, min(WITHHELD_PAGES, len(live))))
+
+
+def _blackout(level: int) -> bool:
+    """Whether this board's clock belongs to the Grandmaster rather than the
+    Defuser. A tier property, not a draw: a bomb whose timer is sometimes there
+    and sometimes not teaches nothing."""
+    return _clamp_level(level) >= BLACKOUT_FROM_LEVEL
 
 
 Cell = tuple[int, int]
@@ -878,6 +907,9 @@ class BombDefuseGame:
             # and no client that honours its own fuses can ever reach it. The
             # per-bank countdown on the face stays exactly as it was.
             "time_limit_seconds": sum(bank["fuse_seconds"] for bank in banks),
+            # Practice has no Grandmaster to hand the clock to, so a blacked-out
+            # drill would just be a drill with no clock.
+            "blackout": kind == "main" and _blackout(level),
         }
 
         moves = _reference_moves(payload)
@@ -946,6 +978,7 @@ class BombDefuseGame:
             "banks": banks,
             "withheld_pages": [],   # a set piece you cannot look up is not one
             "time_limit_seconds": sum(b["fuse_seconds"] for b in banks),
+            "blackout": False,      # ...and neither does a set piece
         }
         moves = _reference_moves(payload)
         if not validate(payload, moves)["ok"]:

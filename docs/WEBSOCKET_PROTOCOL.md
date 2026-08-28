@@ -151,7 +151,15 @@ Snapshots are personalised. Which team shape a viewer gets:
                                          //   read "hidden"/null), and the
                                          //   green/lost_green event feed
   "leader_id": "p_...",
-  "players": [ <PlayerPublic>, ... ]
+  "players": [ <PlayerPublic + board_deadline>, ... ]
+                                         // each roster entry adds
+                                         //   "board_deadline": UTC ISO | null —
+                                         //   set only on a `blackout` board, where
+                                         //   the deadline is withheld from the
+                                         //   player and sent to this seat instead.
+                                         //   Null everywhere else (the player has
+                                         //   it), and nulled under Silence with the
+                                         //   rest of the roster
 }
 
 // TeamSummary
@@ -189,7 +197,11 @@ Snapshots are personalised. Which team shape a viewer gets:
                                              //   §6 `time_limit_seconds`); null for
                                              //   every other game and every bonus
                                              //   board. Its own timer scope, so it
-                                             //   runs alongside timer_deadline
+                                             //   runs alongside timer_deadline.
+                                             //   Null on a `blackout` board: the
+                                             //   deadline goes to the team's
+                                             //   Grandmaster instead, as
+                                             //   TeamPublic.players[].board_deadline
   "choice_pending": true,                    // cleared and still owes wait-or-bonus
   "frozen_until": null,                      // UTC ISO while frozen by a perk
   "screen_effects": { "wobble": "2026-07-02T12:00:12Z" }

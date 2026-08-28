@@ -174,8 +174,28 @@ Grandmaster is the open-ended case: the fuse runs out, the bomb goes off, and
 the engine answers with a fresh board that draws its own withheld page. Losing
 a board is the cost, not losing the level.
 
-Practice keeps the whole manual — a drill you cannot look up is not a drill —
-and so do the authored missions.
+**On the bonus-only tiers the clock goes too.** From level 11 — the boards that
+also come in banks — the bomb's timer cell reads `--`, the Defuser's client
+keeps no fuse at all, and the only countdown in the match is the one that has
+appeared on the Grandmaster's console. Server-owned deadline, one seat sent it,
+the other not: it is a visibility rule, which is the only reason the console
+can hold a live element without becoming a second copy of the board to keep in
+sync.
+
+That makes the console's first live element a departure from "the manual and
+nothing else", and a deliberate one. It is still not board state — no bays, no
+progress, no bank — just the one number, on the one seat allowed to read it
+out. Under Silence it goes with everything else, so for those seconds neither
+seat has the clock.
+
+Bonus tiers rather than the ladder, on purpose: a bonus board is *chosen*, so
+the hardest state this game can reach — a page withheld, the clock gone, two
+banks — is always something a player opted into. Level 10 is hard because of
+the withheld page, not because it is a different game.
+
+Practice keeps the whole manual and its own clock — a drill you cannot look up
+is not a drill, and there is no Grandmaster in practice mode to hand the
+countdown to. So do the authored missions.
 
 ### Lobby / start (host + Grandmasters)
 

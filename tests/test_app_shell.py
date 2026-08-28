@@ -442,6 +442,8 @@ function probe(shell) {
       texts: descendants(mount).map((n) => n.textContent).filter(Boolean),
       reachable: reachable(mount),
       resize_listeners: (shell.windowListeners.resize || []).length,
+      clock_hidden: $("leader-bomb-clock").hidden,
+      clock: $("leader-bomb-clock").textContent,
     },
     countdown: {
       bar_hidden: $("timer-bar").hidden,
@@ -804,6 +806,42 @@ def shell() -> dict:
         ],
     })
 
+    # --- blackout: the console grows a clock ------------------------------
+    dark = _engine()
+    match, seats, leaders = _ready_lobby(dark)
+    assert dark.start_match(match, now=NOW).changed
+    defuser = seats["alpha"][0]
+    assert defuser.assigned_game == "bomb_defuse"
+    defuser.current_main.payload["blackout"] = True
+    defuser.current_main.payload["time_limit_seconds"] = BOARD_LIMIT
+    dark._arm_board_deadline(match, defuser, EngineResult(), NOW)
+    dark_snapshot = match.public(leaders["alpha"].id)
+    lit_snapshot_source = match.public(defuser.id)
+    assert lit_snapshot_source["me"]["puzzle_deadline"] is None
+    match.teams["bravo"].currency = 99
+    assert dark.buy_perk(match, leaders["bravo"].id, "silence", now=NOW).ok
+    dark_silenced = match.public(leaders["alpha"].id)
+    scenarios.append({
+        "name": "console_clock",
+        "config": _config_body(dark),
+        "session": {"matchId": match.id, "playerId": leaders["alpha"].id},
+        "snapshots": [dark_snapshot, dark_silenced],
+        "actions": [
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "ticking"},
+            {"do": "advance", "ms": 25_000},
+            {"do": "record", "as": "later"},
+            # The manual holds its page across snapshots; the clock must not.
+            {"do": "click", "in": "leader-bomb-mount", "text": "Maze"},
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "redrawn"},
+            {"do": "deliver", "snapshot": 1},
+            {"do": "record", "as": "silenced"},
+            {"do": "advance", "ms": BOARD_LIMIT * 1000},
+            {"do": "record", "as": "after_silence"},
+        ],
+    })
+
     # --- the board deadline on the same bar -------------------------------
     # A game that caps its board (docs/GAME_MODULE_SPEC.md). The real bomb
     # would do, but the bar is engine-generic, so the test is too.
@@ -1023,6 +1061,43 @@ def test_silence_holds_the_page_the_grandmaster_was_reading(shell):
     assert records["jammed"]["console"]["texts"] == ["🔇 ?"]
     assert "Wait for the tiny button to turn red." in \
         " ".join(records["returned"]["console"]["texts"])
+
+
+def test_the_console_grows_a_clock_on_a_blackout_board(shell):
+    """Its first live element, and a deliberate departure from "the manual and
+    nothing else" — still not board state, just the one clock in the match, on
+    the one seat allowed to read it out (docs/GAME_DESIGN.md §2c)."""
+    ticking = shell["console_clock"]["records"]["ticking"]["console"]
+    assert ticking["clock_hidden"] is False
+    assert ticking["clock"].startswith(f"⏱️ {BOARD_LIMIT}s")
+    assert "they cannot see it" in ticking["clock"]
+    # ...and the sub line says why the Grandmaster is suddenly the clock.
+    assert "Their timer is dark" in ticking["sub"]
+    later = shell["console_clock"]["records"]["later"]["console"]
+    assert later["clock"].startswith(f"⏱️ {BOARD_LIMIT - 25}s")
+
+
+def test_the_console_clock_follows_every_snapshot(shell):
+    """The manual holds its page across snapshots on purpose. The clock is the
+    one thing on this card that must not — it sits outside the redraw guard."""
+    records = shell["console_clock"]["records"]
+    # The page turn survived...
+    assert "Blue is the Defuser's position" in \
+        " ".join(records["redrawn"]["console"]["texts"])
+    # ...and the clock is still live behind it.
+    assert records["redrawn"]["console"]["clock_hidden"] is False
+
+
+def test_silence_takes_the_clock_with_the_manual(shell):
+    """For those seconds the clock is in nobody's hands — the Defuser was never
+    sent it either. That is the perk landing, not a bug."""
+    silenced = shell["console_clock"]["records"]["silenced"]["console"]
+    assert silenced["clock_hidden"] is True
+    assert silenced["clock"] == ""
+    assert silenced["texts"] == ["🔇 ?"]
+    # And it left no interval behind ticking at a hidden element.
+    after = shell["console_clock"]["records"]["after_silence"]["console"]
+    assert after["clock_hidden"] is True
 
 
 def test_no_defuser_means_no_console(shell):

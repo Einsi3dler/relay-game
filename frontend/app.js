@@ -18,6 +18,7 @@
   var frozenHandle = null;
   var effectsHandle = null;
   var silenceHandle = null;
+  var bombClockHandle = null;
   var toastHandle = null;
   var overlayHandle = null;
   var reconnectDelay = 500;
@@ -823,6 +824,35 @@
   // what they are looking at; this says what it means.
   var bombConsole = { page: "home", mounted: false };
 
+  // On a blackout board the Defuser's face shows no number and runs no fuse of
+  // its own; the server sends the deadline here instead. This is the console's
+  // first live element and a deliberate departure from "the manual and nothing
+  // else" — it is still not board state, just the one clock, on the one seat
+  // allowed to read it out.
+  function renderConsoleClock(defuser) {
+    clearInterval(bombClockHandle);
+    var box = $("leader-bomb-clock");
+    var iso = defuser && defuser.board_deadline;
+    if (!iso) { box.hidden = true; return; }
+    var deadline = parseDeadline(iso);
+    box.hidden = false;
+    var tick = function () {
+      var left = Math.max(0, deadline - Date.now());
+      box.textContent = left > 0
+        ? "⏱️ " + Math.ceil(left / 1000) + "s — call it out, they cannot see it"
+        : "💥 Out of time — the board is gone.";
+      if (left <= 0) clearInterval(bombClockHandle);
+    };
+    tick();
+    bombClockHandle = setInterval(tick, 250);
+  }
+
+  function hideConsoleClock() {
+    clearInterval(bombClockHandle);
+    var box = $("leader-bomb-clock");
+    if (box) { box.hidden = true; box.textContent = ""; }
+  }
+
   function renderBombConsole(state, team) {
     var card = $("leader-bomb-card");
     var manual = window.RelayBombManual;
@@ -836,6 +866,7 @@
     // in the lobby there is no bomb to read for.
     if (!manual || !defuser || state.status !== "active") {
       if (bombConsole.mounted) teardownBombConsole();
+      hideConsoleClock();
       card.hidden = true;
       return;
     }
@@ -853,6 +884,7 @@
         bombConsole.page = openPage;
       }
       card.hidden = false;
+      hideConsoleClock();     // the server already nulls it; this clears the tick
       $("leader-bomb-sub").textContent =
         "🔇 Silenced — the manual is jammed. " + defuser.name +
         " is on the bomb without you until it clears.";
@@ -867,7 +899,11 @@
     card.hidden = false;
     $("leader-bomb-sub").textContent =
       defuser.name + " is on the bomb" + (defuser.connected ? "" : " (offline)") +
-      " and cannot see this. They describe the bay; you read them the rule.";
+      " and cannot see this. They describe the bay; you read them the rule." +
+      (defuser.board_deadline ? " Their timer is dark — you are the clock." : "");
+    // Before the redraw guard: the manual holds its page across snapshots, the
+    // clock has to follow every one of them.
+    renderConsoleClock(defuser);
 
     // Re-rendering on every snapshot would fight the page you are reading, so
     // the console redraws only when its own page changes.
@@ -917,6 +953,7 @@
     }
     bombConsole.mounted = false;
     bombConsole.page = "home";
+    hideConsoleClock();
     var mount = $("leader-bomb-mount");
     if (mount) mount.innerHTML = "";
     $("leader-bomb-card").hidden = true;
@@ -1117,6 +1154,7 @@
     teardownBombConsole();
     clearInterval(timerHandle);
     clearInterval(frozenHandle);
+    clearInterval(bombClockHandle);
     clearTimeout(silenceHandle);
     clearScreenEffects();
     $("choice-overlay").hidden = true;
