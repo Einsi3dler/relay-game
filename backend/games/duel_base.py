@@ -8,7 +8,7 @@ Per docs/DUEL_MODULE_SPEC.md, a duel module answers three questions and nothing
 more:
 
   1. "Start a fresh duel."            -> new_duel()
-  2. "Is that a legal move, and what is its canonical form?"
+  2. "Is that a legal move for this seat, and what is its canonical form?"
                                       -> normalize_choice()
   3. "Who won this round?"            -> resolve_round()
 
@@ -34,7 +34,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-DUEL_RULES_VERSION = 1
+DUEL_RULES_VERSION = 2
 
 # The two seats in a duel. The engine maps a side to a team, never the reverse:
 # a module never learns which team it is resolving, so it cannot play favourites.
@@ -63,6 +63,12 @@ class DuelState:
     # Resolved rounds: {"round", "a", "b", "winner"} — safe to show anyone.
     history: list[dict[str, Any]] = field(default_factory=list)
     payload: dict[str, Any] = field(default_factory=dict)  # render hints
+    # SERVER ONLY, for duels that carry more than one choice's worth of state:
+    # a hand of cards, a coin balance, a shuffled prize order. `base_public`
+    # never reads it, so anything parked here is hidden by default and a module
+    # publishes only what it means to, through its own `public()`. That is the
+    # opposite default from `payload`, which is sent to everyone verbatim.
+    private: dict[str, Any] = field(default_factory=dict)
 
     def locked(self, side: str) -> bool:
         """Has this side committed a choice for the current round?"""
@@ -115,8 +121,16 @@ class DuelModule(Protocol):
     # The canonical move, or None if it is illegal. Validating and normalising
     # in one call is what guarantees `DuelState.choices` only ever holds
     # canonical values, so `resolve_round` never re-parses client text.
-    def normalize_choice(self, state: DuelState, choice: object) -> str | None: ...
-    # "a" | "b" | None (tie — the engine replays the round).
+    # `side` is the seat submitting, so a duel whose legal moves depend on who
+    # is asking — a card only in *your* hand, a bid only *you* can afford — can
+    # reject an opponent's move instead of taking it on trust. RPS ignores it.
+    def normalize_choice(
+        self, state: DuelState, choice: object, side: str | None = None
+    ) -> str | None: ...
+    # "a" | "b" | None (tie — the engine replays the round). Called exactly
+    # once per round, which also makes it the one place a duel that carries
+    # state between rounds may advance it: spend the cards, pay the coins,
+    # move to the next auction. Everything it touches lives on `state`.
     def resolve_round(self, state: DuelState) -> str | None: ...
     def public(
         self, state: DuelState, side: str | None, revealed: bool

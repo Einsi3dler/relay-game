@@ -12,6 +12,7 @@ from starlette.websockets import WebSocketDisconnect
 
 import backend.main as server
 from backend import config, protocol
+from backend.games.duel1_rps import RockPaperScissorsDuel
 from backend.registry import GameRegistry
 
 from tests.test_engine import GAMES, LEVELS, MAIN_OK, FakeGame
@@ -27,8 +28,17 @@ def client():
 
 @pytest.fixture
 def fake_games(monkeypatch):
-    """Deterministic games + no submit rate limit, for scripted matches."""
-    registry = GameRegistry(modules=[FakeGame(game_id) for game_id in GAMES])
+    """Deterministic games + no submit rate limit, for scripted matches.
+
+    The duel catalogue is pinned to RPS as well: the server picks a Duelist's
+    game at random from everything registered, and a scripted socket test that
+    sends "rock" needs to know which duel it is talking to. The other duel
+    modules have their own suites under tests/games/.
+    """
+    registry = GameRegistry(
+        modules=[FakeGame(game_id) for game_id in GAMES],
+        duels=[RockPaperScissorsDuel()],
+    )
     monkeypatch.setattr(server.engine, "registry", registry)
     monkeypatch.setattr(config, "SUBMIT_MIN_INTERVAL_MS", 0)
     # Fake matches are LEVELS levels regardless of the real config.
@@ -244,7 +254,9 @@ def test_get_config(client):
             "required": bool(role.get("required")),
         }
     assert body["roles"]["generalist"]["games"] is None  # any game
-    assert body["roles"]["duelist"]["games"] == ["rps_duel"]
+    assert body["roles"]["duelist"]["games"] == [
+        "rps_duel", "crown_duel", "number_clash", "bid_war",
+    ]
     # The Defuser is the one role every team must field, and its game is not
     # the Grandmaster's to choose.
     assert body["roles"]["defuser"] == {
@@ -254,7 +266,8 @@ def test_get_config(client):
     assert {"rewire", "sweep", "mirror_run", "decant", "echo", "overprint",
             "stackdrop", "lane_shift", "shadow_cast", "threadline",
             "bomb_defuse"} <= library_ids
-    assert "rps_duel" not in library_ids  # the server picks duels, not the leader
+    # The server picks duels, not the leader: none of them is in the library.
+    assert not ({"rps_duel", "crown_duel", "number_clash", "bid_war"} & library_ids)
 
 
 def test_protocol_parses_assign_role():
@@ -724,8 +737,13 @@ def test_a_lone_duelist_cannot_start_the_match(client, fake_games):
             raise AssertionError("start was not refused")
 
 
-def test_duel_renderer_is_served(client):
-    response = client.get("/static/duels/rps_duel.js")
+@pytest.mark.parametrize("duel_id", [
+    "rps_duel", "crown_duel", "number_clash", "bid_war",
+])
+def test_duel_renderers_are_served(client, duel_id):
+    """Every registered duel needs its renderer on the page: the server picks
+    the Duelist's game, so any of them can turn up at kickoff."""
+    response = client.get(f"/static/duels/{duel_id}.js")
     assert response.status_code == 200
     assert "RelayDuels" in response.text
-    assert '/static/duels/rps_duel.js' in client.get("/play").text
+    assert f'/static/duels/{duel_id}.js' in client.get("/play").text

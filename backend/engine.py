@@ -1657,7 +1657,7 @@ class RelayEngine:
             return EngineResult.rejected("you aren't in this duel")
         if duel.state.locked(side):
             return EngineResult.rejected("you already chose this round")
-        move = duel.module.normalize_choice(duel.state, choice)
+        move = duel.module.normalize_choice(duel.state, choice, side)
         if move is None:
             return EngineResult.rejected("not a legal move")
 

@@ -54,7 +54,12 @@ class RockPaperScissorsDuel:
             },
         )
 
-    def normalize_choice(self, state: DuelState, choice: object) -> str | None:
+    def normalize_choice(
+        self, state: DuelState, choice: object, side: str | None = None
+    ) -> str | None:
+        # `side` is part of the interface for duels whose legal moves depend on
+        # the seat asking (a card in *your* hand). Every RPS move is legal for
+        # both seats, so this one ignores it.
         try:
             raw = str(choice)
             if len(raw) > MAX_CHOICE_CHARS:

@@ -176,7 +176,10 @@ ROLES: dict[str, dict] = {
     "generalist":       {"name": "Generalist",       "games": None},
     "defuser":          {"name": "Defuser",          "games": ["bomb_defuse"],
                          "fixed": True, "required": True},
-    "duelist":          {"name": "Duelist",          "games": ["rps_duel"], "duel": True},
+    "duelist":          {"name": "Duelist",
+                         "games": ["rps_duel", "crown_duel", "number_clash",
+                                   "bid_war"],
+                         "duel": True},
 }
 
 
