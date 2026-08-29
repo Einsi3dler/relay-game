@@ -91,6 +91,10 @@ class Player:
     earned_level: int = 0  # highest level base currency was paid for
     bonus_streak: int = 0  # successful bonuses this level (first pays more)
     bonus_earned: int = 0  # this level's bonus pay — forfeited on bonus failure
+    # Net currency this player has put into the team purse: clears, bonuses and
+    # duel wins, less what a failed bonus takes back out. It mirrors the team
+    # ledger, so it can never claim credit for coins the team does not have.
+    coins_earned: int = 0
 
     def current_puzzle(self) -> PuzzleInstance | None:
         """The puzzle the player should act on right now."""
@@ -134,6 +138,7 @@ class Player:
             "is_leader": self.is_leader,
             "role": self.role,
             "assigned_game": self.assigned_game,
+            "coins_earned": self.coins_earned,
             # Whether a game is assigned, separately from which one. The lobby
             # masks the opposing loadout but both sides still have to see that
             # the other team is ready, or the start blocker reads as a bug.
@@ -219,6 +224,9 @@ class Team:
                 if not view["is_leader"]:
                     view["green"] = None
                     view["status"] = "hidden"
+                    # Earnings track clears, so leaving them visible would say
+                    # who had cleared and undo the blinding.
+                    view["coins_earned"] = None
                     # Silence takes the clock with everything else, or a
                     # silenced Grandmaster would still be useful.
                     view["board_deadline"] = None

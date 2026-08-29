@@ -930,7 +930,9 @@ class RelayEngine:
         self._go_cleared(match, player, result, now)
         if team.level > player.earned_level:  # base pay: first clear of a level only
             player.earned_level = team.level
-            team.currency += match.config_snapshot["currency_per_clear"]
+            base_pay = match.config_snapshot["currency_per_clear"]
+            team.currency += base_pay
+            player.coins_earned += base_pay
         self._add_event(
             match, result, f"{player.name} cleared Level {team.level}.", "green"
         )
@@ -960,6 +962,7 @@ class RelayEngine:
         pay = match.config_snapshot[pay_key]
         team.currency += pay
         player.bonus_earned += pay
+        player.coins_earned += pay
         player.current_bonus = None
         result = EngineResult(correct=True, changed=True)
         self._go_cleared(match, player, result, now)  # fresh wait timer + new choice
@@ -1449,7 +1452,9 @@ class RelayEngine:
                 "perk",
             )
         else:
-            team.currency = max(0, team.currency - player.bonus_earned)
+            forfeited = min(team.currency, player.bonus_earned)
+            team.currency -= forfeited
+            player.coins_earned -= forfeited
         player.bonus_earned = 0
         result.cancel.append(player.id)
         self._serve_main(match, player, result, now)
@@ -1731,6 +1736,7 @@ class RelayEngine:
             match.config_snapshot["duel_currency_cap"],
         )
         winner_team.currency += pay
+        winner.coins_earned += pay
         loser_team.duel_streak = 0
 
         # The time penalty bites once per level: losing twice at the same

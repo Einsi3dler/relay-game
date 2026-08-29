@@ -1026,3 +1026,93 @@ def test_reconnect_while_bonus_gets_fresh_bonus(engine):
     assert player.status == "bonus"
     assert player.current_bonus.id != before.id  # no replay
     assert player.current_bonus.game_id == before.game_id
+
+
+# --- per-player coin ledger (Grandmaster leaderboard) ----------------------
+
+def test_a_clear_credits_the_player_who_cleared(engine):
+    """Base pay is once per level, so the ledger has to move with the purse and
+    not with every submission."""
+    match, members, _ = full_match(engine)
+    player = members["alpha"][0]
+    team = match.teams["alpha"]
+    assert player.coins_earned == 0
+    solve(engine, match, player)
+    assert player.coins_earned == config.CURRENCY_PER_CLEAR
+    assert team.currency == config.CURRENCY_PER_CLEAR
+    # A failed bonus puts them back on a main board. Clearing it again is still
+    # the same level, so it pays nothing and credits nothing.
+    engine.choose_bonus(match, player.id, now=NOW)
+    solve_bonus(engine, match, player, answer="nope")
+    solve(engine, match, player)
+    assert player.coins_earned == config.CURRENCY_PER_CLEAR
+    assert team.currency == config.CURRENCY_PER_CLEAR
+
+
+def test_a_bonus_credits_the_gambler_and_a_failure_takes_it_back(engine):
+    """The point of the net figure: a player who gambles and loses is not shown
+    as having brought in coins the team no longer has."""
+    match, members, _ = full_match(engine)
+    player = members["alpha"][0]
+    team = match.teams["alpha"]
+    solve(engine, match, player)
+    engine.choose_bonus(match, player.id, now=NOW)
+    solve_bonus(engine, match, player)
+    assert player.coins_earned == config.CURRENCY_PER_CLEAR + config.CURRENCY_BONUS_FIRST
+
+    engine.choose_bonus(match, player.id, now=NOW)
+    solve_bonus(engine, match, player, answer="nope")
+    # Exactly what left the purse came off the ledger: the clear pay survives.
+    assert team.currency == config.CURRENCY_PER_CLEAR
+    assert player.coins_earned == config.CURRENCY_PER_CLEAR
+
+
+def test_insurance_leaves_the_ledger_alone_because_nothing_was_forfeited(engine):
+    """Insurance stops the coins leaving the purse, so there is nothing to take
+    off the player either."""
+    match, members, _ = full_match(engine)
+    player = members["alpha"][0]
+    team = match.teams["alpha"]
+    solve(engine, match, player)
+    engine.choose_bonus(match, player.id, now=NOW)
+    solve_bonus(engine, match, player)
+    banked = player.coins_earned
+    team.insurance_active = True
+    engine.choose_bonus(match, player.id, now=NOW)
+    solve_bonus(engine, match, player, answer="nope")
+    assert player.coins_earned == banked
+    assert team.currency == banked
+
+
+def test_a_forfeit_never_charges_more_than_the_purse_lost(engine):
+    """The team clamps at zero, so a forfeit against a spent purse removes less
+    than it owes. The player is charged the same, or the two disagree."""
+    match, members, _ = full_match(engine)
+    player = members["alpha"][0]
+    team = match.teams["alpha"]
+    solve(engine, match, player)
+    engine.choose_bonus(match, player.id, now=NOW)
+    solve_bonus(engine, match, player)
+    earned = player.coins_earned
+    team.currency = 1  # the Grandmaster spent almost all of it
+    engine.choose_bonus(match, player.id, now=NOW)
+    solve_bonus(engine, match, player, answer="nope")
+    assert team.currency == 0
+    assert player.coins_earned == earned - 1
+
+
+def test_the_ledger_is_hidden_while_the_grandmaster_is_silenced(engine):
+    """Earnings track clears, so leaving them visible would say who had cleared
+    and undo the blinding."""
+    match, members, leaders = full_match(engine)
+    player = members["alpha"][0]
+    solve(engine, match, player)
+    assert player.coins_earned > 0
+    # The view masks against real time, not the test clock, so this deadline
+    # has to be in the real future to read as silenced at all.
+    match.teams["alpha"].silenced_until = (
+        datetime.now(timezone.utc) + timedelta(hours=1)
+    ).isoformat()
+    roster = match.public(leaders["alpha"].id)["teams"]["alpha"]["players"]
+    playing = [view for view in roster if not view["is_leader"]]
+    assert playing and all(view["coins_earned"] is None for view in playing)

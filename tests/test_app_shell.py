@@ -480,6 +480,16 @@ function dashboardProbe(shell) {
         distinct: new Set(nodes.map((n) => n._html || "")).size,
       };
     })(),
+    coins: {
+      jammed: descendants($("leader-coins"))
+        .some((n) => n.classes.has("gm-jammed")),
+      rows: $("leader-coins").children
+        .filter((row) => row.classes.has("gm-coin-row"))
+        .map((row) => ({
+          top: row.classes.has("is-top"),
+          text: allText(row),
+        })),
+    },
     race_gap: allText($("leader-race-gap")),
     race_gap_class: $("leader-race-gap").className,
     race: $("leader-race").children.map((row) => ({
@@ -781,6 +791,8 @@ def shell() -> dict:
     dash_team = match.teams["alpha"]
     defuser, duelist, solver, gambler, absent = seats["alpha"]
 
+    for member, coins in zip(seats["alpha"], [4, 11, 7, 2, 0]):
+        member.coins_earned = coins
     duelist.status = "cleared"     # a Duelist is green by winning a duel
     solver.status = "cleared"
     gambler.status = "bonus"
@@ -1552,3 +1564,25 @@ def test_a_watching_grandmaster_keeps_the_match_alive(shell):
     # Fifteen idle minutes, comfortably inside the 30-minute eviction window.
     assert len(beats) >= 3, sent
     assert all(set(beat) == {"type"} for beat in beats)
+
+
+def test_the_coin_board_ranks_by_what_each_player_brought_in(shell):
+    """Seat order says who is on the team; this says who has been paying for the
+    perks, which is a different question and a different order."""
+    coins = _dash(shell, "live")["coins"]
+    assert coins["jammed"] is False
+    # Five players, the Grandmaster excluded: they never earn.
+    assert len(coins["rows"]) == 5
+    figures = [int(row["text"].split()[-1]) for row in coins["rows"]]
+    assert figures == sorted(figures, reverse=True), figures
+    assert figures == [11, 7, 4, 2, 0]
+    # Only the leader is marked, and only when someone has actually earned.
+    assert [row["top"] for row in coins["rows"]] == [True, False, False, False, False]
+
+
+def test_silence_takes_the_coin_board_with_the_rest(shell):
+    """Earnings track clears, so a visible ledger would say who had cleared and
+    undo the blinding."""
+    coins = _dash(shell, "silenced")["coins"]
+    assert coins["jammed"] is True
+    assert coins["rows"] == []

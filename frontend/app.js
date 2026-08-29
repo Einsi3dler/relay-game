@@ -1170,6 +1170,53 @@
     return TEAM_LOGOS[(base + seat * stride) % TEAM_LOGOS.length];
   }
 
+  // Who has actually been paying for the perks. The figure is the player's net
+  // contribution, so it moves with the purse: a gambler who loses a bonus gives
+  // the coins back here too, and the column can never claim credit for money
+  // the team no longer has.
+  function renderCoinBoard(state, team) {
+    var host = $("leader-coins");
+    host.innerHTML = "";
+    var playing = team.players.filter(function (p) { return !p.is_leader; });
+
+    // Silence nulls the ledger along with the rest of the progress read-out.
+    var blinded = playing.some(function (p) {
+      return p.coins_earned === null || p.coins_earned === undefined;
+    });
+    if (blinded) {
+      var jammed = el("li", "gm-jammed");
+      jammed.appendChild(icon("warning"));
+      jammed.appendChild(el("span", null, "Signal jammed. Earnings unavailable."));
+      host.appendChild(jammed);
+      return;
+    }
+
+    var ranked = playing.slice().sort(function (a, b) {
+      return b.coins_earned - a.coins_earned;
+    });
+    var best = ranked.length ? ranked[0].coins_earned : 0;
+
+    ranked.forEach(function (player, at) {
+      var row = el("li", "gm-coin-row" + (at === 0 && best > 0 ? " is-top" : ""));
+      row.appendChild(el("span", "gm-coin-rank", String(at + 1)));
+      row.appendChild(avatarNode(state, player, team.id));
+      row.appendChild(el("span", "gm-coin-name", player.name));
+
+      // A bar makes the spread readable without reading five numbers.
+      var meter = el("span", "gm-coin-meter");
+      var fill = el("span", "gm-coin-meter__fill");
+      fill.style.width = (best > 0 ? (player.coins_earned / best) * 100 : 0) + "%";
+      meter.appendChild(fill);
+      row.appendChild(meter);
+
+      var value = el("span", "gm-coin-value");
+      value.appendChild(icon("coin", "gm-ic--sm"));
+      value.appendChild(el("span", null, String(player.coins_earned)));
+      row.appendChild(value);
+      host.appendChild(row);
+    });
+  }
+
   // The level race: one star per level of the configured match length, filled
   // to each team's level. The two rows side by side are the gap.
   function renderRace(state, mine, opponent, levels) {
@@ -1441,6 +1488,7 @@
     }
 
     renderRace(state, team, opponent, levels);
+    renderCoinBoard(state, team);
     renderPerkGrid(state, team);
     renderHandoff(state, team);
     renderFeed(state.events, "leader-feed");
