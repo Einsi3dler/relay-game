@@ -125,10 +125,10 @@ body.gm-active .topbar { display: none; }
 .gm-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   flex-wrap: wrap;
-  padding: 14px 18px;
-  margin-bottom: 16px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
   background: linear-gradient(180deg, var(--gm-panel-2), var(--gm-panel));
   border: 1px solid var(--gm-line);
   border-radius: var(--gm-radius-lg);
@@ -251,16 +251,16 @@ body.gm-active .topbar { display: none; }
 .gm-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 20px;
+  margin-bottom: 20px;
   align-items: start;
 }
-.gm-stack > * + * { margin-top: 16px; }
+.gm-stack > * + * { margin-top: 20px; }
 
 /* Flex, not grid: when the bomb console is hidden the perk shop simply takes
    the whole row back, with no empty column left behind. */
 .gm-row--console { display: flex; flex-wrap: wrap; align-items: flex-start; }
-.gm-row--console .gm-panel--bomb { flex: 0 1 638px; min-width: 0; }
+.gm-row--console .gm-panel--bomb { flex: 0 1 642px; min-width: 0; }
 .gm-row--console .gm-panel--perks { flex: 1 1 520px; min-width: 0; }
 
 .gm-panel {
@@ -274,7 +274,7 @@ body.gm-active .topbar { display: none; }
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 13px 16px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--gm-line-soft);
   background: linear-gradient(180deg, rgba(122, 140, 255, 0.09), transparent);
 }
@@ -287,7 +287,7 @@ body.gm-active .topbar { display: none; }
 }
 .gm-panel__head .gm-spacer { flex: 1; }
 .gm-panel__meta { font-size: 0.82rem; color: var(--gm-muted); font-weight: 700; }
-.gm-panel__body { padding: 14px 16px 16px; }
+.gm-panel__body { padding: 16px 18px 18px; }
 .gm-panel__note {
   margin: 0 0 12px;
   color: var(--gm-muted);
@@ -305,7 +305,7 @@ body.gm-active .topbar { display: none; }
 
 /* --- level race --------------------------------------------------------- */
 
-.gm-panel--race .gm-panel__body { padding: 12px 16px 14px; }
+.gm-panel--race .gm-panel__body { padding: 14px 18px 16px; }
 .gm-panel__meta.is-ahead { color: var(--gm-green); }
 .gm-panel__meta.is-behind { color: var(--gm-amber); }
 
@@ -313,8 +313,8 @@ body.gm-active .topbar { display: none; }
   display: grid;
   grid-template-columns: 34px minmax(96px, auto) 1fr auto;
   align-items: center;
-  gap: 12px;
-  padding: 7px 0;
+  gap: 16px;
+  padding: 10px 0;
 }
 .gm-race__row + .gm-race__row { border-top: 1px solid var(--gm-line-soft); }
 
@@ -376,8 +376,8 @@ body.gm-active .topbar { display: none; }
   display: grid;
   grid-template-columns: 42px minmax(96px, 0.85fr) minmax(140px, 1.15fr) auto;
   align-items: center;
-  gap: 12px;
-  padding: 11px 16px;
+  gap: 16px;
+  padding: 13px 18px;
   border: 0;
   border-top: 1px solid var(--gm-line-soft);
   background: none;
@@ -430,7 +430,9 @@ body.gm-active .topbar { display: none; }
   font-size: 0.88rem;
   font-weight: 700;
 }
-.gm-assign span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Wrap rather than clip: "Rock Paper Sciss..." is a worse row than a name on
+   two lines, and the game is half of what the row is telling you. */
+.gm-assign span { min-width: 0; line-height: 1.25; }
 
 /* Status pills: the strongest colour on the row, always with a text label. */
 #view-leader .pill {
@@ -519,7 +521,7 @@ body.gm-active .topbar { display: none; }
 
 /* --- perk shop --------------------------------------------------------- */
 
-.gm-perks__group + .gm-perks__group { margin-top: 18px; }
+.gm-perks__group + .gm-perks__group { margin-top: 22px; }
 .gm-perks__label {
   display: flex;
   align-items: center;
@@ -536,13 +538,13 @@ body.gm-active .topbar { display: none; }
 #view-leader .perk-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 #view-leader .perk-card {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 12px;
+  gap: 8px;
+  padding: 14px;
   margin: 0;
   border: 1px solid var(--gm-line);
   border-radius: var(--gm-radius-sm);
@@ -614,7 +616,7 @@ body.gm-active .topbar { display: none; }
 
 #view-leader .feed { padding: 0; color: var(--gm-muted); font-size: 0.87rem; }
 #view-leader .feed li {
-  padding: 8px 16px;
+  padding: 10px 18px;
   border-top: 1px solid var(--gm-line-soft);
   line-height: 1.35;
 }
