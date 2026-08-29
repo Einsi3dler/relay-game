@@ -235,9 +235,15 @@ input:focus { border-color: var(--sun); }
 .stage-overlay {
   position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
   background: rgba(131, 56, 236, 0.92); color: #fff; z-index: 40;
-  font-size: clamp(2rem, 9vw, 4rem); font-weight: 900;
+  /* Smaller than it was: the text now names a team instead of a bare number. */
+  font-size: clamp(1.5rem, 5.5vw, 3.1rem); font-weight: 900;
+  text-align: center; padding: 0 24px; line-height: 1.12;
   animation: pop-in 0.25s ease;
 }
+/* Your team moving and the rivals moving are opposite news, so they do not get
+   the same colour. */
+.stage-overlay.is-mine { background: rgba(48, 160, 82, 0.94); }
+.stage-overlay.is-rival { background: rgba(30, 30, 38, 0.94); color: #ff8b8b; }
 @keyframes pop-in { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .result-emoji { font-size: 4rem; text-align: center; }
 #view-result { text-align: center; }

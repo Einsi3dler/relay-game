@@ -218,10 +218,23 @@
   function handle(message) {
     if (message.type === "state_snapshot") render(message.state);
     else if (message.type === "error") toast(message.error);
-    else if (message.type === "level_advanced") stageOverlay("Level " + message.level + "! 🚀");
+    else if (message.type === "level_advanced") levelOverlay(message);
     else if (message.type === "perk_used") perkToast(message);
     else if (message.type === "duel_result") duelToast(message);
     else if (message.type === "event") logEvent(message.event, true);
+  }
+
+  // The server has always said which team advanced; the overlay used to throw
+  // that away and tell both teams the same thing. Name the team instead, and
+  // colour it by whether it was yours, because "they moved" and "we moved" are
+  // opposite pieces of news.
+  function levelOverlay(message) {
+    var team = lastState && lastState.teams && lastState.teams[message.team_id];
+    var name = team ? team.name : message.team_id;
+    var mine = !!(lastState && lastState.me &&
+      lastState.me.team_id === message.team_id);
+    stageOverlay(name + " progressed to Level " + message.level,
+      mine ? "mine" : "rival");
   }
 
   function perkToast(message) {
@@ -1124,6 +1137,66 @@
 
   function teamColor(teamId) { return TEAM_COLORS[teamId] || "#7a8cff"; }
 
+  var TEAM_LOGOS = ["knight", "rook", "bishop", "queen",
+                    "bow", "skull", "campfire", "tower"];
+
+  // A team's mark is drawn from the match id, so the pairing changes between
+  // matches. Hashing each team separately would let both land on the same
+  // silhouette, so the second team is stepped away from the first by a stride
+  // that can never be a multiple of the list length: two teams always differ.
+  // Presentation only; no logo is stored on the team.
+  function teamLogo(state, teamId) {
+    var seats = TEAM_COLORS.hasOwnProperty(teamId)
+      ? Object.keys(TEAM_COLORS) : [teamId];
+    var seat = seats.indexOf(teamId);
+    if (seat < 0) seat = 0;
+    var base = hashSeed(state.id) % TEAM_LOGOS.length;
+    var stride = 1 + (hashSeed(state.id + "#") % (TEAM_LOGOS.length - 1));
+    return TEAM_LOGOS[(base + seat * stride) % TEAM_LOGOS.length];
+  }
+
+  // The level race: one star per level of the configured match length, filled
+  // to each team's level. The two rows side by side are the gap.
+  function renderRace(state, mine, opponent, levels) {
+    var host = $("leader-race");
+    host.innerHTML = "";
+    if (!levels) { $("leader-race-gap").textContent = ""; return; }
+
+    [mine, opponent].forEach(function (team, at) {
+      if (!team) return;
+      var row = el("div", "gm-race__row" + (at === 0 ? " is-mine" : ""));
+      row.style.setProperty("--team-color", teamColor(team.id));
+
+      var logo = el("span", "gm-race__logo");
+      logo.appendChild(icon("logo-" + teamLogo(state, team.id)));
+      row.appendChild(logo);
+      row.appendChild(el("span", "gm-race__name", team.name));
+
+      var stars = el("ol", "gm-race__stars");
+      stars.setAttribute("aria-label",
+        team.name + " on level " + team.level + " of " + levels);
+      for (var level = 1; level <= levels; level++) {
+        var star = el("li", "gm-race__star" + (level <= team.level ? " is-on" : ""));
+        star.appendChild(icon("star", "gm-ic--sm"));
+        stars.appendChild(star);
+      }
+      row.appendChild(stars);
+      row.appendChild(el("span", "gm-race__level", team.level + " / " + levels));
+      host.appendChild(row);
+    });
+
+    var gap = $("leader-race-gap");
+    if (!opponent) { gap.textContent = ""; return; }
+    var lead = mine.level - opponent.level;
+    // Never the colour alone: the gap is spelled out in words too.
+    gap.textContent = lead === 0
+      ? "Level for level"
+      : (lead > 0 ? "You lead by " : opponent.name + " leads by ") +
+        Math.abs(lead) + (Math.abs(lead) === 1 ? " level" : " levels");
+    gap.className = "gm-panel__meta " +
+      (lead > 0 ? "is-ahead" : lead < 0 ? "is-behind" : "");
+  }
+
   function icon(name, extra) {
     var i = document.createElement("i");
     i.className = "gm-ic gm-ic--" + name + (extra ? " " + extra : "");
@@ -1145,32 +1218,77 @@
     return (first + second).toUpperCase();
   }
 
-  // Deterministic avatars without an avatar field on the player model: the
-  // seed is the match id plus the player id, so the same player keeps the same
-  // face for the whole match and nothing identifying leaves the page. If the
-  // request fails or is blocked the initials underneath are what remains, so
-  // the roster never waits on the network.
+  // Deterministic avatars without an avatar field on the player model and
+  // without a network round trip. The seed is the match id plus the player id,
+  // so a player keeps one face for a whole match, every client draws the same
+  // one, and a blocked or offline box still shows it.
+  function hashSeed(text) {
+    var hash = 2166136261;
+    for (var i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash = (hash * 16777619) >>> 0;
+    }
+    return hash;
+  }
+
+  // A tiny deterministic stream, so each feature of a face draws from its own
+  // part of the seed instead of every avatar keying off the same low bits.
+  function seedStream(seed) {
+    var state = seed || 1;
+    return function (n) {
+      state ^= state << 13; state >>>= 0;
+      state ^= state >> 17;
+      state ^= state << 5; state >>>= 0;
+      return state % n;
+    };
+  }
+
+  var AVATAR_SKINS = ["#ffd9a8", "#f2b98c", "#d69a6a", "#a9713f", "#7a4f2b",
+                      "#f7e2c8", "#c98c5a", "#8d5a34"];
+  var AVATAR_BACKS = ["#2b3a7a", "#1f5b6b", "#5b2f7a", "#7a2f4d", "#2f6b45",
+                      "#6b5a1f", "#3a3a6b", "#6b3a2f"];
+
+  // Eyes and a mouth on a coloured ground: no hair, no body, nothing that
+  // reads as a gender cue, and nothing derived from the player's name.
+  function avatarSvg(seed) {
+    var pick = seedStream(seed);
+    var back = AVATAR_BACKS[pick(AVATAR_BACKS.length)];
+    var skin = AVATAR_SKINS[pick(AVATAR_SKINS.length)];
+    var eyeY = 7 + pick(2);
+    var eyeW = 1 + pick(2);
+    var browed = pick(3) === 0;
+    var mouth = pick(4);
+    var parts = [
+      '<rect width="16" height="16" fill="' + back + '"/>',
+      '<rect x="3" y="3" width="10" height="11" fill="' + skin + '"/>'
+    ];
+    if (browed) {
+      parts.push('<rect x="4" y="' + (eyeY - 2) + '" width="3" height="1" fill="#2b2233"/>');
+      parts.push('<rect x="9" y="' + (eyeY - 2) + '" width="3" height="1" fill="#2b2233"/>');
+    }
+    parts.push('<rect x="5" y="' + eyeY + '" width="' + eyeW + '" height="2" fill="#2b2233"/>');
+    parts.push('<rect x="' + (11 - eyeW) + '" y="' + eyeY + '" width="' + eyeW +
+      '" height="2" fill="#2b2233"/>');
+    if (mouth === 0) parts.push('<rect x="6" y="11" width="4" height="1" fill="#2b2233"/>');
+    else if (mouth === 1) parts.push('<rect x="6" y="11" width="4" height="2" fill="#2b2233"/>');
+    else if (mouth === 2) {
+      parts.push('<rect x="6" y="11" width="1" height="1" fill="#2b2233"/>');
+      parts.push('<rect x="7" y="12" width="2" height="1" fill="#2b2233"/>');
+      parts.push('<rect x="9" y="11" width="1" height="1" fill="#2b2233"/>');
+    } else parts.push('<rect x="7" y="11" width="2" height="2" fill="#2b2233"/>');
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" ' +
+      'shape-rendering="crispEdges" width="40" height="40">' + parts.join("") + "</svg>";
+  }
+
   function avatarNode(state, player, teamId) {
     var wrap = el("span", "gm-avatar");
     wrap.style.setProperty("--team-color", teamColor(teamId));
-    wrap.appendChild(el("span", "gm-avatar__initials", initials(player.name)));
-    var img = document.createElement("img");
-    img.alt = "";
-    img.width = 40;
-    img.height = 40;
-    img.loading = "lazy";
-    // Hidden until it actually arrives, so a blocked or slow avatar shows the
-    // initials rather than a broken-image box.
-    img.hidden = true;
-    img.addEventListener("load", function () { img.hidden = false; });
-    img.setAttribute("src", "https://api.dicebear.com/9.x/pixel-art-neutral/svg?seed=" +
-      encodeURIComponent(state.id + ":" + player.id) + "&size=64");
-    wrap.appendChild(img);
+    wrap.innerHTML = avatarSvg(hashSeed(state.id + ":" + player.id));
+    wrap.setAttribute("role", "img");
+    wrap.setAttribute("aria-label", "");
     return wrap;
   }
 
-  // [label, class, icon]. The label always carries the meaning: colour is
-  // never the only thing separating one state from another.
   function statusPill(player) {
     // Silenced: the server nulls the progress fields rather than lying about
     // them, so there is genuinely nothing to show.
@@ -1307,6 +1425,7 @@
       oppBox.appendChild(opp);
     }
 
+    renderRace(state, team, opponent, levels);
     renderPerkGrid(state, team);
     renderHandoff(state, team);
     renderFeed(state.events, "leader-feed");
@@ -1477,9 +1596,10 @@
     while (feed.children.length > 6) feed.removeChild(feed.lastChild);
   }
 
-  function stageOverlay(text) {
+  function stageOverlay(text, tone) {
     var overlay = $("stage-overlay");
     $("stage-overlay-text").textContent = text;
+    overlay.className = "stage-overlay" + (tone ? " is-" + tone : "");
     overlay.hidden = false;
     clearTimeout(overlayHandle);
     overlayHandle = setTimeout(function () { overlay.hidden = true; }, 1400);

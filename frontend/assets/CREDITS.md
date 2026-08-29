@@ -30,6 +30,14 @@ Relay wordmark are hand-authored inline SVG.
 | `perks/skim.svg` | `pouch_remove.svg` |
 | `perks/shield.svg` | `shield.svg` |
 | `perks/extend-wait.svg` | `hourglass.svg` |
+| `logos/knight.svg` | `chess_knight.svg` |
+| `logos/rook.svg` | `chess_rook.svg` |
+| `logos/bishop.svg` | `chess_bishop.svg` |
+| `logos/queen.svg` | `chess_queen.svg` |
+| `logos/bow.svg` | `bow.svg` |
+| `logos/skull.svg` | `skull.svg` |
+| `logos/campfire.svg` | `campfire.svg` |
+| `logos/tower.svg` | `structure_tower.svg` |
 
 **Modifications:** the pack ships these paths centred on the origin with no
 `viewBox` and a baked `fill="#FFFFFF"`. Each file here has `viewBox="-32 -32 64 64"`
@@ -63,9 +71,13 @@ and the fill changed to `currentColor`. Geometry is untouched.
 | `perks/blackout.svg` | `eye-off` |
 | `perks/reflect.svg` | `refresh-cw` |
 | `perks/insurance.svg` | `umbrella` |
+| `ui/star.svg` | `star` |
 
 **Modifications:** whitespace collapsed onto one line. Geometry, `viewBox`,
-`stroke="currentColor"` and stroke widths are unchanged.
+`stroke="currentColor"` and stroke widths are unchanged, except `ui/star.svg`,
+whose `fill="none"` became `fill="currentColor"`: it is drawn through a CSS
+mask, which uses the shape's alpha, so an unfilled star would render as an
+outline at every level of the race track.
 
 ### ISC License
 
@@ -87,13 +99,12 @@ THIS SOFTWARE.
 
 ---
 
-## Runtime service — DiceBear (roster avatars)
+## Roster avatars — generated locally, no third party
 
-Roster avatars are generated at runtime from `api.dicebear.com` using the
-`pixel-art-neutral` style, seeded from the match id and player id. No avatar
-data is stored in the game model and no avatar file is vendored here.
+Roster avatars are drawn in the browser from a deterministic seed (match id
+plus player id): eyes and a mouth on a seeded ground, in the spirit of
+DiceBear's `pixel-art-neutral` but with no network request and nothing
+vendored. Nothing is stored on the player model, nothing is derived from the
+player's name, and the roster renders identically offline.
 
-- **Source:** <https://www.dicebear.com/styles/pixel-art-neutral/>
-- **Licence:** CC0 1.0 (style), MIT (DiceBear itself)
-- **Fallback:** if the request fails or is blocked, the roster falls back to a
-  deterministic initials token rendered in CSS, so the dashboard works offline.
+See `avatarSvg` in `frontend/app.js`.

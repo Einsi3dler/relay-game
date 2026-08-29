@@ -469,6 +469,32 @@ function dashboardProbe(shell) {
       }),
     })),
     opponent: allText($("leader-opponent")),
+    avatars: (() => {
+      const nodes = descendants($("leader-roster"))
+        .filter((n) => n.classes.has("gm-avatar"));
+      return {
+        count: nodes.length,
+        // Nothing may reach for the network to draw a roster row. The SVG
+        // xmlns is a namespace, not a fetch, so look for what actually loads.
+        remote: nodes.filter((n) => /<img|src=|xlink:href=/.test(n._html || "")).length,
+        distinct: new Set(nodes.map((n) => n._html || "")).size,
+      };
+    })(),
+    race_gap: allText($("leader-race-gap")),
+    race_gap_class: $("leader-race-gap").className,
+    race: $("leader-race").children.map((row) => ({
+      name: allText(row.children.filter((c) => c.classes.has("gm-race__name"))[0] ||
+        { children: [], _text: "" }),
+      mine: row.classes.has("is-mine"),
+      logo: [...(row.children.filter((c) => c.classes.has("gm-race__logo"))[0] ||
+        { children: [] }).children.map((i) => i.className)].join(""),
+      stars: (row.children.filter((c) => c.classes.has("gm-race__stars"))[0] ||
+        { children: [] }).children.length,
+      lit: (row.children.filter((c) => c.classes.has("gm-race__stars"))[0] ||
+        { children: [] }).children.filter((s) => s.classes.has("is-on")).length,
+      level: allText(row.children.filter((c) => c.classes.has("gm-race__level"))[0] ||
+        { children: [], _text: "" }),
+    })),
     perk_groups: descendants($("perk-grid"))
       .filter((n) => n.classes.has("gm-perks__label")).map(allText),
     perk_buys: descendants($("perk-grid"))
@@ -507,6 +533,11 @@ function probe(shell) {
       fill: $("timer-fill").style.width,
     },
     dashboard: dashboardProbe(shell),
+    overlay: {
+      hidden: shell.byId["stage-overlay"].hidden,
+      classes: shell.byId["stage-overlay"].className,
+      text: shell.byId["stage-overlay-text"].textContent,
+    },
     timers: clock.timers.size,
     mounted_games: shell.mounts.slice(),
     sent_submits: (shell.sockets[0].sent || [])
@@ -530,6 +561,10 @@ PLAN.scenarios.forEach((scenario) => {
           type: "state_snapshot", state: scenario.snapshots[action.snapshot],
         }),
       });
+    } else if (action.do === "push") {
+      // Not every server message is a snapshot: level_advanced and friends
+      // arrive on their own and drive the overlay.
+      socket.onmessage({ data: JSON.stringify(action.message) });
     } else if (action.do === "click") {
       fire(byText(shell.byId[action.in], action.text), "click");
     } else if (action.do === "advance") {
@@ -787,6 +822,13 @@ def shell() -> dict:
             {"do": "record", "as": "broke"},
             {"do": "deliver", "snapshot": 2},
             {"do": "record", "as": "silenced"},
+            {"do": "deliver", "snapshot": 0},
+            {"do": "push", "message": {
+                "type": "level_advanced", "team_id": "alpha", "level": 5}},
+            {"do": "record", "as": "ours_advanced"},
+            {"do": "push", "message": {
+                "type": "level_advanced", "team_id": "bravo", "level": 4}},
+            {"do": "record", "as": "theirs_advanced"},
         ],
     })
     expected["dashboard"] = {
@@ -1439,3 +1481,58 @@ def test_the_handoff_names_the_role_game_and_what_it_costs_them(shell):
     assert len(options) == 5
     assert any("Duelist" in opt and "cleared" in opt for opt in options)
     assert any("Defuser" in opt and "Bomb Defuse" in opt for opt in options)
+
+
+def test_the_race_puts_both_teams_on_one_scale(shell):
+    """A number each says how far you are; two rows of the same stars say who is
+    ahead, which is the thing a Grandmaster actually reads."""
+    race = _dash(shell, "live")["race"]
+    levels = shell["_expected"]["dashboard"]["level_count"]
+    assert [row["mine"] for row in race] == [True, False]
+    # One star per configured level on both rows, lit to that team's level.
+    assert [row["stars"] for row in race] == [levels, levels]
+    assert race[0]["lit"] == 4 and race[0]["level"] == f"4 / {levels}"
+    assert race[1]["lit"] == race[1]["lit"]  # opponent lit tracks their level
+    assert race[1]["level"].endswith(f"/ {levels}")
+
+
+def test_each_team_gets_its_own_mark_from_the_match(shell):
+    """The mark is picked from the match id so the two teams never collide, and
+    nothing about it is stored on the team."""
+    race = _dash(shell, "live")["race"]
+    marks = [row["logo"] for row in race]
+    assert all("gm-ic--logo-" in mark for mark in marks)
+    assert marks[0] != marks[1]
+
+
+def test_the_gap_is_spelled_out_not_only_coloured(shell):
+    """Colour alone would not survive a colour-blind reader or a glance."""
+    live = _dash(shell, "live")
+    assert "lead" in live["race_gap"].lower() or live["race_gap"] == "Level for level"
+    assert "is-ahead" in live["race_gap_class"] or "is-behind" in live["race_gap_class"] \
+        or live["race_gap"] == "Level for level"
+
+
+def test_a_level_advance_names_the_team_that_moved(shell):
+    """The server always said which team advanced. Telling both teams the same
+    bare number wasted it, and read as your own progress when it was not."""
+    ours = shell["dashboard"]["records"]["ours_advanced"]["overlay"]
+    theirs = shell["dashboard"]["records"]["theirs_advanced"]["overlay"]
+    assert ours["text"] == "Alpha progressed to Level 5"
+    assert theirs["text"] == "Bravo progressed to Level 4"
+    # Your team moving and the rivals moving are opposite news.
+    assert "is-mine" in ours["classes"]
+    assert "is-rival" in theirs["classes"]
+    assert ours["hidden"] is False
+
+
+def test_avatars_need_no_network_and_are_stable_per_player(shell):
+    """A roster that waits on a third-party CDN shows blanks whenever that host
+    is slow, blocked or unreachable, which is not a thing to learn mid-match."""
+    live = _dash(shell, "live")
+    assert len(live["roster"]) == 5
+    assert live["avatars"]["count"] == 5
+    assert live["avatars"]["remote"] == 0
+    # Same seed, same face, every client and every redraw.
+    assert live["avatars"]["distinct"] >= 2
+    assert live["avatars"] == _dash(shell, "broke")["avatars"]
