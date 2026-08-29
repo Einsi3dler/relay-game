@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#fffaf3">
   <title>The Relay</title>
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/dashboard.css">
 </head>
 <body>
   <header class="topbar">
@@ -137,39 +138,141 @@
 
   <!-- leader dashboard -->
   <section id="view-leader" class="view" hidden>
-    <div class="card">
-      <div class="leader-head">
+    <header class="gm-bar">
+      <span class="gm-mark">
+        <svg viewBox="0 0 24 32" aria-hidden="true" focusable="false">
+          <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
+        </svg>
+        <span>RELAY</span>
+      </span>
+
+      <div class="gm-field">
+        <span class="gm-field__label">Match code</span>
+        <span class="gm-field__value" id="leader-match-code"></span>
+      </div>
+
+      <div class="gm-bar__team" id="leader-team-badge">
         <h1 id="leader-team-title"></h1>
-        <span id="leader-currency" class="chip currency-chip"></span>
+        <span class="gm-level" id="leader-level"></span>
       </div>
-      <p class="sub" id="leader-status-line"></p>
-      <ul id="leader-roster" class="leader-roster"></ul>
-      <div class="leader-opponent" id="leader-opponent"></div>
-    </div>
-    <div id="leader-duel-card" class="card duel-card" hidden>
-      <h2>⚔️ Duel</h2>
-      <p class="sub">You can watch, but not the moves — neither Duelist's hand reaches you until the round resolves.</p>
-      <div id="leader-duel-mount"></div>
-    </div>
-    <div id="leader-bomb-card" class="card" hidden>
-      <h2>💣 Bomb manual</h2>
-      <p class="sub" id="leader-bomb-sub"></p>
-      <div id="leader-bomb-clock" class="bomb-clock" hidden></div>
-      <div id="leader-bomb-mount"></div>
-    </div>
-    <div class="card">
-      <h2>🛒 Perk shop</h2>
-      <div id="perk-grid" class="perk-grid"></div>
-    </div>
-    <div class="card">
-      <h2>🎖️ Hand over the Grandmaster seat</h2>
-      <p class="sub">Full swap: they step out to lead, you take over their role and game — once per level.</p>
-      <div class="handoff-row">
-        <select id="handoff-select"></select>
-        <button id="handoff-btn" class="mini-btn">Hand over</button>
+
+      <div class="gm-coin" title="Team currency">
+        <i class="gm-ic gm-ic--coin gm-ic--lg" aria-hidden="true"></i>
+        <span id="leader-currency"></span>
+        <span class="sr-only">coins</span>
+      </div>
+
+      <ul class="gm-flags" id="leader-status-line"></ul>
+    </header>
+
+    <section class="gm-panel gm-panel--race">
+      <header class="gm-panel__head">
+        <i class="gm-ic gm-ic--level" aria-hidden="true"></i>
+        <h2>Level race</h2>
+        <span class="gm-spacer"></span>
+        <span class="gm-panel__meta" id="leader-race-gap"></span>
+      </header>
+      <div class="gm-panel__body" id="leader-race"></div>
+    </section>
+
+    <div class="gm-row">
+      <section class="gm-panel gm-panel--team">
+        <header class="gm-panel__head">
+          <i class="gm-ic gm-ic--team" aria-hidden="true"></i>
+          <h2>Your team</h2>
+          <span class="gm-spacer"></span>
+          <span class="gm-panel__meta" id="leader-team-count"></span>
+        </header>
+        <ol id="leader-roster" class="leader-roster"></ol>
+      </section>
+
+      <div class="gm-side">
+      <section id="leader-duel-card" class="gm-panel gm-panel--duel" hidden>
+        <header class="gm-panel__head">
+          <i class="gm-ic gm-ic--duel" aria-hidden="true"></i>
+          <h2>Duel watch</h2>
+          <span class="gm-spacer"></span>
+          <span class="gm-panel__meta">
+            <i class="gm-ic gm-ic--spectating gm-ic--sm" aria-hidden="true"></i> Spectating
+          </span>
+        </header>
+        <div class="gm-panel__body">
+          <p class="gm-panel__note">You can watch, but not the moves. Neither Duelist's hand
+            reaches you until the round resolves.</p>
+          <div id="leader-duel-mount"></div>
+        </div>
+      </section>
+
+      <section class="gm-panel gm-panel--opponent">
+        <header class="gm-panel__head">
+          <i class="gm-ic gm-ic--level" aria-hidden="true"></i>
+          <h2>Opponent</h2>
+        </header>
+        <div class="gm-panel__body" id="leader-opponent"></div>
+      </section>
       </div>
     </div>
-    <ul id="leader-feed" class="feed"></ul>
+
+    <div class="gm-row gm-row--console">
+    <section id="leader-bomb-card" class="gm-panel gm-panel--bomb" hidden>
+      <header class="gm-panel__head">
+        <i class="gm-ic gm-ic--bomb" aria-hidden="true"></i>
+        <h2>Bomb manual</h2>
+        <span class="gm-panel__meta" id="leader-bomb-sub"></span>
+        <span class="gm-spacer"></span>
+        <span class="gm-bomb__clockwrap">
+          <i class="gm-ic gm-ic--timer gm-ic--sm" aria-hidden="true"></i>
+          <span id="leader-bomb-clock" class="bomb-clock" hidden></span>
+        </span>
+      </header>
+      <div class="gm-manual">
+        <div id="leader-bomb-mount"></div>
+      </div>
+    </section>
+
+    <section class="gm-panel gm-panel--perks">
+      <header class="gm-panel__head">
+        <h2>Perk shop</h2>
+        <span class="gm-panel__meta">Spend coins to bend the race.</span>
+        <span class="gm-spacer"></span>
+        <span class="gm-panel__meta" id="leader-perk-purse"></span>
+      </header>
+      <div class="gm-panel__body">
+        <div id="perk-grid" class="gm-perks"></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="gm-row">
+      <section class="gm-panel gm-panel--feed">
+        <header class="gm-panel__head">
+          <h2>Event feed</h2>
+        </header>
+        <ul id="leader-feed" class="feed"></ul>
+      </section>
+
+      <section class="gm-panel gm-panel--handoff">
+        <header class="gm-panel__head">
+          <i class="gm-ic gm-ic--crown" aria-hidden="true"></i>
+          <h2>Hand over the Grandmaster seat</h2>
+        </header>
+        <div class="gm-panel__body">
+          <p class="gm-warn">
+            <i class="gm-ic gm-ic--warning gm-ic--sm" aria-hidden="true"></i>
+            <span>This is a full swap. They step up to lead and stop playing, their cleared
+              status is lost, and you take over their role and game on a fresh board. Once
+              per level.</span>
+          </p>
+          <div class="handoff-row">
+            <label class="sr-only" for="handoff-select">Teammate to hand the seat to</label>
+            <select id="handoff-select"></select>
+            <button id="handoff-btn" class="gm-btn gm-btn--warn">
+              <i class="gm-ic gm-ic--crown gm-ic--sm" aria-hidden="true"></i> Hand over seat
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
   </section>
 
   <div id="host-live" class="host-live" hidden>
