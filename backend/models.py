@@ -340,6 +340,7 @@ class Match:
     host_player_id: str | None = None  # first joiner; lobby control (see docs)
     min_players: int = 0  # per-match start threshold, host-adjustable in lobby
     max_players: int = 0  # per-team seat cap, host-adjustable within the ceiling
+    level_count: int = 0  # rounds to win, host-adjustable in the lobby
     ended_reason: str | None = None  # "host_ended" | "host_cancelled" | None
     winner_team_id: str | None = None
     events: list[Event] = field(default_factory=list)
@@ -401,6 +402,7 @@ class Match:
             "host_player_id": self.host_player_id,
             "min_players": self.min_players,
             "max_players": self.max_players,
+            "level_count": self.level_count,
             "ended_reason": self.ended_reason,
             "winner_team_id": self.winner_team_id,
             "config": dict(self.config_snapshot),

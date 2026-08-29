@@ -160,6 +160,7 @@ class RelayEngine:
             # A fresh match opens at the ceiling; the host narrows it to the
             # table they actually have.
             max_players=self.max_players_ceiling(),
+            level_count=config.LEVEL_COUNT,
         )
 
     def join_match(
@@ -301,6 +302,28 @@ class RelayEngine:
                 match, result,
                 f"Minimum players per team lowered to {value} to match.", "info",
             )
+        return result
+
+    def host_set_level_count(
+        self, match: Match, host_id: str, value: int
+    ) -> EngineResult:
+        """The host sets how many rounds it takes to win.
+
+        A shorter match is a quicker race, not an easier one — the difficulty
+        rungs spread so the finale is always the hardest tier (see
+        `config.difficulty_tier`).
+        """
+        guard = self._host_guard(match, host_id)
+        if guard is not None:
+            return guard
+        low, high = config.MIN_LEVEL_COUNT, config.max_level_count()
+        if not isinstance(value, int) or not low <= value <= high:
+            return EngineResult.rejected(f"rounds must be {low}..{high}")
+        if value == match.level_count:
+            return EngineResult.rejected(f"already {value} rounds")
+        match.level_count = value
+        result = EngineResult(changed=True)
+        self._add_event(match, result, f"The race is now {value} rounds.", "info")
         return result
 
     def host_set_team_name(
@@ -826,7 +849,8 @@ class RelayEngine:
         match.config_snapshot = {
             "wait_seconds": config.WAIT_SECONDS,
             "puzzle_grace_seconds": config.PUZZLE_GRACE_SECONDS,
-            "level_count": config.LEVEL_COUNT,
+            "level_count": match.level_count or config.LEVEL_COUNT,
+            "difficulty_tiers": config.DIFFICULTY_TIERS,
             "players_per_team": match.max_players,
             "max_players_ceiling": self.max_players_ceiling(),
             "currency_per_clear": config.CURRENCY_PER_CLEAR,
@@ -1268,6 +1292,16 @@ class RelayEngine:
 
     # --- internals ---
 
+    def _difficulty_tier(self, match: Match, round_number: int) -> int:
+        """The rung of the game tables this round is played at.
+
+        `team.level` counts rounds (1..level_count); this maps that onto the
+        fixed 13-row ladder, so a 3-round match still finishes at the top.
+        """
+        snapshot = match.config_snapshot
+        rounds = snapshot.get("level_count") or match.level_count
+        return config.difficulty_tier(round_number, rounds)
+
     def _bonus_level(self, match: Match, team: Team) -> int:
         """The level a bonus board is generated at: BONUS_LEVEL_OFFSET tiers
         above the team's own level.
@@ -1278,8 +1312,8 @@ class RelayEngine:
         """
         snapshot = match.config_snapshot
         return min(
-            team.level + snapshot["bonus_level_offset"],
-            snapshot["level_count"] + snapshot["bonus_level_offset"],
+            self._difficulty_tier(match, team.level) + snapshot["bonus_level_offset"],
+            snapshot.get("difficulty_tiers", config.DIFFICULTY_TIERS),
         )
 
     def _playing_members(self, match: Match, team: Team) -> list[Player]:
@@ -1310,7 +1344,9 @@ class RelayEngine:
         team = match.teams[player.team_id]
         module = self.registry.by_id(player.assigned_game)
         player.attempt += 1
-        player.current_main = module.generate_main(_new_seed(), level=team.level)
+        player.current_main = module.generate_main(
+            _new_seed(), level=self._difficulty_tier(match, team.level)
+        )
         player.current_bonus = None
         player.status = "solving"
         player.choice_pending = False

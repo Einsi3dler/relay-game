@@ -395,6 +395,28 @@
       $("cap-note").textContent =
         "Up to " + ceiling + " per team — one seat per game, plus the Duelist.";
 
+      // Rounds to win. A short race is a quick one, not an easy one — the
+      // difficulty rungs spread so the finale is always the hardest tier.
+      var lowRounds = (serverConfig && serverConfig.min_level_count) || 3;
+      var highRounds = (serverConfig && serverConfig.max_level_count) || 10;
+      var picker = $("level-count");
+      if (picker.options.length !== highRounds - lowRounds + 1) {
+        picker.innerHTML = "";
+        for (var n = lowRounds; n <= highRounds; n++) {
+          var opt = document.createElement("option");
+          opt.value = String(n);
+          opt.textContent = n + " rounds";
+          picker.appendChild(opt);
+        }
+      }
+      picker.value = String(state.level_count);
+      picker.onchange = function () {
+        sendAction({ action: "set_level_count", value: parseInt(picker.value, 10) });
+      };
+      $("round-note").textContent = state.level_count === highRounds
+        ? "The full ladder, one rung a round."
+        : "A shorter race, same finish — the difficulty still ends at the top.";
+
       ["alpha", "bravo"].forEach(function (teamId) {
         var input = $("name-" + teamId);
         // Don't fight the host's cursor: only refill a box they aren't in.
