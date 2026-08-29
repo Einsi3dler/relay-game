@@ -14,13 +14,17 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
 | Method | Path | Body | Returns |
 | --- | --- | --- | --- |
 | `GET` | `/` | — | landing page (`/play` serves the app) |
-| `GET` | `/api/config` | — | `{ "teams": ["alpha","bravo"], "players_per_team": 12, "max_players_ceiling": 12, "min_players_default": 4, "min_level_count": 3, "max_level_count": 10, "team_name_max": 20, "level_count": 10, "wait_seconds": 180, "perks": { ... }, "roles": { "<role_id>": {"name": str, "games": [<game_id>, ...] \| null}, ... }, "library": [ {"id","name","role"}, ... ] }` |
+| `GET` | `/api/config` | — | `{ "teams": ["alpha","bravo"], "players_per_team": 12, "max_players_ceiling": 12, "min_players_default": 4, "min_level_count": 3, "max_level_count": 10, "team_name_max": 20, "level_count": 10, "wait_seconds": 180, "duel_round_seconds_min": 3, "duel_round_seconds_max": 30, "duel_round_seconds_choices": [3,5,8,10,12,15,20,30], "perks": { ... }, "roles": { "<role_id>": {"name": str, "games": [<game_id>, ...] \| null}, ... }, "library": [ {"id","name","role"}, ... ], "duels": [ {"id","name","choice_seconds"}, ... ] }` |
 | `POST` | `/api/matches` | `{}` | `{ "match": <MatchPublic> }` — creates a match, returns its id |
 | `POST` | `/api/matches/{id}/join` | `{ "name": str, "team_id": "alpha"\|"bravo"\|null }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` |
 | `GET` | `/api/matches/{id}` | — | `{ "match": <MatchPublic> }` (spectate / rejoin lookup) |
 
 - `library` is the registered game catalogue that feeds the Grandmaster's
   assignment picker (each entry's `role` is its specialist role id, or `null`).
+  `duels` is the **separate** duel catalogue — the server picks a Duelist's
+  game, so these never appear in `library` and no picker offers them. Each
+  entry's `choice_seconds` is that game's own round window, which the host's
+  `duel_round_seconds_*` control overrides for the whole match.
   `roles` is the full role catalogue: `games` is the list a role may be
   assigned, or `null` for the Generalist (any game); an empty list marks a
   reserved role (`games: []`) that can't be assigned yet. `assign_game` is
@@ -67,7 +71,7 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 | `give_leader` | `target_id: str` | Grandmaster-only. Lobby: moves the seat. Active match: full swap, once per team per level (see [GAME_DESIGN.md](GAME_DESIGN.md) §11). |
 | `request_state` | — | Ask for a fresh `state_snapshot` (e.g. after reconnect). |
 | `heartbeat` | — | Keep-alive; server replies with a `state_snapshot`. |
-| `lobby_action` | `action: str` + action fields | Mostly lobby-only. `set_team {team_id}` (self), `leave` (self; the host seat passes on), `claim_leader` (seat empty or holder disconnected), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `set_max_players {value}` (1..ceiling; pulls `min_players` down with it), `set_level_count {value}` (3..10 rounds to win), `set_team_name {team_id, name}`, `start`, `cancel_session`; `claim_host` (only while the host is gone). **Outside the lobby:** `end_session` (host-only, running match) and `claim_host` also work — the host holds the only control that stops a session. |
+| `lobby_action` | `action: str` + action fields | Mostly lobby-only. `set_team {team_id}` (self), `leave` (self; the host seat passes on), `claim_leader` (seat empty or holder disconnected), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `set_max_players {value}` (1..ceiling; pulls `min_players` down with it), `set_level_count {value}` (3..10 rounds to win), `set_duel_seconds {value}` (3..30 seconds a duel round, or `0` to give every duel game its own window back), `set_team_name {team_id, name}`, `start`, `cancel_session`; `claim_host` (only while the host is gone). **Outside the lobby:** `end_session` (host-only, running match) and `claim_host` also work — the host holds the only control that stops a session. |
 
 - `puzzle_id` **must** match the player's current puzzle id, or the server replies
   `error` ("Puzzle is no longer active") and ignores it.
@@ -108,6 +112,7 @@ These are exactly what `.public()` returns. **No answers ever appear here.**
   "status": "lobby | active | finished",
   "host_player_id": "p_9f3c2e7b81aa04d6",  // lobby controller (first joiner)
   "min_players": 4,                      // host-set start threshold per team
+  "duel_round_seconds": null,            // host override; null = each duel game's own
   "winner_team_id": null,               // or "alpha" / "bravo" when finished
   "config": {                            // frozen at match start
     "wait_seconds": 180,
@@ -122,6 +127,7 @@ These are exactly what `.public()` returns. **No answers ever appear here.**
   "teams": { "alpha": <TeamView>, "bravo": <TeamView> },  // shape depends on the viewer!
   "unassigned": [ <PlayerPublic>, ... ], // lobby players without a team yet
   "events": [ <Event>, ... ],           // last ~30, filtered per viewer (§2.2)
+  "duel": <DuelView> | null,             // only for the two Duelists and the two Grandmasters
   "me": <PlayerPrivate> | null           // only present for the requesting player
 }
 ```
@@ -237,6 +243,56 @@ Snapshots are personalised. Which team shape a viewer gets:
                                 //   and takes no other argument
 }
 ```
+
+### DuelView
+
+The live head-to-head, present only for the two Duelists and the two
+Grandmasters (`null` for everyone else — an ordinary solver learns nothing about
+the other team). The reveal rule is the point of the shape: **while the round is
+open, a viewer's own choice is echoed back and nobody else's is there at all.**
+
+```jsonc
+{
+  "id": "3f9c1a7d",
+  "duel_game_id": "crown_duel",          // which duel game the *server* picked
+  "name": "Crown Duel",
+  "rules_version": 2,
+  "phase": "choosing | reveal | done",
+  "round": 3,                            // engine rounds, 1-based
+  "round_seconds": 10,                   // the window THIS match runs, host
+                                         //   override included — draw the
+                                         //   countdown from this, not from
+                                         //   payload.choice_seconds
+  "deadline": "2026-07-02T12:00:10Z",    // end of the current phase
+  "you": "a" | "b" | null,               // your seat; null for a Grandmaster
+  "duellists": { "a": "Ada", "b": "Bo" },  // names only, never player ids
+  "team_of": { "a": "alpha", "b": "bravo" },
+  "wins": { "a": 0, "b": 0 },            // round wins the ENGINE counts; a game
+                                         //   that scores itself publishes the
+                                         //   real score in payload instead
+  "locked": { "a": true, "b": true },    // *that* they chose, never what
+  "choices": { "a": "assassin" },        // yours while the round is open;
+                                         //   both once it has resolved
+  "history": [ {"round": 1, "a": "king", "b": "peasant", "winner": "b"} ],
+  "last_round": { /* the round that just resolved, during the reveal beat */ },
+  "winner_side": null,                   // "a" | "b" once the duel is decided
+  "payload": { /* per-game, built for YOU — see below */ }
+}
+```
+
+`payload.kind` names the game and the rest is that game's own render data. What
+every one of them carries: `choice_seconds` (the module's own default window)
+and `wins_needed`. What each adds:
+
+| Game | `payload` carries | Never in it |
+| --- | --- | --- |
+| **RPS DUEL** (no `kind`) | `moves`, `beats` | — |
+| **CROWN DUEL** `crown_duel` | `phase` (`strategy`/`combat`), `game_round`, `crowns`, `sacrifice_used`, `can_sacrifice`, **your own** `hand`, `cards_left` (counts for both), `beats`, `transform_types`, `log`, `last` | the opponent's hand, or anything about what their Royal Sacrifice did |
+| **NUMBER CLASH** `number_clash` | `points`, `numbers`, `used` (both sides — every one was revealed when its round resolved), your `available`, `log`, `last` | — |
+| **BID WAR** `bid_war` | `coins`, `vp`, `auction`, `prize`, `next_prize`, `max_bid` (yours), `overtime`, `log`, `last` | the shuffled prize order past the next lot |
+
+A Grandmaster (`you: null`) gets no hand, no purse and no choices — there is
+nothing for them to relay to their champion mid-round.
 
 ### Event
 

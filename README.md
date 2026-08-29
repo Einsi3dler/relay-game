@@ -39,6 +39,14 @@ forfeitable on failure. The team advances only when **all playing members are
 cleared at the same instant**; first team to clear level `LEVEL_COUNT` (default
 10) wins.
 
+One seat plays a different game entirely. A team may field a **Duelist**, who
+solves nothing and instead fights the other team's champion round by round —
+**RPS DUEL**, **CROWN DUEL**, **NUMBER CLASH** or **BID WAR**, picked by the
+*server*, never by the Grandmaster. Neither champion sees the other's move until
+the round resolves, a win is how a Duelist goes green, and a loss stamps a
+once-per-level lock on their whole team. The host sets the round timer for all
+of them in the lobby. See [docs/DUEL_MODULE_SPEC.md](docs/DUEL_MODULE_SPEC.md).
+
 ## Documentation map
 
 | Doc | What it covers |
@@ -47,6 +55,7 @@ cleared at the same instant**; first team to clear level `LEVEL_COUNT` (default
 | [docs/PLAYTEST_GUIDE.md](docs/PLAYTEST_GUIDE.md) | How to run the V6 playtest and gather V7 economy-tuning data. |
 | [docs/REDESIGN_PLAN.md](docs/REDESIGN_PLAN.md) | The approved v2 redesign plan and its follow-up list. |
 | [docs/GAMES_SPEC.md](docs/GAMES_SPEC.md) | **The game library** (REWIRE / SWEEP / MIRROR RUN / DECANT / ECHO / OVERPRINT / STACKDROP / LANE SHIFT / SHADOW CAST / THREADLINE / BOMB DEFUSE): rules, generation, validation, anti-cheat. |
+| [docs/DUEL_MODULE_SPEC.md](docs/DUEL_MODULE_SPEC.md) | **The duel catalogue** (RPS DUEL / CROWN DUEL / NUMBER CLASH / BID WAR) and the contract behind it — the Duelist's head-to-head games, which the server picks and nobody assigns. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the system is built: backend engine, state, timers, frontend. |
 | [docs/GAME_MODULE_SPEC.md](docs/GAME_MODULE_SPEC.md) | **The contract every game must implement** (incl. action-game renderer interface). |
 | [docs/WEBSOCKET_PROTOCOL.md](docs/WEBSOCKET_PROTOCOL.md) | Every client↔server message and the state snapshot schema. |

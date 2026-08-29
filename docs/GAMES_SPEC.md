@@ -14,6 +14,15 @@ the **code interface**.
 > something (rotating, flagging, pouring, tapping), not by typing a fact. That is
 > deliberate — see §0.
 
+**Duels are not in this document.** The Duelist's games — RPS DUEL, CROWN DUEL,
+NUMBER CLASH, BID WAR — are head-to-head rather than solitaire: two players, one
+object, resolved round by round, with no generated board and no answer to check.
+They have their own contract and their own catalogue in
+[DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md). The anti-cheat principles in §0 still
+hold for them, by a different route: there is nothing to look up, and the only
+thing worth knowing — the opponent's move — is never sent to anyone until the
+round has already resolved.
+
 ---
 
 ## 0. Anti-cheat design principles (read first)
