@@ -255,6 +255,11 @@ body.gm-active .topbar { display: none; }
   margin-bottom: 20px;
   align-items: start;
 }
+
+/* The duel and the opponent are both short; stacking them in one column puts
+   them against the tall roster instead of leaving a dead patch beside it, and
+   the opponent is not stranded on its own when there is no duel. */
+.gm-side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .gm-stack > * + * { margin-top: 20px; }
 
 /* Flex, not grid: when the bomb console is hidden the perk shop simply takes
