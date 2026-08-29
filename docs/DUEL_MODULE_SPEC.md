@@ -89,6 +89,15 @@ engine reads them when it schedules the round timer. Everything else — the gap
 between duels, the penalty length, the payout — is engine config
 (`DUEL_*` in `backend/config.py`) and is the same for every duel game.
 
+**The host can override your window.** `host_set_duel_seconds` sets one round
+window for the whole match, across every duel game, so a group can run duels at
+the pace they want; it is frozen into `config_snapshot` at kickoff, because a
+window that moved mid-duel would change the clock under a Duelist who is already
+choosing. Your `choice_seconds` is the default when they set nothing, so it still
+has to be a sane pace for your game. Do not read it back for display: the
+effective window reaches the client as `duel.round_seconds`, and the shell draws
+the countdown from that (§7).
+
 ## 4. The reveal rule (the one that matters)
 
 **A Duelist must never learn the opponent's move while the round is open.** This is
@@ -199,6 +208,8 @@ object that changes phase under the same id** across many snapshots, where a puz
 is replaced wholesale. Mount once, then update.
 
 - `api.choose(move, duelId, round)` sends `duel_choice`. Never touch the socket.
+- The **round clock is the shell's**, drawn for every duel game from
+  `duel.round_seconds` and the server's deadline. Don't build a second one.
 - Render the opponent's hand **from `duel.choices` alone**. Before the reveal it
   will not be there — show a lock, not a placeholder you could inspect.
 - `duel.you` is your seat, or `null` for a Grandmaster: give them no buttons.

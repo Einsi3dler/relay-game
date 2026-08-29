@@ -85,6 +85,23 @@
     send(fields);
   }
 
+  function secondsOption(value, label) {
+    var option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    return option;
+  }
+
+  // "Rock Paper Scissors 5s, Crown Duel 10s, ..." — read from the server's own
+  // catalogue rather than restated here, so it cannot drift from the modules.
+  function duelPaces() {
+    var duels = (serverConfig && serverConfig.duels) || [];
+    if (!duels.length) return "five to ten seconds a round";
+    return duels.map(function (duel) {
+      return duel.name + " " + duel.choice_seconds + "s";
+    }).join(", ");
+  }
+
   // Duel ids aren't in the game library (the server picks them, so the lobby
   // picker never offers them) — name them from the duel catalogue instead.
   var DUEL_NAMES = {
@@ -451,6 +468,31 @@
         ? "The full ladder, one rung a round."
         : "A shorter race, same finish — the difficulty still ends at the top.";
 
+      // The duel round window. Every duel game declares its own — five seconds
+      // to throw a hand, ten to read a hand of cards — and this one setting
+      // overrides all of them, so a group can make every duel move at the pace
+      // they want without the games disagreeing about it.
+      var windows = (serverConfig && serverConfig.duel_round_seconds_choices) ||
+        [3, 5, 8, 10, 12, 15, 20, 30];
+      var clock = $("duel-seconds");
+      if (clock.options.length !== windows.length + 1) {
+        clock.innerHTML = "";
+        clock.appendChild(secondsOption("", "Each game's own pace"));
+        windows.forEach(function (seconds) {
+          clock.appendChild(secondsOption(String(seconds), seconds + "s a round"));
+        });
+      }
+      clock.value = state.duel_round_seconds ? String(state.duel_round_seconds) : "";
+      clock.onchange = function () {
+        sendAction({
+          action: "set_duel_seconds", value: parseInt(clock.value, 10) || 0,
+        });
+      };
+      $("duel-seconds-note").textContent = state.duel_round_seconds
+        ? "Every duel runs " + state.duel_round_seconds +
+          "s a round, whichever game the server picks."
+        : "Each duel keeps its own: " + duelPaces() + ".";
+
       ["alpha", "bravo"].forEach(function (teamId) {
         var input = $("name-" + teamId);
         // Don't fight the host's cursor: only refill a box they aren't in.
@@ -813,17 +855,44 @@
     }
   }
 
+  // The shell owns the duel countdown, so every duel game gets the same one
+  // (docs/DUEL_MODULE_SPEC.md §7). Both the bar and the seconds run off the
+  // server's deadline, and off `round_seconds` — the window this match is
+  // actually running, which is the host's override when they set one, not the
+  // module default sitting in `payload`.
+  var DUEL_CLOCK_IDS = ["duel-clock", "leader-duel-clock"];
+
+  function eachDuelClock(fn) {
+    DUEL_CLOCK_IDS.forEach(function (id) {
+      var node = $(id);
+      if (node) fn(node);
+    });
+  }
+
   function startDuelCountdown(deadlineIso, duel) {
     clearInterval(duelTimerHandle);
     var bar = $("duel-timer-bar");
     if (!bar) return;
-    if (!deadlineIso) { bar.hidden = true; return; }
+    if (!deadlineIso) {
+      bar.hidden = true;
+      eachDuelClock(function (node) { node.hidden = true; });
+      return;
+    }
     var deadline = parseDeadline(deadlineIso);
-    var total = ((duel && duel.payload && duel.payload.choice_seconds) || 5) * 1000;
+    var seconds = (duel && duel.round_seconds) ||
+      (duel && duel.payload && duel.payload.choice_seconds) || 5;
+    var total = seconds * 1000;
     bar.hidden = false;
+    eachDuelClock(function (node) { node.hidden = false; });
     var tick = function () {
       var left = Math.max(0, deadline - Date.now());
       $("duel-timer-fill").style.width = Math.min(100, (left / total) * 100) + "%";
+      // Round up, so a clock never reads 0 while the round is still open.
+      var showing = Math.ceil(left / 1000);
+      eachDuelClock(function (node) {
+        node.textContent = showing + "s";
+        node.className = "duel-clock" + (left <= 3000 ? " urgent" : "");
+      });
       if (left <= 0) clearInterval(duelTimerHandle);
     };
     tick();

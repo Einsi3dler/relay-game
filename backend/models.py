@@ -315,11 +315,21 @@ class DuelSession:
             return None
         return self.team_of.get(other_side(self.winner_side))
 
-    def public(self, me: Player, players: dict[str, Player]) -> dict[str, Any]:
+    def public(
+        self,
+        me: Player,
+        players: dict[str, Player],
+        round_seconds: int | None = None,
+    ) -> dict[str, Any]:
         """The duel as `me` is allowed to see it.
 
         Names only, never player ids: an id is a WS credential, and the
         opponent's is not exposed anywhere else in the protocol either.
+
+        `round_seconds` is the window this match actually runs rounds at — the
+        host's override, or the module's own. The client draws its countdown
+        from it, so it has to be the effective value rather than the module
+        default sitting in `payload`.
         """
         view = self.module.public(self.state, self.side_of(me.id), self.revealed())
         view.update({
@@ -327,6 +337,7 @@ class DuelSession:
             "name": self.module.name,
             "phase": self.phase,
             "deadline": self.deadline,
+            "round_seconds": round_seconds or self.module.choice_seconds,
             "last_round": dict(self.last_round) if self.last_round else None,
             "winner_side": self.winner_side,
             "team_of": dict(self.team_of),
@@ -349,6 +360,9 @@ class Match:
     min_players: int = 0  # per-match start threshold, host-adjustable in lobby
     max_players: int = 0  # per-team seat cap, host-adjustable within the ceiling
     level_count: int = 0  # rounds to win, host-adjustable in the lobby
+    # Host override for the duel round window, in seconds. None means every
+    # duel game keeps the `choice_seconds` it declares for itself.
+    duel_round_seconds: int | None = None
     ended_reason: str | None = None  # "host_ended" | "host_cancelled" | None
     winner_team_id: str | None = None
     events: list[Event] = field(default_factory=list)
@@ -371,7 +385,15 @@ class Match:
             return None
         if not (me.is_leader or me.id in self.duel.sides.values()):
             return None
-        return self.duel.public(me, self.players)
+        return self.duel.public(me, self.players, self.duel_window())
+
+    def duel_window(self) -> int | None:
+        """The round window in force: the host's override once the match has
+        started (frozen with the rest of the config), or their lobby setting
+        before it. None leaves each duel game on its own `choice_seconds`."""
+        if self.config_snapshot:
+            return self.config_snapshot.get("duel_round_seconds")
+        return self.duel_round_seconds
 
     def _team_view(self, team: Team, me: Player | None) -> dict[str, Any]:
         if self.status == "lobby":
@@ -411,6 +433,9 @@ class Match:
             "min_players": self.min_players,
             "max_players": self.max_players,
             "level_count": self.level_count,
+            # None means "each duel game keeps its own window" — the host panel
+            # shows that as a choice, not as a missing value.
+            "duel_round_seconds": self.duel_round_seconds,
             "ended_reason": self.ended_reason,
             "winner_team_id": self.winner_team_id,
             "config": dict(self.config_snapshot),

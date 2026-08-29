@@ -31,6 +31,7 @@ import pytest
 
 from backend import config
 from backend.engine import EngineResult, RelayEngine
+from backend.games.duel1_rps import RockPaperScissorsDuel
 from backend.registry import REGISTERED_MODULES, GameRegistry
 
 ROOT = Path(__file__).parents[1]
@@ -525,6 +526,11 @@ function probe(shell) {
       disabled: $("start-btn").disabled,
       panel_hidden: $("host-panel").hidden,
     },
+    host_duel_window: {
+      options: ($("duel-seconds").options || []).map((o) => [o.value, o.textContent]),
+      value: $("duel-seconds").value,
+      note: $("duel-seconds-note").textContent,
+    },
     console: {
       card_hidden: $("leader-bomb-card").hidden,
       sub: $("leader-bomb-sub").textContent,
@@ -541,6 +547,17 @@ function probe(shell) {
       label_hidden: $("timer-label").hidden,
       label: $("timer-label").textContent,
       fill: $("timer-fill").style.width,
+    },
+    duel_clock: {
+      card_hidden: $("duel-card").hidden,
+      title: $("duel-title").textContent,
+      hidden: $("duel-clock").hidden,
+      text: $("duel-clock").textContent,
+      classes: $("duel-clock").className,
+      leader_hidden: $("leader-duel-clock").hidden,
+      leader_text: $("leader-duel-clock").textContent,
+      bar_hidden: $("duel-timer-bar").hidden,
+      fill: $("duel-timer-fill").style.width,
     },
     dashboard: dashboardProbe(shell),
     overlay: {
@@ -633,6 +650,10 @@ def _config_body(engine: RelayEngine) -> dict:
             for role_id, role in config.ROLES.items()
         },
         "library": engine.registry.library(),
+        "duel_round_seconds_min": config.DUEL_ROUND_SECONDS_MIN,
+        "duel_round_seconds_max": config.DUEL_ROUND_SECONDS_MAX,
+        "duel_round_seconds_choices": list(config.DUEL_ROUND_SECONDS_CHOICES),
+        "duels": engine.registry.duel_library(),
     }
 
 
@@ -986,6 +1007,46 @@ def shell() -> dict:
             {"do": "record", "as": "lapsed"},
             {"do": "deliver", "snapshot": 0},
             {"do": "record", "as": "back_to_solving"},
+        ],
+    })
+
+    # --- the duel round clock ------------------------------------------------
+    # Every duel game declares its own window and the host can override all of
+    # them, so the shell has to draw its countdown from the duel's
+    # `round_seconds` rather than the module default in `payload`.
+    duel_engine = RelayEngine(
+        GameRegistry(REGISTERED_MODULES, duels=[RockPaperScissorsDuel()])
+    )
+    match, seats, leaders = _lobby(duel_engine, per_team=3, min_players=3)
+    for team_id in config.TEAM_IDS:
+        _seat(duel_engine, match, leaders, seats[team_id][0], "defuser")
+        _seat(duel_engine, match, leaders, seats[team_id][1], "generalist", FILLER[0])
+        _seat(duel_engine, match, leaders, seats[team_id][2], "duelist")
+    assert duel_engine.host_set_duel_seconds(match, match.host_player_id, 6).ok
+    assert duel_engine.start_match(match, now=NOW).changed
+    champion = seats["alpha"][2]
+    duel = match.duel
+    open_round = match.public(champion.id)
+    assert open_round["duel"]["round_seconds"] == 6
+    for side, move in (("a", "rock"), ("b", "scissors")):
+        assert duel_engine.duel_choice(
+            match, duel.sides[side], duel.id, duel.state.round_index, move, now=NOW
+        ).ok
+    reveal = match.public(champion.id)
+    scenarios.append({
+        "name": "duel_clock",
+        "config": _config_body(duel_engine),
+        "session": {"matchId": match.id, "playerId": champion.id},
+        "snapshots": [open_round, reveal],
+        "actions": [
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "open"},
+            {"do": "advance", "ms": 3_000},
+            {"do": "record", "as": "half"},
+            {"do": "advance", "ms": 2_500},
+            {"do": "record", "as": "urgent"},
+            {"do": "deliver", "snapshot": 1},
+            {"do": "record", "as": "reveal"},
         ],
     })
 
@@ -1586,3 +1647,59 @@ def test_silence_takes_the_coin_board_with_the_rest(shell):
     coins = _dash(shell, "silenced")["coins"]
     assert coins["jammed"] is True
     assert coins["rows"] == []
+
+
+# --- the duel round clock -------------------------------------------------
+#
+# The shell owns the duel countdown so every duel game gets the same one
+# (docs/DUEL_MODULE_SPEC.md §7). What matters is that it draws at all, that it
+# runs on the window this match is actually using, and that it stops between
+# rounds rather than counting down against nothing.
+
+def test_the_duel_clock_counts_the_open_round_down(shell):
+    records = shell["duel_clock"]["records"]
+    opened = records["open"]["duel_clock"]
+    assert opened["card_hidden"] is False
+    assert opened["hidden"] is False and opened["bar_hidden"] is False
+    # Six seconds is the host's override, not RPS's own five.
+    assert opened["text"] == "6s"
+    assert opened["fill"] == "100%"
+
+    half = records["half"]["duel_clock"]
+    assert half["text"] == "3s"
+    assert half["fill"] == "50%"
+
+
+def test_the_duel_clock_turns_urgent_at_the_end(shell):
+    urgent = shell["duel_clock"]["records"]["urgent"]["duel_clock"]
+    assert urgent["text"] == "1s"
+    assert "urgent" in urgent["classes"]
+    assert "urgent" not in shell["duel_clock"]["records"]["open"]["duel_clock"]["classes"]
+
+
+def test_the_duel_clock_stops_between_rounds(shell):
+    """The reveal beat is not a race, so there is nothing to count down."""
+    reveal = shell["duel_clock"]["records"]["reveal"]["duel_clock"]
+    assert reveal["hidden"] is True and reveal["bar_hidden"] is True
+    assert reveal["card_hidden"] is False          # the duel is still on screen
+
+
+def test_the_duel_title_names_the_game_and_the_round(shell):
+    assert shell["duel_clock"]["records"]["open"]["duel_clock"]["title"] == (
+        "⚔️ Rock Paper Scissors — round 1"
+    )
+
+
+def test_the_host_can_set_one_window_for_every_duel(shell):
+    """The picker offers each duel game its own pace, or one window for all of
+    them, and every value it offers is one the server accepts (asserted against
+    the bounds in tests/test_host_controls.py)."""
+    control = shell["blocker:ready"]["records"]["lobby"]["host_duel_window"]
+    values = [value for value, _ in control["options"]]
+    assert values == [""] + [str(n) for n in config.DUEL_ROUND_SECONDS_CHOICES]
+    assert control["options"][0][1] == "Each game's own pace"
+    assert control["options"][1][1] == "3s a round"
+    assert control["value"] == ""          # a fresh lobby overrides nothing
+    # The note reads the catalogue rather than restating it, so it cannot drift.
+    assert "Rock Paper Scissors 5s" in control["note"]
+    assert "Crown Duel 10s" in control["note"]

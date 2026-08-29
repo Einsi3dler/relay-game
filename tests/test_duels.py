@@ -15,7 +15,7 @@ from datetime import timedelta
 import pytest
 
 from backend import config
-from backend.engine import DUEL_SCOPE, RelayEngine, _team_scope
+from backend.engine import DUEL_SCOPE, RelayEngine, _parse_iso, _team_scope
 from backend.games.duel1_rps import RockPaperScissorsDuel
 from backend.models import Match, green
 from backend.registry import GameRegistry
@@ -574,3 +574,72 @@ def test_a_new_level_opens_a_fresh_series(engine):
     assert (DUEL_SCOPE, "duel_next") in {
         (r.scope_id, r.kind) for r in result.schedule
     }, "the new level should re-open the duel"
+
+
+# --- the host's duel round window ----------------------------------------
+#
+# Each duel game declares its own `choice_seconds`; the host may override all
+# of them at once so a group can run duels at the pace they want.
+
+def round_window(match) -> float:
+    """Seconds the open round is held for, off the duel's own deadline."""
+    return (_parse_iso(match.duel.deadline) - NOW).total_seconds()
+
+
+def test_a_duel_round_runs_on_its_own_games_window_by_default(engine):
+    match, _, _ = duel_match(engine)
+    start(engine, match)
+    assert match.duel_round_seconds is None
+    assert round_window(match) == RPS.choice_seconds
+
+
+def test_the_hosts_window_overrides_every_duel_game(engine):
+    match, _, _ = duel_match(engine)
+    assert engine.host_set_duel_seconds(match, match.host_player_id, 12).ok
+    start(engine, match)
+    assert round_window(match) == 12 != RPS.choice_seconds
+
+
+def test_the_hosts_window_holds_for_every_later_round(engine):
+    """Not just the opening round: the second one is scheduled separately."""
+    match, _, _ = duel_match(engine)
+    assert engine.host_set_duel_seconds(match, match.host_player_id, 3).ok
+    start(engine, match)
+    play_round(engine, match, "rock", "rock")     # a tie replays the round
+    next_round(engine, match)
+    assert match.duel.state.round_index == 2
+    assert round_window(match) == 3
+
+
+def test_the_window_is_frozen_at_kickoff(engine):
+    """The snapshot is what the duel loop reads, so a late change to the match
+    field cannot move the clock under a Duelist mid-round."""
+    match, _, _ = duel_match(engine)
+    assert engine.host_set_duel_seconds(match, match.host_player_id, 15).ok
+    start(engine, match)
+    assert match.config_snapshot["duel_round_seconds"] == 15
+    match.duel_round_seconds = 3          # as no host action could
+    play_round(engine, match, "rock", "rock")
+    next_round(engine, match)
+    assert round_window(match) == 15
+
+
+def test_the_window_reaches_the_client_on_the_duel_itself(engine):
+    """The client draws its countdown from `round_seconds`, which has to be the
+    window in force rather than the module default in `payload`."""
+    match, _, leaders = duel_match(engine)
+    assert engine.host_set_duel_seconds(match, match.host_player_id, 6).ok
+    start(engine, match)
+    duellist, _ = duellists(match)
+    for viewer in (duellist, leaders["alpha"]):
+        view = match.public(viewer.id)["duel"]
+        assert view["round_seconds"] == 6
+        assert view["payload"]["choice_seconds"] == RPS.choice_seconds
+
+
+def test_without_an_override_the_client_is_told_the_games_own_window(engine):
+    match, _, _ = duel_match(engine)
+    start(engine, match)
+    duellist, _ = duellists(match)
+    view = match.public(duellist.id)["duel"]
+    assert view["round_seconds"] == RPS.choice_seconds

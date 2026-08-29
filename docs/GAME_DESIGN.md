@@ -88,7 +88,8 @@ The role deliberately breaks the rules above:
 
 **How a duel works.** A duel starts at kickoff and again every
 `DUEL_INTERVAL_SECONDS` (30s) after the last one resolves. Both Duelists commit a
-move inside a window set by the duel game (5s for RPS DUEL, 8–10s for the others)
+move inside a window set by the duel game (5s for RPS DUEL, 8–10s for the
+others, or one window the **host** sets in the lobby for all of them)
 *without seeing each other's*; the round resolves when both have committed or the
 window lapses — a Duelist who lets it lapse forfeits that round, so stalling never
 pays. Ties replay. The duel ends on the game's own target: first to two for RPS,
@@ -214,7 +215,9 @@ countdown to. So do the authored missions.
   taken by a teammate can't be assigned twice. Re-assigning a player frees
   their old game.
 - The **host** still controls the lobby: move players, kick (`4403`), set the
-  **minimum playing members per team** (1..`PLAYERS_PER_TEAM`), and **start**.
+  **minimum playing members per team** (1..`PLAYERS_PER_TEAM`), set the **duel
+  round timer** (one window for every duel game, or each game's own), and
+  **start**.
 - Start is allowed only when every player has a team, **each team has a
   Grandmaster**, each team's playing count is within bounds, **every playing
   member has an assigned game**, and the **Duelist mirror rule** holds — at most

@@ -132,11 +132,16 @@ class GameRegistry:
             raise KeyError("no duel modules registered")
         return duels[seed % len(duels)]
 
-    def duel_library(self) -> list[dict[str, str]]:
-        """All registered duels as `{id, name}` — for the explainer pages, not
+    def duel_library(self) -> list[dict[str, object]]:
+        """All registered duels as `{id, name, choice_seconds}` — for the
+        explainer pages and the host's round-timer note, not
         for the assignment picker."""
         return [
-            {"id": duel.id, "name": duel.name}
+            {
+                "id": duel.id,
+                "name": duel.name,
+                "choice_seconds": duel.choice_seconds,
+            }
             for duel in self._duels_by_id.values()
         ]
 

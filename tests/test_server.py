@@ -243,6 +243,22 @@ def test_get_config(client):
     assert body["players_per_team"] == server.engine.max_players_ceiling()
     assert body["level_count"] == config.LEVEL_COUNT
     assert body["wait_seconds"] == config.WAIT_SECONDS
+    # The host's duel-round picker is drawn from these, and every value it
+    # offers has to be one the server would accept.
+    assert body["duel_round_seconds_min"] == config.DUEL_ROUND_SECONDS_MIN
+    assert body["duel_round_seconds_max"] == config.DUEL_ROUND_SECONDS_MAX
+    assert body["duel_round_seconds_choices"] == list(
+        config.DUEL_ROUND_SECONDS_CHOICES
+    )
+    assert all(
+        config.DUEL_ROUND_SECONDS_MIN <= value <= config.DUEL_ROUND_SECONDS_MAX
+        for value in body["duel_round_seconds_choices"]
+    )
+    # The duel catalogue, so the lobby can say what each game's own pace is.
+    assert {duel["id"] for duel in body["duels"]} == {
+        "rps_duel", "crown_duel", "number_clash", "bid_war",
+    }
+    assert all(duel["choice_seconds"] > 0 for duel in body["duels"])
     assert set(body["perks"]) == set(config.PERKS)
     assert set(body["roles"]) == set(config.ROLES)
     for role_id, role in config.ROLES.items():
@@ -361,6 +377,37 @@ def drain_for_error(ws, tries: int = 20) -> str:
         if message["type"] == "error":
             return message["error"]
     raise AssertionError("no error message arrived")
+
+
+def drain_for_state(ws, tries: int = 20) -> dict:
+    """The next state snapshot, past any events broadcast alongside it."""
+    for _ in range(tries):
+        message = ws.receive_json()
+        if message["type"] == "state_snapshot":
+            return message["state"]
+    raise AssertionError("no snapshot arrived")
+
+
+def test_host_sets_the_duel_round_window_over_the_websocket(client, fake_games):
+    """One setting overrides the window every duel game declares for itself."""
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", "alpha").json()["player"]["id"]
+    guest_id = join(client, match_id, "Guest", "bravo").json()["player"]["id"]
+    with connect(client, match_id, host_id) as (host_ws, _):
+        host_ws.send_json({"type": "lobby_action", "action": "set_duel_seconds",
+                           "value": 5})
+        assert drain_for_state(host_ws)["duel_round_seconds"] == 5
+        # 0 hands every duel game its own window back.
+        host_ws.send_json({"type": "lobby_action", "action": "set_duel_seconds",
+                           "value": 0})
+        assert drain_for_state(host_ws)["duel_round_seconds"] is None
+        host_ws.send_json({"type": "lobby_action", "action": "set_duel_seconds",
+                           "value": 99})
+        assert "seconds" in drain_for_error(host_ws)
+    with connect(client, match_id, guest_id) as (guest_ws, _):
+        guest_ws.send_json({"type": "lobby_action", "action": "set_duel_seconds",
+                            "value": 5})
+        assert "host" in drain_for_error(guest_ws)
 
 
 def test_kick_closes_socket_and_removes_player(client, fake_games):

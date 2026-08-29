@@ -327,6 +327,26 @@ input:focus { border-color: var(--sun); }
 .duel-card { border: 2px solid var(--violet); }
 #duel-title { color: var(--violet); letter-spacing: 0.04em; }
 .duel-timer { margin: 0 0 12px; }
+/* The round clock. The shell draws it for every duel game, beside the title on
+   a Duelist's card and in the Grandmaster's duel watch. */
+.duel-clock {
+  float: right; min-width: 3.2em; text-align: center;
+  font-weight: 900; font-variant-numeric: tabular-nums;
+  color: var(--violet); background: var(--card);
+  border: 2px solid var(--violet); border-radius: 999px; padding: 1px 10px;
+}
+.duel-clock.urgent {
+  color: #fff; background: var(--alpha); border-color: var(--alpha);
+  animation: duel-clock-pulse 0.6s ease-in-out infinite;
+}
+.gm-panel__head .duel-clock { float: none; font-size: 0.85rem; }
+@keyframes duel-clock-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.09); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .duel-clock.urgent { animation: none; }
+}
 #duel-timer-fill {
   height: 100%; width: 100%;
   background: linear-gradient(90deg, var(--violet), var(--alpha));

@@ -499,3 +499,71 @@ def test_a_short_races_finale_bonus_still_reaches_the_top_rung(engine, monkeypat
     team.level = 3                       # the finale
     assert engine._difficulty_tier(match, 3) == config.max_level_count()
     assert engine._bonus_level(match, team) == config.DIFFICULTY_TIERS
+
+
+# --- the duel round timer -------------------------------------------------
+#
+# Every duel game declares its own choice window; one host setting overrides
+# all of them, so a group can make every duel move at the pace they want.
+
+def test_a_fresh_match_leaves_every_duel_its_own_pace(engine):
+    assert engine.create_match().duel_round_seconds is None
+
+
+def test_the_host_sets_the_duel_round_window(engine):
+    match, host = lobby(engine)
+    assert engine.host_set_duel_seconds(match, host.id, 5).ok
+    assert match.duel_round_seconds == 5
+
+
+def test_zero_hands_every_duel_its_own_window_back(engine):
+    match, host = lobby(engine)
+    assert engine.host_set_duel_seconds(match, host.id, 5).ok
+    assert engine.host_set_duel_seconds(match, host.id, 0).ok
+    assert match.duel_round_seconds is None
+
+
+@pytest.mark.parametrize("value", [
+    1, 2, 31, 999, -5, "8", 8.0, True, None, [], {"value": 8},
+])
+def test_the_duel_round_window_is_bounded(engine, value):
+    match, host = lobby(engine)
+    if value is None:
+        # None is the same "each game's own" reset as 0, not a rejection.
+        assert engine.host_set_duel_seconds(match, host.id, 5).ok
+        assert engine.host_set_duel_seconds(match, host.id, None).ok
+        assert match.duel_round_seconds is None
+        return
+    result = engine.host_set_duel_seconds(match, host.id, value)
+    low, high = config.DUEL_ROUND_SECONDS_MIN, config.DUEL_ROUND_SECONDS_MAX
+    assert not result.ok and f"{low}..{high}" in result.error
+    assert match.duel_round_seconds is None
+
+
+@pytest.mark.parametrize("value", list(config.DUEL_ROUND_SECONDS_CHOICES))
+def test_every_offered_window_is_inside_the_bounds(engine, value):
+    """The picker the client draws must not offer a value the server refuses."""
+    match, host = lobby(engine)
+    assert engine.host_set_duel_seconds(match, host.id, value).ok
+
+
+def test_setting_the_window_it_already_is_says_so(engine):
+    match, host = lobby(engine)
+    assert engine.host_set_duel_seconds(match, host.id, 8).ok
+    result = engine.host_set_duel_seconds(match, host.id, 8)
+    assert not result.ok and "already" in result.error
+
+
+def test_only_the_host_sets_the_duel_round_window(engine):
+    match, host = lobby(engine)
+    other, _ = engine.join_match(match, "Bob", "bravo", now=NOW)
+    result = engine.host_set_duel_seconds(match, other.id, 5)
+    assert not result.ok and "only the host" in result.error
+
+
+def test_a_running_match_does_not_change_the_duel_round_window(engine):
+    """A window that could move mid-duel would change the clock under a
+    Duelist who is already choosing."""
+    match, _, _ = full_match(engine)
+    result = engine.host_set_duel_seconds(match, match.host_player_id, 5)
+    assert not result.ok and "already started" in result.error

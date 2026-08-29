@@ -28,7 +28,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from backend import config
-from backend.games.duel_base import SIDES, other_side
+from backend.games.duel_base import SIDES, DuelModule, other_side
 from backend.models import DuelSession, Event, Match, Player, Team, green
 from backend.registry import GameRegistry
 
@@ -324,6 +324,49 @@ class RelayEngine:
         match.level_count = value
         result = EngineResult(changed=True)
         self._add_event(match, result, f"The race is now {value} rounds.", "info")
+        return result
+
+    def host_set_duel_seconds(
+        self, match: Match, host_id: str, value: object
+    ) -> EngineResult:
+        """The host sets how long a duel round is open for.
+
+        Every duel game declares its own natural window — five seconds to throw
+        a hand, ten to read a hand of cards — and this overrides all of them at
+        once, so a group that wants a faster match gets one without the games
+        having to disagree about it. `0`/`None` hands each game its own back.
+
+        Lobby only, and frozen into `config_snapshot` at kickoff: a round window
+        that could move mid-duel would change the clock under a Duelist who is
+        already choosing.
+        """
+        guard = self._host_guard(match, host_id)
+        if guard is not None:
+            return guard
+        low, high = config.DUEL_ROUND_SECONDS_MIN, config.DUEL_ROUND_SECONDS_MAX
+        if value in (0, None, ""):
+            seconds = None
+        elif isinstance(value, int) and not isinstance(value, bool):
+            if not low <= value <= high:
+                return EngineResult.rejected(
+                    f"a duel round must be {low}..{high} seconds"
+                )
+            seconds = value
+        else:
+            return EngineResult.rejected(
+                f"a duel round must be {low}..{high} seconds"
+            )
+        if seconds == match.duel_round_seconds:
+            return EngineResult.rejected("the duel round is already set to that")
+        match.duel_round_seconds = seconds
+        result = EngineResult(changed=True)
+        self._add_event(
+            match, result,
+            f"Duel rounds are now {seconds} seconds."
+            if seconds is not None
+            else "Duel rounds are back to each game's own pace.",
+            "info",
+        )
         return result
 
     def host_set_team_name(
@@ -860,6 +903,8 @@ class RelayEngine:
             "perks": {perk_id: dict(perk) for perk_id, perk in config.PERKS.items()},
             "duels_per_level": config.DUELS_PER_LEVEL,
             "duel_next_seconds": config.DUEL_INTERVAL_SECONDS,
+            # None keeps every duel game on its own declared window.
+            "duel_round_seconds": match.duel_round_seconds,
             "duel_reveal_seconds": config.DUEL_REVEAL_SECONDS,
             "duel_penalty_seconds": config.DUEL_PENALTY_SECONDS,
             "duel_win_currency": config.DUEL_WIN_CURRENCY,
@@ -1585,6 +1630,15 @@ class RelayEngine:
             seats.append((side, duelists[0], team))
         return seats
 
+    def _duel_round_seconds(self, match: Match, module: DuelModule) -> int:
+        """How long this match holds a duel round open.
+
+        The host's override if they set one, otherwise the module's own
+        declared cost. Read from the frozen snapshot so a duel that is already
+        running cannot have its clock changed underneath it.
+        """
+        return match.duel_window() or module.choice_seconds
+
     def _duel_penalty_active(self, team: Team, now: datetime | None) -> bool:
         if team.duel_penalty_until is None:
             return False
@@ -1623,7 +1677,7 @@ class RelayEngine:
             result.cancel.append(player.id)
         duel.deadline = self._start_scope_timer(
             match, DUEL_SCOPE, "duel_round", result, now,
-            seconds=module.choice_seconds,
+            seconds=self._duel_round_seconds(match, module),
         )
         names = " vs ".join(player.name for _, player, _ in seats)
         self._add_event(match, result, f"Duel — {names} ({module.name}).", "info")
@@ -1704,7 +1758,7 @@ class RelayEngine:
         duel.phase = "choosing"
         duel.deadline = self._start_scope_timer(
             match, DUEL_SCOPE, "duel_round", result, now,
-            seconds=duel.module.choice_seconds,
+            seconds=self._duel_round_seconds(match, duel.module),
         )
 
     def _finish_duel(
