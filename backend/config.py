@@ -7,7 +7,7 @@ codebase may hard-code these values.
 from __future__ import annotations
 
 # --- Teams ---
-PLAYERS_PER_TEAM = 4         # playing members; each team also has +1 leader
+PLAYERS_PER_TEAM = 30        # playing members; each team also has +1 leader
 MIN_PLAYERS_PER_TEAM = 4     # both teams need this many players to start
 TEAM_IDS = ("alpha", "bravo")
 
