@@ -330,6 +330,7 @@ class Match:
     events: list[Event] = field(default_factory=list)
     config_snapshot: dict[str, Any] = field(default_factory=dict)  # frozen at start
     duel: DuelSession | None = None  # the live cross-team duel, if any
+    duels_played: int = 0  # duels finished in the current level's series
 
     def unassigned(self) -> list[Player]:
         """Lobby players who haven't picked (or been given) a team yet."""

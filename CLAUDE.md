@@ -77,7 +77,7 @@ Rules:
   type hints). Keep functions small and pure where you can.
 - **All timers, team size, level, currency, and perk config live in one config
   module** (`backend/config.py`) — no magic numbers scattered in the engine.
-  Defaults: `WAIT_SECONDS = 180`, `PLAYERS_PER_TEAM = 4` (+1 leader per team),
+  Defaults: `WAIT_SECONDS = 180`, `PLAYERS_PER_TEAM = 30` (+1 leader per team),
   `LEVEL_COUNT = 10`, currency/perk amounts in `PERKS`/`CURRENCY_*`.
 - Every new engine rule and every game module ships with **pytest tests**. A PR
   that changes gameplay without a test will be sent back.

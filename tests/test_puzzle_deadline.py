@@ -28,7 +28,16 @@ from backend.engine import EngineResult, RelayEngine, _fuse_scope
 from backend.games.base import PuzzleInstance
 from backend.registry import GameRegistry
 
-NOW = datetime(2026, 8, 28, 12, 0, 0, tzinfo=timezone.utc)
+# Anchored to the real clock, not a literal date. Most of this file only ever
+# compares deadlines to each other, so a frozen NOW would do — but the view
+# layer takes no injected clock: `is_future` (backend/models.py) reads the wall
+# clock, because `public()` runs at broadcast time. A hardcoded NOW therefore
+# stops exercising anything that goes through `public()` the moment real time
+# passes it — a deadline the engine stamped 30s out from a fixed 2026-08-28
+# noon reads as long expired to the view, the silence mask never fires, and the
+# assertion flips from pass to fail on a calendar date rather than on a code
+# change. Keep this relative.
+NOW = datetime.now(timezone.utc).replace(microsecond=0)
 MAIN_OK = "main-ok"
 LIMIT = 60          # the capped game's board budget
 UNCAPPED = "loose"  # a game that never asks for one
@@ -540,8 +549,18 @@ def test_silence_takes_the_grandmasters_clock_too(engine):
     no real dark fuse at all."""
     match, player, leader = dark_match(engine)
     match.teams["bravo"].currency = 99
+    # Stamp the silence against the real clock, not NOW. This assertion is one
+    # of the few that reads a *wall-clock* window rather than a deadline
+    # comparison: `is_future(silenced_until)` decides whether the mask fires.
+    # NOW is fixed at import, so in a full-suite run it is already minutes old
+    # by the time this test executes and a 30s window stamped from it has
+    # expired before it is ever read — the mask would not fire and the leak
+    # this test exists to catch would look like the bug.
     assert engine.buy_perk(
-        match, match.teams["bravo"].leader_id, "silence", now=NOW
+        match,
+        match.teams["bravo"].leader_id,
+        "silence",
+        now=datetime.now(timezone.utc),
     ).ok
     assert roster_entry(match, leader, player)["board_deadline"] is None
     # ...and it is still withheld from the Defuser, so for those seconds the

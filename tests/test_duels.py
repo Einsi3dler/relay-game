@@ -533,3 +533,44 @@ def test_a_duel_stops_once_the_match_is_won(engine):
     assert members["alpha"][0].status == "finished"
     # No further duel may start after the win.
     assert engine.on_duel_timer(match, DUEL_SCOPE, "duel_next", now=NOW).changed is False
+
+
+# --- The series is bounded by the level ---
+
+def test_the_duel_series_ends_after_its_last_duel(engine):
+    """The main duel, then the bonus, then both champions stand down."""
+    match, _, _ = duel_match(engine)
+    start(engine, match)
+    for _ in range(match.config_snapshot["duels_per_level"] - 1):
+        win_duel(engine, match, "a")
+        engine.on_duel_timer(match, DUEL_SCOPE, "duel_next", now=NOW)
+    result = win_duel(engine, match, "a")  # the last duel of the series
+
+    assert (DUEL_SCOPE, "duel_next") not in {
+        (r.scope_id, r.kind) for r in result.schedule
+    }, "the series is spent; nothing should queue another duel"
+    assert DUEL_SCOPE in result.cancel
+    champion, loser = duellists(match)
+    # The loser goes green too. Their deficit is the once-per-level penalty;
+    # holding them un-green would block their team with no duel left to fix it.
+    assert champion.status == loser.status == "cleared"
+    assert green(champion) and green(loser)
+
+
+def test_a_new_level_opens_a_fresh_series(engine):
+    match, members, _ = duel_match(engine)
+    start(engine, match)
+    for _ in range(match.config_snapshot["duels_per_level"] - 1):
+        win_duel(engine, match, "a")
+        engine.on_duel_timer(match, DUEL_SCOPE, "duel_next", now=NOW)
+    win_duel(engine, match, "a")  # alpha takes the series, so nothing locks it
+    assert match.duels_played == match.config_snapshot["duels_per_level"]
+
+    result = None
+    for solver in members["alpha"][1:]:
+        result = solve(engine, match, solver)
+    assert match.teams["alpha"].level == 2
+    assert match.duels_played == 0
+    assert (DUEL_SCOPE, "duel_next") in {
+        (r.scope_id, r.kind) for r in result.schedule
+    }, "the new level should re-open the duel"

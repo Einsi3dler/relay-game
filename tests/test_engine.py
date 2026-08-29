@@ -111,18 +111,20 @@ def test_join_lands_unassigned_and_first_joiner_hosts(engine):
 
 def test_join_full_team_raises(engine):
     match = engine.create_match()
-    for i in range(5):  # 4 players + a leader seat
+    capacity = config.PLAYERS_PER_TEAM + 1  # playing members + a leader seat
+    for i in range(capacity):
         engine.join_match(match, f"A{i}", "alpha")
     with pytest.raises(ValueError):
-        engine.join_match(match, "A5", "alpha")
+        engine.join_match(match, "one-too-many", "alpha")
 
 
 def test_join_full_match_raises(engine):
     match = engine.create_match()
-    for i in range(10):
+    capacity = (config.PLAYERS_PER_TEAM + 1) * len(config.TEAM_IDS)
+    for i in range(capacity):
         engine.join_match(match, f"P{i}")
     with pytest.raises(ValueError):
-        engine.join_match(match, "eleventh")
+        engine.join_match(match, "one-too-many")
 
 
 def test_join_after_start_raises(engine):

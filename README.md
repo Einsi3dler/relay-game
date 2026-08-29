@@ -24,7 +24,7 @@ are here to write code, start with [docs/TASK_LIST.md](docs/TASK_LIST.md).**
 
 ## The game in one paragraph
 
-Two teams (**Alpha** and **Bravo**), each `PLAYERS_PER_TEAM` (default 4) playing
+Two teams (**Alpha** and **Bravo**), each `PLAYERS_PER_TEAM` (default 30) playing
 members **plus one Grandmaster**. In the lobby the Grandmaster gives every
 teammate a **role** and then a **game** from that role's set (Generalist can
 play any); no two teammates play the same game, and the Grandmaster doesn't

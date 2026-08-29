@@ -7,7 +7,7 @@ codebase may hard-code these values.
 from __future__ import annotations
 
 # --- Teams ---
-PLAYERS_PER_TEAM = 4         # playing members; each team also has +1 leader
+PLAYERS_PER_TEAM = 30        # playing members; each team also has +1 leader
 MIN_PLAYERS_PER_TEAM = 4     # both teams need this many players to start
 TEAM_IDS = ("alpha", "bravo")
 
@@ -33,6 +33,9 @@ PUZZLE_GRACE_SECONDS = 5
 # A Duelist earns green for their team by beating the opposing Duelist. These
 # are the engine-side costs; the move set and the per-round choice window come
 # from the duel module itself, so different duel games cost different time.
+DUELS_PER_LEVEL = 2          # duels a Duelist plays per level: the main, then
+                             # one bonus. After the last the series is over and
+                             # both champions go green until the level advances.
 DUEL_INTERVAL_SECONDS = 30   # gap from one duel resolving to the next starting
 DUEL_REVEAL_SECONDS = 3      # reveal beat between rounds of the same duel
 DUEL_PENALTY_SECONDS = 60    # advance lock on the losing team, once per level
