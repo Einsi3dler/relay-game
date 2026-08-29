@@ -3,47 +3,58 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#fffaf3">
+  <meta name="theme-color" content="#10062f">
   <title>The Relay — How to play</title>
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/landing.css">
   <style>
-    /* games.html only — everything shared lives in style.css */
-    .game-card h2 { display: flex; align-items: center; gap: 8px; font-size: 1.25rem; }
-    .stage-chip {
-      color: #fff; font-size: 0.75rem; font-weight: 800;
-      border-radius: 999px; padding: 3px 10px; letter-spacing: 0.4px;
-    }
-    .stage-1 { background: var(--sun); }
-    .stage-2 { background: var(--violet); }
-    .stage-3 { background: var(--green); }
-    .stage-4 { background: var(--bravo); }
-    .stage-5 { background: var(--alpha); }
-    .stage-6 { background: var(--ink); }
-    .stage-7 { background: #c9a227; }
-    .stage-8 { background: #4e79a7; }
-    .stage-9 { background: #2a9d8f; }
-    .stage-10 { background: #8338ec; }
-    .stage-11 { background: #c1121f; }
-    .stage-duel { background: #8338ec; }
-    .cat { color: var(--muted); font-weight: 700; font-size: 0.85rem; margin: 0 0 10px; }
-    .game-card h3 { margin: 14px 0 4px; font-size: 0.95rem; }
-    .game-card p, .game-card li { margin: 0 0 6px; font-size: 0.95rem; }
-    .game-card ul { margin: 0 0 6px; padding-left: 20px; }
-    .sizes { color: var(--muted); font-size: 0.85rem; }
-    .tip { border-left: 4px solid var(--sun); padding: 6px 10px; background: var(--bg); border-radius: 8px; }
+    /* games.html only — chips, headings and tips live in landing.css */
+    .game-card p, .game-card li { margin: 0 0 8px; font-size: 0.97rem; }
+    .game-card ul { margin: 0 0 8px; padding-left: 20px; }
     .flow ol { margin: 0; padding-left: 22px; }
-    .flow li { margin-bottom: 6px; }
-    .back-row { margin-bottom: 8px; }
+    .flow li { margin-bottom: 10px; }
   </style>
 </head>
-<body>
-  <header class="topbar">
-    <span class="logo">🏁 The Relay</span>
-    <a href="/" class="chip" style="text-decoration:none">← Home</a>
-  </header>
+<body class="relay-page relay-page--doc">
+  <div class="rl-band">
+    <svg class="rl-band__track" viewBox="0 0 1440 400" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <g fill="none" stroke-linecap="round">
+        <path d="M-60 330 C 300 300 520 170 900 128 C 1140 100 1330 74 1520 26"
+              stroke="#6f3cff" stroke-opacity=".5" stroke-width="2" vector-effect="non-scaling-stroke"/>
+        <path d="M-60 400 C 320 372 560 250 980 208 C 1200 186 1370 158 1520 118"
+              stroke="#ff477e" stroke-opacity=".22" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      </g>
+    </svg>
 
-  <section class="view card flow">
-    <h1>How a race works</h1>
+    <header class="rl-nav rl-shell">
+      <a class="rl-mark" href="/" aria-label="The Relay — home">
+        <svg class="rl-mark__bolt" viewBox="0 0 24 32" aria-hidden="true" focusable="false">
+          <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
+        </svg>
+        <span class="rl-mark__word">RELAY</span>
+      </a>
+      <nav class="rl-nav__links" aria-label="Primary">
+        <a href="/games" aria-current="page">How to play</a>
+        <a href="/explore">Games</a>
+      </nav>
+      <a class="rbtn rbtn--primary rbtn--sm rl-nav__cta" href="/play">Play</a>
+    </header>
+
+    <div class="rl-pagehead rl-shell">
+      <p class="rl-eyebrow">The rules</p>
+      <h1>How a race works</h1>
+      <p>Two teams, one library of hands-on boards, and a Grandmaster on each side deciding
+        who plays what. Here is every rule, game by game.</p>
+      <div class="rl-pagehead__actions">
+        <a class="rbtn rbtn--primary rbtn--sm" href="/play">Host a match</a>
+        <a class="rbtn rbtn--ghost rbtn--sm" href="/explore">Try the games solo</a>
+      </div>
+    </div>
+  </div>
+
+  <main class="rl-page-body">
+  <section class="view card flow rl-lift" id="grandmaster">
+    <h2>The shape of a race</h2>
     <p class="sub">Two teams race to clear <span data-config="level_count">10</span> levels. Each team has a <strong>Grandmaster</strong> who watches from a dashboard and assigns every teammate a role and their own game — no two teammates play the same one.</p>
     <ol>
       <li><strong>Solve your game</strong> — everyone plays their <em>own</em> assigned game, level by level. Clearing your board marks you <strong style="color:var(--green)">cleared</strong> and earns your team currency.</li>
@@ -52,11 +63,11 @@
       <li><strong>Grandmaster plays the meta</strong> — the Grandmaster spends the team's currency on perks: freeze or scramble an opponent, shield the squad, or extend a teammate's wait timer.</li>
       <li><strong>Win</strong> — first team to clear level <span data-config="level_count">10</span> takes the race.</li>
     </ol>
-    <p class="tip">💡 A wrong answer on your board never costs you anything except time — you just get a fresh one. Speed <em>and</em> steadiness win relays.</p>
+    <p class="tip">A wrong answer on your board never costs you anything except time — you just get a fresh one. Speed <em>and</em> steadiness win relays.</p>
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-1">Game 1</span> ⚡ REWIRE</h2>
+    <h2><span class="stage-chip stage-1">Game 1</span> REWIRE</h2>
     <p class="cat">Puzzle · spatial reasoning</p>
     <h3>What you see</h3>
     <p>A 4×4 grid of wire tiles — straights, elbows, T-junctions and endpoints — scrambled into random rotations. One tile glows: the <strong>source</strong>. Two tiles are <strong>sinks</strong>.</p>
@@ -67,11 +78,11 @@
       <li>You win when power reaches <strong>every sink</strong> and no live wire dangles into a wall or a closed tile.</li>
     </ul>
     <p class="sizes">Main: 4×4 grid, 2 sinks · Holding: 2×2 grid, 1 sink</p>
-    <p class="tip">💡 Trace a path backwards from each sink to the source first — then rotate along the route.</p>
+    <p class="tip">Trace a path backwards from each sink to the source first — then rotate along the route.</p>
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-2">Game 2</span> 💣 SWEEP</h2>
+    <h2><span class="stage-chip stage-2">Game 2</span> SWEEP</h2>
     <p class="cat">Logical · deduction</p>
     <h3>What you see</h3>
     <p>A 6×6 minesweeper board hiding 6 mines, with a safe opening region already revealed. Every number counts the mines in its eight neighbours.</p>
@@ -82,11 +93,11 @@
       <li>Flag all 6 mines, then submit. Revealing a mine is an instant 💥 — you get a fresh board.</li>
     </ul>
     <p class="sizes">Main: 6×6, 6 mines · Holding: 3×3, 1 mine</p>
-    <p class="tip">💡 Every board is solvable with pure logic — no guessing is ever required. If you're guessing, there's a deduction you haven't spotted.</p>
+    <p class="tip">Every board is solvable with pure logic — no guessing is ever required. If you're guessing, there's a deduction you haven't spotted.</p>
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-3">Game 3</span> 🪞 MIRROR RUN</h2>
+    <h2><span class="stage-chip stage-3">Game 3</span> MIRROR RUN</h2>
     <p class="cat">Divided attention · mazes</p>
     <h3>What you see</h3>
     <p>Two small mazes side by side, each with a runner and a flagged exit. A badge between them tells you how Runner B twists your controls — mirrored, rotated, or fully inverted.</p>
@@ -98,11 +109,11 @@
       <li>You win the moment <strong>both</strong> runners stand on their own flags after the same move.</li>
     </ul>
     <p class="sizes">Main: two 6×6 mazes, ~10–18 moves · Holding: two 4×4 mazes, ~3–6 moves</p>
-    <p class="tip">💡 Park one runner against a wall that blocks it, then move the other freely. Walls aren't obstacles — they're parking brakes.</p>
+    <p class="tip">Park one runner against a wall that blocks it, then move the other freely. Walls aren't obstacles — they're parking brakes.</p>
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-4">Game 4</span> 🧪 DECANT</h2>
+    <h2><span class="stage-chip stage-4">Game 4</span> DECANT</h2>
     <p class="cat">Sorting · planning</p>
     <h3>What you see</h3>
     <p>Six tubes holding stacks of four colours (plus empties), each tube holding up to four segments.</p>
@@ -113,11 +124,11 @@
       <li>You win when every tube is empty or completely one colour. You can't get stuck — but sloppy pours cost precious seconds, and Undo is there if you need it.</li>
     </ul>
     <p class="sizes">Main: 6 tubes, 4 colours, capacity 4 · Holding: 3 tubes, 2 colours (~2 pours)</p>
-    <p class="tip">💡 Keep an empty tube free as workspace as long as you can — burying a colour under two others is what costs you.</p>
+    <p class="tip">Keep an empty tube free as workspace as long as you can — burying a colour under two others is what costs you.</p>
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-5">Game 5</span> 🔊 ECHO</h2>
+    <h2><span class="stage-chip stage-5">Game 5</span> ECHO</h2>
     <p class="cat">Reflex / memory</p>
     <h3>What you see</h3>
     <p>A 3×3 grid of pads. They flash one at a time in a sequence of five — and the sequence plays <strong>only once</strong>.</p>
@@ -128,11 +139,11 @@
       <li>One wrong tap fails the attempt — and you get a <strong>brand-new sequence</strong>, so there's no second viewing.</li>
     </ul>
     <p class="sizes">Main: 3×3 pads, sequence of 5 · Holding: 2×2 pads, sequence of 3</p>
-    <p class="tip">💡 Chunk it: remember "corner, centre, top…" as a shape traced across the grid, not as nine separate positions.</p>
+    <p class="tip">Chunk it: remember "corner, centre, top…" as a shape traced across the grid, not as nine separate positions.</p>
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-6">Game 6</span> 🖨️ OVERPRINT</h2>
+    <h2><span class="stage-chip stage-6">Game 6</span> OVERPRINT</h2>
     <p class="cat">Spatial · composition</p>
     <h3>What you see</h3>
     <p>A target pattern next to a workspace holding three transparent stamp layers. All layers print onto the same sheet — the combined marks must match the target <strong>exactly</strong>.</p>
@@ -143,11 +154,11 @@
       <li>Press <strong>CHECK</strong> when your print matches — extra marks fail just like missing ones.</li>
     </ul>
     <p class="sizes">Main: 6×6 sheet, 3 layers · Holding: 4×4 sheet, 2 layers (slides, one turn)</p>
-    <p class="tip">💡 Place the biggest stamp first, then fit the small ones into what's left of the target.</p>
+    <p class="tip">Place the biggest stamp first, then fit the small ones into what's left of the target.</p>
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-7">Game 7</span> 🪀 STACKDROP</h2>
+    <h2><span class="stage-chip stage-7">Game 7</span> STACKDROP</h2>
     <p class="cat">Causal prediction · planning</p>
     <h3>What you see</h3>
     <p>A drop chamber: balls resting on numbered pins, walls and ramps below them, and a container at the bottom for each shape. Nothing moves until you pull a pin.</p>
@@ -159,11 +170,11 @@
       <li>A pulled pin never comes back, so the <strong>order</strong> is the puzzle. Undo doesn't exist; RESTART resets the whole chamber.</li>
     </ul>
     <p class="sizes">Main: 8×6 chamber, 2 balls, 4 pins (~3 pulls) · Holding: 5×4 chamber, 1 ball, 2 pins</p>
-    <p class="tip">💡 Trace each ball's fall before you touch anything — then ask which slanted pins have to still be there when that ball goes past.</p>
+    <p class="tip">Trace each ball's fall before you touch anything — then ask which slanted pins have to still be there when that ball goes past.</p>
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-8">Game 8</span> 📦 LANE SHIFT</h2>
+    <h2><span class="stage-chip stage-8">Game 8</span> LANE SHIFT</h2>
     <p class="cat">Scheduling · planning under pressure</p>
     <h3>What you see</h3>
     <p>A conveyor of lanes carrying shaped packets to the right. Each lane ends in an exit marked with a shape, and junctions (→ ↘ ↗) sit on the belt deciding where a packet goes as it leaves that cell.</p>
@@ -175,11 +186,11 @@
       <li>The small arrow on a packet shows only its <strong>next</strong> step — there's no further preview. No undo; RESTART resets the belt.</li>
     </ul>
     <p class="sizes">Main: 3 lanes × 6 columns, 3 packets, 2 junctions (~8 turns) · Holding: 2 lanes × 3 columns, 2 packets, 1 junction</p>
-    <p class="tip">💡 The belt never waits for you, so plan backwards: work out which turn each packet reaches a junction, and flip it on the turn before.</p>
+    <p class="tip">The belt never waits for you, so plan backwards: work out which turn each packet reaches a junction, and flip it on the turn before.</p>
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-9">Game 9</span> 🧊 SHADOW CAST</h2>
+    <h2><span class="stage-chip stage-9">Game 9</span> SHADOW CAST</h2>
     <p class="cat">Spatial reasoning · 3D orientation</p>
     <h3>What you see</h3>
     <p>A solid block built from a handful of cubes, drawn in 3D. Beside it are two target silhouettes: <strong>FRONT</strong> (the shadow it casts straight ahead) and <strong>TOP</strong> (the shadow it casts straight down), each with a live copy showing the shadows your block is casting right now.</p>
@@ -191,11 +202,11 @@
       <li>Cells that don't match yet are ringed and marked ✕. Turning is free and reversible; RESTART puts the block back where it started.</li>
     </ul>
     <p class="sizes">Main: 6 cubes in a 4×4×4 box, 2 turns from a solution · Holding: 4 cubes in a 3×3×3 box, 1 turn</p>
-    <p class="tip">💡 Read the two targets before you touch anything. Both are the same width, so that's how wide the block must sit; the FRONT target's height is how tall it must stand, and the TOP target's height is how far back it must reach. That usually rules out most of the six turns before you try one.</p>
+    <p class="tip">Read the two targets before you touch anything. Both are the same width, so that's how wide the block must sit; the FRONT target's height is how tall it must stand, and the TOP target's height is how far back it must reach. That usually rules out most of the six turns before you try one.</p>
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-10">Game 10</span> 🧵 THREADLINE</h2>
+    <h2><span class="stage-chip stage-10">Game 10</span> THREADLINE</h2>
     <p class="cat">Routing · planning under constraints</p>
     <h3>What you see</h3>
     <p>A grid with a <strong>START</strong> socket, an <strong>END</strong> socket, numbered anchors, and blocked cells (✕). Above the board: which anchor you need next, how many bends you have spent, and how long your cable has run.</p>
@@ -208,11 +219,11 @@
       <li>Tap a cell your cable already covers to <strong>rewind to it</strong>, or UNDO one step at a time. The board submits itself the moment a legal cable reaches END.</li>
     </ul>
     <p class="sizes">Main: 8×8, 3–5 anchors, 5–10 blocked cells, 6–10 bends · Holding: 5×5, one anchor, one obstacle</p>
-    <p class="tip">💡 Bends, not length, are the scarce thing. Plan the corners first — count the turns a route needs before you draw a single cell, and prefer the one that lines an anchor up with the next one.</p>
+    <p class="tip">Bends, not length, are the scarce thing. Plan the corners first — count the turns a route needs before you draw a single cell, and prefer the one that lines an anchor up with the next one.</p>
   </section>
 
   <section class="view card game-card">
-    <h2><span class="stage-chip stage-11">Game 11</span> 💣 BOMB DEFUSE</h2>
+    <h2><span class="stage-chip stage-11">Game 11</span> BOMB DEFUSE</h2>
     <p class="cat">Manual lookup · divided attention under a fuse</p>
     <h3>What you see</h3>
     <p>A bomb: a big red countdown, a green <strong>OK</strong> button, a blue <strong>Give up</strong>, and six bays — some shut behind orange shutters, the live ones waiting to be worked. Plus a <strong>MANUAL</strong> button, because nothing on the bomb tells you what any of it means.</p>
@@ -225,11 +236,11 @@
     </ul>
     <p class="sizes">Main: 1 bay at level 1, 2 from level 3, 3 from level 6 · 90s fuse at level 1, tightening inside each band · Bonus boards come in <strong>banks</strong>: shut the first and a second arms behind it on a shorter fuse · Holding: one small bay, 35s</p>
     <p class="sizes">New to it? <a href="/explore?game=bomb_defuse" style="color:var(--violet);font-weight:700">Practice mode</a> has a ladder of fixed missions — one drill per bay, then the gauntlet.</p>
-    <p class="tip">💡 Read the manual page <em>before</em> you start a bay, not during it. The Simon mapping is four lines and it never changes — learn it once and you never open that page again, which is most of the fuse saved.</p>
+    <p class="tip">Read the manual page <em>before</em> you start a bay, not during it. The Simon mapping is four lines and it never changes — learn it once and you never open that page again, which is most of the fuse saved.</p>
   </section>
 
-  <section class="view card game-card">
-    <h2><span class="stage-chip stage-duel">Duelist</span> ⚔️ RPS DUEL</h2>
+  <section class="view card game-card" id="duels">
+    <h2><span class="stage-chip stage-duel">Duelist</span> RPS DUEL</h2>
     <p class="cat">Head-to-head · nerve</p>
     <h3>The role</h3>
     <p>Your Grandmaster can spend one of the team's four playing slots on a <strong>Duelist</strong> — a champion who never solves a puzzle. Instead you fight the other team's Duelist, over and over, for the whole match. Both teams must field one, or neither does: a duel needs two seats. You don't pick your game either — <strong>the server does</strong>.</p>
@@ -244,13 +255,30 @@
       <li><strong>Win</strong> and you're your team's green light — they can't advance a level without you, and they can while you hold it. Your team banks <strong>2 coins, doubling every duel you win in a row</strong>, up to 8.</li>
       <li><strong>Lose</strong> and your team is stuck until you win the next one — <em>plus</em> a <strong>60-second lock</strong> that holds even after you win it back. That lock only lands <strong>once per level</strong>, so a bad run costs you time, not the match.</li>
     </ul>
-    <p class="tip">💡 There's no system to solve here — only the person opposite you. Watch what they threw last round, and remember they're watching you.</p>
+    <p class="tip">There's no system to solve here — only the person opposite you. Watch what they threw last round, and remember they're watching you.</p>
   </section>
 
   <section class="view card">
-    <h2>⚖️ Fair play, by design</h2>
+    <h2>Fair play, by design</h2>
     <p>Every player gets a different, randomly generated board — your teammate's answer is useless to you, and there's nothing to Google. The server re-checks every move you submit, so the only way through is to actually play.</p>
   </section>
+  </main>
+
+  <footer class="rl-footer">
+    <div class="rl-shell rl-footer__inner">
+      <a class="rl-mark rl-mark--sm" href="/" style="color:#fff">
+        <svg class="rl-mark__bolt" viewBox="0 0 24 32" aria-hidden="true" focusable="false">
+          <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
+        </svg>
+        <span class="rl-mark__word">RELAY</span>
+      </a>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/explore">Explore the games</a>
+        <a href="/play">Host a match</a>
+      </nav>
+    </div>
+  </footer>
 
   <script>
     // Fill live timer values from the server config; the defaults in the
