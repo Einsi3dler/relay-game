@@ -131,9 +131,17 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   other way round. The **dark fuse** rides on the engine's new opt-in board deadline
   (`payload["time_limit_seconds"]`, GAME_MODULE_SPEC.md §6), which is also
   §0.4's stretch hardening landing for the first time.
-- [ ] More **duel** games for the Duelist role (see
+- [x] More **duel** games for the Duelist role (see
   [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md)) — same rules, different time
-  costs. The engine picks between whatever is registered.
+  costs. The engine picks between whatever is registered. **CROWN DUEL**,
+  **NUMBER CLASH** and **BID WAR** join RPS DUEL, from the duel-mode handoff
+  spec. All three carry state between rounds, which the duel contract could not
+  hold before: `DuelState.private` (server-only working state) and the seat
+  passed to `normalize_choice` are the two additions, and they let a module
+  score its own match instead of the engine counting round wins.
+  **AC:** the opponent never learns a Crown Duel hand or what a Royal Sacrifice
+  did, only that one happened; Bid War never publishes the prize order past the
+  next lot; every duel still resolves on a lapsed window rather than stalling.
 - [ ] PHASE LOCK / RHYTHM LOCK / BALANCE HOLD, the three expansion games marked
   REQUIRES ENGINE EXTENSION — V9 built the live-action seam they were waiting
   on (`duel_choice` + server-fired deadlines), so they are no longer blocked.
