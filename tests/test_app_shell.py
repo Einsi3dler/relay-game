@@ -24,7 +24,7 @@ import json
 import shutil
 import subprocess
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -90,6 +90,7 @@ function element(tag) {
     },
     setAttribute(name, value) { this.attrs[name] = String(value); },
     getAttribute(name) { return name in this.attrs ? this.attrs[name] : null; },
+    removeAttribute(name) { delete this.attrs[name]; },
     addEventListener(type, fn) {
       (this.listeners[type] = this.listeners[type] || []).push(fn);
     },
@@ -101,6 +102,10 @@ function element(tag) {
     focus() {},
   };
   el.style.cssText = "";
+  // The dashboard sets team colours as custom properties on the element.
+  el.style.setProperty = (name, value) => { el.style[name] = String(value); };
+  el.style.getPropertyValue = (name) => (name in el.style ? el.style[name] : "");
+  el.style.removeProperty = (name) => { delete el.style[name]; };
   el.classList = {
     add(name) { el.classes.add(name); },
     remove(name) { el.classes.delete(name); },
@@ -310,6 +315,9 @@ function boot(scenario) {
     navigator: {},
     document: {
       createElement: element,
+      // The shell marks the Grandmaster dashboard on <body>, so the fake DOM
+      // needs the parsed body (index.html has one) to toggle the class on.
+      body: descendants(document).find((n) => n.tagName === "body") || element("body"),
       getElementById(id) {
         if (!(id in byId)) {
           throw new Error("no element #" + id + " in frontend/index.html");
@@ -428,6 +436,48 @@ function reachable(root) {
 }
 
 // Everything a scenario might want to assert on, sampled at one moment.
+// Text of a node and everything under it, joined. The dashboard builds most
+// of its cells with appendChild, so `.textContent` alone is empty on the
+// wrapper.
+function allText(node) {
+  return descendants(node).concat([node])
+    .map((n) => n._text).filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+}
+
+function dashboardProbe(shell) {
+  const $ = (id) => shell.byId[id];
+  const kids = (node) => node.children;
+  return {
+    // shell.document is the parsed tree root, so <body> is found in it rather
+    // than hanging off it the way the browser's does.
+    body_class: (descendants(shell.document)
+      .find((n) => n.tagName === "body") || { className: "" }).className,
+    match_code: $("leader-match-code").textContent,
+    team: $("leader-team-title").textContent,
+    level: $("leader-level").textContent,
+    currency: $("leader-currency").textContent,
+    team_count: $("leader-team-count").textContent,
+    flags: kids($("leader-status-line")).map(allText),
+    roster: kids($("leader-roster")).map((row) => ({
+      text: allText(row),
+      offline: row.classes.has("is-offline"),
+      pill: (row.children.filter((c) => c.classes.has("pill"))[0] || {}).classes
+        ? [...row.children.filter((c) => c.classes.has("pill"))[0].classes].join(" ")
+        : "",
+      pill_text: allText(row.children.filter((c) => c.classes.has("pill"))[0] || {
+        children: [], _text: "",
+      }),
+    })),
+    opponent: allText($("leader-opponent")),
+    perk_groups: descendants($("perk-grid"))
+      .filter((n) => n.classes.has("gm-perks__label")).map(allText),
+    perk_buys: descendants($("perk-grid"))
+      .filter((n) => n.classes.has("gm-buy"))
+      .map((b) => ({ label: b.textContent, disabled: b.disabled })),
+    handoff_options: $("handoff-select").children.map((o) => o.textContent),
+  };
+}
+
 function probe(shell) {
   const $ = (id) => shell.byId[id];
   const mount = $("leader-bomb-mount");
@@ -456,6 +506,7 @@ function probe(shell) {
       label: $("timer-label").textContent,
       fill: $("timer-fill").style.width,
     },
+    dashboard: dashboardProbe(shell),
     timers: clock.timers.size,
     mounted_games: shell.mounts.slice(),
     sent_submits: (shell.sockets[0].sent || [])
@@ -681,6 +732,70 @@ def shell() -> dict:
                 {"do": "record", "as": "lobby"},
             ],
         })
+
+    # --- the Grandmaster command dashboard --------------------------------
+    engine = _engine()
+    match, seats, leaders = _lobby(engine, per_team=5, min_players=2)
+    dash_roles = ["defuser", "duelist", "technocrat", "puzzle_master", "spymaster"]
+    dash_games = [None, None, "rewire", "decant", "echo"]
+    for team_id in config.TEAM_IDS:
+        for at, (role, game) in enumerate(zip(dash_roles, dash_games)):
+            _seat(engine, match, leaders, seats[team_id][at], role, game)
+    assert engine.start_match(match, now=NOW).changed
+    dash_lead = leaders["alpha"]
+    dash_team = match.teams["alpha"]
+    defuser, duelist, solver, gambler, absent = seats["alpha"]
+
+    duelist.status = "cleared"     # a Duelist is green by winning a duel
+    solver.status = "cleared"
+    gambler.status = "bonus"
+    absent.connected = False
+    dash_team.currency = 9
+    dash_team.level = 4
+    dash_team.shield_active = True
+    dash_team.duel_streak = 2
+    live_snapshot = match.public(dash_lead.id)
+
+    dash_team.currency = 0
+    broke_snapshot = match.public(dash_lead.id)
+
+    dash_team.currency = 9
+    dash_team.shield_active = False
+    # Set the deadline rather than buying the perk: the view masks against real
+    # time while the harness clock is pinned to NOW, and this has to read as
+    # silenced to both, so the snapshot really is the blinded one.
+    dash_team.silenced_until = (
+        datetime.now(timezone.utc) + timedelta(hours=1)
+    ).isoformat()
+    dash_silenced = match.public(dash_lead.id)
+    assert dash_silenced["teams"]["alpha"]["green_count"] is None
+    assert all(
+        member["status"] == "hidden"
+        for member in dash_silenced["teams"]["alpha"]["players"]
+        if not member["is_leader"]
+    )
+
+    scenarios.append({
+        "name": "dashboard",
+        "config": _config_body(engine),
+        "session": {"matchId": match.id, "playerId": dash_lead.id},
+        "snapshots": [live_snapshot, broke_snapshot, dash_silenced],
+        "actions": [
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "live"},
+            {"do": "deliver", "snapshot": 1},
+            {"do": "record", "as": "broke"},
+            {"do": "deliver", "snapshot": 2},
+            {"do": "record", "as": "silenced"},
+        ],
+    })
+    expected["dashboard"] = {
+        "match_id": match.id,
+        "team_name": dash_team.name,
+        "level_count": match.level_count,
+        "perk_count": len(config.PERKS),
+        "names": [player.name for player in seats["alpha"]],
+    }
 
     # --- the bomb console -------------------------------------------------
     engine = _engine()
@@ -1079,8 +1194,8 @@ def test_silence_takes_the_manual_too(shell):
     jammed = shell["console_silenced"]["records"]["jammed"]["console"]
     # The card stays: a console that vanished would read as a bug.
     assert jammed["card_hidden"] is False
-    assert "🔇" in jammed["sub"] and "jammed" in jammed["sub"]
-    assert jammed["texts"] == ["🔇 ?"]      # the manual is gone, whole
+    assert "Silenced" in jammed["sub"]
+    assert jammed["texts"] == ["Signal jammed. Manual unavailable."]  # the manual is gone, whole
     assert "The Bomb:" not in jammed["texts"]
     assert jammed["reachable"] == []        # nothing left to click
 
@@ -1102,7 +1217,7 @@ def test_silence_holds_the_page_the_grandmaster_was_reading(shell):
     records = shell["console_silenced_mid_page"]["records"]
     assert "Wait for the tiny button to turn red." in \
         " ".join(records["reading"]["console"]["texts"])
-    assert records["jammed"]["console"]["texts"] == ["🔇 ?"]
+    assert records["jammed"]["console"]["texts"] == ["Signal jammed. Manual unavailable."]
     assert "Wait for the tiny button to turn red." in \
         " ".join(records["returned"]["console"]["texts"])
 
@@ -1138,7 +1253,7 @@ def test_silence_takes_the_clock_with_the_manual(shell):
     silenced = shell["console_clock"]["records"]["silenced"]["console"]
     assert silenced["clock_hidden"] is True
     assert silenced["clock"] == ""
-    assert silenced["texts"] == ["🔇 ?"]
+    assert silenced["texts"] == ["Signal jammed. Manual unavailable."]
     # And it left no interval behind ticking at a hidden element.
     after = shell["console_clock"]["records"]["after_silence"]["console"]
     assert after["clock_hidden"] is True
@@ -1232,3 +1347,95 @@ def test_the_bar_goes_away_again_and_stops_ticking(shell):
     # heartbeat on every render (app.js) whether or not an effect is running.
     # The countdown's own interval is not among them.
     assert back["timers"] == 1
+
+
+# --- the Grandmaster command dashboard -------------------------------------
+
+def _dash(shell, record):
+    return shell["dashboard"]["records"][record]["dashboard"]
+
+
+def test_the_command_bar_reads_the_match_not_a_hard_coded_ten(shell):
+    """The host picks the match length in the lobby, so a dashboard that prints
+    "/ 10" is lying on every match that isn't ten levels long."""
+    live = _dash(shell, "live")
+    want = shell["_expected"]["dashboard"]
+    assert live["match_code"] == want["match_id"]
+    assert live["team"] == want["team_name"]
+    assert live["level"] == f"Level 4 / {want['level_count']}"
+    assert live["currency"] == "9"
+
+
+def test_a_duelists_green_is_a_duel_win_not_a_cleared_puzzle(shell):
+    """A Duelist never solves a board, so labelling their green "cleared" would
+    describe a puzzle they were never given."""
+    roster = _dash(shell, "live")["roster"]
+    duelist = next(row for row in roster if "Duelist" in row["text"])
+    solver = next(row for row in roster if "Technocrat" in row["text"])
+    assert duelist["pill_text"] == "Duel won"
+    assert solver["pill_text"] == "Cleared"
+    # Both are still green: the distinction is the wording, not the state.
+    assert "green" in duelist["pill"] and "green" in solver["pill"]
+
+
+def test_offline_is_shown_beside_the_gameplay_status_not_instead_of_it(shell):
+    """Both facts matter: a disconnected teammate who had cleared is a very
+    different problem from one who was still solving."""
+    absent = next(row for row in _dash(shell, "live")["roster"] if row["offline"])
+    assert "Spymaster" in absent["text"]
+    assert absent["pill_text"] == "Solving"
+
+
+def test_silence_blanks_the_roster_and_the_count_with_nothing_stale(shell):
+    """The server nulls the progress fields rather than lying about them, and
+    the dashboard has to draw that blank instead of the numbers it last saw."""
+    silenced = _dash(shell, "silenced")
+    assert silenced["team_count"] == "? / ?"
+    assert silenced["flags"][0] == "Signal Silenced"
+    assert [row["pill_text"] for row in silenced["roster"]] == ["?"] * 5
+    # Nothing from the previous snapshot survives underneath.
+    live_names = shell["_expected"]["dashboard"]["names"]
+    for row in silenced["roster"]:
+        assert "Cleared" not in row["text"] and "Bonus" not in row["text"]
+        assert any(name in row["text"] for name in live_names)
+
+
+def test_the_perk_shop_is_the_catalogue_attack_before_defense(shell):
+    """Groups are derived from perk.kind, so a perk added to backend/config.py
+    appears here without touching the frontend."""
+    live = _dash(shell, "live")
+    assert live["perk_groups"] == ["attack", "defense"]
+    assert len(live["perk_buys"]) == shell["_expected"]["dashboard"]["perk_count"]
+
+
+def test_a_team_that_cannot_afford_a_perk_can_still_read_it(shell):
+    """Being broke disables the purchase, not the description: knowing what you
+    cannot afford yet is most of the Grandmaster's planning."""
+    broke = _dash(shell, "broke")
+    assert all(buy["disabled"] for buy in broke["perk_buys"])
+    assert broke["perk_groups"] == ["attack", "defense"]
+
+
+def test_an_active_defense_is_not_offered_again(shell):
+    """Shield is up in the live snapshot, so its card reports the state rather
+    than inviting a purchase the server would refuse."""
+    live = _dash(shell, "live")
+    assert "Shield Active" in live["flags"]
+    assert any(buy["label"] == "Active" and buy["disabled"]
+               for buy in live["perk_buys"])
+
+
+def test_the_dashboard_is_the_only_view_that_darkens_the_page(shell):
+    """The command screen is dark and every player view is light, so the page
+    ground follows the view rather than the other way round."""
+    assert _dash(shell, "live")["body_class"] == "gm-active"
+    assert "gm-active" not in shell["console"]["records"]["lobby"]["dashboard"]["body_class"]
+
+
+def test_the_handoff_names_the_role_game_and_what_it_costs_them(shell):
+    """The seat swap takes the recipient's cleared status, so the option they
+    are picked from has to say whether they had one."""
+    options = _dash(shell, "live")["handoff_options"]
+    assert len(options) == 5
+    assert any("Duelist" in opt and "cleared" in opt for opt in options)
+    assert any("Defuser" in opt and "Bomb Defuse" in opt for opt in options)

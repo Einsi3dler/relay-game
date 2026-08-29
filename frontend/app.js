@@ -44,6 +44,9 @@
   function show(viewId) {
     ["view-join", "view-lobby", "view-play", "view-leader", "view-result"]
       .forEach(function (id) { $(id).hidden = id !== viewId; });
+    // The command dashboard is the only dark screen, so the page ground has to
+    // follow it. Every other view keeps style.css's light background.
+    document.body.classList.toggle("gm-active", viewId === "view-leader");
   }
 
   function toast(text) {
@@ -1036,13 +1039,19 @@
       card.hidden = false;
       hideConsoleClock();     // the server already nulls it; this clears the tick
       $("leader-bomb-sub").textContent =
-        "🔇 Silenced — the manual is jammed. " + defuser.name +
+        "Silenced. " + defuser.name +
         " is on the bomb without you until it clears.";
       var jammed = $("leader-bomb-mount");
+      // Replace the manual outright rather than covering it: nothing stale is
+      // left underneath for the silence to leak.
       jammed.innerHTML = "";
       var pill = document.createElement("div");
-      pill.className = "muted";           // the same "🔇 ?" statusPill shows
-      pill.textContent = "🔇 ?";
+      pill.className = "gm-jammed";
+      var warn = document.createElement("i");
+      warn.className = "gm-ic gm-ic--warning";
+      warn.setAttribute("aria-hidden", "true");
+      pill.appendChild(warn);
+      pill.appendChild(el("span", null, "Signal jammed. Manual unavailable."));
       jammed.appendChild(pill);
       return;
     }
@@ -1109,71 +1118,197 @@
     $("leader-bomb-card").hidden = true;
   }
 
+  // --- Grandmaster dashboard helpers ---
+
+  var TEAM_COLORS = { alpha: "#ff5d5d", bravo: "#2ec4b6" };
+
+  function teamColor(teamId) { return TEAM_COLORS[teamId] || "#7a8cff"; }
+
+  function icon(name, extra) {
+    var i = document.createElement("i");
+    i.className = "gm-ic gm-ic--" + name + (extra ? " " + extra : "");
+    i.setAttribute("aria-hidden", "true");
+    return i;
+  }
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = text;
+    return node;
+  }
+
+  function initials(name) {
+    var parts = String(name || "?").trim().split(/\s+/);
+    var first = parts[0] ? parts[0].charAt(0) : "?";
+    var second = parts.length > 1 ? parts[parts.length - 1].charAt(0) : "";
+    return (first + second).toUpperCase();
+  }
+
+  // Deterministic avatars without an avatar field on the player model: the
+  // seed is the match id plus the player id, so the same player keeps the same
+  // face for the whole match and nothing identifying leaves the page. If the
+  // request fails or is blocked the initials underneath are what remains, so
+  // the roster never waits on the network.
+  function avatarNode(state, player, teamId) {
+    var wrap = el("span", "gm-avatar");
+    wrap.style.setProperty("--team-color", teamColor(teamId));
+    wrap.appendChild(el("span", "gm-avatar__initials", initials(player.name)));
+    var img = document.createElement("img");
+    img.alt = "";
+    img.width = 40;
+    img.height = 40;
+    img.loading = "lazy";
+    // Hidden until it actually arrives, so a blocked or slow avatar shows the
+    // initials rather than a broken-image box.
+    img.hidden = true;
+    img.addEventListener("load", function () { img.hidden = false; });
+    img.setAttribute("src", "https://api.dicebear.com/9.x/pixel-art-neutral/svg?seed=" +
+      encodeURIComponent(state.id + ":" + player.id) + "&size=64");
+    wrap.appendChild(img);
+    return wrap;
+  }
+
+  // [label, class, icon]. The label always carries the meaning: colour is
+  // never the only thing separating one state from another.
   function statusPill(player) {
     // Silenced: the server nulls the progress fields rather than lying about
     // them, so there is genuinely nothing to show.
-    if (player.status === "hidden") return ["🔇 ?", "pill"];
+    if (player.status === "hidden") return ["?", "pill hidden-pill", null];
     if (player.green) {
       return player.role === "duelist"
-        ? ["duel won ⚔️", "pill green"] : ["cleared ✅", "pill green"];
+        ? ["Duel won", "pill green", "duel"] : ["Cleared", "pill green", "cleared"];
     }
-    if (player.status === "bonus") return ["bonus 🔥", "pill bonus"];
-    if (player.status === "duelling") return ["duelling ⚔️", "pill"];
-    if (player.status === "finished") return ["done 🏁", "pill"];
-    return ["solving …", "pill"];
+    if (player.status === "bonus") return ["Bonus", "pill bonus", null];
+    if (player.status === "duelling") return ["Duelling", "pill duel", "duel"];
+    if (player.status === "finished") return ["Done", "pill", null];
+    return ["Solving", "pill", null];
+  }
+
+  // One command-bar chip. Only rendered when the fact is actually true, so the
+  // bar stays quiet in a plain state and loud when something is happening.
+  function flag(list, label, value, tone, iconName) {
+    var li = el("li", "gm-flag" + (tone ? " gm-flag--" + tone : ""));
+    if (iconName) li.appendChild(icon(iconName, "gm-ic--sm"));
+    var box = el("span");
+    box.appendChild(el("span", "gm-flag__label", label));
+    box.appendChild(el("span", "gm-flag__value", value));
+    li.appendChild(box);
+    list.appendChild(li);
   }
 
   function renderLeader(state) {
     show("view-leader");
     var me = state.me;
     var team = state.teams[me.team_id];
-    $("leader-team-title").textContent =
-      (team.id === "alpha" ? "🔥 " : "🌊 ") + team.name + " — Level " + team.level;
-    $("leader-currency").textContent = "🪙 " + team.currency;
+    var color = teamColor(team.id);
     var locked = team.duel_penalty_until &&
       parseDeadline(team.duel_penalty_until) > Date.now();
     var silenced = team.silenced_until &&
       parseDeadline(team.silenced_until) > Date.now();
-    $("leader-status-line").textContent =
-      (silenced
-        ? "🔇 Silenced — you can't see who has cleared"
-        : team.green_count + "/" + team.roster_size + " cleared") +
-      (team.shield_active ? " · 🛡️ shield up" : "") +
-      (team.reflect_active ? " · 🪞 reflect up" : "") +
-      (team.insurance_active ? " · 🧾 insured" : "") +
-      (team.duel_streak ? " · ⚔️ duel streak " + team.duel_streak : "") +
-      (locked ? " · ⛔ duel penalty — the team can't advance yet" : "");
+
+    // --- command bar ---
+    $("leader-match-code").textContent = state.id;
+    $("leader-team-badge").style.setProperty("--team-color", color);
+    $("leader-team-title").textContent = team.name;
+    // The host picks the match length in the lobby, so the real ceiling is on
+    // the match, not the server default.
+    var levels = state.level_count || (state.config && state.config.level_count);
+    $("leader-level").textContent =
+      "Level " + team.level + (levels ? " / " + levels : "");
+    $("leader-currency").textContent = team.currency;
+    $("leader-perk-purse").textContent = "You have " + team.currency;
+
+    var flags = $("leader-status-line");
+    flags.innerHTML = "";
+    // Trust the snapshot over the local clock: the server nulls green_count
+    // when it is blinding us, and if the two ever disagree the numbers are the
+    // half that must not be invented.
+    var blind = silenced || team.green_count === null ||
+      team.green_count === undefined;
+    if (blind) {
+      flag(flags, "Signal", "Silenced", "danger", "warning");
+      $("leader-team-count").textContent = "? / ?";
+    } else {
+      flag(flags, "Cleared", team.green_count + " / " + team.roster_size,
+        team.green_count >= team.roster_size ? "good" : null, "cleared");
+      $("leader-team-count").textContent =
+        team.green_count + " / " + team.roster_size + " cleared";
+    }
+    if (team.shield_active) flag(flags, "Shield", "Active", "on", "shield");
+    if (team.reflect_active) flag(flags, "Reflect", "Active", "on", "reflect");
+    if (team.insurance_active) flag(flags, "Insurance", "Active", "on", "insurance");
+    if (team.duel_streak) flag(flags, "Duel streak", "x" + team.duel_streak, "good", "duel");
+    if (locked) flag(flags, "Duel penalty", "Cannot advance", "warn", "warning");
+
     watchSilence(team);
     renderDuel(state, "leader-duel-card", "leader-duel-mount");
     renderBombConsole(state, team);
 
+    // --- roster ---
     var roster = $("leader-roster");
     roster.innerHTML = "";
     team.players.forEach(function (player) {
       if (player.is_leader) return;
-      var row = document.createElement("li");
-      var name = document.createElement("span");
-      name.textContent = player.name + (player.connected ? "" : " 💤") +
-        (player.role ? " · " + roleName(player.role) : "") +
-        " · " + gameName(player.assigned_game);
-      row.appendChild(name);
-      var pill = document.createElement("span");
-      var pillSpec = statusPill(player);
-      pill.textContent = pillSpec[0];
-      pill.className = pillSpec[1];
+      var row = el("li");
+      if (!player.connected) row.className = "is-offline";
+
+      row.appendChild(avatarNode(state, player, team.id));
+
+      var who = el("div", "gm-who");
+      var nameRow = el("div", "gm-who__name");
+      nameRow.appendChild(el("span", null, player.name));
+      if (!player.connected) {
+        var off = icon("offline", "gm-ic--sm");
+        off.removeAttribute("aria-hidden");
+        off.setAttribute("role", "img");
+        off.setAttribute("aria-label", "offline");
+        nameRow.appendChild(off);
+      }
+      who.appendChild(nameRow);
+      var roleCls = "gm-who__role" +
+        (player.role === "duelist" ? " is-duelist" : "") +
+        (player.role === "defuser" ? " is-defuser" : "");
+      who.appendChild(el("div", roleCls, player.role ? roleName(player.role) : "Unassigned"));
+      row.appendChild(who);
+
+      var assign = el("div", "gm-assign");
+      assign.appendChild(el("span", null, gameName(player.assigned_game)));
+      row.appendChild(assign);
+
+      var spec = statusPill(player);
+      var pill = el("span", spec[1]);
+      if (spec[2]) pill.appendChild(icon(spec[2], "gm-ic--sm"));
+      pill.appendChild(el("span", null, spec[0]));
       row.appendChild(pill);
+
       roster.appendChild(row);
     });
 
+    // --- opponent: only the four facts the snapshot exposes ---
     var opponentId = me.team_id === "alpha" ? "bravo" : "alpha";
     var opponent = state.teams[opponentId];
-    $("leader-opponent").textContent = opponent
-      ? "🔭 " + opponent.name + ": Level " + opponent.level + " · " +
-        opponent.green_count + "/" + opponent.roster_size + " cleared"
-      : "";
+    var oppBox = $("leader-opponent");
+    oppBox.innerHTML = "";
+    if (opponent) {
+      var opp = el("div", "gm-opp");
+      var oppName = el("span", "gm-opp__name", opponent.name);
+      oppName.style.setProperty("--opp-color", teamColor(opponent.id));
+      opp.appendChild(oppName);
+      var lvl = el("span", "gm-opp__stat");
+      lvl.appendChild(el("strong", null, "Level " + opponent.level +
+        (levels ? " / " + levels : "")));
+      opp.appendChild(lvl);
+      var cleared = el("span", "gm-opp__stat");
+      cleared.appendChild(el("strong", null,
+        opponent.green_count + " / " + opponent.roster_size));
+      cleared.appendChild(el("span", null, " cleared"));
+      opp.appendChild(cleared);
+      oppBox.appendChild(opp);
+    }
 
     renderPerkGrid(state, team);
-    renderHandoff(team);
+    renderHandoff(state, team);
     renderFeed(state.events, "leader-feed");
   }
 
@@ -1194,58 +1329,107 @@
     var grid = $("perk-grid");
     grid.innerHTML = "";
     var perks = state.config.perks || {};
+    // Which defences the team already has up, so an active one reads as active
+    // rather than just another buyable card.
+    var activeDefense = {
+      shield: team.shield_active,
+      reflect: team.reflect_active,
+      insurance: team.insurance_active
+    };
+
+    // The catalogue is the source of truth: groups are derived from perk.kind,
+    // so a perk added or removed in backend/config.py shows up here with no
+    // change to this file.
+    var groups = {};
+    var order = [];
     Object.keys(perks).forEach(function (perkId) {
-      var perk = perks[perkId];
-      var card = document.createElement("div");
-      card.className = "perk-card " + perk.kind;
-      var title = document.createElement("div");
-      title.className = "perk-name";
-      title.textContent = (perk.kind === "attack" ? "⚔️ " : "🛡️ ") + perk.name;
-      card.appendChild(title);
-      var cost = document.createElement("div");
-      cost.className = "muted";
-      cost.textContent = "🪙 " + perk.cost;
-      card.appendChild(cost);
-      if (perk.desc) {
-        var desc = document.createElement("div");
-        desc.className = "perk-desc";
-        desc.textContent = perk.desc;
-        card.appendChild(desc);
-      }
-      var target = null;
-      if (perkId === "extend_wait") {
-        target = document.createElement("select");
-        target.className = "assign-select";
-        var cleared = team.players.filter(function (p) { return p.green; });
-        if (!cleared.length) {
-          var none = document.createElement("option");
-          none.value = "";
-          none.textContent = "nobody cleared";
-          target.appendChild(none);
-        }
-        cleared.forEach(function (p) {
-          var option = document.createElement("option");
-          option.value = p.id;
-          option.textContent = p.name;
-          target.appendChild(option);
-        });
-        card.appendChild(target);
-      }
-      var buy = document.createElement("button");
-      buy.className = "mini-btn";
-      buy.textContent = "Buy";
-      buy.disabled = team.currency < perk.cost;
-      buy.addEventListener("click", function () {
-        var message = { type: "buy_perk", perk_id: perkId };
-        if (target && target.value) message.target_id = target.value;
-        send(message);
+      var kind = perks[perkId].kind || "other";
+      if (!groups[kind]) { groups[kind] = []; order.push(kind); }
+      groups[kind].push(perkId);
+    });
+    // Attack first, defense second, anything the catalogue adds later after
+    // them in whatever order it declared.
+    var rank = { attack: 0, defense: 1 };
+    order.sort(function (a, b) {
+      var ra = rank[a] === undefined ? 2 : rank[a];
+      var rb = rank[b] === undefined ? 2 : rank[b];
+      return ra - rb;
+    });
+
+    order.forEach(function (kind) {
+      var group = el("div", "gm-perks__group gm-perks__group--" + kind);
+      var label = el("div", "gm-perks__label");
+      label.appendChild(icon(kind === "defense" ? "shield" : "duel", "gm-ic--sm"));
+      label.appendChild(el("span", null, kind));
+      group.appendChild(label);
+
+      var cards = el("div", "perk-grid");
+      groups[kind].forEach(function (perkId) {
+        cards.appendChild(perkCard(state, team, perkId, perks[perkId], activeDefense[perkId]));
       });
-      card.appendChild(buy);
-      grid.appendChild(card);
+      group.appendChild(cards);
+      grid.appendChild(group);
     });
   }
 
-  function renderHandoff(team) {
+  function perkCard(state, team, perkId, perk, isActive) {
+    var card = el("div", "perk-card " + (perk.kind || "") + (isActive ? " is-active" : ""));
+
+    var title = el("div", "perk-name");
+    // Files are hyphenated; perk ids are not.
+    title.appendChild(icon("perk-" + perkId.replace(/_/g, "-")));
+    title.appendChild(el("span", null, perk.name));
+    card.appendChild(title);
+
+    if (perk.desc) card.appendChild(el("div", "perk-desc", perk.desc));
+
+    var target = null;
+    if (perkId === "extend_wait") {
+      target = document.createElement("select");
+      target.className = "assign-select";
+      target.setAttribute("aria-label", "Teammate to extend");
+      var cleared = team.players.filter(function (p) { return p.green; });
+      if (!cleared.length) {
+        var none = document.createElement("option");
+        none.value = "";
+        none.textContent = "nobody cleared";
+        target.appendChild(none);
+      }
+      cleared.forEach(function (p) {
+        var option = document.createElement("option");
+        option.value = p.id;
+        option.textContent = p.name;
+        target.appendChild(option);
+      });
+      card.appendChild(target);
+    }
+
+    var foot = el("div", "perk-foot");
+    var cost = el("span", "perk-cost");
+    cost.appendChild(icon("coin", "gm-ic--sm"));
+    cost.appendChild(el("span", null, String(perk.cost)));
+    foot.appendChild(cost);
+
+    var buy = el("button", "gm-buy", isActive ? "Active" : "Buy");
+    var poor = team.currency < perk.cost;
+    // extend_wait needs a live target; the rest are aimed by the server.
+    var noTarget = target !== null && !target.value;
+    buy.disabled = poor || isActive || noTarget;
+    buy.setAttribute("aria-label",
+      (isActive ? "Already active: " : "Buy ") + perk.name + " for " + perk.cost + " coins");
+    if (poor) buy.title = "Not enough coins";
+    else if (noTarget) buy.title = "No cleared teammate to target";
+    buy.addEventListener("click", function () {
+      var message = { type: "buy_perk", perk_id: perkId };
+      if (target && target.value) message.target_id = target.value;
+      send(message);
+    });
+    foot.appendChild(buy);
+    card.appendChild(foot);
+    return card;
+  }
+
+  function renderHandoff(state, team) {
     var select = $("handoff-select");
     select.innerHTML = "";
     team.players.forEach(function (player) {
@@ -1254,10 +1438,13 @@
       option.value = player.id;
       option.textContent = player.name +
         (player.role ? " · " + roleName(player.role) : "") +
-        " (" + gameName(player.assigned_game) + ")";
+        " (" + gameName(player.assigned_game) + ")" +
+        (player.green ? " · cleared" : "");
       select.appendChild(option);
     });
-    $("handoff-btn").onclick = function () {
+    var btn = $("handoff-btn");
+    btn.disabled = !select.options.length;
+    btn.onclick = function () {
       if (!select.value) return;
       var pick = select.options[select.selectedIndex].textContent;
       if (window.confirm("Hand the Grandmaster seat to " + pick +
