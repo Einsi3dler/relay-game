@@ -389,10 +389,15 @@
       state.faceLayer.appendChild(makeBayButton(module, x, y));
     }
 
-    // OK — the centre, and the only way to finish (§15, §16).
+    // OK — the centre, and the only way to finish (§15, §16). It is bright red
+    // until every bay of the armed bank is shut, because until then pressing it
+    // sets the bomb off (§15) — the button tells the truth about itself. It goes
+    // bright green the moment it is safe, and only then does it pulse. Colour is
+    // not the only carrier: the aria-label and the status line under the housing
+    // both say which state it is in.
     var ready = bankSolved(state.puzzle.payload, state.result.state, state.bank);
     state.okButton = button("OK",
-      "border:5px solid " + C.black + ";background:" + (ready ? C.green : "#00a802") + ";" +
+      "border:5px solid " + C.black + ";background:" + (ready ? C.green : C.red) + ";" +
       "color:" + C.black + ";font-size:26px;font-weight:700;border-radius:50%;",
       pressOk);
     at(state.okButton, COL[1] + (CELL.w - 96) / 2, ROW[1] + (CELL.h - 96) / 2, 96, 96);
