@@ -376,6 +376,112 @@ input:focus { border-color: var(--sun); }
   .duel-move { transition: none; }
 }
 
+/* --- the three stateful duels (Crown Duel, Number Clash, Bid War) ---------
+   They share the header, the status line and the reveal beat above; what each
+   adds is its own stage — a hand, a nine-cell grid, a bid stepper. Everything
+   here is the same light Relay palette as the rest of the app: the handoff
+   mockups are dark, but a duel is one card inside this page, not a second
+   product. */
+.duel-round {
+  text-align: center; text-transform: uppercase; letter-spacing: 0.08em;
+  font-size: 0.72rem; font-weight: 800; color: var(--muted); margin-bottom: 6px;
+}
+.duel-score { font-weight: 900; font-size: 1.1rem; color: var(--violet); }
+.duel-sub { font-size: 0.72rem; color: var(--muted); }
+.duel-stage { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.duel-note, .duel-guide {
+  font-size: 0.75rem; color: var(--muted); text-align: center;
+  margin: 4px 0 0; max-width: 34em;
+}
+.duel-guide { margin-top: 12px; }
+/* "1 of 3 — choose two cards to destroy" */
+.duel-step-label { font-weight: 800; margin: 0; }
+
+/* Cards, numbers and quick bids are all the same pressable tile. */
+.duel-cards, .duel-numbers, .duel-quick {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+}
+.duel-card, .duel-number, .duel-quick-bid, .duel-step, .duel-lock, .duel-cancel {
+  font-family: inherit; cursor: pointer; color: var(--ink);
+  background: var(--card); border: 2px solid var(--line);
+  border-radius: var(--radius); min-height: 44px;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+.duel-card:hover:not(:disabled), .duel-number:hover:not(:disabled),
+.duel-quick-bid:hover:not(:disabled), .duel-step:hover:not(:disabled),
+.duel-lock:hover:not(:disabled) {
+  border-color: var(--violet); transform: translateY(-2px);
+}
+.duel-card:disabled, .duel-number:disabled, .duel-quick-bid:disabled,
+.duel-step:disabled, .duel-lock:disabled { opacity: 0.45; cursor: default; }
+.duel-card.chosen, .duel-number.chosen, .duel-quick-bid.chosen {
+  border-color: var(--violet); opacity: 1;
+}
+
+.duel-card {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 12px; min-width: 78px;
+}
+.duel-card-art { font-size: 1.7rem; }
+.duel-card-label { font-size: 0.75rem; font-weight: 700; }
+.duel-card-note {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--violet);
+}
+.duel-card.spent { text-decoration: line-through; }
+/* A card marked for destruction. Nothing is spent until the confirm. */
+.duel-card.burning { border-color: var(--alpha); background: #fff4f4; }
+
+.duel-number {
+  width: 52px; padding: 10px 0; font-size: 1.2rem; font-weight: 800;
+}
+.duel-number.spent { text-decoration: line-through; }
+
+.duel-actions { display: flex; gap: 8px; }
+.duel-lock {
+  padding: 10px 20px; font-weight: 800; letter-spacing: 0.03em;
+  border-color: var(--violet);
+}
+.duel-cancel { padding: 10px 16px; font-weight: 700; color: var(--muted); }
+
+/* Bid War: the lots on offer, then the stepper that names an exact bid. */
+.duel-prizes { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
+.duel-prize {
+  border: 2px solid var(--sun); border-radius: var(--radius);
+  padding: 8px 18px; text-align: center; min-width: 104px;
+}
+.duel-prize--next { border-color: var(--line); opacity: 0.75; }
+.duel-prize-label {
+  font-size: 0.62rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+}
+.duel-prize-value { font-size: 1.4rem; font-weight: 900; }
+.duel-stepper { display: flex; align-items: center; gap: 10px; }
+.duel-step { width: 44px; font-size: 1.3rem; font-weight: 900; }
+.duel-bid-value {
+  min-width: 84px; text-align: center; font-size: 1.8rem; font-weight: 900;
+}
+.duel-quick-bid { padding: 8px 14px; font-weight: 700; min-width: 52px; }
+
+/* A short tail of resolved rounds — enough to read the run of play. */
+.duel-log { margin-top: 12px; display: flex; flex-direction: column; gap: 2px; }
+.duel-log-row {
+  display: flex; gap: 10px; justify-content: center; align-items: baseline;
+  font-size: 0.75rem; color: var(--muted);
+}
+.duel-log-round { font-weight: 800; color: var(--ink); min-width: 26px; }
+.duel-log-pair { font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+  .duel-card, .duel-number, .duel-quick-bid, .duel-step, .duel-lock {
+    transition: none;
+  }
+}
+@media (max-width: 480px) {
+  .duel-number { width: 44px; }
+  .duel-card { min-width: 64px; padding: 6px 8px; }
+}
+
 /* --- screen-effect perks (wobble / static / mirror / blackout) -------------
    Cosmetic sabotage the server stamps on ONE opponent. Every class lands on
    #puzzle-card only, so the HUD, the wait countdown and the body-level frozen

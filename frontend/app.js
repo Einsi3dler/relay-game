@@ -87,7 +87,10 @@
 
   // Duel ids aren't in the game library (the server picks them, so the lobby
   // picker never offers them) — name them from the duel catalogue instead.
-  var DUEL_NAMES = { rps_duel: "Rock Paper Scissors" };
+  var DUEL_NAMES = {
+    rps_duel: "Rock Paper Scissors", crown_duel: "Crown Duel",
+    number_clash: "Number Clash", bid_war: "Bid War",
+  };
 
   function gameName(gameId) {
     return gameNames[gameId] || DUEL_NAMES[gameId] || gameId || "?";
