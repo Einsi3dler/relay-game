@@ -167,6 +167,11 @@ input:focus { border-color: var(--sun); }
   background: var(--card);
 }
 .team-name-input:focus-visible { outline: 3px solid var(--violet); outline-offset: 1px; }
+.round-select {
+  border: 2px solid var(--line); border-radius: 10px; background: var(--card);
+  color: var(--ink); font: inherit; font-weight: 700; padding: 7px 10px;
+}
+.round-select:focus-visible { outline: 3px solid var(--violet); outline-offset: 1px; }
 .danger-btn { width: 100%; background: var(--alpha); margin-top: 6px; }
 .lobby-actions { display: flex; flex-direction: column; gap: 8px; }
 .leave-btn { align-self: center; border-color: var(--muted); color: var(--muted); }

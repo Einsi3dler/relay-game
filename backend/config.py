@@ -33,12 +33,51 @@ def max_players_per_team(game_count: int) -> int:
 # The timer/currency/perk values below are PROVISIONAL pending the V6 playtest
 # (docs/TASK_LIST.md V7, docs/PLAYTEST_GUIDE.md). They are reasoned starting
 # points, not yet tuned from real play data — adjust them from the playtest.
-LEVEL_COUNT = 10             # levels each team must clear to win
+# Rounds each team must clear to win. This is the *default*; the host picks the
+# length of their own match (MIN_LEVEL_COUNT..max_level_count()).
+LEVEL_COUNT = 10
+MIN_LEVEL_COUNT = 3          # shorter than this is not a race
+
+# How deep every game's difficulty table is (docs/GAME_MODULE_SPEC.md: each
+# table has LEVEL_COUNT + BONUS_LEVEL_OFFSET rows, tiers 11..13 being bonus-only
+# headroom). This is a fixed contract with the game modules and does NOT move
+# when a host shortens their match — a short match plays *fewer* rungs of the
+# same ladder, not a shorter ladder.
+DIFFICULTY_TIERS = 13
 WAIT_SECONDS = 180           # cleared-status hold before it lapses back to solving
 CURRENCY_PER_CLEAR = 1       # paid once per player per level, on the first clear
 CURRENCY_BONUS_FIRST = 3     # first successful bonus of a level
 CURRENCY_BONUS_REPEAT = 1    # each later bonus that level (diminishing returns)
 BONUS_LEVEL_OFFSET = 3       # bonus puzzle = own game at level + this offset
+
+
+def max_level_count() -> int:
+    """The longest match the game tables can serve.
+
+    The finale still owes a bonus board harder than itself, so the top
+    BONUS_LEVEL_OFFSET tiers are reserved and the last *main* rung is what is
+    left. Deepen every game's table and this rises with it.
+    """
+    return DIFFICULTY_TIERS - BONUS_LEVEL_OFFSET
+
+
+def difficulty_tier(round_number: int, rounds: int) -> int:
+    """Which rung of the 13-row table round `round_number` of `rounds` plays.
+
+    A shorter match is a quicker race, not an easier one: the rungs are spread
+    so every match length starts at tier 1 and finishes at the hardest main
+    tier, with the bonus reaching the top of the table either way. At the
+    default length this is the identity — round 7 of 10 is tier 7.
+
+        3 rounds ->  1  5 10
+        4 rounds ->  1  4  7 10
+       10 rounds ->  1  2  3  4  5  6  7  8  9 10
+    """
+    top = max_level_count()
+    if rounds <= 1:
+        return top
+    clamped = min(max(round_number, 1), rounds)
+    return 1 + round((clamped - 1) * (top - 1) / (rounds - 1))
 
 # A game may cap its own board with `payload["time_limit_seconds"]`
 # (docs/GAME_MODULE_SPEC.md). The engine publishes that deadline to the player

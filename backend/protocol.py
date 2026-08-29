@@ -39,6 +39,7 @@ LOBBY_ACTIONS = (
     "kick",
     "set_min_players",
     "set_max_players",
+    "set_level_count",
     "set_team_name",
     "start",
     "cancel_session",

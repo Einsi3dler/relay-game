@@ -393,3 +393,109 @@ def _assigned_lobby(engine: RelayEngine):
             assert engine.assign_role(match, leader.id, player.id, "generalist").ok
             assert engine.assign_game(match, leader.id, player.id, GAMES[i]).ok
     return match, members, leaders
+
+
+# --- the host sets how long the race is ----------------------------------
+
+def test_a_fresh_match_opens_at_the_default_length(engine):
+    assert engine.create_match().level_count == config.LEVEL_COUNT
+
+
+def test_the_host_sets_the_round_count(engine):
+    match, host = lobby(engine)
+    assert engine.host_set_level_count(match, host.id, 5).ok
+    assert match.level_count == 5
+
+
+@pytest.mark.parametrize("value", [0, 2, 99])
+def test_the_round_count_is_bounded(engine, value):
+    match, host = lobby(engine)
+    result = engine.host_set_level_count(match, host.id, value)
+    low, high = config.MIN_LEVEL_COUNT, config.max_level_count()
+    assert not result.ok and f"{low}..{high}" in result.error
+
+
+def test_the_shortest_race_is_three_rounds(engine):
+    match, host = lobby(engine)
+    assert engine.host_set_level_count(match, host.id, 6).ok
+    assert engine.host_set_level_count(match, host.id, config.MIN_LEVEL_COUNT).ok
+    assert not engine.host_set_level_count(
+        match, host.id, config.MIN_LEVEL_COUNT - 1
+    ).ok
+
+
+def test_setting_the_length_it_already_is_says_so(engine):
+    match, host = lobby(engine)
+    result = engine.host_set_level_count(match, host.id, match.level_count)
+    assert not result.ok and "already" in result.error
+
+
+def test_the_longest_race_leaves_the_bonus_its_headroom(engine):
+    """The finale still owes a bonus board harder than itself, so the top
+    BONUS_LEVEL_OFFSET rungs of the table are never main boards."""
+    assert config.max_level_count() == (
+        config.DIFFICULTY_TIERS - config.BONUS_LEVEL_OFFSET
+    )
+    match, host = lobby(engine)
+    assert engine.host_set_level_count(match, host.id, config.max_level_count()).ok
+    assert not engine.host_set_level_count(
+        match, host.id, config.max_level_count() + 1
+    ).ok
+
+
+def test_only_the_host_sets_the_length(engine):
+    match, host = lobby(engine)
+    other, _ = engine.join_match(match, "Bob", "bravo", now=NOW)
+    result = engine.host_set_level_count(match, other.id, 5)
+    assert not result.ok and "only the host" in result.error
+
+
+def test_a_running_match_does_not_change_length(engine):
+    match, _, _ = full_match(engine)
+    result = engine.host_set_level_count(match, match.host_player_id, 5)
+    assert not result.ok and "already started" in result.error
+
+
+# --- the difficulty curve stretches to fit -------------------------------
+
+def test_the_full_length_race_is_one_rung_a_round(engine):
+    """At the longest length the mapping is the identity — round 7 is tier 7,
+    exactly as it behaved before the length was settable."""
+    top = config.max_level_count()
+    assert [config.difficulty_tier(r, top) for r in range(1, top + 1)] == \
+        list(range(1, top + 1))
+
+
+@pytest.mark.parametrize("rounds", range(3, 11))
+def test_every_length_starts_at_the_bottom_and_ends_at_the_top(rounds):
+    tiers = [config.difficulty_tier(r, rounds) for r in range(1, rounds + 1)]
+    assert tiers[0] == 1
+    assert tiers[-1] == config.max_level_count()
+
+
+@pytest.mark.parametrize("rounds", range(3, 11))
+def test_the_curve_never_goes_backwards(rounds):
+    tiers = [config.difficulty_tier(r, rounds) for r in range(1, rounds + 1)]
+    assert tiers == sorted(tiers)
+
+
+def test_the_short_race_curve_is_the_agreed_one(engine):
+    assert [config.difficulty_tier(r, 3) for r in (1, 2, 3)] == [1, 5, 10]
+    assert [config.difficulty_tier(r, 4) for r in (1, 2, 3, 4)] == [1, 4, 7, 10]
+
+
+def test_a_round_outside_the_race_is_clamped(engine):
+    """Defensive: a stale round number must not index off the ladder."""
+    assert config.difficulty_tier(0, 5) == 1
+    assert config.difficulty_tier(99, 5) == config.max_level_count()
+
+
+def test_a_short_races_finale_bonus_still_reaches_the_top_rung(engine, monkeypatch):
+    """The point of the stretch: three rounds is quicker, not easier."""
+    monkeypatch.setattr(config, "LEVEL_COUNT", 3)
+    match, members, _ = full_match(engine)
+    team = match.teams["alpha"]
+    player = members["alpha"][0]
+    team.level = 3                       # the finale
+    assert engine._difficulty_tier(match, 3) == config.max_level_count()
+    assert engine._bonus_level(match, team) == config.DIFFICULTY_TIERS

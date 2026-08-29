@@ -14,7 +14,7 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
 | Method | Path | Body | Returns |
 | --- | --- | --- | --- |
 | `GET` | `/` | — | landing page (`/play` serves the app) |
-| `GET` | `/api/config` | — | `{ "teams": ["alpha","bravo"], "players_per_team": 12, "max_players_ceiling": 12, "min_players_default": 4, "team_name_max": 20, "level_count": 10, "wait_seconds": 180, "perks": { ... }, "roles": { "<role_id>": {"name": str, "games": [<game_id>, ...] \| null}, ... }, "library": [ {"id","name","role"}, ... ] }` |
+| `GET` | `/api/config` | — | `{ "teams": ["alpha","bravo"], "players_per_team": 12, "max_players_ceiling": 12, "min_players_default": 4, "min_level_count": 3, "max_level_count": 10, "team_name_max": 20, "level_count": 10, "wait_seconds": 180, "perks": { ... }, "roles": { "<role_id>": {"name": str, "games": [<game_id>, ...] \| null}, ... }, "library": [ {"id","name","role"}, ... ] }` |
 | `POST` | `/api/matches` | `{}` | `{ "match": <MatchPublic> }` — creates a match, returns its id |
 | `POST` | `/api/matches/{id}/join` | `{ "name": str, "team_id": "alpha"\|"bravo"\|null }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` |
 | `GET` | `/api/matches/{id}` | — | `{ "match": <MatchPublic> }` (spectate / rejoin lookup) |
@@ -67,7 +67,7 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 | `give_leader` | `target_id: str` | Grandmaster-only. Lobby: moves the seat. Active match: full swap, once per team per level (see [GAME_DESIGN.md](GAME_DESIGN.md) §11). |
 | `request_state` | — | Ask for a fresh `state_snapshot` (e.g. after reconnect). |
 | `heartbeat` | — | Keep-alive; server replies with a `state_snapshot`. |
-| `lobby_action` | `action: str` + action fields | Mostly lobby-only. `set_team {team_id}` (self), `leave` (self; the host seat passes on), `claim_leader` (seat empty or holder disconnected), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `set_max_players {value}` (1..ceiling; pulls `min_players` down with it), `set_team_name {team_id, name}`, `start`, `cancel_session`; `claim_host` (only while the host is gone). **Outside the lobby:** `end_session` (host-only, running match) and `claim_host` also work — the host holds the only control that stops a session. |
+| `lobby_action` | `action: str` + action fields | Mostly lobby-only. `set_team {team_id}` (self), `leave` (self; the host seat passes on), `claim_leader` (seat empty or holder disconnected), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `set_max_players {value}` (1..ceiling; pulls `min_players` down with it), `set_level_count {value}` (3..10 rounds to win), `set_team_name {team_id, name}`, `start`, `cancel_session`; `claim_host` (only while the host is gone). **Outside the lobby:** `end_session` (host-only, running match) and `claim_host` also work — the host holds the only control that stops a session. |
 
 - `puzzle_id` **must** match the player's current puzzle id, or the server replies
   `error` ("Puzzle is no longer active") and ignores it.

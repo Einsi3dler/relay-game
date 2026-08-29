@@ -534,7 +534,9 @@ def test_advance_on_fourth_clear(engine):
     for i, player in enumerate(members["alpha"]):
         assert player.status == "solving"
         assert player.current_main.game_id == GAMES[i]  # still their game
-        assert "L2" in player.current_main.prompt  # at the new level
+        # Round 2 of a LEVELS-long race, mapped onto the 13-rung ladder.
+        tier = config.difficulty_tier(2, LEVELS)
+        assert f"L{tier}" in player.current_main.prompt
         assert player.timer_deadline is None
     assert result.schedule == []  # no wait timer survives the advance
     # Both of a member's scopes go: the wait timer, and the board deadline the
@@ -892,14 +894,15 @@ def test_insurance_is_not_burned_by_a_failure_that_costs_nothing(engine):
 def test_bonus_level_climbs_past_the_last_level(engine):
     """The bonus board used to clamp at LEVEL_COUNT, so a team on the final
     level was handed a board exactly as hard as the one they had just cleared.
-    Bonus tiers run to LEVEL_COUNT + BONUS_LEVEL_OFFSET (V5)."""
+    Bonus tiers run to the top of the table — and because a short race still
+    ends on the hardest main tier, its finale bonus reaches the top rung too."""
     match, members, _ = full_match(engine)
     team = match.teams["alpha"]
     player = members["alpha"][0]
     team.level = LEVELS
     solve(engine, match, player)
     assert engine.choose_bonus(match, player.id, now=NOW).ok
-    top_tier = LEVELS + config.BONUS_LEVEL_OFFSET
+    top_tier = config.DIFFICULTY_TIERS
     assert f"L{top_tier}" in player.current_bonus.prompt
     # Reconnecting mid-bonus re-rolls the board at the same tier.
     engine.on_disconnect(match, player.id)

@@ -93,11 +93,11 @@ class GameModule(Protocol):
   unguessable — see [ARCHITECTURE.md](ARCHITECTURE.md) §"Seeds"; your module just
   consumes them.) Set `game_id` to `self.id`. **Never derive board size/difficulty
   from `seed`** (that would randomise fairness between players). `level` (1-based,
-  1..`LEVEL_COUNT + BONUS_LEVEL_OFFSET`) is the sanctioned difficulty knob and
+  1..`DIFFICULTY_TIERS`) is the sanctioned difficulty knob and
   every shipped game **scales with it**: level 1 == the game's original board,
   difficulty rising to level 10, deterministic per `(seed, level)`. Each game
   reads a per-level `MAIN_LEVEL_PARAMS` table (or `_params_for_level`), which
-  must have **`LEVEL_COUNT + BONUS_LEVEL_OFFSET` rows (13)**: levels 11..13 are
+  must have **`DIFFICULTY_TIERS` rows (13)**: levels 11..13 are
   **bonus-only tiers**, never served as a main board, and they exist so a team
   on the last level still gets a bonus board harder than the one they just
   cleared. Clamp anything outside the table. Same seed + same level must always

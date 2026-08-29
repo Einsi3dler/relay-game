@@ -229,6 +229,8 @@ async def get_config() -> dict:
         "players_per_team": engine.max_players_ceiling(),
         "max_players_ceiling": engine.max_players_ceiling(),
         "min_players_default": config.MIN_PLAYERS_PER_TEAM,
+        "min_level_count": config.MIN_LEVEL_COUNT,
+        "max_level_count": config.max_level_count(),
         "team_name_max": config.TEAM_NAME_MAX,
         "level_count": config.LEVEL_COUNT,
         "wait_seconds": config.WAIT_SECONDS,
@@ -361,6 +363,8 @@ def _run_lobby_action(match: Match, player_id: str, fields: dict) -> EngineResul
         return engine.host_set_min_players(match, player_id, fields.get("value", 0))
     if action == "set_max_players":
         return engine.host_set_max_players(match, player_id, fields.get("value", 0))
+    if action == "set_level_count":
+        return engine.host_set_level_count(match, player_id, fields.get("value", 0))
     if action == "set_team_name":
         return engine.host_set_team_name(
             match, player_id, fields.get("team_id", ""), fields.get("name", "")
