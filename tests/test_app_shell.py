@@ -523,7 +523,7 @@ def _config_body(engine: RelayEngine) -> dict:
     """What `GET /api/config` returns for this registry (backend/main.py)."""
     return {
         "teams": list(config.TEAM_IDS),
-        "players_per_team": config.PLAYERS_PER_TEAM,
+        "players_per_team": engine.max_players_ceiling(),
         "level_count": config.LEVEL_COUNT,
         "wait_seconds": config.WAIT_SECONDS,
         "perks": {perk_id: dict(perk) for perk_id, perk in config.PERKS.items()},

@@ -134,6 +134,10 @@ class Player:
             "is_leader": self.is_leader,
             "role": self.role,
             "assigned_game": self.assigned_game,
+            # Whether a game is assigned, separately from which one. The lobby
+            # masks the opposing loadout but both sides still have to see that
+            # the other team is ready, or the start blocker reads as a bug.
+            "has_game": self.assigned_game is not None,
         }
 
     def private(self) -> dict[str, Any]:
@@ -182,9 +186,15 @@ class Team:
     duel_penalty_level: int = 0  # level the live penalty was stamped at (once each)
 
     def public(
-        self, players: dict[str, Player], silenced: bool = False
+        self, players: dict[str, Player], silenced: bool = False,
+        hide_games: bool = False,
     ) -> dict[str, Any]:
         """Full view: own team for its leader, and everyone in the lobby.
+
+        `hide_games` is the lobby's cross-team mask: the opposing roster and its
+        roles stay visible so the sides can be balanced before the start, but
+        which game each of them will actually play does not — that is the
+        loadout, and scouting it before the race is not part of the game.
 
         Under `silenced` (the Silence perk) the progress read-out is masked —
         `green_count` and every playing member's status go null. The shape is
@@ -201,6 +211,9 @@ class Team:
             view["board_deadline"] = (
                 member.puzzle_deadline if member.deadline_is_hidden() else None
             )
+        if hide_games:
+            for view in roster:
+                view["assigned_game"] = None
         if silenced:
             for view in roster:
                 if not view["is_leader"]:
@@ -326,6 +339,8 @@ class Match:
     players: dict[str, Player] = field(default_factory=dict)
     host_player_id: str | None = None  # first joiner; lobby control (see docs)
     min_players: int = 0  # per-match start threshold, host-adjustable in lobby
+    max_players: int = 0  # per-team seat cap, host-adjustable within the ceiling
+    ended_reason: str | None = None  # "host_ended" | "host_cancelled" | None
     winner_team_id: str | None = None
     events: list[Event] = field(default_factory=list)
     config_snapshot: dict[str, Any] = field(default_factory=dict)  # frozen at start
@@ -351,7 +366,11 @@ class Match:
 
     def _team_view(self, team: Team, me: Player | None) -> dict[str, Any]:
         if self.status == "lobby":
-            return team.public(self.players)  # lobby: full rosters for everyone
+            # Everyone sees both rosters and both sets of roles in the lobby —
+            # that is how you tell whether the sides are fair. Only the game
+            # each opponent is being handed is masked.
+            mine = me is not None and team.id == me.team_id
+            return team.public(self.players, hide_games=not mine)
         if me is None:
             return team.summary(self.players)
         if me.is_leader:
@@ -381,6 +400,8 @@ class Match:
             "status": self.status,
             "host_player_id": self.host_player_id,
             "min_players": self.min_players,
+            "max_players": self.max_players,
+            "ended_reason": self.ended_reason,
             "winner_team_id": self.winner_team_id,
             "config": dict(self.config_snapshot),
             "teams": {

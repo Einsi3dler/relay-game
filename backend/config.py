@@ -7,9 +7,27 @@ codebase may hard-code these values.
 from __future__ import annotations
 
 # --- Teams ---
-PLAYERS_PER_TEAM = 30        # playing members; each team also has +1 leader
+# A team never fields two players on the same game (RelayEngine.assign_game),
+# so the registry is what caps a team: one seat per registered game, plus the
+# single Duelist seat whose game the server picks from the duel catalogue.
+# Registering a game raises the ceiling on its own — there is no hand-kept
+# number here to fall out of step with the games that actually exist.
+DUEL_SEATS_PER_TEAM = 1      # a duel has two sides, so one champion per team
 MIN_PLAYERS_PER_TEAM = 4     # both teams need this many players to start
 TEAM_IDS = ("alpha", "bravo")
+TEAM_NAME_MAX = 20           # longest host-set team name
+
+
+def max_players_per_team(game_count: int) -> int:
+    """The most PLAYING members one team can hold (the leader is extra).
+
+    `game_count` is the number of registered game modules. Every playing member
+    but the Duelist needs a game of their own, and the Duelist's comes from the
+    duel catalogue instead, so the ceiling is one seat per game plus the duel
+    seat. Below this a match is merely small; above it `start_blocker` could
+    never be satisfied, because somebody would have no game left to be given.
+    """
+    return game_count + DUEL_SEATS_PER_TEAM
 
 # --- Levels, timers & currency (docs/REDESIGN_PLAN.md) ---
 # The timer/currency/perk values below are PROVISIONAL pending the V6 playtest

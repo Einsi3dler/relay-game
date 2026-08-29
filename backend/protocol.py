@@ -38,7 +38,12 @@ LOBBY_ACTIONS = (
     "move",
     "kick",
     "set_min_players",
+    "set_max_players",
+    "set_team_name",
     "start",
+    "cancel_session",
+    "end_session",
+    "leave",
     "claim_host",
     "claim_leader",
     "assign_role",
@@ -57,7 +62,8 @@ MATCH_WON = "match_won"
 # Close codes
 CLOSE_UNKNOWN = 4404  # unknown match or player
 CLOSE_SUPERSEDED = 4001  # a newer socket took over this player_id
-CLOSE_KICKED = 4403  # removed from the lobby by the host
+CLOSE_KICKED = 4403  # removed from the lobby by the host, or left of their own
+CLOSE_CANCELLED = 4402  # the host cancelled the lobby before it ever started
 
 
 def state_snapshot(match: Match, player_id: str | None = None) -> dict[str, Any]:
@@ -134,7 +140,7 @@ def parse_client_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
         if action not in LOBBY_ACTIONS:
             return "Unknown lobby action."
         fields = {"action": action}
-        for key in ("target_id", "team_id", "game_id", "role_id"):
+        for key in ("target_id", "team_id", "game_id", "role_id", "name"):
             if key in raw:
                 if not isinstance(raw[key], str):
                     return "Malformed message."
