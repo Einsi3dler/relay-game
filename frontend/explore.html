@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#10062f">
-  <title>The Relay — Explore the games</title>
+  <title>The Relay: explore the games</title>
   <!-- style.css first: it owns the puzzle boards. landing.css only re-dresses
        the page chrome around them. -->
   <link rel="stylesheet" href="/static/style.css">
@@ -13,7 +13,6 @@
     /* explore.html only — the picker and result chrome live in landing.css */
     .result-card { text-align: center; }
     .result-card h2 { font-size: 1.5rem; margin: 4px 0 6px; text-transform: uppercase; }
-    .result-card .big { font-size: 2.4rem; }
     .solve-time { color: var(--relay-muted); font-weight: 700; }
     #mission-blurb { color: var(--relay-muted); }
   </style>
@@ -30,7 +29,7 @@
     </svg>
 
     <header class="rl-nav rl-shell">
-      <a class="rl-mark" href="/" aria-label="The Relay — home">
+      <a class="rl-mark" href="/" aria-label="The Relay home">
         <svg class="rl-mark__bolt" viewBox="0 0 24 32" aria-hidden="true" focusable="false">
           <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
         </svg>
@@ -46,8 +45,9 @@
     <div class="rl-pagehead rl-shell">
       <p class="rl-eyebrow">Practice mode</p>
       <h1>Explore the games</h1>
-      <p>Solo practice — the same boards, the same server checking your answer, none of
-        the race pressure. A wrong answer just serves a fresh board, exactly like in a match.</p>
+      <p>Solo practice on the same boards, with the same server checking your answer and
+        none of the race pressure. A wrong answer just serves a fresh board, exactly like
+        in a match.</p>
     </div>
   </div>
 
@@ -87,15 +87,14 @@
     </div>
 
     <div id="result-card" class="card result-card" hidden>
-      <div class="big" id="result-big">🎉</div>
-      <h2 id="result-heading">Solved!</h2>
+      <h2 id="result-heading">Solved</h2>
       <p class="solve-time" id="result-time"></p>
       <div class="team-pick">
         <button id="again-btn" class="btn team-auto">Another one</button>
       </div>
     </div>
 
-    <p class="rl-note">Timings here are a good warm-up — in a real race the holding
+    <p class="rl-note">Timings here are a good warm-up. In a real race the holding
       boards are on a hard timer. <a href="/games">Read the full rules</a>
       or <a href="/play">host a match</a>.</p>
   </section>
@@ -229,7 +228,7 @@
             mounted = renderer;
             startedAt = Date.now();
           })
-          .catch(function (error) { toast("😵 " + error.message); })
+          .catch(function (error) { toast(error.message); })
           .finally(function () { loading = false; });
       }
 
@@ -249,16 +248,15 @@
               unmount();
               $("puzzle-card").hidden = true;
               $("result-card").hidden = false;
-              $("result-big").textContent = ["🎉", "🙌", "🔥", "🏆", "💪"][Math.floor(Math.random() * 5)];
-              $("result-heading").textContent = "Solved!";
-              $("result-time").textContent = "⏱️ " + elapsed + "s — in a race you'd be green now.";
+              $("result-heading").textContent = "Solved";
+              $("result-time").textContent = elapsed + "s. In a race you'd be green now.";
             } else {
               // Same rule as a real match: a wrong answer serves a fresh board.
-              toast("❌ Not quite — here's a fresh board!");
+              toast("Not quite. Here's a fresh board.");
               loadPuzzle();
             }
           })
-          .catch(function (error) { toast("😵 " + error.message); });
+          .catch(function (error) { toast(error.message); });
       }
 
       $("game-tabs").addEventListener("click", function (e) {
