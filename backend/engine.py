@@ -644,6 +644,7 @@ class RelayEngine:
             "currency_bonus_repeat": config.CURRENCY_BONUS_REPEAT,
             "bonus_level_offset": config.BONUS_LEVEL_OFFSET,
             "perks": {perk_id: dict(perk) for perk_id, perk in config.PERKS.items()},
+            "duels_per_level": config.DUELS_PER_LEVEL,
             "duel_next_seconds": config.DUEL_INTERVAL_SECONDS,
             "duel_reveal_seconds": config.DUEL_REVEAL_SECONDS,
             "duel_penalty_seconds": config.DUEL_PENALTY_SECONDS,
@@ -1307,6 +1308,14 @@ class RelayEngine:
         team.level += 1
         team.duel_penalty_until = None
         team.duel_penalty_level = 0  # the new level may take its own hit
+        # A new level buys a fresh duel series. Only re-open it if the last one
+        # ran out; mid-series there is already a `duel_next` pending.
+        if match.duel is not None and match.duel.phase == "done":
+            if match.duels_played >= match.config_snapshot["duels_per_level"]:
+                match.duel.deadline = self._start_scope_timer(
+                    match, DUEL_SCOPE, "duel_next", result, now
+                )
+            match.duels_played = 0
         result.advanced_team_ids.append(team.id)
         for member in members:
             member.bonus_streak = 0
@@ -1524,10 +1533,31 @@ class RelayEngine:
             f"{winner.name} wins the duel for team {winner_team.name} (+{pay}).",
             "info",
         )
-        duel.deadline = self._start_scope_timer(
-            match, DUEL_SCOPE, "duel_next", result, now
-        )
-        # The winner just went green, so their team may now be complete.
+        match.duels_played += 1
+        if match.duels_played >= match.config_snapshot["duels_per_level"]:
+            # The series is over for this level: the main duel and its bonus are
+            # spent, so no `duel_next` is queued and the champions stop duelling.
+            # The loser goes green too — the once-per-level penalty stamped above
+            # is their deficit. Leaving them un-green here would block their team
+            # for good, because no later duel would come to restore it.
+            duel.deadline = None
+            result.cancel.append(DUEL_SCOPE)
+            loser.status = "cleared"
+            loser.choice_pending = False
+            loser.timer_kind = None
+            loser.timer_deadline = None
+            result.cancel.append(loser.id)
+            self._add_event(
+                match,
+                result,
+                "The duel is done for this level — both champions stand down.",
+                "info",
+            )
+        else:
+            duel.deadline = self._start_scope_timer(
+                match, DUEL_SCOPE, "duel_next", result, now
+            )
+        # Both champions may have just gone green, so either team may be complete.
         for team in (winner_team, loser_team):
             self._advance_check(match, team, result, now)
 
