@@ -49,7 +49,8 @@
     panelGrey: "#cbcbcb", bombGreyDark: "#373737", bombGrey: "#666666",
     bombGreyLight: "#aeaeae", manualExitBlue: "#0e00a9", bgBlue: "#001777",
     shutter: "#ff6600", shutterDark: "#c95000", green: "#00ff02",
-    cyan: "#00d4ff", red: "#ff0000", tip: "#17c40a"
+    cyan: "#00d4ff", red: "#ff0000", tip: "#17c40a",
+    mazeGrid: "#c9c9c9"
   };
 
   var SIMON_PAINT = {
@@ -131,35 +132,60 @@
       "line-height:1.5;", options.homeNote));
   }
 
+  // The manual is the only place the maze walls exist — the bay deliberately
+  // shows none (§38) — so this is the one drawing that has to be read exactly.
+  // It used to sit in a 70px box: 17.5px a cell, with no cell boundaries to
+  // count walls against, against the 62px cells the bay draws the same grid at.
+  // These three numbers fill the 550x362 body instead. The box is content-box,
+  // so each one is MAZE_BOX + its 2px border on each side = 122px on the page.
+  var MAZE_BOX = 118;             // 29.5px a cell
+  var MAZE_COL_PITCH = 142;       // x = 0, 142, 284, 426 -> 548 of 550
+  var MAZE_ROW_PITCH = 158;       // y = 46, 204 -> 326 of 362
+
   function renderMaze(body) {
     body.appendChild(el("div", "position:absolute;left:0;top:0;width:550px;font-size:13px;" +
       "line-height:1.45;",
       "Blue is the Defuser's position; red is the way out. Green is the tip " +
       "that identifies which maze is on the bomb — it is a label, not a target."));
-    var size = 70, cell = size / 4;
+    var size = MAZE_BOX, cell = size / MAZE_SIZE;
     MAZE_LAYOUTS.forEach(function (layout, index) {
-      var x = (index % 4) * (size + 62) + 4;
-      var y = Math.floor(index / 4) * (size + 44) + 42;
+      var x = (index % 4) * MAZE_COL_PITCH;
+      var y = Math.floor(index / 4) * MAZE_ROW_PITCH + 46;
       var box = el("div", "position:absolute;left:" + x + "px;top:" + y + "px;width:" + size +
         "px;height:" + size + "px;border:2px solid " + C.black + ";background:" + C.white + ";");
-      // Walls in red (§38), drawn straight from the shared layout data.
+      // The cell boundaries go down first, so a wall always paints over its own
+      // line: a wall then reads as a closed boundary rather than as a mark
+      // floating in white, and an open boundary still shows where it is.
+      for (var g = 1; g < MAZE_SIZE; g++) {
+        box.appendChild(el("div", "position:absolute;left:" + (g * cell) + "px;top:0px;" +
+          "width:1px;height:" + size + "px;background:" + C.mazeGrid + ";"));
+        box.appendChild(el("div", "position:absolute;left:0px;top:" + (g * cell) + "px;" +
+          "width:" + size + "px;height:1px;background:" + C.mazeGrid + ";"));
+      }
+      // Walls in red (§38), drawn straight from the shared layout data. Each
+      // spans its whole cell pitch and outweighs the boundary line beneath it.
       for (var r = 0; r < MAZE_SIZE; r++) {
         for (var c = 0; c < MAZE_SIZE; c++) {
           if (r < MAZE_SIZE - 1 && layout.h[r][c]) {
             box.appendChild(el("div", "position:absolute;left:" + (c * cell) + "px;top:" +
-              ((r + 1) * cell - 1) + "px;width:" + cell + "px;height:2px;background:" + C.red + ";"));
+              ((r + 1) * cell - 1.5) + "px;width:" + cell + "px;height:3px;background:" +
+              C.red + ";"));
           }
           if (c < MAZE_SIZE - 1 && layout.v[r][c]) {
-            box.appendChild(el("div", "position:absolute;left:" + ((c + 1) * cell - 1) + "px;top:" +
-              (r * cell) + "px;width:2px;height:" + cell + "px;background:" + C.red + ";"));
+            box.appendChild(el("div", "position:absolute;left:" + ((c + 1) * cell - 1.5) +
+              "px;top:" + (r * cell) + "px;width:3px;height:" + cell + "px;background:" +
+              C.red + ";"));
           }
         }
       }
       // A filled circle, where every wall is a straight line: the tip reads as
-      // the tip without relying on telling green from red.
-      box.appendChild(el("div", "position:absolute;left:" + (layout.tip[1] * cell + 3) + "px;top:" +
-        (layout.tip[0] * cell + 3) + "px;width:" + (cell - 6) + "px;height:" + (cell - 6) +
-        "px;background:" + C.tip + ";border-radius:50%;"));
+      // the tip without relying on telling green from red. It scales with the
+      // cell so it stays a dot in the cell and never crowds the boundaries.
+      var dot = cell * 0.52;
+      box.appendChild(el("div", "position:absolute;left:" +
+        (layout.tip[1] * cell + (cell - dot) / 2) + "px;top:" +
+        (layout.tip[0] * cell + (cell - dot) / 2) + "px;width:" + dot + "px;height:" +
+        dot + "px;background:" + C.tip + ";border-radius:50%;"));
       body.appendChild(box);
     });
   }
