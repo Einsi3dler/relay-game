@@ -1,0 +1,845 @@
+/* The Relay — public-page visual language.
+ *
+ * Loaded by landing.html, explore.html and games.html, always *after*
+ * style.css so this layer wins on the page chrome. It deliberately owns its
+ * own `--relay-*` token names: style.css keeps `--bg`/`--ink`/`--sun` for the
+ * match screens, and nothing here redefines them, so /play is untouched.
+ */
+
+:root {
+  /* Dark field — hero and page-head bands. */
+  --relay-night: #10062f;
+  --relay-night-2: #1b0b4b;
+  --relay-night-3: #2a1266;
+
+  /* Accents. Yellow is the relay's energy and the only primary-CTA colour. */
+  --relay-yellow: #ffd21c;
+  --relay-cyan: #18c9e8;
+  --relay-pink: #ff477e;
+  --relay-violet: #6f3cff;
+  --relay-green: #38d779;
+  --relay-teal: #12a89b;
+  --relay-orange: #ff9b21;
+
+  /* Light field — everything below the hero. */
+  --relay-paper: #fffdf8;
+  --relay-paper-2: #f6f2ea;
+  --relay-white: #ffffff;
+  --relay-ink: #17152b;
+  --relay-muted: #68657d;
+
+  --relay-line-dark: rgba(255, 255, 255, 0.14);
+  --relay-line-light: #e9e5f3;
+
+  /* Three radius steps, not one. --radius-lg is reserved for the join panel
+     and the other major hero-scale surfaces. */
+  --relay-radius-sm: 10px;
+  --relay-radius-md: 16px;
+  --relay-radius-lg: 28px;
+
+  --relay-shell: 1200px;
+  --relay-gutter: 24px;
+
+  --relay-display: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  --relay-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+}
+
+/* --- page base --------------------------------------------------------- */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+body.relay-page {
+  margin: 0;
+  background: var(--relay-paper);
+  color: var(--relay-ink);
+  font-family: var(--relay-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.relay-page :where(h1, h2, h3) { line-height: 1.05; margin: 0; }
+.relay-page :where(p) { margin: 0; }
+
+.rl-shell {
+  width: 100%;
+  max-width: var(--relay-shell);
+  margin: 0 auto;
+  padding: 0 var(--relay-gutter);
+}
+
+/* Colour is never the only signal, and the ring changes with the field it
+   sits on so it stays visible on both. */
+.relay-page :focus-visible {
+  outline: 3px solid var(--relay-violet);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.rl-band :focus-visible,
+.rl-closer :focus-visible {
+  outline-color: var(--relay-yellow);
+}
+
+.rl-eyebrow {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+
+/* --- wordmark ---------------------------------------------------------- */
+
+.rl-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  color: inherit;
+}
+.rl-mark__bolt {
+  width: 21px;
+  height: 28px;
+  color: var(--relay-yellow);
+  flex: none;
+}
+.rl-mark__word {
+  font-family: var(--relay-display);
+  font-weight: 900;
+  font-size: 1.42rem;
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+.rl-mark--sm .rl-mark__bolt { width: 17px; height: 23px; }
+.rl-mark--sm .rl-mark__word { font-size: 1.15rem; }
+
+/* --- buttons ----------------------------------------------------------- */
+
+.rbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 13px 24px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  font-family: var(--relay-body);
+  font-size: 1rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.12s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.rbtn:active { transform: translateY(1px) scale(0.985); }
+.rbtn svg { width: 18px; height: 18px; flex: none; }
+
+.rbtn--primary {
+  background: var(--relay-yellow);
+  color: var(--relay-ink);
+  box-shadow: 0 6px 0 #d9a800;
+}
+.rbtn--primary:hover { background: #ffdd4d; }
+.rbtn--primary:active { box-shadow: 0 3px 0 #d9a800; }
+
+.rbtn--violet { background: var(--relay-violet); color: #fff; }
+.rbtn--violet:hover { background: #8055ff; }
+
+.rbtn--outline {
+  background: transparent;
+  color: var(--relay-ink);
+  border-color: var(--relay-ink);
+}
+.rbtn--outline:hover { background: var(--relay-ink); color: var(--relay-paper); }
+
+/* Outline on the dark band. */
+.rbtn--ghost {
+  background: transparent;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.42);
+}
+.rbtn--ghost:hover { background: rgba(255, 255, 255, 0.12); border-color: #fff; }
+
+.rbtn--sm { min-height: 44px; padding: 10px 20px; font-size: 0.94rem; }
+
+/* Inline text link with a moving arrow. */
+.rl-textlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  font-weight: 800;
+  color: var(--relay-violet);
+  text-decoration: none;
+}
+.rl-textlink:hover { text-decoration: underline; }
+.rl-textlink svg { width: 17px; height: 17px; transition: transform 0.15s ease; }
+.rl-textlink:hover svg { transform: translateX(3px); }
+.rl-textlink--onDark { color: var(--relay-yellow); }
+
+/* --- dark band (nav + hero, or nav + page head) ------------------------ */
+
+.rl-band {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(1100px 520px at 78% 8%, var(--relay-night-3) 0%, transparent 62%),
+    linear-gradient(168deg, var(--relay-night-2) 0%, var(--relay-night) 72%);
+  color: #fff;
+  overflow: hidden;
+}
+/* The relay track runs behind the whole band and crosses under the visual. */
+.rl-band__track {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.rl-nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-top: 20px;
+  padding-bottom: 20px;
+  color: #fff;
+}
+.rl-nav__links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.rl-nav__links a {
+  padding: 10px 14px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--relay-radius-sm);
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+.rl-nav__links a:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.rl-nav__cta { margin-left: 10px; padding-left: 26px; padding-right: 26px; }
+
+/* --- hero -------------------------------------------------------------- */
+
+.rl-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-template-areas:
+    "content panel"
+    "visual  visual";
+  gap: 16px 56px;
+  padding-top: 22px;
+  padding-bottom: 54px;
+  align-items: start;
+}
+.rl-hero__content { grid-area: content; max-width: 34ch; min-width: 0; }
+.rl-hero__visual { grid-area: visual; min-width: 0; }
+.rl-hero__panel { grid-area: panel; align-self: start; min-width: 0; }
+
+.rl-hero .rl-eyebrow { color: var(--relay-cyan); }
+
+.rl-hero h1 {
+  font-family: var(--relay-display);
+  font-weight: 900;
+  font-size: clamp(2.55rem, 5.4vw, 4.6rem);
+  letter-spacing: -0.02em;
+  line-height: 0.94;
+  margin: 0 0 20px;
+  text-transform: uppercase;
+}
+.rl-hero h1 span { display: block; white-space: nowrap; }
+.rl-hero h1 .l1 { color: #fff; }
+.rl-hero h1 .l2 { color: var(--relay-yellow); }
+.rl-hero h1 .l3 { color: var(--relay-cyan); }
+
+.rl-hero__lead {
+  font-size: 1.09rem;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 46ch;
+  margin: 0 0 24px;
+}
+.rl-hero__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.rl-hero__visual { margin-top: 6px; }
+.rl-hero__visual svg { display: block; width: 100%; height: auto; max-width: 820px; }
+
+/* --- join panel -------------------------------------------------------- */
+
+.rl-join {
+  background: var(--relay-paper);
+  color: var(--relay-ink);
+  border-radius: var(--relay-radius-lg);
+  padding: 30px 28px 26px;
+  box-shadow: 0 26px 50px rgba(6, 2, 22, 0.42);
+}
+.rl-join h2 {
+  font-family: var(--relay-display);
+  font-weight: 900;
+  font-size: 1.6rem;
+  letter-spacing: 0.01em;
+  margin: 0 0 4px;
+}
+.rl-join__note { color: var(--relay-muted); font-size: 0.93rem; margin: 0 0 20px; }
+
+.rl-join label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--relay-muted);
+  margin-bottom: 8px;
+}
+/* One real input. The letter-spacing is presentation only — match ids stay
+   opaque to this page. */
+.rl-join input {
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 16px;
+  border: 2px solid var(--relay-line-light);
+  border-radius: var(--relay-radius-md);
+  background: #fff;
+  color: var(--relay-ink);
+  font-family: var(--relay-body);
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.rl-join input::placeholder {
+  color: #b9b4c7;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  text-transform: none;
+}
+.rl-join input:focus { border-color: var(--relay-violet); outline: none; }
+.rl-join input:focus-visible { outline: 3px solid var(--relay-violet); outline-offset: 2px; }
+
+.rl-join__error {
+  display: block;
+  margin-top: 8px;
+  color: #c81e4f;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.rl-join__submit { width: 100%; margin-top: 14px; font-size: 1.05rem; }
+
+.rl-join__or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
+  color: var(--relay-muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.rl-join__or::before,
+.rl-join__or::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: var(--relay-line-light);
+}
+.rl-join__host { width: 100%; }
+.rl-join__solo {
+  display: block;
+  margin-top: 14px;
+  text-align: center;
+  font-size: 0.93rem;
+  font-weight: 700;
+  color: var(--relay-muted);
+}
+.rl-join__solo a { color: var(--relay-violet); }
+
+/* --- light sections ---------------------------------------------------- */
+
+.rl-section { padding: 76px 0; }
+.rl-section--tint { background: var(--relay-paper-2); }
+
+.rl-section__head { max-width: 62ch; margin-bottom: 44px; }
+.rl-section__head .rl-eyebrow { color: var(--relay-violet); }
+.rl-section h2 {
+  font-family: var(--relay-display);
+  font-weight: 900;
+  font-size: clamp(1.8rem, 3.6vw, 2.7rem);
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+.rl-section__sub { color: var(--relay-muted); font-size: 1.05rem; }
+
+/* --- how it works ------------------------------------------------------ */
+
+.rl-steps {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 28px;
+}
+/* The track that connects the four numbers, behind them. */
+.rl-steps::before {
+  content: "";
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  top: 27px;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg, var(--relay-line-light) 0 14px, transparent 14px 26px
+  );
+}
+.rl-step { position: relative; }
+.rl-step__n {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--relay-violet);
+  color: #fff;
+  font-family: var(--relay-display);
+  font-weight: 900;
+  font-size: 1.35rem;
+  margin-bottom: 20px;
+  box-shadow: 0 0 0 8px var(--relay-paper-2);
+}
+.rl-step:nth-child(2) .rl-step__n { background: var(--relay-cyan); color: var(--relay-ink); }
+.rl-step:nth-child(3) .rl-step__n { background: var(--relay-green); color: var(--relay-ink); }
+.rl-step:nth-child(4) .rl-step__n { background: var(--relay-yellow); color: var(--relay-ink); }
+.rl-step__icon { width: 26px; height: 26px; color: var(--relay-ink); margin-bottom: 12px; }
+.rl-step h3 { font-size: 1.12rem; font-weight: 800; margin-bottom: 8px; }
+.rl-step p { color: var(--relay-muted); font-size: 0.97rem; }
+
+/* --- featured games ---------------------------------------------------- */
+
+.rl-games__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.rl-game {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 22px 22px;
+  border-radius: var(--relay-radius-md);
+  color: #fff;
+  text-decoration: none;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.rl-game:hover { transform: translateY(-3px); box-shadow: 0 14px 28px rgba(23, 21, 43, 0.22); }
+.rl-game__art { width: 66px; height: 66px; color: #fff; margin-bottom: 2px; }
+.rl-game h3 { font-family: var(--relay-display);
+  font-weight: 900; font-size: 1.3rem; letter-spacing: 0.01em; }
+.rl-game__kind {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+.rl-game p:not(.rl-game__kind) { font-size: 0.95rem; opacity: 0.93; }
+.rl-game__go {
+  margin-top: auto;
+  padding-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 800;
+  font-size: 0.92rem;
+}
+.rl-game__go svg { width: 16px; height: 16px; transition: transform 0.15s ease; }
+.rl-game:hover .rl-game__go svg { transform: translateX(3px); }
+
+.rl-game--rewire { background: #0f8fb0; }
+.rl-game--mirror { background: var(--relay-violet); }
+.rl-game--bomb { background: #d92b58; }
+.rl-game--decant { background: var(--relay-teal); }
+/* The one light tile — deliberate, so the grid isn't six identical blocks. */
+.rl-game--echo { background: var(--relay-yellow); color: var(--relay-ink); }
+.rl-game--echo .rl-game__art { color: var(--relay-ink); }
+.rl-game--stack { background: #4a2bb8; }
+
+.rl-games__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 28px;
+}
+.rl-games__count { color: var(--relay-muted); font-size: 0.95rem; font-weight: 700; }
+
+/* --- grandmaster / duel strip ------------------------------------------ */
+
+.rl-special {
+  background: var(--relay-night);
+  color: #fff;
+}
+.rl-special__inner {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.rl-feature { padding: 64px 48px; }
+.rl-feature + .rl-feature { border-left: 2px solid var(--relay-line-dark); }
+.rl-feature__icon { width: 46px; height: 46px; margin-bottom: 20px; }
+.rl-feature:first-child .rl-feature__icon { color: var(--relay-yellow); }
+.rl-feature:last-child .rl-feature__icon { color: var(--relay-pink); }
+.rl-feature h2 {
+  font-family: var(--relay-display);
+  font-weight: 900;
+  font-size: clamp(1.4rem, 2.2vw, 1.85rem);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  max-width: 20ch;
+}
+.rl-feature p { color: rgba(255, 255, 255, 0.76); margin-bottom: 18px; max-width: 44ch; }
+
+/* --- closing CTA ------------------------------------------------------- */
+
+.rl-closer {
+  background: var(--relay-violet);
+  color: #fff;
+  text-align: center;
+  padding: 78px 0;
+}
+.rl-closer h2 {
+  font-family: var(--relay-display);
+  font-weight: 900;
+  font-size: clamp(2.2rem, 5.4vw, 3.6rem);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.rl-closer p { color: rgba(255, 255, 255, 0.82); margin-bottom: 28px; }
+.rl-closer__actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+/* --- footer ------------------------------------------------------------ */
+
+.rl-footer {
+  background: var(--relay-night);
+  color: rgba(255, 255, 255, 0.62);
+  padding: 34px 0;
+}
+.rl-footer__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.rl-footer nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.rl-footer nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 700;
+  font-size: 0.93rem;
+  text-decoration: none;
+}
+.rl-footer nav a:hover { color: #fff; }
+
+/* --- page head (explore / games) --------------------------------------- */
+
+.rl-pagehead { padding-top: 26px; padding-bottom: 60px; }
+.rl-pagehead .rl-eyebrow { color: var(--relay-cyan); }
+.rl-pagehead h1 {
+  font-family: var(--relay-display);
+  font-weight: 900;
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+}
+.rl-pagehead h1 { max-width: 16ch; }
+.rl-pagehead p { color: rgba(255, 255, 255, 0.78); font-size: 1.05rem; max-width: 58ch; }
+.rl-pagehead__actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
+
+/* The content of these two pages sits on paper and pulls up into the band so
+   the first card overlaps the dark edge. */
+/* Explore and games are reading/practice pages, not a poster: one narrower
+   shell keeps nav, header, cards and footer aligned on the same edge. */
+.relay-page--doc { --relay-shell: 940px; }
+
+.rl-page-body { padding: 0 0 64px; }
+.rl-page-body .view { max-width: var(--relay-shell); padding: 0 var(--relay-gutter); margin-bottom: 20px; }
+.rl-page-body .card {
+  border-radius: var(--relay-radius-md);
+  border-color: var(--relay-line-light);
+  box-shadow: 0 8px 22px rgba(23, 21, 43, 0.07);
+}
+.rl-page-body h1,
+.rl-page-body h2 { font-family: var(--relay-display);
+  font-weight: 900; letter-spacing: -0.01em; }
+.rl-page-body .flow h2 { font-size: 1.6rem; text-transform: uppercase; margin-bottom: 10px; }
+.rl-page-body .flow ol { margin-top: 14px; }
+.rl-page-body .sub { color: var(--relay-muted); }
+.rl-lift { margin-top: -34px; position: relative; z-index: 1; }
+
+/* --- responsive -------------------------------------------------------- */
+
+@media (max-width: 1099px) {
+  .rl-feature { padding: 52px 34px; }
+}
+
+@media (max-width: 999px) {
+  :root { --relay-gutter: 20px; }
+
+  /* Tablet: copy + visual stack, join panel spans full width beneath. */
+  .rl-hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "content"
+      "panel"
+      "visual";
+    gap: 30px;
+    padding-bottom: 56px;
+  }
+  .rl-hero__content { max-width: none; }
+  .rl-hero__panel { max-width: 520px; }
+  .rl-hero__visual svg { max-width: 100%; }
+
+  .rl-games__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rl-section { padding: 60px 0; }
+}
+
+@media (max-width: 860px) {
+  .rl-nav__links a { padding: 10px 10px; font-size: 0.9rem; }
+  .rl-special__inner { grid-template-columns: minmax(0, 1fr); }
+  .rl-feature + .rl-feature { border-left: 0; border-top: 2px solid var(--relay-line-dark); }
+
+  .rl-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rl-steps::before { display: none; }
+}
+
+@media (max-width: 699px) {
+  .rl-nav { flex-wrap: wrap; gap: 10px; }
+  /* Nav links drop below the mark rather than into a hamburger — there are
+     only four and they still clear 44px. */
+  .rl-nav__links {
+    order: 3;
+    width: 100%;
+    /* Without this the row's min-content width (four nowrap links) beats
+       width:100% and drags the whole page wider than the viewport. */
+    min-width: 0;
+    margin-left: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .rl-nav__links::-webkit-scrollbar { display: none; }
+  .rl-nav__links a { white-space: nowrap; }
+  .rl-nav__cta { margin-left: auto; }
+
+  .rl-hero { padding-top: 20px; }
+  .rl-join { padding: 24px 20px 22px; border-radius: var(--relay-radius-md); }
+  .rl-games__grid,
+  .rl-steps { grid-template-columns: minmax(0, 1fr); }
+  .rl-feature { padding: 44px 22px; }
+  .rl-section { padding: 52px 0; }
+  .rl-footer__inner { justify-content: center; text-align: center; }
+}
+
+/* --- game picker (explore) --------------------------------------------- */
+
+/* Pills with a colour dot instead of eleven emoji: the dot carries the game's
+   identity, the name carries the meaning, and the active state is a fill —
+   so colour is never the only signal. */
+.rl-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.rl-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 2px solid var(--relay-line-light);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--relay-muted);
+  font-family: var(--relay-body);
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.15s ease, color 0.15s ease,
+    background-color 0.15s ease;
+}
+.rl-tabs button::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--dot, var(--relay-muted));
+  flex: none;
+}
+.rl-tabs button:hover { border-color: var(--relay-ink); color: var(--relay-ink); }
+.rl-tabs button:active { transform: scale(0.97); }
+.rl-tabs button.active {
+  border-color: var(--relay-ink);
+  background: var(--relay-ink);
+  color: #fff;
+}
+
+.rl-tabs button[data-game="rewire"]      { --dot: var(--relay-cyan); }
+.rl-tabs button[data-game="sweep"]       { --dot: #ff8a3d; }
+.rl-tabs button[data-game="mirror_run"]  { --dot: var(--relay-violet); }
+.rl-tabs button[data-game="decant"]      { --dot: var(--relay-teal); }
+.rl-tabs button[data-game="echo"]        { --dot: var(--relay-yellow); }
+.rl-tabs button[data-game="overprint"]   { --dot: #4e79a7; }
+.rl-tabs button[data-game="stackdrop"]   { --dot: #7a4bff; }
+.rl-tabs button[data-game="lane_shift"]  { --dot: #c9a227; }
+.rl-tabs button[data-game="shadow_cast"] { --dot: #2a9d8f; }
+.rl-tabs button[data-game="threadline"]  { --dot: var(--relay-green); }
+.rl-tabs button[data-game="bomb_defuse"] { --dot: #d92b58; }
+
+/* Secondary row: puzzle kind, missions, new-board. */
+.rl-page-body .kind-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.rl-page-body .kind-row .label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--relay-muted);
+}
+.rl-page-body .kind-row button,
+.rl-page-body .kind-row .mini-btn {
+  min-height: 44px;
+  padding: 9px 16px;
+  border: 2px solid var(--relay-line-light);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--relay-muted);
+  font-family: var(--relay-body);
+  font-weight: 800;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.rl-page-body .kind-row button.active {
+  border-color: var(--relay-violet);
+  color: var(--relay-violet);
+  background: #f6f2ff;
+}
+.rl-page-body .kind-row .spacer { flex: 1; }
+/* Missions are injected into a span, so it needs to be a flex row itself. */
+.rl-page-body #mission-buttons { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+
+.rl-note {
+  color: var(--relay-muted);
+  font-size: 0.92rem;
+  text-align: center;
+  max-width: 62ch;
+  margin: 22px auto 0;
+}
+.rl-note a { color: var(--relay-violet); font-weight: 700; }
+
+/* --- how-to-play (games) ----------------------------------------------- */
+
+/* Stage chips move onto the landing palette so the two pages read as one
+   product; the per-game hue still distinguishes them. */
+.rl-page-body .stage-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 12px;
+  color: #fff;
+  font-family: var(--relay-body);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.rl-page-body .stage-1  { background: var(--relay-cyan); color: var(--relay-ink); }
+.rl-page-body .stage-2  { background: #ff8a3d; color: var(--relay-ink); }
+.rl-page-body .stage-3  { background: var(--relay-violet); }
+.rl-page-body .stage-4  { background: var(--relay-teal); }
+.rl-page-body .stage-5  { background: var(--relay-yellow); color: var(--relay-ink); }
+.rl-page-body .stage-6  { background: #4e79a7; }
+.rl-page-body .stage-7  { background: #7a4bff; }
+.rl-page-body .stage-8  { background: #c9a227; color: var(--relay-ink); }
+.rl-page-body .stage-9  { background: #2a9d8f; }
+.rl-page-body .stage-10 { background: var(--relay-green); color: var(--relay-ink); }
+.rl-page-body .stage-11 { background: #d92b58; }
+.rl-page-body .stage-duel { background: var(--relay-pink); }
+
+.rl-page-body .game-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 1.45rem;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.rl-page-body .game-card h3 {
+  font-family: var(--relay-body);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--relay-muted);
+  margin: 18px 0 6px;
+}
+.rl-page-body .cat {
+  color: var(--relay-muted);
+  font-weight: 800;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+.rl-page-body .tip {
+  border-left: 4px solid var(--relay-yellow);
+  background: #fffaea;
+  border-radius: 0 var(--relay-radius-sm) var(--relay-radius-sm) 0;
+  padding: 10px 14px;
+}
+.rl-page-body .sizes { color: var(--relay-muted); font-size: 0.88rem; }
+
+@media (max-width: 699px) {
+  .rl-pagehead { padding-bottom: 44px; }
+  .rl-page-body .game-card h2 { font-size: 1.2rem; }
+}
+
+/* --- motion ------------------------------------------------------------ */
+
+/* One moving thing on the page: the energy pulse along the middle track. */
+.rl-pulse {
+  stroke-dasharray: 24 400;
+  animation: rl-run 5.5s linear infinite;
+}
+@keyframes rl-run {
+  from { stroke-dashoffset: 424; }
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .relay-page *,
+  .relay-page *::before,
+  .relay-page *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .rl-pulse { stroke-dasharray: none; opacity: 0.5; }
+}
