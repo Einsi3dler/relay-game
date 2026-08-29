@@ -243,7 +243,15 @@
     <h2><span class="stage-chip stage-duel">Duelist</span> RPS DUEL</h2>
     <p class="cat">Head-to-head · nerve</p>
     <h3>The role</h3>
-    <p>Your Grandmaster can spend one of the team's four playing slots on a <strong>Duelist</strong>, a champion who never solves a puzzle. Instead you fight the other team's Duelist, over and over, for the whole match. Both teams must field one, or neither does: a duel needs two seats. You don't pick your game either: <strong>the server does</strong>.</p>
+    <p>Your Grandmaster can spend one of the team's four playing slots on a <strong>Duelist</strong>, a champion who never solves a puzzle. Instead you fight the other team's Duelist, over and over, for the whole match. Both teams must field one, or neither does: a duel needs two seats. You don't pick your game either: <strong>the server does</strong>, from the four below.</p>
+    <p>Every round of every duel runs on a clock, shown on your duel card and counting down in red at the end. Each game below has its own natural window, but the <strong>host can set one timer for all of them</strong> in the lobby, from 3 seconds to 30 — so a group that wants faster duels just says so once.</p>
+    <h3>The four duels</h3>
+    <ul class="duel-index">
+      <li><a href="#duels"><strong>RPS Duel</strong> Pure prediction. First to two, five seconds a throw.</a></li>
+      <li><a href="#crown-duel"><strong>Crown Duel</strong> Five characters, counters, and one hidden rewrite of your hand.</a></li>
+      <li><a href="#number-clash"><strong>Number Clash</strong> Nine numbers, each spent once. First to four points.</a></li>
+      <li><a href="#bid-war"><strong>Bid War</strong> Twenty coins, five secret auctions, every bid spent.</a></li>
+    </ul>
     <h3>How to play</h3>
     <ul>
       <li>A duel opens at kickoff and again <strong>30 seconds</strong> after the last one ends. Pick <strong>rock</strong>, <strong>paper</strong> or <strong>scissors</strong> inside a <strong>5-second</strong> window.</li>
@@ -256,6 +264,49 @@
       <li><strong>Lose</strong> and your team is stuck until you win the next one, <em>plus</em> a <strong>60-second lock</strong> that holds even after you win it back. That lock only lands <strong>once per level</strong>, so a bad run costs you time, not the match.</li>
     </ul>
     <p class="tip">There's no system to solve here, only the person opposite you. Watch what they threw last round, and remember they're watching you.</p>
+  </section>
+
+  <section class="view card game-card" id="crown-duel">
+    <h2><span class="stage-chip stage-duel">Duelist</span> CROWN DUEL</h2>
+    <p class="cat">Head-to-head · counters and memory</p>
+    <h3>How to play</h3>
+    <ul>
+      <li>You both hold five cards: <strong>King, Knight, Guard, Assassin, Peasant</strong>. Each round you both commit one inside a <strong>10-second</strong> window. Only the <strong>same card against itself</strong> draws; every other pairing has a winner, who takes a <strong>Crown</strong>. Both cards are spent either way.</li>
+      <li>King beats the three fighters. Peasant beats King. All three fighters beat Peasant. Between them: Guard beats Knight, Knight beats Assassin, Assassin beats Guard.</li>
+      <li><strong>Three rounds, most Crowns wins</strong>, and two of them settles it early. Level after the third and you both get fresh hands for <strong>Sudden Death</strong>, where the first round that isn't a draw takes the duel.</li>
+    </ul>
+    <h3>Royal Sacrifice</h3>
+    <ul>
+      <li>Once per duel, before any round, you can <strong>destroy two of your unused cards to rewrite a third</strong> into a different character. Never into a King.</li>
+      <li>Both of you commit to that decision secretly, and then it is announced: your opponent is told a sacrifice happened. They are <strong>never</strong> told which cards burned, which one changed, or what it became.</li>
+      <li>It costs you two cards out of the three rounds you have to play, so it buys surprise with tempo. Two Peasants and a King is a real hand — and nothing about it is guessable from the outside.</li>
+    </ul>
+    <p class="tip">The card you played is public the moment the round resolves, so a duel is also a memory game: count what they have spent, and remember they are counting yours.</p>
+  </section>
+
+  <section class="view card game-card" id="number-clash">
+    <h2><span class="stage-chip stage-duel">Duelist</span> NUMBER CLASH</h2>
+    <p class="cat">Head-to-head · spending</p>
+    <h3>How to play</h3>
+    <ul>
+      <li>You both hold <strong>1 to 9</strong>, each playable once. Every round you both commit one inside an <strong>8-second</strong> window; the higher number takes a point, equal numbers draw, and <strong>both numbers are spent either way</strong>.</li>
+      <li><strong>First to four points</strong> takes the duel, over at most seven rounds. Still level after that and it runs on until someone gets there.</li>
+      <li>Everything played is face up afterwards, so you always know exactly what is left in both hands.</li>
+    </ul>
+    <p class="tip">Beating their 1 with your 9 wins the round and hands them the better trade. The hard question is never which number wins — it is which one is worth spending.</p>
+  </section>
+
+  <section class="view card game-card" id="bid-war">
+    <h2><span class="stage-chip stage-duel">Duelist</span> BID WAR</h2>
+    <p class="cat">Head-to-head · bluff and economy</p>
+    <h3>How to play</h3>
+    <ul>
+      <li>You both start with <strong>20 coins</strong>. Five prizes worth <strong>1 to 5 Victory Points</strong> go up one at a time, in an order the server shuffles. You can see the lot on the block and the one after it, never further.</li>
+      <li>Each round you both name an exact bid inside a <strong>10-second</strong> window. The higher bid takes the prize — and <strong>both bids are spent</strong>. The losing one buys nothing.</li>
+      <li>Equal bids pay nobody and <strong>roll that prize into the next lot</strong>, so a mirror bid makes the following one bigger for both of you.</li>
+      <li><strong>Most Victory Points takes the duel</strong>, however they were bought: three cheap lots lose to one 5. Coins left at the end are worth nothing. If the last lot ties, you both get a fresh five coins and bid again for it.</li>
+    </ul>
+    <p class="tip">Twenty coins over five lots is four a lot on average. Everything you spend early is a lot you cannot contest later, and they are doing the same arithmetic about you.</p>
   </section>
 
   <section class="view card">

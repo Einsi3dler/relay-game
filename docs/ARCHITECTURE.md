@@ -52,6 +52,8 @@ backend/
     game2_*.py     # owned by Game 2 dev
     game3_*.py     # owned by Game 3 dev
     game4_*.py     # owned by Game 4 dev
+    duel_base.py   # DuelModule Protocol + DuelState (the head-to-head contract)
+    duel1_*.py     # a duel game, owned by its author (DUEL_MODULE_SPEC.md)
 ```
 
 > This is the intended layout for the rebuild. The exact filenames for
@@ -78,6 +80,11 @@ backend/
   its specialist role from `config.ROLES`). Games register themselves here; the engine only ever asks
   the registry, never a concrete game. The game a player is served comes from
   **their own `assigned_game`**, not from the team's level.
+  Duels live in a **second list** (`REGISTERED_DUELS`, reached through
+  `duel_by_id`/`pick_duel`/`duel_library`) because they implement a different
+  interface and nobody picks them: `pick_duel(seed)` is the *server's* choice,
+  and keeping them out of `library()` is what keeps them out of the
+  Grandmaster's picker. See [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md).
 - **`engine.py`** — the `RelayEngine`. Pure functions over a `Match`: lobby
   (`claim_leader`, `assign_role`, `assign_game`, `give_leader`, host actions), `start_match`,
   `submit_answer`, `choose_wait`/`choose_bonus`, `on_wait_expired`, `buy_perk`,
@@ -239,6 +246,11 @@ frontend/
     decant.js       # owned by Game 3 dev
     echo.js         # owned by Game 4 dev
     fallback.js     # text / multiple-choice (shell/Frontend owner)
+  duels/
+    rps_duel.js     # duel renderers, on window.RelayDuels (mount/update/unmount)
+    crown_duel.js   # the shell owns the duel card, the round clock and toasts
+    number_clash.js
+    bid_war.js
 ```
 
 ## 6. Concurrency model

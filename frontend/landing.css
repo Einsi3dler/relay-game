@@ -512,6 +512,41 @@ body.relay-page {
 }
 .rl-feature p { color: rgba(255, 255, 255, 0.76); margin-bottom: 18px; max-width: 44ch; }
 
+/* The four duel games, named on the way to their rules. */
+.rl-duel-list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  max-width: 46ch;
+  display: grid;
+  gap: 8px;
+}
+.rl-duel-list a {
+  display: block;
+  padding: 9px 14px;
+  border: 2px solid var(--relay-line-dark);
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.76);
+  text-decoration: none;
+  font-size: 0.92rem;
+  transition: border-color 0.14s ease, transform 0.14s ease;
+}
+.rl-duel-list a:hover,
+.rl-duel-list a:focus-visible {
+  border-color: var(--relay-pink);
+  transform: translateX(3px);
+}
+.rl-duel-list strong {
+  display: block;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rl-duel-list a { transition: none; }
+  .rl-duel-list a:hover, .rl-duel-list a:focus-visible { transform: none; }
+}
+
 /* --- closing CTA ------------------------------------------------------- */
 
 .rl-closer {
@@ -816,6 +851,40 @@ body.relay-page {
   padding: 10px 14px;
 }
 .rl-page-body .sizes { color: var(--relay-muted); font-size: 0.88rem; }
+
+/* The four duels, indexed at the top of the Duelist section. */
+.rl-page-body .duel-index {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.rl-page-body .duel-index a {
+  display: block;
+  padding: 10px 14px;
+  border: 2px solid var(--relay-line-light);
+  border-radius: var(--relay-radius-sm);
+  color: var(--relay-muted);
+  text-decoration: none;
+  transition: border-color 0.14s ease, transform 0.14s ease;
+}
+.rl-page-body .duel-index a:hover,
+.rl-page-body .duel-index a:focus-visible {
+  border-color: var(--relay-pink);
+  transform: translateX(3px);
+}
+.rl-page-body .duel-index strong {
+  display: block;
+  color: var(--relay-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rl-page-body .duel-index a { transition: none; }
+  .rl-page-body .duel-index a:hover,
+  .rl-page-body .duel-index a:focus-visible { transform: none; }
+}
 
 @media (max-width: 699px) {
   .rl-pagehead { padding-bottom: 44px; }

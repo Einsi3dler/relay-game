@@ -49,6 +49,7 @@ things at once?".)
 | **Game 10 — THREADLINE** | Game module + renderer | `backend/games/game10_threadline.py`, `frontend/games/threadline.js`, `tests/games/test_game10_*.py`, `tests/games/fixtures/threadline_cases.json` |
 | **Game 11 — BOMB DEFUSE** | Game module + renderer + the Grandmaster's manual console | `backend/games/game11_bomb_defuse.py`, `frontend/games/bomb_defuse.js`, `frontend/games/bomb_manual.js`, `tests/games/test_game11_*.py`, `tests/games/test_bomb_manual.py`, `tests/games/fixtures/bomb_defuse_cases.json` |
 | **RPS DUEL (Duelist)** | Duel module + renderer | `backend/games/duel1_rps.py`, `backend/games/duel_base.py`, `frontend/duels/rps_duel.js`, `tests/games/test_duel1_rps*.py`, `tests/test_duels.py` |
+| **CROWN DUEL / NUMBER CLASH / BID WAR (Duelist)** | Duel modules + renderers | `backend/games/duel2_crown.py`, `backend/games/duel3_number_clash.py`, `backend/games/duel4_bid_war.py`, `frontend/duels/crown_duel.js`, `frontend/duels/number_clash.js`, `frontend/duels/bid_war.js`, `tests/games/test_duel{2,3,4}_*.py`, `tests/games/duel_renderer_harness.py` |
 | **Frontend** | App shell + leader dashboard + fallback | `frontend/index.html`, `frontend/app.js`, `frontend/style.css`, `frontend/games/fallback.js` |
 
 - Game owners need the **contract** in [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md)

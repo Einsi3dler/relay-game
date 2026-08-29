@@ -231,6 +231,12 @@ async def get_config() -> dict:
         "min_players_default": config.MIN_PLAYERS_PER_TEAM,
         "min_level_count": config.MIN_LEVEL_COUNT,
         "max_level_count": config.max_level_count(),
+        # The host's duel-round picker: the bounds it clamps to, and the values
+        # it offers inside them. `null` in the picker means each duel game
+        # keeps the window it declares for itself.
+        "duel_round_seconds_min": config.DUEL_ROUND_SECONDS_MIN,
+        "duel_round_seconds_max": config.DUEL_ROUND_SECONDS_MAX,
+        "duel_round_seconds_choices": list(config.DUEL_ROUND_SECONDS_CHOICES),
         "team_name_max": config.TEAM_NAME_MAX,
         "level_count": config.LEVEL_COUNT,
         "wait_seconds": config.WAIT_SECONDS,
@@ -248,6 +254,9 @@ async def get_config() -> dict:
             for role_id, role in config.ROLES.items()
         },
         "library": engine.registry.library(),
+        # The duel catalogue, for the host's round-timer note: the Grandmaster
+        # never picks a duel, but the host is setting the clock for all of them.
+        "duels": engine.registry.duel_library(),
     }
 
 
@@ -365,6 +374,8 @@ def _run_lobby_action(match: Match, player_id: str, fields: dict) -> EngineResul
         return engine.host_set_max_players(match, player_id, fields.get("value", 0))
     if action == "set_level_count":
         return engine.host_set_level_count(match, player_id, fields.get("value", 0))
+    if action == "set_duel_seconds":
+        return engine.host_set_duel_seconds(match, player_id, fields.get("value", 0))
     if action == "set_team_name":
         return engine.host_set_team_name(
             match, player_id, fields.get("team_id", ""), fields.get("name", "")

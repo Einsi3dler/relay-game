@@ -36,7 +36,7 @@ and are mirrored client-side in `startBlocker()` in `frontend/app.js`.
 ## 3. The interface
 
 ```python
-DUEL_RULES_VERSION = 1
+DUEL_RULES_VERSION = 2
 SIDES = ("a", "b")          # seats, assigned in config.TEAM_IDS order
 
 @dataclass
@@ -46,7 +46,8 @@ class DuelState:
     wins: dict[str, int]              # side -> round wins
     choices: dict[str, str]           # side -> choice. SERVER ONLY until reveal.
     history: list[dict]               # resolved rounds; safe to show anyone
-    payload: dict                     # render hints
+    payload: dict                     # render hints — sent to everyone verbatim
+    private: dict                     # SERVER ONLY working state. See §4.1.
 
 class DuelModule(Protocol):
     id: str
@@ -55,7 +56,7 @@ class DuelModule(Protocol):
     wins_needed: int      # round wins that take the duel
 
     def new_duel(self, seed: int) -> DuelState: ...
-    def normalize_choice(self, state, choice: object) -> str | None: ...
+    def normalize_choice(self, state, choice, side=None) -> str | None: ...
     def resolve_round(self, state) -> str | None: ...   # "a" | "b" | None (tie)
     def public(self, state, side: str | None, revealed: bool) -> dict: ...
     def reset(self) -> None: ...
@@ -65,15 +66,19 @@ class DuelModule(Protocol):
 
 - **`new_duel(seed)`** — deterministic in `seed`. Return a fresh `DuelState`; never
   carry state on the module, which is a long-lived singleton shared by every match.
-- **`normalize_choice(state, choice)`** — validate *and* canonicalise in one call.
-  Return the canonical move, or `None` if it is illegal. Doing both here is what
-  guarantees `DuelState.choices` only ever holds canonical values, so
+- **`normalize_choice(state, choice, side)`** — validate *and* canonicalise in one
+  call. Return the canonical move, or `None` if it is illegal. Doing both here is
+  what guarantees `DuelState.choices` only ever holds canonical values, so
   `resolve_round` never re-parses client text. Cap the raw input length
   (`MAX_CHOICE_CHARS`) **before** any further work, and never raise — a hostile
-  move is simply not legal.
-- **`resolve_round(state)`** — pure. `"a"`, `"b"`, or `None` for a tie (the engine
+  move is simply not legal. `side` is the seat submitting: a duel whose legal
+  moves depend on who is asking (a card only in *your* hand, a bid only *you* can
+  afford) must check it rather than take the client's word. RPS ignores it.
+- **`resolve_round(state)`** — `"a"`, `"b"`, or `None` for a tie (the engine
   replays the round). **A missing choice must lose**, and both missing must tie, or
-  stalling becomes a strategy.
+  stalling becomes a strategy. It is called exactly once per round, which also
+  makes it the one place a duel that carries state between rounds may advance it
+  — spend the cards, pay the coins, move to the next auction.
 - **`public(state, side, revealed)`** — delegate to `duel_base.base_public`. See §4.
 
 ### Time consequences are yours
@@ -83,6 +88,15 @@ the sanctioned way for duel games to differ: same rules, different time cost. Th
 engine reads them when it schedules the round timer. Everything else — the gap
 between duels, the penalty length, the payout — is engine config
 (`DUEL_*` in `backend/config.py`) and is the same for every duel game.
+
+**The host can override your window.** `host_set_duel_seconds` sets one round
+window for the whole match, across every duel game, so a group can run duels at
+the pace they want; it is frozen into `config_snapshot` at kickoff, because a
+window that moved mid-duel would change the clock under a Duelist who is already
+choosing. Your `choice_seconds` is the default when they set nothing, so it still
+has to be a sane pace for your game. Do not read it back for display: the
+effective window reaches the client as `duel.round_seconds`, and the shell draws
+the countdown from that (§7).
 
 ## 4. The reveal rule (the one that matters)
 
@@ -102,6 +116,39 @@ def public(self, state, side, revealed):
 relay a move to their Duelist mid-round. Once `revealed` is true, both are public.
 
 Do not add the raw `state.choices` to `payload`, and do not build a view by hand.
+
+A canonical choice string must itself be safe to show both players, because one
+path sends it without passing through `public()` at all: the engine stamps the
+resolved round on `DuelSession.last_round`, which `models.DuelSession.public`
+forwards verbatim. Crown Duel is the worked example — a Royal Sacrifice
+canonicalises to the bare word `sacrifice`, and which cards it burned lives in
+`private` instead.
+
+### 4.1 `private` — state the client never sees
+
+`payload` is sent to everyone verbatim; `private` is read by nothing outside your
+module. Put a hand of cards, a coin balance or a shuffled prize order there, and
+publish what you mean to by replacing `payload` in your own `public()`:
+
+```python
+def public(self, state, side, revealed):
+    view = base_public(state, side, revealed)
+    view["payload"] = self._payload(state, side)   # built per viewer
+    return view
+```
+
+Building the payload per viewer is what lets a Duelist see their own hand while
+the opponent sees only a count. A Grandmaster (`side=None`) gets neither.
+
+### 4.2 Scoring the match yourself
+
+`wins_needed` counts **round wins**, which not every duel is decided by. A game
+scored on points (Bid War), or one where the third round settles a best-of-three
+(Crown Duel), owns its own score: set `wins_needed = 1`, keep the score in
+`private`, and return a side from `resolve_round` **only once that side has taken
+the duel**. `None` then means "not decided yet", and the engine's tie path — replay
+the round — is what carries the duel from round to round. `state.wins` stops being
+a scoreline and becomes a flag, so publish the real score in your payload.
 
 ## 5. Lifecycle (what the engine does around you)
 
@@ -161,6 +208,8 @@ object that changes phase under the same id** across many snapshots, where a puz
 is replaced wholesale. Mount once, then update.
 
 - `api.choose(move, duelId, round)` sends `duel_choice`. Never touch the socket.
+- The **round clock is the shell's**, drawn for every duel game from
+  `duel.round_seconds` and the server's deadline. Don't build a second one.
 - Render the opponent's hand **from `duel.choices` alone**. Before the reveal it
   will not be there — show a lock, not a placeholder you could inspect.
 - `duel.you` is your seat, or `null` for a Grandmaster: give them no buttons.
@@ -182,7 +231,8 @@ In `tests/games/test_duelN_<name>.py`. Minimum bar:
    for a Grandmaster while the round is open, and present once revealed. Sweep every
    matchup rather than sampling one. Scope the assertion to the played hands:
    `payload` names every legal move by design, so a naive scan of the whole view
-   will trip on it.
+   will trip on it. A duel with `private` state owes one more: the opponent's hand,
+   purse or prize order must be absent from every served view, at every phase.
 7. **Statelessness** — mutating one `DuelState` doesn't touch the next; the served
    view is a copy.
 8. **`reset()`** — returns `None`, is idempotent, and leaves generation unchanged.
@@ -197,3 +247,11 @@ a double click sends once, and that unmount leaves nothing behind.
 | Duel | Moves | Window | Target | Module |
 |---|---|---|---|---|
 | **RPS DUEL** — rock, paper, scissors | 3 | 5s | first to 2 | `backend/games/duel1_rps.py` |
+| **CROWN DUEL** — five characters, one hidden hand rewrite | 5 cards + the Royal Sacrifice | 10s | 3 rounds, most Crowns (2 settles it) | `backend/games/duel2_crown.py` |
+| **NUMBER CLASH** — 1–9, each spent once | 9 | 8s | first to 4 points | `backend/games/duel3_number_clash.py` |
+| **BID WAR** — 20 coins, 5 secret auctions | 0–balance | 10s | most Victory Points | `backend/games/duel4_bid_war.py` |
+
+The last three carry state between rounds and score themselves (§4.1, §4.2).
+Crown Duel spends *two* engine rounds on one of its own: a strategy round that
+publishes only whether a Royal Sacrifice happened, then the card round it sets
+up. That beat is skipped once neither Duelist can legally sacrifice.

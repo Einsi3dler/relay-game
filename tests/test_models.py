@@ -95,9 +95,9 @@ def test_no_answer_anywhere_in_public_output():
 def test_match_public_shape():
     out = make_match().public()
     assert set(out) == {"id", "status", "host_player_id", "min_players",
-                        "max_players", "level_count", "ended_reason",
-                        "winner_team_id", "config", "teams", "unassigned",
-                        "events", "duel", "me"}
+                        "max_players", "level_count", "duel_round_seconds",
+                        "ended_reason", "winner_team_id", "config", "teams",
+                        "unassigned", "events", "duel", "me"}
     assert out["duel"] is None  # no Duelists in this fixture
     assert out["status"] == "active"
     assert out["winner_team_id"] is None

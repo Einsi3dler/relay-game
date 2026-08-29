@@ -93,6 +93,11 @@
         <select id="level-count" class="round-select"></select>
       </div>
       <p id="round-note" class="sub cap-note"></p>
+      <div class="host-row">
+        <label for="duel-seconds">Duel round timer</label>
+        <select id="duel-seconds" class="round-select"></select>
+      </div>
+      <p id="duel-seconds-note" class="sub cap-note"></p>
       <div class="host-row name-row">
         <label for="name-alpha">🔥 Team name</label>
         <input id="name-alpha" class="team-name-input" maxlength="20" autocomplete="off">
@@ -125,7 +130,10 @@
       <div id="puzzle-mount"></div>
     </div>
     <div id="duel-card" class="card duel-card" hidden>
-      <p class="prompt"><span id="duel-title">⚔️ DUEL</span></p>
+      <p class="prompt">
+        <span id="duel-title">⚔️ DUEL</span>
+        <span id="duel-clock" class="duel-clock" hidden aria-live="off">–</span>
+      </p>
       <div id="duel-timer-bar" class="timer-bar duel-timer" hidden><div id="duel-timer-fill"></div></div>
       <div id="duel-mount"></div>
     </div>
@@ -195,6 +203,7 @@
           <span class="gm-panel__meta">
             <i class="gm-ic gm-ic--spectating gm-ic--sm" aria-hidden="true"></i> Spectating
           </span>
+          <span id="leader-duel-clock" class="duel-clock" hidden aria-live="off">–</span>
         </header>
         <div class="gm-panel__body">
           <p class="gm-panel__note">You can watch, but not the moves. Neither Duelist's hand
@@ -325,6 +334,9 @@
   <script src="/static/games/bomb_manual.js" defer></script>
   <script src="/static/games/bomb_defuse.js" defer></script>
   <script src="/static/duels/rps_duel.js" defer></script>
+  <script src="/static/duels/crown_duel.js" defer></script>
+  <script src="/static/duels/number_clash.js" defer></script>
+  <script src="/static/duels/bid_war.js" defer></script>
   <script src="/static/app.js?v=3" defer></script>
 </body>
 </html>

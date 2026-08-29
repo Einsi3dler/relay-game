@@ -40,6 +40,7 @@ LOBBY_ACTIONS = (
     "set_min_players",
     "set_max_players",
     "set_level_count",
+    "set_duel_seconds",
     "set_team_name",
     "start",
     "cancel_session",

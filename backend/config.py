@@ -98,6 +98,14 @@ DUEL_REVEAL_SECONDS = 3      # reveal beat between rounds of the same duel
 DUEL_PENALTY_SECONDS = 60    # advance lock on the losing team, once per level
 DUEL_WIN_CURRENCY = 2        # paid to the winning team, doubling per...
 DUEL_CURRENCY_CAP = 8        # ...consecutive win, capped here
+# The per-round choice window. Each duel module declares its own natural cost
+# (`choice_seconds`: 5s to throw a hand, 10s to read a hand of cards), and the
+# host may override it for the whole match so every duel runs at the pace their
+# group wants. `None` on the match means each duel keeps its own.
+DUEL_ROUND_SECONDS_MIN = 3   # below this nobody reads the board, they guess
+DUEL_ROUND_SECONDS_MAX = 30
+# What the host's picker offers, inside those bounds.
+DUEL_ROUND_SECONDS_CHOICES = (3, 5, 8, 10, 12, 15, 20, 30)
 
 # Perk catalogue: leader-only purchases from the team currency pool.
 #   "seconds" — the effect duration/extension where the perk has one.
@@ -176,7 +184,10 @@ ROLES: dict[str, dict] = {
     "generalist":       {"name": "Generalist",       "games": None},
     "defuser":          {"name": "Defuser",          "games": ["bomb_defuse"],
                          "fixed": True, "required": True},
-    "duelist":          {"name": "Duelist",          "games": ["rps_duel"], "duel": True},
+    "duelist":          {"name": "Duelist",
+                         "games": ["rps_duel", "crown_duel", "number_clash",
+                                   "bid_war"],
+                         "duel": True},
 }
 
 

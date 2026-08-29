@@ -10,6 +10,12 @@ Pair with [GAME_DESIGN.md](GAME_DESIGN.md) (rules),
 [ARCHITECTURE.md](ARCHITECTURE.md) (system), and — for the concrete games —
 [GAMES_SPEC.md](GAMES_SPEC.md).
 
+> Building a game for the **Duelist** instead? That is a different contract:
+> a duel is one object shared by two players and resolved round by round, not a
+> board generated and checked in isolation. See
+> [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md) — RPS DUEL, CROWN DUEL, NUMBER
+> CLASH and BID WAR are built against it.
+
 > **Relay games are *action* games** (rotate, flag, pour, tap), not
 > type-a-word games. So each one is **two files**: a backend module (this contract)
 > **and** a small frontend renderer. Read §10 "Interactive games" before you start —

@@ -99,6 +99,27 @@ THIS SOFTWARE.
 
 ---
 
+## Duel stages — no third-party assets
+
+The duel-mode handoff spec pointed at DiceBear, Kenney and Game-icons.net for
+Crown Duel's characters, Bid War's coins and the rest. None was needed, and
+nothing was imported:
+
+- Crown Duel's five characters, Number Clash's numerals and Bid War's lots are
+  **text and CSS** — the numerals are real text so they stay crisp and
+  selectable, and the card frames are borders, not images.
+- The card, crown, coin and lock glyphs are **Unicode emoji**, rendered by the
+  reader's own system font. No file ships with them.
+- Backgrounds and panels reuse the existing Relay tokens in
+  `frontend/style.css`.
+
+The supplied mockups were treated as references for layout, not as production
+images: no screenshot is served, and there is no image asset behind any duel
+control. If a duel ever does need artwork, record it here first, under the same
+headings as the packs above.
+
+---
+
 ## Roster avatars — generated locally, no third party
 
 Roster avatars are drawn in the browser from a deterministic seed (match id

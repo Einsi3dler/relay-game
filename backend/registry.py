@@ -12,6 +12,9 @@ from typing import Iterable
 from backend import config
 from backend.games.base import GameModule
 from backend.games.duel1_rps import RockPaperScissorsDuel
+from backend.games.duel2_crown import CrownDuel
+from backend.games.duel3_number_clash import NumberClash
+from backend.games.duel4_bid_war import BidWar
 from backend.games.duel_base import DuelModule
 from backend.games.game1_rewire import RewireGame
 from backend.games.game2_sweep import SweepGame
@@ -47,6 +50,9 @@ REGISTERED_MODULES: list[GameModule] = [
 # of `library()`, and so out of the lobby game picker.
 REGISTERED_DUELS: list[DuelModule] = [
     RockPaperScissorsDuel(),
+    CrownDuel(),
+    NumberClash(),
+    BidWar(),
 ]
 
 
@@ -126,11 +132,16 @@ class GameRegistry:
             raise KeyError("no duel modules registered")
         return duels[seed % len(duels)]
 
-    def duel_library(self) -> list[dict[str, str]]:
-        """All registered duels as `{id, name}` — for the explainer pages, not
+    def duel_library(self) -> list[dict[str, object]]:
+        """All registered duels as `{id, name, choice_seconds}` — for the
+        explainer pages and the host's round-timer note, not
         for the assignment picker."""
         return [
-            {"id": duel.id, "name": duel.name}
+            {
+                "id": duel.id,
+                "name": duel.name,
+                "choice_seconds": duel.choice_seconds,
+            }
             for duel in self._duels_by_id.values()
         ]
 
