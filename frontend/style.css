@@ -117,6 +117,26 @@ input:focus { border-color: var(--sun); }
 }
 .join-team-btn { width: 100%; padding: 9px 12px; min-height: 40px; font-size: 0.9rem; }
 
+/* Which box is yours. The lobby shows both rosters and both sets of roles, so
+   the squads have to be told apart at a glance rather than by reading names. */
+.team-box h2 {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin: 0 0 8px; font-size: 1.05rem;
+}
+.team-sigil { font-size: 1.15rem; }
+.team-tag {
+  font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.08em; padding: 2px 8px; border-radius: 999px;
+  border: 2px solid currentColor;
+}
+.tag-mine { color: var(--green); }
+.tag-theirs { color: var(--muted); }
+.team-box.is-mine { box-shadow: var(--shadow); }
+/* The opponents' box is legible but plainly not yours to work in. */
+.team-box.is-theirs { background: rgba(138, 138, 150, 0.06); }
+.team-box.is-theirs li { font-weight: 500; }
+.lobby-foot { margin: 4px 0 0; font-size: 0.82rem; }
+
 /* host controls */
 .mini-btn {
   border: 2px solid var(--line); background: var(--card); color: var(--ink);
@@ -134,6 +154,29 @@ input:focus { border-color: var(--sun); }
 #start-btn { width: 100%; }
 #start-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 #claim-host { width: 100%; }
+
+/* host: sizing the table, naming the squads, and stopping the session */
+.mini-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.cap-note { margin: -4px 0 14px; font-size: 0.82rem; }
+.name-row { gap: 10px; }
+.name-row label { white-space: nowrap; }
+.team-name-input {
+  flex: 1 1 auto; min-width: 0;
+  border: 2px solid var(--line); border-radius: 10px;
+  padding: 8px 10px; font: inherit; font-weight: 700; color: var(--ink);
+  background: var(--card);
+}
+.team-name-input:focus-visible { outline: 3px solid var(--violet); outline-offset: 1px; }
+.danger-btn { width: 100%; background: var(--alpha); margin-top: 6px; }
+.lobby-actions { display: flex; flex-direction: column; gap: 8px; }
+.leave-btn { align-self: center; border-color: var(--muted); color: var(--muted); }
+
+/* The end-session control rides along with the host once the race is on. */
+.host-live {
+  position: fixed; right: 14px; bottom: 14px; z-index: 40;
+  max-width: 200px;
+}
+.host-live .btn { width: 100%; box-shadow: var(--shadow); }
 
 /* T5.3 readiness strip */
 .strip { padding: 12px 16px; }

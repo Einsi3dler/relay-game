@@ -24,6 +24,7 @@
   var overlayHandle = null;
   var reconnectDelay = 500;
   var finished = false;
+  var leaving = false;   // we asked to go; the close that follows is not a kick
 
   // --- session persistence (refresh restores the match) ---
 
@@ -190,10 +191,19 @@
     socket.onclose = function (event) {
       if (finished) return;
       if (event.code === 4001) return; // superseded by another tab — stand down
-      if (event.code === 4403) {       // kicked by the host
+      if (event.code === 4403) {       // removed from the lobby
         clearSession();
         show("view-join");
-        toast("You were kicked from the lobby.");
+        // Leaving closes the same way being kicked does, so only say "kicked"
+        // when we didn't ask for it.
+        toast(leaving ? "You left the lobby." : "You were kicked from the lobby.");
+        leaving = false;
+        return;
+      }
+      if (event.code === 4402) {       // the host binned the lobby
+        clearSession();
+        show("view-join");
+        toast("The host cancelled the session.");
         return;
       }
       if (event.code === 4404) { clearSession(); show("view-join"); return; }
@@ -224,13 +234,33 @@
     lastState = state;
     $("match-chip").textContent = state.id;
     $("match-chip").hidden = false;
+    renderHostLive(state);
     if (state.status === "lobby") renderLobby(state);
     else if (state.status === "finished") renderResult(state);
     else if (state.me && state.me.is_leader) renderLeader(state);
     else renderPlay(state);
   }
 
+  // The one host control that outlives the lobby. A running match can only be
+  // stopped by the host, so it rides along on both the play and leader views.
+  function renderHostLive(state) {
+    var bar = $("host-live");
+    var mine = state.status === "active" &&
+      state.host_player_id === session.playerId;
+    bar.hidden = !mine;
+    if (!mine) return;
+    $("end-session").onclick = function () {
+      if (!window.confirm("End the match for everyone? No winner is recorded.")) return;
+      sendAction({ action: "end_session" });
+    };
+  }
+
   // --- lobby (teams, leader seats, game assignment) ---
+
+  function teamName(state, teamId) {
+    var team = state.teams[teamId];
+    return (team && team.name) || teamId;
+  }
 
   function playerRow(state, player) {
     var me = player.id === session.playerId;
@@ -261,7 +291,7 @@
         if (player.team_id === pair[0]) return;
         var move = document.createElement("button");
         move.className = "mini-btn";
-        move.title = "Move to " + pair[0];
+        move.title = "Move to " + teamName(state, pair[0]);
         move.textContent = "→" + pair[1];
         move.addEventListener("click", function () {
           sendAction({ action: "move", target_id: player.id, team_id: pair[0] });
@@ -303,9 +333,23 @@
       team.players.forEach(function (player) {
         teamList.appendChild(playerRow(state, player));
       });
+      // The name is the host's to set, so it is read from state every render
+      // rather than baked into the markup.
+      box.querySelector(".team-name").textContent = team.name;
+      var tag = box.querySelector(".team-tag");
+      var isMine = !!me && me.team_id === teamId;
+      tag.hidden = !me;
+      tag.textContent = isMine ? "your squad" : "opponents";
+      tag.className = "team-tag " + (isMine ? "tag-mine" : "tag-theirs");
+      box.classList.toggle("is-mine", isMine);
+      box.classList.toggle("is-theirs", !!me && !isMine);
+
       var joinButton = box.querySelector(".join-team-btn");
-      var cap = ((serverConfig && serverConfig.players_per_team) || 4) + 1;
+      // The seat count is this match's, not the global ceiling: the host may
+      // have sized the table down.
+      var cap = (state.max_players || 1) + 1;
       var full = team.players.length >= cap;
+      joinButton.textContent = "Join " + team.name;
       joinButton.hidden = !me || me.team_id === teamId || full;
       joinButton.onclick = function () {
         sendAction({ action: "set_team", team_id: teamId });
@@ -325,6 +369,8 @@
     var panel = $("host-panel");
     panel.hidden = !iAmHost;
     if (iAmHost) {
+      var ceiling = (serverConfig && serverConfig.max_players_ceiling) ||
+        state.max_players;
       $("min-value").textContent = state.min_players;
       $("min-down").onclick = function () {
         sendAction({ action: "set_min_players", value: state.min_players - 1 });
@@ -332,10 +378,45 @@
       $("min-up").onclick = function () {
         sendAction({ action: "set_min_players", value: state.min_players + 1 });
       };
+      $("min-down").disabled = state.min_players <= 1;
+      $("min-up").disabled = state.min_players >= state.max_players;
+
+      $("max-value").textContent = state.max_players;
+      $("max-down").onclick = function () {
+        sendAction({ action: "set_max_players", value: state.max_players - 1 });
+      };
+      $("max-up").onclick = function () {
+        sendAction({ action: "set_max_players", value: state.max_players + 1 });
+      };
+      $("max-down").disabled = state.max_players <= 1;
+      $("max-up").disabled = state.max_players >= ceiling;
+      // Say where the ceiling comes from, so a host who hits it knows it is a
+      // rule of the game rather than an arbitrary limit.
+      $("cap-note").textContent =
+        "Up to " + ceiling + " per team — one seat per game, plus the Duelist.";
+
+      ["alpha", "bravo"].forEach(function (teamId) {
+        var input = $("name-" + teamId);
+        // Don't fight the host's cursor: only refill a box they aren't in.
+        if (document.activeElement !== input) input.value = state.teams[teamId].name;
+        $("rename-" + teamId).onclick = function () {
+          sendAction({
+            action: "set_team_name", team_id: teamId, name: input.value
+          });
+        };
+        input.onkeydown = function (event) {
+          if (event.key === "Enter") $("rename-" + teamId).click();
+        };
+      });
+
       var blocker = startBlocker(state);
       $("start-btn").disabled = !!blocker;
       $("start-blocker").textContent = blocker || "All set — go!";
       $("start-btn").onclick = function () { sendAction({ action: "start" }); };
+      $("cancel-session").onclick = function () {
+        if (!window.confirm("Cancel the session? Everyone is sent back.")) return;
+        sendAction({ action: "cancel_session" });
+      };
     }
 
     // Host went missing? Anyone can claim the seat.
@@ -343,6 +424,16 @@
     var hostGone = !host || !host.connected;
     $("claim-host").hidden = !hostGone || iAmHost;
     $("claim-host").onclick = function () { sendAction({ action: "claim_host" }); };
+
+    // Anyone may walk away, the host included — the seat passes to whoever is
+    // still here, so leaving never strands the lobby.
+    var leave = $("leave-lobby");
+    leave.hidden = !me;
+    leave.onclick = function () {
+      if (!window.confirm("Leave this lobby?")) return;
+      leaving = true;
+      sendAction({ action: "leave" });
+    };
   }
 
   // The Grandmaster's assignment panel: one row per playing teammate, a role
@@ -484,7 +575,9 @@
           }
         });
         playing.forEach(function (p) {
-          if (p.role && !p.assigned_game && !blocker) {
+          // `has_game`, not `assigned_game`: the other team's pick is masked
+          // in the lobby, but whether they have one is public.
+          if (p.role && !p.has_game && !blocker) {
             blocker = team.name + "'s Grandmaster still needs to assign a game to " +
               p.name + ".";
           }
@@ -1196,8 +1289,16 @@
     $("frozen-overlay").hidden = true;
     show("view-result");
     var mine = state.me ? state.me.team_id : null;
-    var won = state.winner_team_id === mine;
     var levels = (state.config && state.config.level_count) || 10;
+    if (!state.winner_team_id) {
+      // The host stopped it. Nothing was decided, so nobody is told they lost.
+      $("result-emoji").textContent = "⏹";
+      $("result-title").textContent = "Match ended";
+      $("result-sub").textContent =
+        "The host ended the session. No winner was recorded.";
+      return;
+    }
+    var won = state.winner_team_id === mine;
     $("result-emoji").textContent = won ? "🏆🎉" : "😵💨";
     $("result-title").textContent = won ? "You won!" : "You lost!";
     $("result-sub").textContent =

@@ -224,7 +224,12 @@ async def games_page():
 async def get_config() -> dict:
     return {
         "teams": list(config.TEAM_IDS),
-        "players_per_team": config.PLAYERS_PER_TEAM,
+        # The ceiling the registry implies, not a hand-kept number: the client
+        # clamps the host's max-players stepper to it.
+        "players_per_team": engine.max_players_ceiling(),
+        "max_players_ceiling": engine.max_players_ceiling(),
+        "min_players_default": config.MIN_PLAYERS_PER_TEAM,
+        "team_name_max": config.TEAM_NAME_MAX,
         "level_count": config.LEVEL_COUNT,
         "wait_seconds": config.WAIT_SECONDS,
         "perks": {perk_id: dict(perk) for perk_id, perk in config.PERKS.items()},
@@ -354,8 +359,20 @@ def _run_lobby_action(match: Match, player_id: str, fields: dict) -> EngineResul
         return engine.host_kick(match, player_id, fields.get("target_id", ""))
     if action == "set_min_players":
         return engine.host_set_min_players(match, player_id, fields.get("value", 0))
+    if action == "set_max_players":
+        return engine.host_set_max_players(match, player_id, fields.get("value", 0))
+    if action == "set_team_name":
+        return engine.host_set_team_name(
+            match, player_id, fields.get("team_id", ""), fields.get("name", "")
+        )
     if action == "start":
         return engine.host_start(match, player_id)
+    if action == "cancel_session":
+        return engine.host_cancel_session(match, player_id)
+    if action == "end_session":
+        return engine.host_end_session(match, player_id)
+    if action == "leave":
+        return engine.leave_match(match, player_id)
     if action == "claim_leader":
         return engine.claim_leader(match, player_id)
     if action == "assign_role":
@@ -367,6 +384,21 @@ def _run_lobby_action(match: Match, player_id: str, fields: dict) -> EngineResul
             match, player_id, fields.get("target_id", ""), fields.get("game_id", "")
         )
     return engine.claim_host(match, player_id)  # claim_host
+
+
+async def _shutter_cancelled(match_id: str) -> None:
+    """Close every socket of a cancelled lobby and drop the match.
+
+    The same teardown `evict_stale` does, with the close code that tells the
+    client this was the host's doing rather than a lost match.
+    """
+    timers.cancel_match(match_id)
+    for open_socket in manager.drop_match(match_id):
+        with contextlib.suppress(Exception):
+            await open_socket.close(code=protocol.CLOSE_CANCELLED)
+    await store.remove(match_id)
+    locks.discard(match_id)
+    last_activity.pop(match_id, None)
 
 
 def _too_fast(match_id: str, player_id: str) -> bool:
@@ -429,6 +461,12 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
                             with contextlib.suppress(Exception):
                                 await kicked_socket.close(code=protocol.CLOSE_KICKED)
                     await apply_and_broadcast(match, result)
+                    if match.status == "cancelled":
+                        # The lobby is gone. Everyone has the snapshot saying
+                        # so; close them out and drop the match rather than
+                        # leaving a dead code someone can still join.
+                        await _shutter_cancelled(match_id)
+                        return
             elif msg_type == protocol.SUBMIT_ANSWER:
                 if _too_fast(match_id, player_id):
                     await manager.send(socket, protocol.error_message("Too fast."))

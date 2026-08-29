@@ -230,7 +230,7 @@ def test_practice_missions_are_listed_and_playable(client):
 def test_get_config(client):
     body = client.get("/api/config").json()
     assert body["teams"] == ["alpha", "bravo"]
-    assert body["players_per_team"] == config.PLAYERS_PER_TEAM
+    assert body["players_per_team"] == server.engine.max_players_ceiling()
     assert body["level_count"] == config.LEVEL_COUNT
     assert body["wait_seconds"] == config.WAIT_SECONDS
     assert set(body["perks"]) == set(config.PERKS)
@@ -287,7 +287,7 @@ def test_join_returns_player_and_match(client, fake_games):
 
 def test_join_full_and_started_rejected_with_detail(client, fake_games):
     match_id = create_match(client)
-    capacity = config.PLAYERS_PER_TEAM + 1  # playing members + the leader seat
+    capacity = server.engine.max_players_ceiling() + 1  # playing members + the leader
     for i in range(capacity):
         join(client, match_id, f"A{i}", "alpha")
     response = join(client, match_id, "one-too-many", "alpha")

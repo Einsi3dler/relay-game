@@ -78,6 +78,14 @@ class GameRegistry:
     def has(self, game_id: str) -> bool:
         return game_id in self._by_id
 
+    def game_count(self) -> int:
+        """How many game modules are registered.
+
+        This is what caps a team: no two teammates may play the same game
+        (RelayEngine.assign_game), so the library is the seat count.
+        """
+        return len(self._by_id)
+
     def library(self) -> list[dict[str, str | None]]:
         """All registered games as `{id, name, role}` for the assignment UI.
 

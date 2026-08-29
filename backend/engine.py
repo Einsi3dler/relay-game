@@ -141,6 +141,13 @@ class RelayEngine:
 
     # --- lobby (host-controlled; leaders claimed per team) ---
 
+    def max_players_ceiling(self) -> int:
+        """The most playing members a team could ever hold, from the registry.
+
+        Registering a game raises it; the host's own cap is clamped to it.
+        """
+        return config.max_players_per_team(self.registry.game_count())
+
     def create_match(self) -> Match:
         teams = {
             team_id: Team(id=team_id, name=team_id.title())
@@ -150,6 +157,9 @@ class RelayEngine:
             id=uuid4().hex[:8],
             teams=teams,
             min_players=config.MIN_PLAYERS_PER_TEAM,
+            # A fresh match opens at the ceiling; the host narrows it to the
+            # table they actually have.
+            max_players=self.max_players_ceiling(),
         )
 
     def join_match(
@@ -163,7 +173,7 @@ class RelayEngine:
         explicitly. The first joiner becomes host; the host starts the match."""
         if match.status != "lobby":
             raise ValueError("match already started")
-        team_capacity = config.PLAYERS_PER_TEAM + 1  # playing members + a leader
+        team_capacity = match.max_players + 1  # playing members + a leader
         if len(match.players) >= team_capacity * len(match.teams):
             raise ValueError("match is full")
         team: Team | None = None
@@ -241,9 +251,9 @@ class RelayEngine:
         guard = self._host_guard(match, host_id)
         if guard is not None:
             return guard
-        if not isinstance(value, int) or not 1 <= value <= config.PLAYERS_PER_TEAM:
+        if not isinstance(value, int) or not 1 <= value <= match.max_players:
             return EngineResult.rejected(
-                f"min players must be 1..{config.PLAYERS_PER_TEAM}"
+                f"min players must be 1..{match.max_players}"
             )
         match.min_players = value
         result = EngineResult(changed=True)
@@ -251,6 +261,174 @@ class RelayEngine:
             match, result, f"Minimum players per team set to {value}.", "info"
         )
         return result
+
+    def host_set_max_players(
+        self, match: Match, host_id: str, value: int
+    ) -> EngineResult:
+        """The host sizes the table, within what the registry can seat.
+
+        Never below a team that is already fuller than the new cap — the seats
+        are taken, and silently over-filling the match would only surface as an
+        unstartable board later. Never below `min_players` either, which would
+        be a threshold no team could reach.
+        """
+        guard = self._host_guard(match, host_id)
+        if guard is not None:
+            return guard
+        ceiling = self.max_players_ceiling()
+        if not isinstance(value, int) or not 1 <= value <= ceiling:
+            return EngineResult.rejected(
+                f"max players must be 1..{ceiling} — one seat per game, "
+                f"plus the Duelist"
+            )
+        for team in match.teams.values():
+            seated = len(self._playing_members(match, team))
+            if seated > value:
+                return EngineResult.rejected(
+                    f"team {team.name} already has {seated} players"
+                )
+        match.max_players = value
+        result = EngineResult(changed=True)
+        self._add_event(
+            match, result, f"Maximum players per team set to {value}.", "info"
+        )
+        if match.min_players > value:
+            # A minimum above the maximum is a threshold no team could reach.
+            # The host is shrinking the table on purpose, so follow them down
+            # rather than refusing and making them undo the minimum first.
+            match.min_players = value
+            self._add_event(
+                match, result,
+                f"Minimum players per team lowered to {value} to match.", "info",
+            )
+        return result
+
+    def host_set_team_name(
+        self, match: Match, host_id: str, team_id: str, name: str
+    ) -> EngineResult:
+        """The host names a team. Lobby only — a squad does not get renamed
+        out from under a race that is already being run."""
+        guard = self._host_guard(match, host_id)
+        if guard is not None:
+            return guard
+        team = match.teams.get(team_id)
+        if team is None:
+            return EngineResult.rejected(f"unknown team {team_id!r}")
+        cleaned = " ".join(str(name).split())
+        if not cleaned:
+            return EngineResult.rejected("a team needs a name")
+        if len(cleaned) > config.TEAM_NAME_MAX:
+            return EngineResult.rejected(
+                f"a team name is at most {config.TEAM_NAME_MAX} characters"
+            )
+        taken = [
+            other for other in match.teams.values()
+            if other.id != team.id and other.name.casefold() == cleaned.casefold()
+        ]
+        if taken:
+            return EngineResult.rejected("the other team already has that name")
+        was = team.name
+        if cleaned == was:
+            return EngineResult.rejected(f"already called {was}")
+        team.name = cleaned
+        result = EngineResult(changed=True)
+        self._add_event(match, result, f"{was} is now {cleaned}.", "info")
+        return result
+
+    def host_cancel_session(self, match: Match, host_id: str) -> EngineResult:
+        """Bin a lobby that never started. Nothing was played, so there is no
+        result to show — every socket is closed and the match is dropped."""
+        guard = self._is_host(match, host_id)
+        if guard is not None:
+            return guard
+        if match.status != "lobby":
+            return EngineResult.rejected(
+                "the match has started — end it instead of cancelling it"
+            )
+        match.status = "cancelled"
+        match.ended_reason = "host_cancelled"
+        result = EngineResult(changed=True)
+        self._add_event(match, result, "The host cancelled the session.", "info")
+        return result
+
+    def host_end_session(self, match: Match, host_id: str) -> EngineResult:
+        """Stop a running match. It finishes with no winner: the race did not
+        decide anything, and recording one team as champion would be a lie."""
+        guard = self._is_host(match, host_id)
+        if guard is not None:
+            return guard
+        if match.status != "active":
+            return EngineResult.rejected("no match is running")
+        match.status = "finished"
+        match.ended_reason = "host_ended"
+        result = EngineResult(changed=True)
+        # Every clock in the match belongs to a player, a fuse, or the duel.
+        for player in match.players.values():
+            player.status = "finished"
+            player.current_main = None
+            player.current_bonus = None
+            player.choice_pending = False
+            player.timer_kind = None
+            player.timer_deadline = None
+            player.puzzle_deadline = None
+            result.cancel.append(player.id)
+            result.cancel.append(_fuse_scope(player.id))
+        match.duel = None
+        result.cancel.append(DUEL_SCOPE)
+        result.schedule = []
+        self._add_event(match, result, "The host ended the match.", "info")
+        return result
+
+    def leave_match(self, match: Match, player_id: str) -> EngineResult:
+        """A player takes themselves out of the lobby.
+
+        The host may leave like anyone else; the seat passes to whoever is
+        still here rather than stranding the lobby with controls nobody holds.
+        Lobby only: pulling a player out of a running match would leave their
+        team racing against a roster size that counted them.
+        """
+        if match.status != "lobby":
+            return EngineResult.rejected(
+                "you can't leave a running match — ask the host to end it"
+            )
+        player = match.players.get(player_id)
+        if player is None:
+            return EngineResult.rejected("unknown player")
+        if player.team_id is not None:
+            team = match.teams[player.team_id]
+            team.player_ids.remove(player.id)
+            if team.leader_id == player.id:
+                team.leader_id = None
+        del match.players[player.id]
+        result = EngineResult(changed=True, kicked_player_ids=[player.id])
+        self._add_event(match, result, f"{player.name} left.", "info")
+        if match.host_player_id == player.id:
+            self._pass_host_on(match, result)
+        return result
+
+    def _pass_host_on(self, match: Match, result: EngineResult) -> None:
+        """Hand the host seat to somebody still in the lobby.
+
+        A player who has already taken a team is preferred — they are the ones
+        actually here to race — and a connected seat over a dark one. An empty
+        lobby simply has no host, and the next joiner picks it up.
+        """
+        remaining = list(match.players.values())
+        if not remaining:
+            match.host_player_id = None
+            return
+        # Connected before dark, seated before drifting, and then simply whoever
+        # got here first — `match.players` keeps join order, which is a reason a
+        # player can follow rather than an arbitrary pick.
+        order = {player_id: i for i, player_id in enumerate(match.players)}
+        successor = min(
+            remaining,
+            key=lambda p: (not p.connected, p.team_id is None, order[p.id]),
+        )
+        match.host_player_id = successor.id
+        self._add_event(
+            match, result, f"{successor.name} is now hosting.", "info"
+        )
 
     def host_start(
         self, match: Match, host_id: str, now: datetime | None = None
@@ -264,10 +442,15 @@ class RelayEngine:
         return self.start_match(match, now=now)
 
     def claim_host(self, match: Match, player_id: str) -> EngineResult:
-        """Take over a lobby whose host is gone (kick-proof: only claimable
-        while the current host is disconnected or missing)."""
-        if match.status != "lobby":
-            return EngineResult.rejected("match already started")
+        """Take over from a host who is gone (kick-proof: only claimable while
+        the current host is disconnected or missing).
+
+        Allowed in a running match too, not just the lobby: the host holds the
+        only control that can end a session, so a host who closes their tab
+        mid-race must not take that with them.
+        """
+        if match.status not in ("lobby", "active"):
+            return EngineResult.rejected("the match is over")
         player = match.players.get(player_id)
         if player is None:
             return EngineResult.rejected("unknown player")
@@ -548,7 +731,7 @@ class RelayEngine:
             playing = self._playing_members(match, team)
             if len(playing) < match.min_players:
                 return f"team {team.name} needs {match.min_players} player(s)"
-            if len(playing) > config.PLAYERS_PER_TEAM:
+            if len(playing) > match.max_players:
                 return f"team {team.name} has too many players"
             unroled = [p.name for p in playing if p.role is None]
             if unroled:
@@ -605,7 +788,7 @@ class RelayEngine:
         team = match.teams[team_id]
         if player.team_id == team_id:
             return EngineResult.rejected(f"already on team {team.name}")
-        if len(team.player_ids) >= config.PLAYERS_PER_TEAM + 1:
+        if len(team.player_ids) >= match.max_players + 1:
             return EngineResult.rejected(f"team {team.name} is full")
         if player.team_id is not None:
             old_team = match.teams[player.team_id]
@@ -625,8 +808,14 @@ class RelayEngine:
         return result
 
     def _host_guard(self, match: Match, player_id: str) -> EngineResult | None:
+        """The host, in the lobby — every control that shapes a match before it
+        is run. Ending a *running* match is the one host power that outlives the
+        lobby, and it checks `_is_host` directly instead."""
         if match.status != "lobby":
             return EngineResult.rejected("match already started")
+        return self._is_host(match, player_id)
+
+    def _is_host(self, match: Match, player_id: str) -> EngineResult | None:
         if player_id != match.host_player_id:
             return EngineResult.rejected("only the host can do that")
         return None
@@ -638,7 +827,8 @@ class RelayEngine:
             "wait_seconds": config.WAIT_SECONDS,
             "puzzle_grace_seconds": config.PUZZLE_GRACE_SECONDS,
             "level_count": config.LEVEL_COUNT,
-            "players_per_team": config.PLAYERS_PER_TEAM,
+            "players_per_team": match.max_players,
+            "max_players_ceiling": self.max_players_ceiling(),
             "currency_per_clear": config.CURRENCY_PER_CLEAR,
             "currency_bonus_first": config.CURRENCY_BONUS_FIRST,
             "currency_bonus_repeat": config.CURRENCY_BONUS_REPEAT,

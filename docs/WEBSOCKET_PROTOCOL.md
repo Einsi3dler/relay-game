@@ -14,7 +14,7 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
 | Method | Path | Body | Returns |
 | --- | --- | --- | --- |
 | `GET` | `/` | — | landing page (`/play` serves the app) |
-| `GET` | `/api/config` | — | `{ "teams": ["alpha","bravo"], "players_per_team": 4, "level_count": 10, "wait_seconds": 180, "perks": { ... }, "roles": { "<role_id>": {"name": str, "games": [<game_id>, ...] \| null}, ... }, "library": [ {"id","name","role"}, ... ] }` |
+| `GET` | `/api/config` | — | `{ "teams": ["alpha","bravo"], "players_per_team": 12, "max_players_ceiling": 12, "min_players_default": 4, "team_name_max": 20, "level_count": 10, "wait_seconds": 180, "perks": { ... }, "roles": { "<role_id>": {"name": str, "games": [<game_id>, ...] \| null}, ... }, "library": [ {"id","name","role"}, ... ] }` |
 | `POST` | `/api/matches` | `{}` | `{ "match": <MatchPublic> }` — creates a match, returns its id |
 | `POST` | `/api/matches/{id}/join` | `{ "name": str, "team_id": "alpha"\|"bravo"\|null }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` |
 | `GET` | `/api/matches/{id}` | — | `{ "match": <MatchPublic> }` (spectate / rejoin lookup) |
@@ -28,7 +28,7 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
 - `team_id: null` (the normal client flow) → the player joins **unassigned** and
   picks a team in the lobby (or the host assigns one).
 - The **first joiner becomes the match host**.
-- Join fails with `400` if the chosen team is full (`players_per_team + 1`,
+- Join fails with `400` if the chosen team is full (`max_players + 1`,
   the extra seat being the Grandmaster), the match is full, or the match has already
   started/finished. Body: `{ "detail": "<reason>" }`.
 - Invite links: `/play?match={id}` routes the visitor straight to the join flow.
@@ -47,7 +47,12 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 - **One socket per player.** A new connection with the same `player_id`
   **supersedes** the old one (old socket closed with `4001`).
 - A player kicked by the host is closed with code `4403`; their `player_id` is
-  dead from then on (`4404` on reconnect attempts).
+  dead from then on (`4404` on reconnect attempts). A player who sends `leave`
+  is closed the same way — the client tracks that it asked, so it can say "you
+  left" rather than "you were kicked".
+- When the host sends `cancel_session`, every socket is closed with `4402` and
+  the match is evicted: the code stops resolving, so nobody can rejoin a lobby
+  that no longer exists.
 - `player_id` is the socket's **only credential** — treat it like a session token.
 
 ### 2.1 Client → Server messages
@@ -62,7 +67,7 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 | `give_leader` | `target_id: str` | Grandmaster-only. Lobby: moves the seat. Active match: full swap, once per team per level (see [GAME_DESIGN.md](GAME_DESIGN.md) §11). |
 | `request_state` | — | Ask for a fresh `state_snapshot` (e.g. after reconnect). |
 | `heartbeat` | — | Keep-alive; server replies with a `state_snapshot`. |
-| `lobby_action` | `action: str` + action fields | Lobby-only. `set_team {team_id}` (self), `claim_leader` (seat empty or holder disconnected), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `start`; `claim_host` (only while the host is gone). |
+| `lobby_action` | `action: str` + action fields | Mostly lobby-only. `set_team {team_id}` (self), `leave` (self; the host seat passes on), `claim_leader` (seat empty or holder disconnected), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `set_max_players {value}` (1..ceiling; pulls `min_players` down with it), `set_team_name {team_id, name}`, `start`, `cancel_session`; `claim_host` (only while the host is gone). **Outside the lobby:** `end_session` (host-only, running match) and `claim_host` also work — the host holds the only control that stops a session. |
 
 - `puzzle_id` **must** match the player's current puzzle id, or the server replies
   `error` ("Puzzle is no longer active") and ignores it.

@@ -24,7 +24,7 @@ It rewards a team that is *evenly* fast — and a Grandmaster who plays the meta
 | Concept | Value | Notes |
 | --- | --- | --- |
 | Teams per match | 2 (Alpha, Bravo) | Fixed. |
-| Playing members per team | `PLAYERS_PER_TEAM` (default 30) | Plus **one Grandmaster** each — 31 people per team by default. |
+| Playing members per team | Host-set, 1..ceiling | The ceiling is one seat per registered game **+ 1 Duelist** (12 today) — a team never fields two players on the same game. Plus **one Grandmaster** each. |
 | Levels per match | `LEVEL_COUNT` (default 10) | Whole team advances together. |
 | Game per player | Chosen by the Grandmaster from the library | **No two teammates play the same game.** |
 | Win condition | First team to clear level `LEVEL_COUNT` | See §6. |

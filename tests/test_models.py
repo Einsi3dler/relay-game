@@ -95,6 +95,7 @@ def test_no_answer_anywhere_in_public_output():
 def test_match_public_shape():
     out = make_match().public()
     assert set(out) == {"id", "status", "host_player_id", "min_players",
+                        "max_players", "ended_reason",
                         "winner_team_id", "config", "teams", "unassigned",
                         "events", "duel", "me"}
     assert out["duel"] is None  # no Duelists in this fixture
@@ -196,7 +197,7 @@ def test_player_public_shape_and_green_derivation():
     match = make_match()
     out = match.players["p_cara"].public()
     assert set(out) == {"id", "name", "team_id", "status", "green", "connected",
-                        "is_leader", "role", "assigned_game"}
+                        "is_leader", "role", "assigned_game", "has_game"}
     assert out["green"] is True and out["connected"] is False
     assert match.players["p_alice"].public()["green"] is False
     assert match.players["p_bob"].public()["green"] is False  # bonus isn't green
@@ -208,7 +209,8 @@ def test_player_private_adds_puzzle_timer_choice_freeze():
     match = make_match()
     out = match.public("p_bob")["me"]
     assert set(out) == {"id", "name", "team_id", "status", "green", "connected",
-                        "is_leader", "role", "assigned_game", "current_puzzle",
+                        "is_leader", "role", "assigned_game", "has_game",
+                        "current_puzzle",
                         "timer_kind", "timer_deadline", "puzzle_deadline",
                         "choice_pending", "frozen_until", "screen_effects"}
     assert out["current_puzzle"]["game_id"] == "sweep"  # the bonus puzzle

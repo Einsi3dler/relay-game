@@ -60,7 +60,7 @@ backend/
 ### Responsibilities
 
 - **`config.py`** — single home for `WAIT_SECONDS=180`, `LEVEL_COUNT=10`,
-  `PLAYERS_PER_TEAM=30`, `MIN_PLAYERS_PER_TEAM=4`, `CURRENCY_PER_CLEAR`,
+  `max_players_per_team(game_count)`, `MIN_PLAYERS_PER_TEAM=4`, `CURRENCY_PER_CLEAR`,
   `CURRENCY_BONUS_FIRST/REPEAT`, `BONUS_LEVEL_OFFSET`, the `PERKS` catalogue
   (plus `SCREEN_EFFECTS`, the effect ids the client can render),
   the `ROLES` catalogue (with the `role_allows`/`role_assignable`/

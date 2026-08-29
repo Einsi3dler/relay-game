@@ -46,16 +46,22 @@
       </div>
       <div class="lobby-teams">
         <div id="lobby-team-alpha" class="team-box team-alpha-box">
-          <h2>🔥 Alpha</h2><ul></ul>
-          <button class="btn team-alpha join-team-btn" data-team="alpha">Join Alpha</button>
+          <h2><span class="team-sigil">🔥</span> <span class="team-name"></span>
+            <span class="team-tag" hidden></span></h2>
+          <ul></ul>
+          <button class="btn team-alpha join-team-btn" data-team="alpha">Join</button>
           <button class="mini-btn claim-leader-btn" data-team="alpha" hidden>🎖️ Claim Grandmaster</button>
         </div>
         <div id="lobby-team-bravo" class="team-box team-bravo-box">
-          <h2>🌊 Bravo</h2><ul></ul>
-          <button class="btn team-bravo join-team-btn" data-team="bravo">Join Bravo</button>
+          <h2><span class="team-sigil">🌊</span> <span class="team-name"></span>
+            <span class="team-tag" hidden></span></h2>
+          <ul></ul>
+          <button class="btn team-bravo join-team-btn" data-team="bravo">Join</button>
           <button class="mini-btn claim-leader-btn" data-team="bravo" hidden>🎖️ Claim Grandmaster</button>
         </div>
       </div>
+      <p class="sub lobby-foot">Roles are open to both sides; the games each
+        squad is bringing stay with that squad until the race starts.</p>
     </div>
     <div id="assign-panel" class="card" hidden>
       <h2>🎖️ Assign roles &amp; games</h2>
@@ -72,11 +78,33 @@
           <button id="min-up" class="mini-btn">+</button>
         </span>
       </div>
+      <div class="host-row">
+        <span>Max players per team</span>
+        <span class="stepper">
+          <button id="max-down" class="mini-btn">−</button>
+          <strong id="max-value">12</strong>
+          <button id="max-up" class="mini-btn">+</button>
+        </span>
+      </div>
+      <p id="cap-note" class="sub cap-note"></p>
+      <div class="host-row name-row">
+        <label for="name-alpha">🔥 Team name</label>
+        <input id="name-alpha" class="team-name-input" maxlength="20" autocomplete="off">
+        <button id="rename-alpha" class="mini-btn">Rename</button>
+      </div>
+      <div class="host-row name-row">
+        <label for="name-bravo">🌊 Team name</label>
+        <input id="name-bravo" class="team-name-input" maxlength="20" autocomplete="off">
+        <button id="rename-bravo" class="mini-btn">Rename</button>
+      </div>
       <button id="start-btn" class="btn team-auto">🚦 Start the race</button>
       <p id="start-blocker" class="sub"></p>
+      <button id="cancel-session" class="btn danger-btn">✖ Cancel session</button>
+      <p class="sub">Bins the lobby for everyone. Nothing has been played yet.</p>
     </div>
-    <div class="view">
+    <div class="view lobby-actions">
       <button id="claim-host" class="btn team-auto" hidden>🙋 Claim host</button>
+      <button id="leave-lobby" class="mini-btn leave-btn">🚪 Leave the lobby</button>
     </div>
   </section>
 
@@ -138,6 +166,10 @@
     </div>
     <ul id="leader-feed" class="feed"></ul>
   </section>
+
+  <div id="host-live" class="host-live" hidden>
+    <button id="end-session" class="btn danger-btn">⏹ End session</button>
+  </div>
 
   <!-- result -->
   <section id="view-result" class="view card" hidden>
