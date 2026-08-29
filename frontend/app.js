@@ -23,6 +23,13 @@
   var toastHandle = null;
   var overlayHandle = null;
   var reconnectDelay = 500;
+  var heartbeatHandle = null;
+  // The server evicts a match after MATCH_TTL_SECONDS with no client message.
+  // A lobby waiting on the last player, or a team thinking hard, sends nothing
+  // at all, so being connected is not by itself enough to stay alive. The
+  // protocol has a heartbeat for exactly this; well inside the eviction window
+  // so a couple of missed beats cost nothing.
+  var HEARTBEAT_MS = 240000;
   var finished = false;
   var leaving = false;   // we asked to go; the close that follows is not a kick
 
@@ -189,9 +196,10 @@
       scheme + "://" + window.location.host +
       "/ws/matches/" + session.matchId + "?player_id=" + session.playerId
     );
-    socket.onopen = function () { reconnectDelay = 500; };
+    socket.onopen = function () { reconnectDelay = 500; startHeartbeat(); };
     socket.onmessage = function (message) { handle(JSON.parse(message.data)); };
     socket.onclose = function (event) {
+      clearInterval(heartbeatHandle);
       if (finished) return;
       if (event.code === 4001) return; // superseded by another tab — stand down
       if (event.code === 4403) {       // removed from the lobby
@@ -213,6 +221,13 @@
       setTimeout(connect, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, 5000);
     };
+  }
+
+  function startHeartbeat() {
+    clearInterval(heartbeatHandle);
+    heartbeatHandle = setInterval(function () {
+      send({ type: "heartbeat" });
+    }, HEARTBEAT_MS);
   }
 
   function handle(message) {

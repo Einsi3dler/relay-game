@@ -829,6 +829,10 @@ def shell() -> dict:
             {"do": "push", "message": {
                 "type": "level_advanced", "team_id": "bravo", "level": 4}},
             {"do": "record", "as": "theirs_advanced"},
+            # Nothing else is sent while a Grandmaster only watches, so this is
+            # the only thing keeping the match off the eviction sweep.
+            {"do": "advance", "ms": 15 * 60 * 1000},
+            {"do": "record", "as": "idle"},
         ],
     })
     expected["dashboard"] = {
@@ -1385,10 +1389,11 @@ def test_the_bar_goes_away_again_and_stops_ticking(shell):
     back = shell["countdown"]["records"]["back_to_solving"]
     assert back["countdown"]["bar_hidden"] is True
     assert back["countdown"]["label_hidden"] is True
-    # One interval survives, and only one: `renderScreenEffects` re-arms its
-    # heartbeat on every render (app.js) whether or not an effect is running.
-    # The countdown's own interval is not among them.
-    assert back["timers"] == 1
+    # Two intervals survive, and only two: `renderScreenEffects` re-arms its own
+    # on every render whether or not an effect is running, and the connection
+    # heartbeat runs for the life of the socket. The countdown's own interval is
+    # not among them.
+    assert back["timers"] == 2
 
 
 # --- the Grandmaster command dashboard -------------------------------------
@@ -1536,3 +1541,14 @@ def test_avatars_need_no_network_and_are_stable_per_player(shell):
     # Same seed, same face, every client and every redraw.
     assert live["avatars"]["distinct"] >= 2
     assert live["avatars"] == _dash(shell, "broke")["avatars"]
+
+
+def test_a_watching_grandmaster_keeps_the_match_alive(shell):
+    """The server evicts a match after MATCH_TTL_SECONDS with no client message,
+    and a Grandmaster who only watches sends nothing at all. The protocol has a
+    heartbeat for this; until now nothing sent it."""
+    sent = shell["dashboard"]["sent"]
+    beats = [message for message in sent if message["type"] == "heartbeat"]
+    # Fifteen idle minutes, comfortably inside the 30-minute eviction window.
+    assert len(beats) >= 3, sent
+    assert all(set(beat) == {"type"} for beat in beats)
