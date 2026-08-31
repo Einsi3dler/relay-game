@@ -304,17 +304,22 @@ function boot(scenario) {
     setInterval: (fn, ms) => schedule(fn, ms, ms),
     clearInterval: cancel,
     WebSocket: FakeSocket,
-    fetch: (path) => settled({
-      ok: true,
-      json: () => settled(
-        path === "/api/config" ? scenario.config
-          // The design gallery boots off one canned snapshot instead of a
-          // socket (backend/preview.py); the plan carries what it would fetch.
-          : String(path).indexOf("/api/preview") === 0
-            ? { state: scenario.preview }
-            : {}
-      ),
-    }),
+    fetch: (path) => {
+      if (path === "/api/config") {
+        return settled({ ok: true, json: () => settled(scenario.config) });
+      }
+      // The design gallery boots off one canned snapshot instead of a socket
+      // (backend/preview.py). Served by *exact URL*, the way the route is: a
+      // client that forwarded a query the server would not accept gets the
+      // same 404 here, instead of a stub that answers anything.
+      if (String(path).indexOf("/api/preview") === 0) {
+        const found = (scenario.previews || {})[String(path)];
+        return settled({
+          ok: !!found, json: () => settled({ state: found }),
+        });
+      }
+      return settled({ ok: true, json: () => settled({}) });
+    },
     sessionStorage: {
       getItem: (key) => (key in storage ? storage[key] : null),
       setItem: (key, value) => { storage[key] = String(value); },
@@ -727,14 +732,18 @@ PREVIEW_BOOTS = (
 
 
 def _preview_snapshot(search: str) -> dict:
-    """The snapshot the gallery route would serve for this query string."""
+    """The snapshot the gallery route serves for this query string.
+
+    Parsed the way the route parses it, so the harness cannot serve a snapshot
+    the real server would have refused.
+    """
     query = dict(
         pair.split("=", 1) for pair in search.lstrip("?").split("&") if "=" in pair
     )
-    state = query.pop("preview", "")
+    name = query.pop("preview", "")
     query.pop("key", None)
-    built = preview.snapshot(state, **query)
-    assert built is not None, f"no preview named {state!r}"
+    built = preview.snapshot(name, **query)
+    assert built is not None, f"no preview named {name!r}"
     return built
 
 
@@ -1199,7 +1208,8 @@ def shell() -> dict:
             "config": _config_body(_engine()),
             "session": None,
             "search": search,
-            "preview": _preview_snapshot(search),
+            # Keyed by the URL the client must ask for, not by scenario name.
+            "previews": {f"/api/preview{search}": _preview_snapshot(search)},
             "snapshots": [],
             "actions": [{"do": "record", "as": "booted"}],
         })
