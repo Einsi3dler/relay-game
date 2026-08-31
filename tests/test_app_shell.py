@@ -29,7 +29,7 @@ from pathlib import Path
 
 import pytest
 
-from backend import config
+from backend import config, preview
 from backend.engine import EngineResult, RelayEngine
 from backend.games.duel1_rps import RockPaperScissorsDuel
 from backend.registry import REGISTERED_MODULES, GameRegistry
@@ -306,7 +306,14 @@ function boot(scenario) {
     WebSocket: FakeSocket,
     fetch: (path) => settled({
       ok: true,
-      json: () => settled(path === "/api/config" ? scenario.config : {}),
+      json: () => settled(
+        path === "/api/config" ? scenario.config
+          // The design gallery boots off one canned snapshot instead of a
+          // socket (backend/preview.py); the plan carries what it would fetch.
+          : String(path).indexOf("/api/preview") === 0
+            ? { state: scenario.preview }
+            : {}
+      ),
     }),
     sessionStorage: {
       getItem: (key) => (key in storage ? storage[key] : null),
@@ -330,7 +337,7 @@ function boot(scenario) {
   context.window = {
     location: {
       protocol: "http:", host: "relay.test", origin: "http://relay.test",
-      search: "",
+      search: scenario.search || "",
     },
     history: { replaceState() {} },
     confirm: () => true,
@@ -567,7 +574,7 @@ function probe(shell) {
     },
     timers: clock.timers.size,
     mounted_games: shell.mounts.slice(),
-    sent_submits: (shell.sockets[0].sent || [])
+    sent_submits: ((shell.sockets[0] && shell.sockets[0].sent) || [])
       .filter((m) => m.type === "submit_answer").length,
   };
 }
@@ -578,8 +585,15 @@ const report = {};
 PLAN.scenarios.forEach((scenario) => {
   const shell = boot(scenario);
   const socket = shell.sockets[0];
-  if (!socket) throw new Error(scenario.name + ": the shell never opened a socket");
-  socket.onopen({});
+  if (scenario.search) {
+    // A gallery boot renders one fetched snapshot and stops. Opening a socket
+    // would mean the design gallery had joined somebody's match.
+    if (socket) throw new Error(scenario.name + ": a preview opened a socket");
+  } else if (!socket) {
+    throw new Error(scenario.name + ": the shell never opened a socket");
+  } else {
+    socket.onopen({});
+  }
   const records = {};
   scenario.actions.forEach((action) => {
     if (action.do === "deliver") {
@@ -612,7 +626,11 @@ PLAN.scenarios.forEach((scenario) => {
       throw new Error("unknown action " + action.do);
     }
   });
-  report[scenario.name] = { records: records, url: socket.url, sent: socket.sent };
+  report[scenario.name] = {
+    records: records,
+    url: socket ? socket.url : null,     // a gallery boot has no socket
+    sent: socket ? socket.sent : [],
+  };
 });
 
 report._ids = Object.keys(boot(PLAN.scenarios[0]).byId).sort();
@@ -694,6 +712,30 @@ def _ready_lobby(engine: RelayEngine):
         _seat(engine, match, leaders, seats[team_id][0], "defuser")
         _seat(engine, match, leaders, seats[team_id][1], "generalist", FILLER[0])
     return match, seats, leaders
+
+
+# Gallery entries worth proving the client can still draw: one per view the
+# shell has. The query string is what the browser would carry.
+PREVIEW_BOOTS = (
+    ("lobby", "?preview=lobby&key=dev"),
+    ("solving", "?preview=solving&key=dev"),
+    ("cleared", "?preview=cleared&key=dev"),
+    ("leader", "?preview=leader&key=dev"),
+    ("won", "?preview=won&key=dev"),
+    ("duel", "?preview=duel&game=crown_duel&phase=reveal&key=dev"),
+)
+
+
+def _preview_snapshot(search: str) -> dict:
+    """The snapshot the gallery route would serve for this query string."""
+    query = dict(
+        pair.split("=", 1) for pair in search.lstrip("?").split("&") if "=" in pair
+    )
+    state = query.pop("preview", "")
+    query.pop("key", None)
+    built = preview.snapshot(state, **query)
+    assert built is not None, f"no preview named {state!r}"
+    return built
 
 
 def _blocker_cases() -> list[tuple[str, RelayEngine, object, str]]:
@@ -1145,6 +1187,22 @@ def shell() -> dict:
             {"do": "record", "as": "thawed"},
         ],
     })
+
+    # --- the design gallery, booted the way the browser boots it -------------
+    # `/play?preview=<state>` renders one canned snapshot from
+    # backend/preview.py and opens no socket. These run the shipped app.js
+    # against the real snapshots, so a gallery entry that stopped rendering
+    # fails here rather than in front of whoever opened it.
+    for name, search in PREVIEW_BOOTS:
+        scenarios.append({
+            "name": f"preview:{name}",
+            "config": _config_body(_engine()),
+            "session": None,
+            "search": search,
+            "preview": _preview_snapshot(search),
+            "snapshots": [],
+            "actions": [{"do": "record", "as": "booted"}],
+        })
 
     plan = {"now_ms": NOW_MS, "scenarios": scenarios}
     with tempfile.TemporaryDirectory() as tmp:
@@ -1703,3 +1761,46 @@ def test_the_host_can_set_one_window_for_every_duel(shell):
     # The note reads the catalogue rather than restating it, so it cannot drift.
     assert "Rock Paper Scissors 5s" in control["note"]
     assert "Crown Duel 10s" in control["note"]
+
+
+# --- the design gallery ---------------------------------------------------
+#
+# `/play?preview=<state>` is a dev tool, but it is only worth having if it
+# still draws. These run the shipped app.js against the real snapshots from
+# backend/preview.py, so a gallery entry that stopped rendering fails here
+# rather than in front of whoever opened it.
+
+@pytest.mark.parametrize("name,view", [
+    ("lobby", "view-lobby"),
+    ("solving", "view-play"),
+    ("cleared", "view-play"),
+    ("leader", "view-leader"),
+    ("won", "view-result"),
+    ("duel", "view-play"),
+])
+def test_every_gallery_entry_renders_its_view(shell, name, view):
+    assert shell[f"preview:{name}"]["records"]["booted"]["view"] == [view]
+
+
+def test_a_gallery_boot_never_opens_a_socket(shell):
+    """Read-only by construction. A preview that connected would be joining
+    somebody's match to look at a screenshot."""
+    for name, _ in PREVIEW_BOOTS:
+        entry = shell[f"preview:{name}"]
+        assert entry["url"] is None and entry["sent"] == []
+
+
+def test_the_gallery_draws_real_content_not_an_empty_frame(shell):
+    booted = {
+        name: shell[f"preview:{name}"]["records"]["booted"]
+        for name, _ in PREVIEW_BOOTS
+    }
+    # A real board, mounted by its own renderer.
+    assert booted["solving"]["mounted_games"], "no game renderer mounted"
+    # The wait clock, running.
+    assert booted["cleared"]["countdown"]["bar_hidden"] is False
+    # The duel card, with the round it was built for.
+    assert booted["duel"]["duel_clock"]["card_hidden"] is False
+    assert "Crown Duel" in booted["duel"]["duel_clock"]["title"]
+    # The Grandmaster's dashboard, with a roster on it.
+    assert booted["leader"]["dashboard"]["roster"]

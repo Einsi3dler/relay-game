@@ -44,6 +44,7 @@ backend/
   timers.py        # TimerService: schedules deadline callbacks into the engine
   protocol.py      # message (de)serialisation helpers + type constants
   main.py          # FastAPI app: REST routes, WebSocket endpoint, ConnectionManager
+  preview.py       # dev only: the /preview design gallery (every screen, on demand)
   games/
     __init__.py
     base.py        # GameModule Protocol/ABC + PuzzleInstance helpers (from spec)

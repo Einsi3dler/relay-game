@@ -80,6 +80,41 @@
     socket.send(JSON.stringify(fields));
   }
 
+  // --- the design gallery ---------------------------------------------
+  //
+  // `/play?preview=<state>&key=<key>` renders one canned snapshot from
+  // backend/preview.py and never opens a socket, so every screen that only
+  // exists inside a running match can be looked at on demand. Read-only by
+  // construction: `send()` above already no-ops without a socket, so the
+  // controls draw and do nothing.
+
+  function previewParam() {
+    return new URLSearchParams(window.location.search).get("preview");
+  }
+
+  function startPreview() {
+    fetch("/api/preview" + window.location.search)
+      .then(function (response) {
+        if (!response.ok) throw new Error("no preview named " + previewParam());
+        return response.json();
+      })
+      .then(function (body) {
+        var state = body.state;
+        // render() and the host controls read the viewer off the session, so
+        // the preview borrows the identity its snapshot was built for.
+        session = {
+          matchId: state.id,
+          playerId: (state.me && state.me.id) || "",
+          name: (state.me && state.me.name) || "",
+        };
+        render(state);
+      })
+      .catch(function (error) {
+        show("view-join");
+        showJoinError(error.message);
+      });
+  }
+
   function sendAction(fields) {
     fields.type = "lobby_action";
     send(fields);
@@ -1772,7 +1807,7 @@
 
   // --- boot ---
 
-  fetch("/api/config")
+  var configLoaded = fetch("/api/config")
     .then(function (r) { return r.json(); })
     .then(function (body) {
       serverConfig = body;
@@ -1781,15 +1816,23 @@
       });
     })
     .catch(function () {});
-  bindLanding();
-  var saved = loadSession();
-  var invited = inviteParam();
-  // An invite for a *different* match beats a stale saved session.
-  if (saved && saved.matchId && saved.playerId &&
-      (!invited || invited === saved.matchId)) {
-    session = saved;
-    connect(); // snapshot on connect restores the right view
+
+  if (previewParam()) {
+    // The design gallery (backend/preview.py): render one canned state and
+    // open no socket. Waits for the config so the panels that read the perk
+    // catalogue and the role list draw properly.
+    configLoaded.then(startPreview);
   } else {
-    show("view-join");
+    bindLanding();
+    var saved = loadSession();
+    var invited = inviteParam();
+    // An invite for a *different* match beats a stale saved session.
+    if (saved && saved.matchId && saved.playerId &&
+        (!invited || invited === saved.matchId)) {
+      session = saved;
+      connect(); // snapshot on connect restores the right view
+    } else {
+      show("view-join");
+    }
   }
 })();
