@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from backend import config, protocol
+from backend import config, preview, protocol
 from backend.engine import EngineResult, RelayEngine
 from backend.models import LEADER_ONLY_EVENT_KINDS, Match
 from backend.registry import REGISTERED_MODULES, GameRegistry
@@ -218,6 +218,40 @@ async def explore_page():
 @app.get("/games", response_model=None)
 async def games_page():
     return _serve_page("games.html")
+
+
+# --- the design gallery (backend/preview.py) ------------------------------
+# A dev tool, not part of the game: every page and every screen state on
+# demand, so the ones that only exist inside a running match can be looked at
+# while they are being redesigned. A wrong key 404s like any unknown path.
+
+
+@app.get(preview.PREVIEW_PATH, response_model=None)
+async def preview_gallery(key: str | None = None):
+    if not preview.enabled(key):
+        raise HTTPException(status_code=404, detail="Not found.")
+    return HTMLResponse(preview.gallery_html(key))
+
+
+@app.get("/api/preview")
+async def preview_snapshot(
+    key: str | None = None,
+    state: str = "",
+    game: str | None = None,
+    phase: str | None = None,
+    effect: str | None = None,
+) -> dict:
+    if not preview.enabled(key):
+        raise HTTPException(status_code=404, detail="Not found.")
+    params = {
+        name: value
+        for name, value in (("game", game), ("phase", phase), ("effect", effect))
+        if value
+    }
+    built = preview.snapshot(state, **params)
+    if built is None:
+        raise HTTPException(status_code=404, detail=f"No preview named {state!r}.")
+    return {"state": built}
 
 
 @app.get("/api/config")

@@ -116,6 +116,27 @@ players), open that many tabs per team, and verify:
    opponent) and can hand the seat to a teammate (full swap) once per level.
 7. The first team to clear the last level sees the win screen; the other the loss.
 
+### The design gallery
+
+Most of this product only exists inside a running match, which makes the screens
+you most want to redesign the hardest ones to look at. With the server running:
+
+```text
+http://127.0.0.1:8000/preview?key=dev
+```
+
+Every page and every screen state, on one page: the lobby, a board mid-race, the
+wait-or-bonus choice, the Grandmaster's dashboard, each duel in both phases, each
+screen-effect perk, the win and loss screens, and a practice link per game. Each
+entry runs the **real client** against a throwaway match built by the engine
+(`backend/preview.py`), so what you see is the live components rather than a mock
+that drifts. They are read-only: the controls draw and send nothing, because
+there is no socket behind them.
+
+The key is `RELAY_PREVIEW_KEY`, default `dev`. A wrong key is a 404. Set the
+variable if the server is reachable by anyone but you — the default is in the
+source, and the source is public.
+
 For a fuller playtest (V6/V7), follow [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md).
 
 For a shorter run, temporarily set `LEVEL_COUNT = 2` in `backend/config.py` —
