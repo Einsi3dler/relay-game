@@ -16,6 +16,7 @@ by running the shipped client against these same snapshots.
 
 from __future__ import annotations
 
+import pathlib
 import re
 
 import pytest
@@ -101,16 +102,39 @@ def test_the_public_pages_are_all_listed(client):
 
 
 def test_every_preview_link_has_a_working_snapshot_behind_it(client):
-    """A `/play?preview=` link serves the shell whatever you ask for, so the
-    link resolving proves nothing. This asks the API the same question the
-    browser will."""
+    """The load-bearing test, and the one that was wrong.
+
+    `/play?preview=X` serves the shell whatever you ask it for, so the link
+    resolving proves nothing at all: the client then forwards that query string
+    **verbatim** to /api/preview, and if the API spells the parameter
+    differently every gallery entry 404s into the join view. It shipped that
+    way once because this test rewrote the query before asking. So: the query
+    goes to the API exactly as the page wrote it, character for character.
+    """
+    checked = 0
     for href in links(client):
         if "preview=" not in href:
             continue
-        query = href.split("?", 1)[1].replace("preview=", "state=")
+        query = href.split("?", 1)[1]
         response = client.get(f"/api/preview?{query}")
         assert response.status_code == 200, href
         assert response.json()["state"]["id"], href
+        checked += 1
+    assert checked >= len(REGISTERED_DUELS) * 2, "the shell entries went missing"
+
+
+def test_the_client_reads_the_parameter_the_gallery_writes(client):
+    """Both ends of the forward, pinned in one place. The gallery writes
+    `preview=`, the shipped client looks for `preview`, and the route above
+    accepts `preview` — three files that have to agree."""
+    app_js = (
+        pathlib.Path(__file__).resolve().parents[1] / "frontend" / "app.js"
+    ).read_text()
+    assert 'get("preview")' in app_js
+    # ...and it forwards the whole query rather than rebuilding it, which is
+    # what makes the test above a real end-to-end check.
+    assert 'fetch("/api/preview" + window.location.search)' in app_js
+    assert "preview=" in client.get(GALLERY).text
 
 
 # --- what is behind them --------------------------------------------------

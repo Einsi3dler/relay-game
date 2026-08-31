@@ -14,7 +14,7 @@ import random
 import time
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -236,11 +236,18 @@ async def preview_gallery(key: str | None = None):
 @app.get("/api/preview")
 async def preview_snapshot(
     key: str | None = None,
-    state: str = "",
+    preview_name: str = Query("", alias="preview"),
     game: str | None = None,
     phase: str | None = None,
     effect: str | None = None,
 ) -> dict:
+    """The snapshot behind one gallery entry.
+
+    The parameter is `preview` because the client forwards the gallery link's
+    query string **verbatim** (`/play?preview=X` -> `/api/preview?preview=X`).
+    One name the whole way through, so there is no translation step to get
+    wrong — which is exactly what did go wrong the first time.
+    """
     if not preview.enabled(key):
         raise HTTPException(status_code=404, detail="Not found.")
     params = {
@@ -248,9 +255,11 @@ async def preview_snapshot(
         for name, value in (("game", game), ("phase", phase), ("effect", effect))
         if value
     }
-    built = preview.snapshot(state, **params)
+    built = preview.snapshot(preview_name, **params)
     if built is None:
-        raise HTTPException(status_code=404, detail=f"No preview named {state!r}.")
+        raise HTTPException(
+            status_code=404, detail=f"No preview named {preview_name!r}."
+        )
     return {"state": built}
 
 
