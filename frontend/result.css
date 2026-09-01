@@ -1,0 +1,495 @@
+/* The Relay — the result screen.
+ *
+ * Loaded after style.css and dashboard.css, scoped to `#view-result` plus the
+ * `result-active` body class that show() toggles. It shares the dark palette
+ * declared in style.css with the Grandmaster's board, so the last screen of a
+ * match belongs to the same product as the one that ran it, and it borrows
+ * dashboard.css's `.gm-ic` masks rather than shipping a second icon system.
+ *
+ * Everything it draws is something the match recorded. There is no XP and no
+ * score in The Relay, so there is none here: the contribution column is each
+ * player's share of the coins they actually put in the team purse, which is
+ * the same ledger the Grandmaster shopped from.
+ */
+
+body.result-active { background: var(--rs-ground, #07091f); }
+body.result-active .topbar { display: none; }
+
+#view-result {
+  --rs-win: var(--gm-yellow);
+  --rs-lose: var(--gm-muted);
+
+  width: min(1400px, calc(100% - 28px));
+  max-width: none;
+  margin: 0 auto 32px;
+  padding: 18px 0 0;
+  color: var(--gm-text);
+  font-variant-numeric: tabular-nums;
+}
+
+#view-result :focus-visible {
+  outline: 3px solid var(--gm-yellow);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --- the crest -------------------------------------------------------- */
+
+.rs-top {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) minmax(340px, 1.9fr) minmax(210px, 1fr);
+  gap: var(--gm-gap);
+  align-items: center;
+  margin-bottom: var(--gm-gap);
+}
+
+.rs-hero { text-align: center; }
+
+.rs-crown {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 4px;
+  color: var(--rs-win);
+}
+.rs-crown svg { width: 108px; height: auto; display: block; }
+#view-result.is-loss .rs-crown { color: var(--rs-lose); }
+
+#view-result h1 {
+  margin: 0;
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: clamp(2.6rem, 7vw, 4.6rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  /* A gradient rather than a glow: it survives a dark screen and a bright one,
+     and it still reads as one flat colour where background-clip is not
+     supported, which is the fallback that matters. */
+  color: var(--rs-win);
+  background: linear-gradient(180deg, #fff6c9 8%, var(--rs-win) 52%, #d99400 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+#view-result.is-loss h1 {
+  color: var(--gm-text);
+  background: linear-gradient(180deg, #ffffff 10%, var(--gm-muted) 70%, #55618c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+#view-result.is-void h1 { font-size: clamp(2rem, 5vw, 3.2rem); }
+
+.rs-ribbon {
+  display: inline-block;
+  margin: 12px 0 0;
+  padding: 9px 26px;
+  border: 1px solid var(--gm-line);
+  border-radius: 999px;
+  background: var(--gm-panel-2);
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+.rs-ribbon strong { color: var(--team-color, var(--gm-text)); }
+
+/* The two final levels, side by side. This is the scoreline the match
+   actually kept — there is no points total behind it to print instead. */
+.rs-levels {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 16px;
+}
+.rs-levels__box {
+  min-width: 128px;
+  padding: 10px 22px;
+  border: 2px solid var(--team-color, var(--gm-line));
+  border-radius: var(--gm-radius-md);
+  background: color-mix(in srgb, var(--team-color, #7a8cff) 14%, var(--gm-panel));
+}
+.rs-levels__label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+.rs-levels__value {
+  display: block;
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--team-color, var(--gm-text));
+}
+.rs-levels__of { font-size: 0.9rem; color: var(--gm-muted); }
+.rs-levels__vs {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--gm-muted);
+}
+
+/* --- team cards -------------------------------------------------------- */
+
+.rs-team {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--team-color, var(--gm-line));
+  border-radius: var(--gm-radius-lg);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--team-color, #7a8cff) 16%, transparent),
+      transparent 62%),
+    var(--gm-panel);
+}
+.rs-team:empty { display: none; }
+.rs-team__top { display: flex; align-items: center; gap: 10px; }
+.rs-team__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 10px;
+  border: 1px solid var(--team-color);
+  color: var(--team-color);
+}
+.rs-team__logo .gm-ic { width: 23px; height: 23px; }
+.rs-team__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--team-color);
+}
+.rs-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.rs-badge--win {
+  border: 1px solid var(--gm-green);
+  background: rgba(66, 219, 131, 0.16);
+  color: var(--gm-green);
+}
+.rs-badge--out {
+  border: 1px solid var(--gm-line);
+  background: rgba(7, 9, 31, 0.5);
+  color: var(--gm-muted);
+}
+
+.rs-stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--gm-line-soft);
+  font-size: 0.82rem;
+  color: var(--gm-muted);
+  font-weight: 700;
+}
+.rs-stat strong { font-size: 1rem; color: var(--gm-text); }
+.rs-stat--coin strong { color: var(--gm-yellow); }
+
+/* --- panels ------------------------------------------------------------ */
+
+.rs-mid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(280px, 1fr);
+  gap: var(--gm-gap);
+  align-items: start;
+  margin-bottom: var(--gm-gap);
+}
+.rs-main,
+.rs-side { display: flex; flex-direction: column; gap: var(--gm-gap); min-width: 0; }
+
+.rs-panel {
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-md);
+  background: var(--gm-panel);
+  overflow: hidden;
+}
+.rs-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--gm-line-soft);
+  background: linear-gradient(180deg, rgba(122, 140, 255, 0.09), transparent);
+}
+.rs-panel__head h2 {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.rs-panel__head .rs-spacer { flex: 1; }
+.rs-panel__meta { font-size: 0.76rem; color: var(--gm-muted); font-weight: 700; }
+.rs-panel__body { padding: 14px 16px 16px; }
+.rs-panel--mvp { border-color: rgba(255, 210, 28, 0.42); }
+.rs-panel--mvp .rs-panel__head { color: var(--gm-yellow); }
+.rs-panel--table .rs-panel__head { color: var(--gm-cyan); }
+
+/* --- the performance table --------------------------------------------- */
+
+.rs-panel--table { --rs-cols: 38px minmax(96px, 1fr) minmax(104px, 1fr) minmax(120px, 1.3fr) auto; }
+.rs-panel--opps { --rs-cols: 30px minmax(96px, 1fr) minmax(104px, 1fr) minmax(90px, 1fr) auto; }
+
+.rs-roster__head {
+  display: grid;
+  grid-template-columns: var(--rs-cols);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--gm-line-soft);
+  background: rgba(7, 9, 31, 0.45);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+.rs-roster__head span:first-child { grid-column: 1 / span 2; }
+
+.rs-roster { list-style: none; margin: 0; padding: 0; }
+.rs-roster li {
+  display: grid;
+  grid-template-columns: var(--rs-cols);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--gm-line-soft);
+}
+.rs-roster li:first-child { border-top: 0; }
+/* Whoever put the most in your purse; the card beside it says so in words too.
+   Only your own table ever carries the class — see renderResultRoster. */
+.rs-roster li.is-top { background: rgba(255, 210, 28, 0.07); }
+
+#view-result .gm-avatar { width: 38px; height: 38px; }
+.rs-roster--compact li { padding: 8px 16px; }
+.rs-roster--compact .gm-avatar { width: 30px; height: 30px; }
+
+.rs-who { min-width: 0; }
+.rs-who__name {
+  font-weight: 800;
+  font-size: 0.94rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rs-who__role {
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gm-cyan);
+}
+.rs-who__role.is-leader { color: var(--gm-yellow); }
+.rs-who__role.is-duelist { color: var(--gm-pink); }
+.rs-who__role.is-defuser { color: var(--gm-red); }
+
+.rs-game {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--gm-muted);
+}
+.rs-game .gm-ic--game { color: var(--gm-violet); }
+.rs-game span { min-width: 0; line-height: 1.25; }
+
+.rs-share { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rs-share__pct {
+  min-width: 42px;
+  font-weight: 900;
+  font-size: 0.88rem;
+}
+.rs-share__meter {
+  flex: 1;
+  min-width: 0;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(122, 140, 255, 0.16);
+  overflow: hidden;
+}
+.rs-share__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--team-color, var(--gm-muted));
+}
+.rs-roster li.is-top .rs-share__fill { background: var(--gm-yellow); }
+.rs-roster li.is-top .rs-share__pct { color: var(--gm-yellow); }
+
+.rs-coins {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 900;
+  font-size: 0.95rem;
+  color: var(--gm-yellow);
+  white-space: nowrap;
+}
+
+/* --- most valuable ------------------------------------------------------ */
+
+.rs-mvp { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+.rs-mvp .gm-avatar {
+  width: 84px;
+  height: 84px;
+  border-width: 3px;
+  box-shadow: 0 0 0 6px rgba(255, 210, 28, 0.1);
+}
+.rs-mvp__name {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+.rs-mvp__what {
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gm-yellow);
+}
+.rs-mvp__line {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--gm-line-soft);
+  border-radius: var(--gm-radius-sm);
+  background: rgba(7, 9, 31, 0.5);
+  font-size: 0.82rem;
+  color: var(--gm-muted);
+  font-weight: 700;
+}
+.rs-mvp__line strong { color: var(--gm-text); }
+
+/* --- rewards ------------------------------------------------------------ */
+
+.rs-rewards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.rs-reward {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--gm-line-soft);
+  border-radius: var(--gm-radius-sm);
+  background: var(--gm-panel-2);
+}
+.rs-reward .gm-ic { color: var(--gm-yellow); }
+.rs-reward__value {
+  display: block;
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.3rem;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--gm-yellow);
+}
+.rs-reward__label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+
+/* --- feed --------------------------------------------------------------- */
+
+#view-result .feed { padding: 0; color: var(--gm-muted); font-size: 0.83rem; }
+#view-result .feed li {
+  display: grid;
+  grid-template-columns: auto 16px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 9px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--gm-line-soft);
+  line-height: 1.35;
+}
+#view-result .feed li:first-child { border-top: 0; }
+#view-result .gm-event__time { opacity: 0.75; }
+#view-result .gm-event .gm-ic { align-self: center; }
+
+/* --- actions ------------------------------------------------------------ */
+
+.rs-actions { display: flex; justify-content: center; }
+#view-result .rs-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 280px;
+  padding: 14px 34px;
+  border: 0;
+  border-radius: var(--gm-radius-md);
+  font-family: inherit;
+  cursor: pointer;
+}
+#view-result .rs-btn--go {
+  background: linear-gradient(180deg, #ffd85a, var(--gm-yellow));
+  color: #241a05;
+}
+#view-result .rs-btn--go:hover { background: linear-gradient(180deg, #ffe89a, #ffdd4d); }
+#view-result .rs-btn strong {
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+#view-result .rs-btn span { font-size: 0.78rem; font-weight: 700; opacity: 0.75; }
+
+/* --- responsive ---------------------------------------------------------- */
+
+@media (max-width: 1023px) {
+  .rs-top { grid-template-columns: minmax(0, 1fr); }
+  .rs-hero { order: -1; }
+  .rs-mid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 799px) {
+  #view-result { width: calc(100% - 20px); }
+  .rs-levels { flex-wrap: wrap; }
+  .rs-roster__head { display: none; }
+  .rs-roster li {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    row-gap: 6px;
+  }
+  .rs-roster li > .gm-avatar { grid-column: 1; grid-row: 1 / span 2; }
+  .rs-roster li > .rs-who { grid-column: 2; grid-row: 1; }
+  .rs-roster li > .rs-coins { grid-column: 3; grid-row: 1; }
+  .rs-roster li > .rs-game { grid-column: 2 / -1; grid-row: 2; }
+  .rs-roster li > .rs-share { grid-column: 2 / -1; grid-row: 3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #view-result *, #view-result *::before, #view-result *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

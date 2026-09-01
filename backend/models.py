@@ -402,6 +402,14 @@ class Match:
             # each opponent is being handed is masked.
             mine = me is not None and team.id == me.team_id
             return team.public(self.players, hide_games=not mine)
+        # The race is over. Fog of war exists so neither side can scout the
+        # other while it still matters; once the match is finished there is
+        # nothing left to protect, and a result screen that could not name what
+        # the teams actually did would be hiding the game from the people who
+        # just played it. Silence cannot outlive the match either — it is an
+        # attack on a live Grandmaster, not on the scoreboard.
+        if self.status == "finished":
+            return team.public(self.players)
         if me is None:
             return team.summary(self.players)
         if me.is_leader:
@@ -420,9 +428,12 @@ class Match:
         # roster above would be trivially reconstructed from the event log.
         my_team = self.teams.get(me.team_id or "") if me else None
         sees_progress = (
-            me is not None
-            and me.is_leader
-            and not (my_team is not None and is_future(my_team.silenced_until))
+            self.status == "finished"
+            or (
+                me is not None
+                and me.is_leader
+                and not (my_team is not None and is_future(my_team.silenced_until))
+            )
         )
         if self.status != "lobby" and not sees_progress:
             events = [e for e in events if e.kind not in LEADER_ONLY_EVENT_KINDS]

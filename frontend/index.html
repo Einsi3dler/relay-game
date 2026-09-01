@@ -7,6 +7,7 @@
   <title>The Relay</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/dashboard.css">
+  <link rel="stylesheet" href="/static/result.css">
 </head>
 <body>
   <header class="topbar">
@@ -328,12 +329,83 @@
     <button id="end-session" class="btn danger-btn">⏹ End session</button>
   </div>
 
-  <!-- result -->
-  <section id="view-result" class="view card" hidden>
-    <div id="result-emoji" class="result-emoji"></div>
-    <h1 id="result-title"></h1>
-    <p id="result-sub" class="sub"></p>
-    <button id="play-again" class="btn team-auto">Back to start</button>
+  <!-- result: the scoreboard, once the fog is off. Every figure on it comes
+       from the match that was just played — there is no XP and no score in
+       this game, so there is none on this screen. -->
+  <section id="view-result" class="view" hidden>
+    <div class="rs-top">
+      <div class="rs-team" id="result-team-mine"></div>
+
+      <div class="rs-hero">
+        <div class="rs-crown" id="result-crest" aria-hidden="true"></div>
+        <h1 id="result-title"></h1>
+        <p id="result-sub" class="rs-ribbon"></p>
+        <div class="rs-levels" id="result-levels"></div>
+      </div>
+
+      <div class="rs-team" id="result-team-theirs"></div>
+    </div>
+
+    <div class="rs-mid">
+      <div class="rs-main">
+      <section class="rs-panel rs-panel--table">
+        <header class="rs-panel__head">
+          <i class="gm-ic gm-ic--star" aria-hidden="true"></i>
+          <h2 id="result-table-title">Team performance</h2>
+          <span class="rs-spacer"></span>
+          <span class="rs-panel__meta">Share of the coins put in the purse</span>
+        </header>
+        <div class="rs-roster__head" aria-hidden="true">
+          <span>Player</span><span>Assigned game</span>
+          <span>Contribution</span><span>Coins earned</span>
+        </div>
+        <ol id="result-roster" class="rs-roster"></ol>
+      </section>
+
+      <section class="rs-panel rs-panel--opps">
+        <header class="rs-panel__head">
+          <i class="gm-ic gm-ic--team" aria-hidden="true"></i>
+          <h2 id="result-opp-title">The other side</h2>
+          <span class="rs-spacer"></span>
+          <span class="rs-panel__meta">What the other squad banked</span>
+        </header>
+        <ol id="result-opp-roster" class="rs-roster rs-roster--compact"></ol>
+      </section>
+      </div>
+
+      <div class="rs-side">
+        <section class="rs-panel rs-panel--mvp">
+          <header class="rs-panel__head">
+            <i class="gm-ic gm-ic--crown" aria-hidden="true"></i>
+            <h2>Most valuable</h2>
+          </header>
+          <div class="rs-panel__body" id="result-mvp"></div>
+        </section>
+
+        <section class="rs-panel rs-panel--rewards">
+          <header class="rs-panel__head">
+            <i class="gm-ic gm-ic--coin" aria-hidden="true"></i>
+            <h2>Total rewards</h2>
+          </header>
+          <div class="rs-panel__body rs-rewards" id="result-rewards"></div>
+        </section>
+
+        <section class="rs-panel rs-panel--feed">
+          <header class="rs-panel__head">
+            <i class="gm-ic gm-ic--level" aria-hidden="true"></i>
+            <h2>How it ended</h2>
+          </header>
+          <ul id="result-feed" class="feed"></ul>
+        </section>
+      </div>
+    </div>
+
+    <div class="rs-actions">
+      <button id="play-again" class="rs-btn rs-btn--go">
+        <strong>Back to start</strong>
+        <span>Host or join another relay</span>
+      </button>
+    </div>
   </section>
 
   <div id="choice-overlay" class="choice-overlay" hidden>
