@@ -21,6 +21,7 @@ teardown), and `startCountdown`.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -149,6 +150,20 @@ function element(tag) {
   });
   Object.defineProperty(el, "options", {
     get() { return el.children.filter((c) => c.tagName === "option"); },
+  });
+  // A real <select> reports its first option while nothing has been chosen.
+  // The shell reads .value to decide what a handoff or an extend-wait would
+  // target, so a select that answered "" until someone clicked would hide a
+  // live bug behind a harness that does not behave like a browser.
+  let picked = null;
+  Object.defineProperty(el, "value", {
+    get() {
+      if (el.tagName !== "select") return picked === null ? "" : picked;
+      const opts = el.children.filter((c) => c.tagName === "option");
+      if (picked !== null && opts.some((o) => o.value === picked)) return picked;
+      return opts.length ? opts[0].value : "";
+    },
+    set(next) { picked = String(next); },
   });
   return el;
 }
@@ -295,9 +310,20 @@ function boot(scenario) {
   FakeSocket.prototype.close = function () { this.readyState = 3; };
   FakeSocket.OPEN = 1;
 
+  // A real Date whose *now* is the frozen clock. The shell reads Date.now() for
+  // every countdown, and it constructs one to turn an event's created_at into a
+  // wall-clock stamp — a browser has both, so the sandbox has to as well.
+  class FakeDate extends Date {
+    constructor(...args) {
+      if (args.length === 0) super(clock.now);
+      else super(...args);
+    }
+    static now() { return clock.now; }
+  }
+
   const context = {
     console,
-    JSON, Math, Date: { now: () => clock.now, parse: Date.parse },
+    JSON, Math, Date: FakeDate,
     URLSearchParams,
     setTimeout: (fn, ms) => schedule(fn, ms, null),
     clearTimeout: cancel,
@@ -522,8 +548,20 @@ function dashboardProbe(shell) {
       .filter((n) => n.classes.has("gm-perks__label")).map(allText),
     perk_buys: descendants($("perk-grid"))
       .filter((n) => n.classes.has("gm-buy"))
-      .map((b) => ({ label: b.textContent, disabled: b.disabled })),
+      .map((b) => ({ label: allText(b), disabled: b.disabled,
+                     described: b.attrs["aria-label"] })),
     handoff_options: $("handoff-select").children.map((o) => o.textContent),
+    handoff_face: ($("handoff-avatar")._html || "").slice(0, 40),
+    feed: $("leader-feed").children.map((row) => ({
+      text: allText(row),
+      time: allText(row.children.filter((c) => c.classes.has("gm-event__time"))[0] ||
+        { children: [], _text: "" }),
+      mark: (row.children.filter((c) => c.classes.has("gm-ic"))[0] || {
+        className: "",
+      }).className,
+      tone: [...row.classes].filter((c) => c.indexOf("gm-event--") === 0).join(""),
+    })),
+    duel_seats: $("leader-duel-seats").children.map(allText),
   };
 }
 
@@ -553,6 +591,13 @@ function probe(shell) {
       resize_listeners: (shell.windowListeners.resize || []).length,
       clock_hidden: $("leader-bomb-clock").hidden,
       clock: $("leader-bomb-clock").textContent,
+      clock_title: $("leader-bomb-clock").title,
+      rail: $("leader-bomb-pages").children.map((tab) => ({
+        label: tab.textContent,
+        open: tab.classes.has("is-open"),
+      })),
+      page_count: $("leader-bomb-count").textContent,
+      nav_disabled: [$("leader-bomb-prev").disabled, $("leader-bomb-next").disabled],
     },
     countdown: {
       bar_hidden: $("timer-bar").hidden,
@@ -1350,6 +1395,29 @@ def test_the_console_turns_pages_and_walks_back(shell):
     assert "The Bomb:" in records["back_home"]["console"]["texts"]
 
 
+def test_the_rail_lists_every_page_the_manual_has(shell):
+    """Built from the module's own PAGES, so a page added to bomb_manual.js
+    appears in the console's rail with no change to the shell."""
+    home = shell["console"]["records"]["home"]["console"]
+    labels = [tab["label"] for tab in home["rail"]]
+    assert labels == ["Contents", "Maze", "Simon Says",
+                      "According to number", "The mini button"]
+    # The open stop is marked, and it is the one actually being drawn.
+    assert [tab["label"] for tab in home["rail"] if tab["open"]] == ["Contents"]
+    assert home["page_count"] == "1 / 5"
+    # Nothing before the first stop.
+    assert home["nav_disabled"] == [True, False]
+
+
+def test_the_rail_follows_the_page_the_manual_turned_to(shell):
+    """The rail is chrome around the manual, not a second source of truth: a
+    page turned from inside the manual has to leave the rail agreeing."""
+    page = shell["console"]["records"]["page"]["console"]
+    assert [tab["label"] for tab in page["rail"] if tab["open"]] == ["Simon Says"]
+    assert page["page_count"] == "3 / 5"
+    assert page["nav_disabled"] == [False, False]
+
+
 def test_a_fresh_snapshot_does_not_turn_the_page(shell):
     """Snapshots arrive constantly; redrawing on each would tear the manual out
     from under a Grandmaster reading it aloud."""
@@ -1415,12 +1483,15 @@ def test_the_console_grows_a_clock_on_a_dark_fuse_board(shell):
     the one seat allowed to read it out (docs/GAME_DESIGN.md §2c)."""
     ticking = shell["console_clock"]["records"]["ticking"]["console"]
     assert ticking["clock_hidden"] is False
-    assert ticking["clock"].startswith(f"⏱️ {BOARD_LIMIT}s")
-    assert "they cannot see it" in ticking["clock"]
+    # A clock reads as a clock. The instruction that comes with it — that this
+    # number reaches nobody else — is on the chip rather than in it.
+    assert ticking["clock"] == f"{BOARD_LIMIT // 60:02d}:{BOARD_LIMIT % 60:02d}"
+    assert "cannot see this" in ticking["clock_title"]
     # ...and the sub line says why the Grandmaster is suddenly the clock.
     assert "Their timer is dark" in ticking["sub"]
     later = shell["console_clock"]["records"]["later"]["console"]
-    assert later["clock"].startswith(f"⏱️ {BOARD_LIMIT - 25}s")
+    left = BOARD_LIMIT - 25
+    assert later["clock"] == f"{left // 60:02d}:{left % 60:02d}"
 
 
 def test_the_console_clock_follows_every_snapshot(shell):
@@ -1579,7 +1650,9 @@ def test_silence_blanks_the_roster_and_the_count_with_nothing_stale(shell):
     the dashboard has to draw that blank instead of the numbers it last saw."""
     silenced = _dash(shell, "silenced")
     assert silenced["team_count"] == "? / ?"
-    assert silenced["flags"][0] == "Signal Silenced"
+    # The slot does not rename itself under silence: it is the cleared count
+    # either way, and a bar whose labels move is one you have to re-read.
+    assert silenced["flags"][0] == "Cleared Silenced"
     assert [row["pill_text"] for row in silenced["roster"]] == ["?"] * 5
     # Nothing from the previous snapshot survives underneath.
     live_names = shell["_expected"]["dashboard"]["names"]
@@ -1610,6 +1683,7 @@ def test_an_active_defense_is_not_offered_again(shell):
     live = _dash(shell, "live")
     assert "Shield Active" in live["flags"]
     assert any(buy["label"] == "Active" and buy["disabled"]
+               and "Already active: Shield" in buy["described"]
                for buy in live["perk_buys"])
 
 
@@ -1627,6 +1701,62 @@ def test_the_handoff_names_the_role_game_and_what_it_costs_them(shell):
     assert len(options) == 5
     assert any("Duelist" in opt and "cleared" in opt for opt in options)
     assert any("Defuser" in opt and "Bomb Defuse" in opt for opt in options)
+
+
+def test_the_command_bar_holds_every_slot_open(shell):
+    """A bar that grew and shrank moved whatever you were reading. Every slot is
+    drawn every snapshot; the ones that are not happening dim in place."""
+    live = _dash(shell, "live")
+    labels = [flag.split(" ")[0] for flag in live["flags"]]
+    assert labels == ["Cleared", "Shield", "Reflect", "Insurance", "Duel", "Duel"]
+    # The two that are true in this snapshot say so...
+    assert "Shield Active" in live["flags"]
+    assert "Duel streak x2" in live["flags"]
+    # ...and the three that are not still hold their place rather than leaving.
+    assert "Reflect None" in live["flags"]
+    assert "Insurance None" in live["flags"]
+    assert "Duel penalty None" in live["flags"]
+
+
+def test_the_feed_stamps_the_time_and_marks_the_kind(shell):
+    """The server already sends a kind and a created_at on every event
+    (models.Event), so the feed can say when a thing happened and what sort of
+    thing it was without the client guessing at either."""
+    feed = _dash(shell, "live")["feed"]
+    assert feed, "the dashboard drew no events at all"
+    for row in feed:
+        assert re.fullmatch(r"\d\d:\d\d:\d\d", row["time"]), row
+        assert "gm-ic--" in row["mark"], row
+        # The stamp and the mark are additions to the line, never a replacement
+        # for what the server actually said.
+        assert row["text"].replace(row["time"], "").strip()
+
+
+def test_an_event_kind_the_client_does_not_know_still_draws_a_line(shell):
+    """The engine owns the kinds. A new one must reach the Grandmaster as a
+    plain row, not vanish because this file has no entry for it."""
+    marks = re.search(r"var EVENT_MARKS = \{(.*?)\};", APP.read_text(), re.S)
+    assert marks, "app.js no longer declares EVENT_MARKS"
+    assert "info:" in marks.group(1), "the fallback row lost its entry"
+
+
+def test_the_duel_watch_names_both_champions(shell):
+    """Names, not faces: the duel view carries the opponent's name and never
+    their id, so there is nothing honest to seed a face from."""
+    seats = _dash(shell, "live")["duel_seats"]
+    assert len(seats) == 3, seats          # seat, VS, seat
+    assert seats[1] == "VS"
+    names = shell["_expected"]["dashboard"]["names"]
+    assert any(name in seats[0] for name in names), seats[0]
+    # Your own champion is on the left, the way the roster and the race read.
+    assert "Alpha" in seats[0]
+    assert "Bravo" in seats[2]
+
+
+def test_the_handoff_shows_the_face_it_would_promote(shell):
+    """A native <select> cannot carry a picture, so the picture sits beside it
+    — and it has to be the *selected* teammate's, not a decoration."""
+    assert _dash(shell, "live")["handoff_face"].startswith("<svg")
 
 
 def test_the_race_puts_both_teams_on_one_scale(shell):

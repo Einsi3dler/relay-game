@@ -120,6 +120,43 @@ headings as the packs above.
 
 ---
 
+## Game marks — hand-authored, no third party
+
+The Grandmaster's roster names each teammate's assigned game with an icon, and
+the duel seats and the shop share the same set. Nothing was imported for it:
+`frontend/assets/games/*.svg` are drawn here, in the same idiom as the Lucide
+files above — a 24x24 `viewBox`, `fill="none"`, `stroke="currentColor"`, 2px
+round-capped strokes — so they mask through `.gm-ic` identically and no licence
+travels with them.
+
+| Local file | Game | What it draws |
+|---|---|---|
+| `games/generic.svg` | (fallback) | a quartered board |
+| `games/rewire.svg` | Rewire | a wire bent between two terminals |
+| `games/sweep.svg` | Sweep | a flag on a pole |
+| `games/mirror_run.svg` | Mirror Run | two chevrons either side of a mirror line |
+| `games/decant.svg` | Decant | a tube with a fill line |
+| `games/echo.svg` | Echo | four pads, one lit |
+| `games/overprint.svg` | Overprint | stacked layers |
+| `games/stackdrop.svg` | Stackdrop | a ball falling into a container |
+| `games/lane_shift.svg` | Lane Shift | a belt forking into two lanes |
+| `games/shadow_cast.svg` | Shadow Cast | a cube |
+| `games/threadline.svg` | Threadline | a routed line through two anchors |
+| `games/rps_duel.svg` | Rock Paper Scissors | a hand |
+| `games/number_clash.svg` | Number Clash | a hash |
+| `games/bid_war.svg` | Bid War | a gavel over its block |
+
+Bomb Defuse and Crown Duel have no file of their own: they reuse `ui/bomb.svg`
+and `ui/crown.svg`, which are already the right shape and would otherwise be
+the same drawing maintained in two places.
+
+Every id in `backend/registry.py` is pinned to a mark by
+`tests/test_perk_frontend_parity.py`, and the same suite checks that every
+`mask-image` path in `dashboard.css` is a file that actually ships — a mask
+with a wrong path paints nothing at all, with no console error to notice.
+
+---
+
 ## Roster avatars — generated locally, no third party
 
 Roster avatars are drawn in the browser from a deterministic seed (match id
