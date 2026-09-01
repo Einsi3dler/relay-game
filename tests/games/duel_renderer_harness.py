@@ -92,6 +92,12 @@ function labelled(node, text) {
 const context = { window: {}, document: { createElement: element }, console, JSON };
 context.globalThis = context;
 vm.createContext(context);
+// theme.js first, the way both pages load it: a renderer reads its colours
+// from window.RelayTheme, so a harness without it is not the browser. Its path
+// comes off the game file's own, since this script runs from a temp directory.
+vm.runInContext(fs.readFileSync(
+  process.argv[2].replace(/[\\/](games|duels)[\\/][^\\/]+$/, "/theme.js"),
+  "utf8"), context);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), context);
 
 const sent = [];

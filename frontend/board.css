@@ -1,0 +1,73 @@
+/* The Relay — the frame a mounted board sits in.
+ *
+ * Loaded by every page that mounts a game renderer: the match (index.html) and
+ * practice mode (explore.html). The boards themselves are drawn by the
+ * renderers, which take their colours from theme.js; this is only the room
+ * they are given and the two controls they all hand back — a hint paragraph
+ * and a submit button.
+ *
+ * It lives apart from play.css because practice mode mounts the same boards
+ * outside the match shell, and a board that looked different in practice than
+ * it does in a race would be teaching the wrong thing.
+ */
+
+/* A centred column, not a row: renderers append several siblings straight to
+   the mount (a hint, the grid, a button), and a row would lay those out
+   side by side. The column only centres what they build and gives it room. */
+#puzzle-mount {
+  padding: 18px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+#puzzle-mount > * { max-width: 100%; }
+
+/* Renderers hand the mount plain <p> hints and plain <button> controls. Dressing
+   them here means a game only has to convert its *board* colours, not re-dress
+   a submit button that all eleven of them have. A renderer that sets its own
+   inline styles still wins, which is how the d-pads and the in-board controls
+   keep the shapes they were designed with. */
+#puzzle-mount p {
+  margin: 0;
+  max-width: 58ch;
+  text-align: center;
+  color: var(--gm-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+#puzzle-mount button {
+  min-height: 40px;
+  padding: 10px 22px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-sm);
+  background: rgba(122, 140, 255, 0.14);
+  color: var(--gm-text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+#puzzle-mount button:hover:not(:disabled) { background: rgba(122, 140, 255, 0.3); }
+#puzzle-mount button:active:not(:disabled) { transform: translateY(1px); }
+#puzzle-mount button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* The one control every board ends with. Named by what it does, so a renderer
+   opts in by giving its submit button this class rather than by being the last
+   button in the tree. */
+#puzzle-mount button.board-go {
+  border: 0;
+  padding: 12px 30px;
+  background: linear-gradient(180deg, #ffd85a, var(--gm-yellow));
+  color: #241a05;
+  font-weight: 900;
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  box-shadow: 0 0 18px rgba(255, 210, 28, 0.28);
+}
+#puzzle-mount button.board-go:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffe89a, #ffdd4d);
+}
+

@@ -8,13 +8,18 @@
 (function () {
   "use strict";
 
+  // Layer colours come from the shared piece palette, and every layer also
+  // carries its own glyph, so the print is readable without telling the four
+  // hues apart.
+  var T = window.RelayTheme;
+
   // Glyph + colour per layer index — shape carries the meaning for
   // colour-blind players; colours are just reinforcement.
   var LAYER_STYLE = [
-    { glyph: "●", colour: "#4e79a7" },
-    { glyph: "▲", colour: "#e15759" },
-    { glyph: "■", colour: "#59a14f" },
-    { glyph: "◆", colour: "#8338ec" },
+    { glyph: "●", colour: T.piece(0) },
+    { glyph: "▲", colour: T.piece(1) },
+    { glyph: "■", colour: T.piece(3) },
+    { glyph: "◆", colour: T.piece(4) },
   ];
   var KEYS = {
     ArrowUp: ["move", -1, 0], ArrowDown: ["move", 1, 0],
@@ -75,7 +80,8 @@
     var grid = document.createElement("div");
     grid.style.cssText =
       "display:grid;grid-template-columns:repeat(" + cols + "," + cellPx + "px);" +
-      "grid-auto-rows:" + cellPx + "px;gap:2px;";
+      "grid-auto-rows:" + cellPx + "px;gap:3px;padding:8px;border-radius:12px;" +
+      "background:" + T.bg + ";border:1px solid " + T.line + ";";
     for (var r = 0; r < rows; r++) {
       for (var c = 0; c < cols; c++) {
         grid.appendChild(fill(r, c, cellPx));
@@ -93,7 +99,7 @@
       var el = document.createElement("div");
       var marked = p.target[r].charAt(c) === "1";
       el.style.cssText =
-        "border-radius:3px;background:" + (marked ? "#2b2b33" : "#f0e8dc") + ";";
+        "border-radius:3px;background:" + (marked ? T.text : T.cell) + ";";
       return el;
     });
 
@@ -108,7 +114,7 @@
     drawGrid(state.workHost, p.rows, p.cols, state.workCell, function (r, c, px) {
       var el = document.createElement("div");
       var here = byCell[cellKey(r, c)] || [];
-      var css = "border-radius:4px;background:#f0e8dc;cursor:pointer;" +
+      var css = "border-radius:4px;background:" + T.cell + ";cursor:pointer;" +
         "display:flex;align-items:center;justify-content:center;" +
         "font-weight:900;font-size:" + Math.floor(px * 0.62) + "px;";
       if (here.length) {
@@ -118,7 +124,7 @@
         var style = LAYER_STYLE[top % LAYER_STYLE.length];
         el.textContent = here.length > 1 ? "✚" : style.glyph;
         css += "background:" + style.colour + (here.length > 1 ? "" : "22") + ";" +
-          "color:" + (here.length > 1 ? "#fff" : style.colour) + ";";
+          "color:" + (here.length > 1 ? T.text : style.colour) + ";";
         if (here.indexOf(state.selected) !== -1) {
           css += "outline:3px solid " + LAYER_STYLE[state.selected % LAYER_STYLE.length].colour +
             ";outline-offset:-3px;";
@@ -142,8 +148,8 @@
       var style = LAYER_STYLE[index % LAYER_STYLE.length];
       var on = index === state.selected;
       chip.style.borderColor = style.colour;
-      chip.style.background = on ? style.colour : "#fff";
-      chip.style.color = on ? "#fff" : style.colour;
+      chip.style.background = on ? style.colour : T.cell;
+      chip.style.color = on ? T.ink : style.colour;
       chip.setAttribute("aria-pressed", on ? "true" : "false");
     });
     var layer = p.layers[state.selected];
@@ -191,7 +197,8 @@
     btn.setAttribute("aria-label", aria);
     btn.style.cssText =
       "min-width:52px;min-height:52px;font-size:1.2rem;font-weight:900;" +
-      "border:2px solid #f0e8dc;border-radius:12px;background:#fff;cursor:pointer;";
+      "border:2px solid " + T.fade(T.wall, 0.5) + ";border-radius:12px;" +
+      "background:" + T.cell + ";color:" + T.text + ";cursor:pointer;";
     btn.addEventListener("click", handler);
     return btn;
   }
@@ -290,7 +297,8 @@
       state.flipBtn = makeButton("⇄", "Flip layer", function () { act(["flip"]); });
       var checkBtn = makeButton("CHECK", "Submit your print", submit);
       checkBtn.style.cssText +=
-        "background:#8338ec;color:#fff;border-color:#8338ec;font-size:0.95rem;";
+        "background:" + T.goal + ";color:" + T.ink + ";border-color:" + T.goal +
+        ";font-size:0.95rem;box-shadow:" + T.glow(T.goal, 14) + ";";
       side.appendChild(state.rotateBtn);
       side.appendChild(state.flipBtn);
       side.appendChild(checkBtn);
@@ -302,7 +310,8 @@
         "Every layer prints onto the same sheet — match the target exactly (extra marks fail too). " +
         "Pick a layer chip, then move it with the pad or arrow keys, or tap a cell to drop it there. " +
         "⟳/R rotates, ⇄/F flips (marked layers only). Press CHECK when it matches.";
-      hint.style.cssText = "color:#8a8a96;font-size:0.85rem;margin:10px 0 0;";
+      hint.style.cssText =
+        "color:" + T.muted + ";font-size:0.85rem;margin:10px 0 0;";
       root.appendChild(hint);
 
       container.appendChild(root);

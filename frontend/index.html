@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/dashboard.css">
   <link rel="stylesheet" href="/static/result.css">
+  <link rel="stylesheet" href="/static/board.css">
+  <link rel="stylesheet" href="/static/play.css">
 </head>
 <body>
   <header class="topbar">
@@ -120,29 +122,85 @@
     </div>
   </section>
 
-  <!-- play (players) -->
+  <!-- play (players): the board and the little a player is allowed to know.
+       Who on your team has cleared is deliberately not here — that read-out is
+       the Grandmaster's, and Silence is the perk that takes it away
+       (docs/WEBSOCKET_PROTOCOL.md, "visibility is Grandmaster-exclusive"). -->
   <section id="view-play" class="view" hidden>
-    <div id="team-strip" class="card strip"></div>
-    <div id="timer-bar" class="timer-bar" hidden><div id="timer-fill"></div></div>
-    <div id="timer-label" class="timer-label" hidden></div>
-    <div id="puzzle-card" class="card">
-      <p id="puzzle-prompt" class="prompt"></p>
-      <span id="bonus-badge" class="bonus-badge" hidden>🔥 BONUS — solve it or forfeit your bonus loot!</span>
-      <div id="puzzle-mount"></div>
+    <header class="pl-bar">
+      <span class="pl-mark">
+        <svg viewBox="0 0 24 32" aria-hidden="true" focusable="false">
+          <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
+        </svg>
+        <span>RELAY</span>
+      </span>
+
+      <div class="pl-who" id="play-identity"></div>
+
+      <div class="pl-meter">
+        <span class="pl-field__label">Level progress</span>
+        <div class="pl-meter__row">
+          <span class="pl-meter__track"><span id="play-level-fill"></span></span>
+          <span class="pl-meter__count" id="play-level-count"></span>
+        </div>
+      </div>
+
+      <div class="pl-clock" id="play-clock" hidden>
+        <span class="pl-field__label" id="play-clock-label">Time left</span>
+        <span class="pl-clock__value" id="timer-label"></span>
+      </div>
+    </header>
+
+    <div class="pl-deck">
+      <main class="pl-stage">
+        <div id="puzzle-card" class="pl-board">
+          <div class="pl-board__head">
+            <h1 id="play-game-name"></h1>
+            <p id="puzzle-prompt" class="pl-prompt"></p>
+            <span id="bonus-badge" class="pl-bonus" hidden>
+              Bonus board. Solve it or you forfeit the bonus pay.
+            </span>
+          </div>
+          <div id="timer-bar" class="pl-fuse" hidden><div id="timer-fill"></div></div>
+          <div id="puzzle-mount" class="pl-mount"></div>
+        </div>
+
+        <!-- Left on the old look on purpose: the Duelist screen has its own
+             design coming. See the note in docs/CONTRIBUTING.md. -->
+        <div id="duel-card" class="card duel-card" hidden>
+          <p class="prompt">
+            <span id="duel-title">⚔️ DUEL</span>
+            <span id="duel-clock" class="duel-clock" hidden aria-live="off">–</span>
+          </p>
+          <div id="duel-timer-bar" class="timer-bar duel-timer" hidden><div id="duel-timer-fill"></div></div>
+          <div id="duel-mount"></div>
+        </div>
+
+        <div id="cleared-card" class="pl-rest" hidden>
+          <div class="pl-rest__mark" aria-hidden="true"></div>
+          <div class="pl-rest__big">Level cleared</div>
+          <p>Hold on for your team. If the timer runs out you will have to clear
+            it again.</p>
+        </div>
+      </main>
+
+      <aside class="pl-rail">
+        <section class="pl-panel pl-panel--role">
+          <header class="pl-panel__head"><h2>Your seat</h2></header>
+          <div class="pl-panel__body" id="play-role"></div>
+        </section>
+
+        <section class="pl-panel pl-panel--pay">
+          <header class="pl-panel__head"><h2>Round earnings</h2></header>
+          <div class="pl-panel__body" id="play-earnings"></div>
+        </section>
+
+        <section class="pl-panel pl-panel--feed">
+          <header class="pl-panel__head"><h2>Match feed</h2></header>
+          <ul id="event-feed" class="feed"></ul>
+        </section>
+      </aside>
     </div>
-    <div id="duel-card" class="card duel-card" hidden>
-      <p class="prompt">
-        <span id="duel-title">⚔️ DUEL</span>
-        <span id="duel-clock" class="duel-clock" hidden aria-live="off">–</span>
-      </p>
-      <div id="duel-timer-bar" class="timer-bar duel-timer" hidden><div id="duel-timer-fill"></div></div>
-      <div id="duel-mount"></div>
-    </div>
-    <div id="cleared-card" class="card rest" hidden>
-      <div class="rest-big">✅ Level cleared!</div>
-      <p>Hold on for your team — if the timer runs out, you'll have to clear it again.</p>
-    </div>
-    <ul id="event-feed" class="feed"></ul>
   </section>
 
   <!-- leader dashboard: a desktop command board, not a stack of cards.
@@ -422,6 +480,8 @@
   <div id="stage-overlay" class="stage-overlay" hidden><span id="stage-overlay-text"></span></div>
   <div id="toast" class="toast" hidden></div>
 
+  <!-- the shared board palette, before every renderer that reads it -->
+  <script src="/static/theme.js" defer></script>
   <script src="/static/games/fallback.js" defer></script>
   <script src="/static/games/rewire.js" defer></script>
   <script src="/static/games/sweep.js" defer></script>

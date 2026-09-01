@@ -67,6 +67,27 @@ things at once?".)
 - Need something new from another slice (a protocol field, a config value)? **Ask
   in your PR / the channel** — don't reach into their files.
 
+## 2b. Board colours, and the two lanes that are exempt
+
+Every board renderer takes its colours from **`frontend/theme.js`**, the way the
+engine takes its numbers from `backend/config.py`. A literal hex in a renderer
+is a bug: it is invisible until someone retunes the palette and one board
+silently keeps its old look. `tests/test_perk_frontend_parity.py` fails on one.
+
+Two rules for anything added to the palette:
+
+* A name says what the colour **means**, never what it looks like. `goal` and
+  `hazard` survive a redesign; `orange` and `red` do not.
+* Colour is never the only carrier of meaning. Every board that uses `swatch`
+  pairs it with a glyph, a letter or a number. Do not remove that pairing to
+  lean on a colour.
+
+**Bomb Defuse and the four duel games are deliberately exempt.** Their player
+screens are still on the old light look because their own designs are coming
+separately. That is a decision, not an unfinished job — do not "finish" it by
+restyling them unprompted. They are listed in `THEME_EXEMPT` in that test file,
+so removing one is a deliberate act with a name on it.
+
 ## 3. Branching & commits
 
 - Branch off the latest `main`: `git switch -c <slice>/<short-desc>`, e.g.

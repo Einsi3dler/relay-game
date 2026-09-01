@@ -632,7 +632,22 @@ function probe(shell) {
       bar_hidden: $("timer-bar").hidden,
       label_hidden: $("timer-label").hidden,
       label: $("timer-label").textContent,
+      kind: $("play-clock-label").textContent,
+      clock_hidden: $("play-clock").hidden,
+      urgent: $("play-clock").classes.has("is-urgent"),
       fill: $("timer-fill").style.width,
+    },
+    play: {
+      identity: allText($("play-identity")),
+      level: $("play-level-count").textContent,
+      level_fill: $("play-level-fill").style.width,
+      game_name: $("play-game-name").textContent,
+      prompt: $("puzzle-prompt").textContent,
+      mount_class: $("puzzle-mount").className,
+      seat: allText($("play-role")),
+      earnings: $("play-earnings").children.map(allText),
+      bonus_hidden: $("bonus-badge").hidden,
+      rest_hidden: $("cleared-card").hidden,
     },
     duel_clock: {
       card_hidden: $("duel-card").hidden,
@@ -1566,16 +1581,26 @@ def test_a_solving_player_has_no_timer_bar(shell):
     assert solving["label_hidden"] is True
 
 
+def _clock(seconds: int) -> str:
+    return f"{seconds // 60:02d}:{seconds % 60:02d}"
+
+
 def test_the_wait_countdown_draws_and_ticks_down(shell):
+    """The digits sit in one place and stay one size whichever deadline is
+    running; the *kind* of deadline is the line above them."""
     records = shell["countdown"]["records"]
     wait = shell["_wait_seconds"]
     fresh = records["cleared"]["countdown"]
     assert fresh["bar_hidden"] is False and fresh["label_hidden"] is False
-    assert fresh["label"] == f"⏳ Holding cleared: {wait}s"
+    assert fresh["clock_hidden"] is False
+    assert fresh["label"] == _clock(wait)
+    assert fresh["kind"] == "Holding cleared"
     assert fresh["fill"] == "100%"
     later = records["cleared_30s"]["countdown"]
-    assert later["label"] == f"⏳ Holding cleared: {wait - 30}s"
+    assert later["label"] == _clock(wait - 30)
     assert float(later["fill"].rstrip("%")) < 100
+    # Three minutes out is not urgent; the emphasis is saved for the end.
+    assert fresh["urgent"] is False
 
 
 def test_the_bonus_deadline_is_the_same_bar_with_a_different_name(shell):
@@ -1583,13 +1608,14 @@ def test_the_bonus_deadline_is_the_same_bar_with_a_different_name(shell):
     hold and starts being a deadline (docs/GAME_DESIGN.md §5)."""
     bonus = shell["countdown"]["records"]["bonus"]["countdown"]
     assert bonus["bar_hidden"] is False
-    assert bonus["label"].startswith("🔥 Bonus deadline: ")
+    assert bonus["kind"] == "Bonus deadline"
 
 
 def test_a_lapsed_countdown_hands_over_to_the_server(shell):
     """The client never decides the deadline passed — it says so and waits."""
     lapsed = shell["countdown"]["records"]["lapsed"]["countdown"]
-    assert lapsed["label"] == "⏳ Time's up — waiting for the server…"
+    assert lapsed["label"] == "00:00"
+    assert lapsed["kind"] == "Waiting for the server"
     assert lapsed["fill"] == "0%"
 
 
@@ -1598,12 +1624,13 @@ def test_a_capped_board_draws_its_deadline_on_the_same_bar(shell):
     that caps itself is exactly what it is free for."""
     armed = shell["board_deadline"]["records"]["armed"]["countdown"]
     assert armed["bar_hidden"] is False and armed["label_hidden"] is False
-    assert armed["label"] == f"⏱️ Board deadline: {BOARD_LIMIT}s"
+    assert armed["label"] == _clock(BOARD_LIMIT)
+    assert armed["kind"] == "Board deadline"
     # Full width spans the game's own limit, not the wait — the bar would be a
     # sliver at 90 of 180 seconds otherwise.
     assert armed["fill"] == "100%"
     later = shell["board_deadline"]["records"]["later"]["countdown"]
-    assert later["label"] == f"⏱️ Board deadline: {BOARD_LIMIT - 20}s"
+    assert later["label"] == _clock(BOARD_LIMIT - 20)
     assert 70 < float(later["fill"].rstrip("%")) < 80
 
 
@@ -1611,7 +1638,8 @@ def test_a_lapsed_board_deadline_also_hands_over_to_the_server(shell):
     """The client never decides a board is over — the same rule the wait timer
     follows, and the reason the server keeps a grace on top."""
     lapsed = shell["board_deadline"]["records"]["lapsed"]["countdown"]
-    assert lapsed["label"] == "⏳ Time's up — waiting for the server…"
+    assert lapsed["label"] == "00:00"
+    assert lapsed["kind"] == "Waiting for the server"
     assert lapsed["fill"] == "0%"
 
 

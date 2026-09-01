@@ -7,6 +7,11 @@
 (function () {
   "use strict";
 
+  // Ball and container colours come from the shared piece palette; each one
+  // also carries its glyph, so a ball is matched to its container by shape and
+  // never by hue alone.
+  var T = window.RelayTheme;
+
   var HAZARD = "hazard";
   // Every slanted surface and the column it rolls a ball to. Ramps are fixed
   // structure, tilt pins are removable — same rule, different permanence.
@@ -15,10 +20,10 @@
 
   // Shape carries the meaning for colour-blind players; colour reinforces it.
   var BALL_STYLE = {
-    circle: { glyph: "●", colour: "#4e79a7" },
-    triangle: { glyph: "▲", colour: "#e15759" },
-    square: { glyph: "■", colour: "#59a14f" },
-    diamond: { glyph: "◆", colour: "#8338ec" },
+    circle: { glyph: "●", colour: T.piece(0) },
+    triangle: { glyph: "▲", colour: T.piece(1) },
+    square: { glyph: "■", colour: T.piece(3) },
+    diamond: { glyph: "◆", colour: T.piece(4) },
   };
   var PIN_GLYPH = { hold: "═", tilt_left: "╱", tilt_right: "╲" };
   var RAMP_GLYPH = { ramp_left: "◣", ramp_right: "◢" };
@@ -178,33 +183,35 @@
       for (var c = 0; c < p.cols; c++) {
         var at = key(r, c);
         var el = cellBox(px);
-        var css = "background:#f0e8dc;";
+        var css = "background:" + T.cell + ";";
         var feature = state.chamber.statics[at];
         var container = state.chamber.containers[at];
         var pinKind = pinned[at];
         var ballIndex = ballAt[at];
 
         if (feature === "wall") {
-          css = "background:#2b2b33;";
+          css = "background:" + T.bgDeep + ";";
         } else if (feature === HAZARD) {
-          css = "background:#2b2b33;color:#ff6b6b;";
+          css = "background:" + T.fade(T.hazard, 0.22) + ";color:" + T.hazard + ";";
           el.textContent = "✖";
           el.title = "Hazard";
         } else if (RAMP_GLYPH[feature]) {
-          css = "background:#f0e8dc;color:#2b2b33;";
+          css = "background:" + T.cell + ";color:" + T.text + ";";
           el.textContent = RAMP_GLYPH[feature];
           el.title = "Fixed ramp";
         } else if (container !== undefined) {
           var slot = BALL_STYLE[container];
-          css = "background:#fff;border:3px dashed " + slot.colour + ";color:" +
+          css = "background:" + T.bgDeep + ";border:3px dashed " + slot.colour + ";color:" +
             slot.colour + ";";
           el.textContent = slot.glyph;
           el.title = container + " container";
         }
         if (ballIndex !== undefined) {
           var ballStyle = BALL_STYLE[state.chamber.balls[ballIndex].kind];
-          css += "background:" + ballStyle.colour + ";color:#fff;" +
-            (state.balls[ballIndex][2] ? "outline:3px solid #2b2b33;outline-offset:-3px;" : "");
+          css += "background:" + ballStyle.colour + ";color:" + T.ink + ";" +
+            "box-shadow:" + T.glow(ballStyle.colour, 10) + ";" +
+            (state.balls[ballIndex][2]
+              ? "outline:3px solid " + T.text + ";outline-offset:-3px;" : "");
           el.textContent = ballStyle.glyph;
         } else if (pinKind !== undefined) {
           var pinId = null;
@@ -216,9 +223,10 @@
             });
           });
           var armed = pinId === state.armed;
-          css = "background:" + (armed ? "#ffd166" : "#c9a227") + ";color:#2b2b33;" +
+          css = "background:" + (armed ? T.goal : T.fade(T.goal, 0.6)) +
+            ";color:" + T.ink + ";" +
             "cursor:pointer;" +
-            (armed ? "outline:3px solid #2b2b33;outline-offset:-3px;" : "");
+            (armed ? "outline:3px solid " + T.text + ";outline-offset:-3px;" : "");
           el.textContent = PIN_GLYPH[pinKind];
           el.title = "Pin " + (state.chamber.pinOrder.indexOf(pinId) + 1);
           bindPin(el, pinId);
@@ -234,8 +242,9 @@
       var armed = id === state.armed;
       chip.disabled = gone || state.busy || state.done;
       chip.textContent = (index + 1) + " " + (gone ? "·" : PIN_GLYPH[state.chamber.pins[id].kind]);
-      chip.style.background = gone ? "#e6e0d6" : armed ? "#ffd166" : "#fff";
-      chip.style.borderColor = armed ? "#2b2b33" : "#c9a227";
+      chip.style.background = gone ? T.bgDeep : armed ? T.goal : T.cell;
+      chip.style.color = armed ? T.ink : T.text;
+      chip.style.borderColor = armed ? T.text : T.fade(T.goal, 0.6);
       chip.style.textDecoration = gone ? "line-through" : "none";
       chip.setAttribute("aria-pressed", armed ? "true" : "false");
     });
@@ -342,7 +351,8 @@
     btn.setAttribute("aria-label", aria);
     btn.style.cssText =
       "min-width:52px;min-height:48px;font-size:1rem;font-weight:900;" +
-      "border:2px solid #c9a227;border-radius:12px;background:#fff;cursor:pointer;";
+      "border:2px solid " + T.fade(T.goal, 0.55) + ";border-radius:12px;" +
+      "background:" + T.cell + ";color:" + T.text + ";cursor:pointer;";
     btn.addEventListener("click", handler);
     return btn;
   }
@@ -408,11 +418,13 @@
         if (state.armed) pull(state.armed);
       });
       state.pullBtn.style.cssText +=
-        "background:#c9a227;color:#2b2b33;border-color:#c9a227;min-width:96px;";
+        "background:" + T.fade(T.goal, 0.75) + ";color:" + T.ink +
+        ";border-color:" + T.goal + ";min-width:96px;";
       var restartBtn = makeButton("↺ RESTART", "Reset the chamber", restart);
       var checkBtn = makeButton("CHECK", "Submit your pull order", submit);
       checkBtn.style.cssText +=
-        "background:#8338ec;color:#fff;border-color:#8338ec;";
+        "background:" + T.goal + ";color:" + T.ink + ";border-color:" + T.goal +
+        ";box-shadow:" + T.glow(T.goal, 14) + ";";
       controls.appendChild(state.pullBtn);
       controls.appendChild(restartBtn);
       controls.appendChild(checkBtn);
@@ -431,7 +443,8 @@
         "so a slanted pin steers a ball while it's there and lets it drop straight " +
         "through once it's gone. Hazards (✖) and the wrong container lose the ball. " +
         "A pulled pin never comes back; RESTART resets the whole chamber.";
-      hint.style.cssText = "color:#8a8a96;font-size:0.85rem;margin:8px 0 0;";
+      hint.style.cssText =
+        "color:" + T.muted + ";font-size:0.85rem;margin:8px 0 0;";
       root.appendChild(hint);
 
       container.appendChild(root);

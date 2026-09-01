@@ -97,3 +97,52 @@ def test_every_mark_the_dashboard_asks_for_is_a_file_that_ships():
     for path in set(re.findall(r'mask-image:\s*url\("([^"]+)"\)', DASHBOARD_CSS)):
         assert path.startswith("/static/"), path
         assert (FRONTEND / path[len("/static/"):]).is_file(), path
+
+
+# --- the board palette ----------------------------------------------------
+#
+# Boards read their colours from frontend/theme.js. A literal hex in a renderer
+# is invisible until someone retunes the palette and one board silently keeps
+# its old look, so the rule is checked rather than remembered.
+
+# The two lanes still on their old design, with their own mockups pending. Their
+# absence here is a decision, not an oversight: see docs/CONTRIBUTING.md.
+THEME_EXEMPT = {"bomb_defuse.js", "bomb_manual.js"}
+
+
+def _renderers() -> list[Path]:
+    return sorted(
+        path for path in (FRONTEND / "games").glob("*.js")
+        if path.name not in THEME_EXEMPT
+    )
+
+
+def test_no_board_hard_codes_a_colour():
+    for path in _renderers():
+        found = re.findall(r"#[0-9a-fA-F]{3,8}\b", path.read_text())
+        assert not found, f"{path.name} still hard-codes {found}"
+
+
+def test_every_board_reads_the_shared_palette():
+    """A renderer that never touches the palette either draws nothing coloured
+    or is about to grow its own, so the pairing is asserted both ways."""
+    for path in _renderers():
+        source = path.read_text()
+        if path.name == "fallback.js":
+            continue          # text and multiple-choice only; no board to colour
+        assert "window.RelayTheme" in source, path.name
+
+
+def test_the_palette_names_meanings_not_appearances():
+    """`goal` and `hazard` survive a redesign; `orange` and `red` do not."""
+    theme = (FRONTEND / "theme.js").read_text()
+    for banned in ("red:", "blue:", "green:", "orange:", "purple:", "pink:"):
+        assert banned not in theme, banned
+
+
+def test_the_two_excluded_lanes_are_still_excluded():
+    """A reminder in test form. If someone restyles the bomb or a duel, this
+    fails and they have to come here and say so deliberately."""
+    for name in THEME_EXEMPT:
+        assert (FRONTEND / "games" / name).exists(), name
+    assert list((FRONTEND / "duels").glob("*.js")), "duel renderers vanished"

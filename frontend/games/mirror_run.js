@@ -26,6 +26,12 @@
     w: "U", d: "R", s: "D", a: "L", W: "U", D: "R", S: "D", A: "L",
   };
 
+  // Runner A and Runner B are the two sides of one paired board, so they take
+  // theme.js's sideA/sideB rather than two colours picked here. The runner is
+  // also lettered A/B and the exit wears a flag, so neither board depends on
+  // telling the two hues apart.
+  var T = window.RelayTheme;
+
   var state = null;
 
   function wallKey(r, c) { return r + "," + c; }
@@ -65,21 +71,28 @@
     panel.innerHTML = "";
     var title = document.createElement("div");
     title.textContent = label;
-    title.style.cssText = "font-weight:800;font-size:0.8rem;margin-bottom:4px;text-align:center;";
+    title.style.cssText = "font-weight:800;font-size:0.8rem;margin-bottom:6px;" +
+      "text-align:center;letter-spacing:0.08em;text-transform:uppercase;" +
+      "color:" + runnerColour + ";";
     panel.appendChild(title);
     var grid = document.createElement("div");
     grid.style.cssText =
       "display:grid;grid-template-columns:repeat(" + p.cols + "," + state.cell + "px);" +
-      "grid-auto-rows:" + state.cell + "px;gap:2px;";
+      "grid-auto-rows:" + state.cell + "px;gap:3px;padding:10px;" +
+      "border-radius:12px;background:" + T.bg + ";" +
+      "border:1px solid " + T.fade(runnerColour, 0.4) + ";";
     for (var r = 0; r < p.rows; r++) {
       for (var c = 0; c < p.cols; c++) {
         var cellEl = document.createElement("div");
         var css = "border-radius:4px;display:flex;align-items:center;justify-content:center;" +
           "font-weight:900;font-size:" + Math.floor(state.cell * 0.55) + "px;";
+        // The wall is the lit thing and the floor is the dark thing you move
+        // through, which is the way a maze reads at a glance.
         if (walls[wallKey(r, c)]) {
-          css += "background:#2b2b33;";
+          css += "background:" + T.fade(runnerColour, 0.45) +
+            ";box-shadow:inset 0 0 0 1px " + T.fade(runnerColour, 0.8) + ";";
         } else {
-          css += "background:#f0e8dc;";
+          css += "background:" + T.bgDeep + ";";
         }
         var isExit = r === board.exit[0] && c === board.exit[1];
         var isRunner = r === runner[0] && c === runner[1];
@@ -90,7 +103,8 @@
         }
         if (isRunner) {
           cellEl.textContent = label.charAt(label.length - 1); // "A" / "B"
-          css += "background:" + runnerColour + ";color:#fff;" +
+          css += "background:" + runnerColour + ";color:" + T.ink + ";" +
+            "box-shadow:" + T.glow(runnerColour, 12) + ";" +
             (state.reducedMotion ? "" : "transition:background 0.12s ease;");
         }
         cellEl.style.cssText = css;
@@ -103,8 +117,8 @@
   function render() {
     var p = state.payload;
     var pos = positions();
-    drawBoard(state.panelA, p.boards[0], state.wallsA, pos[0], "Runner A", "#4e79a7");
-    drawBoard(state.panelB, p.boards[1], state.wallsB, pos[1], "Runner B", "#e15759");
+    drawBoard(state.panelA, p.boards[0], state.wallsA, pos[0], "Runner A", T.sideA);
+    drawBoard(state.panelB, p.boards[1], state.wallsB, pos[1], "Runner B", T.sideB);
     state.counter.textContent = "Moves: " + state.moves.length + " / " + p.move_cap;
     state.undoBtn.disabled = !state.moves.length || state.done;
     state.restartBtn.disabled = !state.moves.length || state.done;
@@ -141,7 +155,9 @@
     btn.setAttribute("aria-label", aria);
     btn.style.cssText =
       "min-width:52px;min-height:52px;font-size:1.3rem;font-weight:900;" +
-      "border:2px solid #f0e8dc;border-radius:12px;background:#fff;cursor:pointer;";
+      "border:2px solid " + T.fade(T.wall, 0.5) + ";border-radius:12px;" +
+      "background:" + T.cell + ";color:" + T.text + ";cursor:pointer;" +
+      "box-shadow:" + T.glow(T.wall, 10) + ";";
     btn.addEventListener("click", handler);
     return btn;
   }
@@ -167,7 +183,8 @@
       var badge = document.createElement("div");
       badge.textContent = MAPPING_LABELS[p.mapping_b] || p.mapping_b;
       badge.style.cssText =
-        "text-align:center;font-weight:800;background:#8338ec;color:#fff;" +
+        "text-align:center;font-weight:800;background:" + T.accent +
+        ";color:" + T.text + ";" +
         "border-radius:999px;padding:6px 14px;margin-bottom:10px;font-size:0.9rem;";
       root.appendChild(badge);
 
@@ -182,11 +199,13 @@
 
       state.flashEl = document.createElement("div");
       state.flashEl.style.cssText =
-        "text-align:center;font-weight:800;min-height:1.4em;margin:6px 0;color:#8338ec;";
+        "text-align:center;font-weight:800;min-height:1.4em;margin:6px 0;color:" +
+        T.accent + ";";
       root.appendChild(state.flashEl);
 
       state.counter = document.createElement("div");
-      state.counter.style.cssText = "text-align:center;font-weight:700;font-size:0.85rem;color:#8a8a96;";
+      state.counter.style.cssText =
+        "text-align:center;font-weight:700;font-size:0.85rem;color:" + T.muted + ";";
       root.appendChild(state.counter);
 
       // D-pad (touch-first) + Undo/Restart. Keyboard works too (arrows/WASD).
@@ -223,7 +242,8 @@
       hint.textContent =
         "Every move drives BOTH runners — get each onto its ⚑ at the same time. " +
         "Blocked runners stay put (use walls to split them up!). Swipe, tap the pad, or use arrow keys.";
-      hint.style.cssText = "color:#8a8a96;font-size:0.85rem;margin:10px 0 0;";
+      hint.style.cssText =
+        "color:" + T.muted + ";font-size:0.85rem;margin:10px 0 0;";
       root.appendChild(hint);
 
       container.appendChild(root);

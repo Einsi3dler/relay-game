@@ -5,7 +5,10 @@
 (function () {
   "use strict";
 
-  var COLOURS = ["#e15759", "#4e79a7", "#f2b418", "#59a14f", "#b07aa1"];
+  // The shared piece palette, so a Decant liquid and an Echo pad are the same
+  // family of colour. Every tube is also readable by its stack shape, so hue is
+  // not the only thing carrying the puzzle.
+  var T = window.RelayTheme;
   var state = null;
 
   // Free-stacking rules: any tube with room is a legal target — the
@@ -44,12 +47,16 @@
       el.style.cssText =
         "width:52px;height:" + (p.capacity * 34 + 12) + "px;cursor:pointer;" +
         "display:flex;flex-direction:column-reverse;gap:2px;padding:4px;" +
-        "border:2px solid " + (state.selected === index ? "#FFD700" : "#345") + ";" +
-        "border-radius:0 0 14px 14px;background:#101820;";
+        "border:2px solid " +
+          (state.selected === index ? T.goal : T.grid) + ";" +
+        "border-radius:0 0 14px 14px;background:" + T.cell + ";" +
+        "transition:border-color 0.15s ease,box-shadow 0.15s ease;" +
+        (state.selected === index
+          ? "box-shadow:" + T.glow(T.goal, 12) + ";" : "");
       tube.forEach(function (colour) {
         var seg = document.createElement("div");
         seg.style.cssText =
-          "height:30px;border-radius:4px;background:" + COLOURS[(colour - 1) % COLOURS.length] + ";";
+          "height:30px;border-radius:4px;background:" + T.piece(colour - 1) + ";";
         el.appendChild(seg);
       });
       el.addEventListener("click", function () {

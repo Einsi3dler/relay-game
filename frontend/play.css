@@ -1,0 +1,426 @@
+/* The Relay — the player's board screen.
+ *
+ * Loaded after style.css and scoped to `#view-play` plus the `play-active`
+ * body class that show() toggles. It shares the dark palette declared in
+ * style.css with the Grandmaster's board and the result screen, so a match
+ * looks like one product from every seat.
+ *
+ * The boards themselves are drawn by the game renderers, which read their
+ * colours from theme.js. Nothing here reaches into a mounted board: this is
+ * the frame, and the frame's job is to stay out of the way of the puzzle.
+ *
+ * Two things are deliberately NOT on this screen:
+ *
+ *   * Who on your team has cleared. That read-out belongs to the Grandmaster
+ *     and Silence is the perk that takes it away
+ *     (docs/WEBSOCKET_PROTOCOL.md, "visibility is Grandmaster-exclusive").
+ *   * The duel card and the bomb board, which keep their old look until their
+ *     own designs land.
+ */
+
+body.play-active { background: var(--gm-bg, #07091f); }
+body.play-active .topbar { display: none; }
+
+#view-play {
+  --pl-glow: 0 0 0 1px var(--gm-line), 0 8px 30px rgba(0, 0, 0, 0.45);
+
+  width: min(1500px, calc(100% - 24px));
+  max-width: none;
+  margin: 0 auto 28px;
+  padding: 14px 0 0;
+  color: var(--gm-text);
+  font-variant-numeric: tabular-nums;
+}
+
+#view-play :focus-visible {
+  outline: 3px solid var(--gm-yellow);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --- the bar ----------------------------------------------------------- */
+
+.pl-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 10px 18px;
+  margin-bottom: var(--gm-gap);
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-lg);
+  background: linear-gradient(180deg, var(--gm-panel-2), var(--gm-panel));
+}
+
+.pl-mark { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.pl-mark svg { width: 17px; height: 23px; color: var(--gm-yellow); }
+.pl-mark span {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-weight: 900;
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+}
+
+.pl-field__label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+
+/* Who you are, which side you are on, and what seat you hold. The three facts
+   a player needs to recognise themselves on a shared screen. */
+.pl-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 5px 14px 5px 5px;
+  border: 1px solid var(--gm-line);
+  border-left: 4px solid var(--team-color, var(--gm-cyan));
+  border-radius: var(--gm-radius-sm);
+  background: rgba(7, 9, 31, 0.5);
+}
+.pl-who:empty { display: none; }
+.pl-who__name {
+  font-weight: 900;
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pl-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pl-tag {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pl-tag--team {
+  border: 1px solid var(--team-color, var(--gm-line));
+  color: var(--team-color, var(--gm-text));
+  background: color-mix(in srgb, var(--team-color, #7a8cff) 16%, transparent);
+}
+.pl-tag--role {
+  border: 1px solid var(--gm-line);
+  background: rgba(122, 140, 255, 0.16);
+  color: var(--gm-text);
+}
+.pl-tag--role.is-duelist { border-color: var(--gm-pink); color: var(--gm-pink); }
+.pl-tag--role.is-defuser { border-color: var(--gm-red); color: var(--gm-red); }
+
+.pl-meter { min-width: 168px; flex: 1 1 168px; }
+.pl-meter__row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.pl-meter__track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(122, 140, 255, 0.18);
+  overflow: hidden;
+}
+.pl-meter__track > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--gm-cyan), var(--gm-violet));
+  transition: width 0.5s ease;
+}
+.pl-meter__count { font-weight: 900; font-size: 0.9rem; white-space: nowrap; }
+
+.pl-clock {
+  flex: none;
+  margin-left: auto;
+  padding: 5px 16px;
+  border: 2px solid var(--gm-cyan);
+  border-radius: var(--gm-radius-sm);
+  background: rgba(32, 212, 231, 0.1);
+  text-align: right;
+}
+.pl-clock__value {
+  display: block;
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--gm-cyan);
+}
+/* The last stretch. Colour is not the only carrier — the number is right
+   there — so this is emphasis, not information. */
+.pl-clock.is-urgent { border-color: var(--gm-red); background: rgba(255, 81, 101, 0.12); }
+.pl-clock.is-urgent .pl-clock__value {
+  color: var(--gm-red);
+  animation: pl-pulse 1s ease-in-out infinite;
+}
+@keyframes pl-pulse { 50% { opacity: 0.5; } }
+
+/* --- the deck ---------------------------------------------------------- */
+
+.pl-deck {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 300px);
+  gap: var(--gm-gap);
+  align-items: start;
+}
+.pl-stage { min-width: 0; display: flex; flex-direction: column; gap: var(--gm-gap); }
+.pl-rail { display: flex; flex-direction: column; gap: var(--gm-gap); min-width: 0; }
+
+/* --- the board --------------------------------------------------------- */
+
+.pl-board {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-lg);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(138, 77, 255, 0.14), transparent 62%),
+    var(--gm-panel);
+  overflow: hidden;
+}
+.pl-board__head { padding: 18px 20px 4px; text-align: center; }
+#view-play h1 {
+  margin: 0;
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: clamp(1.6rem, 3.4vw, 2.5rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #ffffff 12%, #b9c4f5 62%, #6f7cb8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: #dfe4ff;
+  -webkit-text-fill-color: transparent;
+}
+.pl-prompt {
+  margin: 8px auto 0;
+  max-width: 62ch;
+  color: var(--gm-muted);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.pl-bonus {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 7px 18px;
+  border: 1px solid var(--gm-yellow);
+  border-radius: 999px;
+  background: rgba(255, 210, 28, 0.14);
+  color: var(--gm-yellow);
+  font-weight: 900;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+/* The fuse: the board's own deadline, or the hold on a cleared player. It runs
+   the full width of the board because it is the loudest thing that can change
+   while you are looking at the puzzle instead of the clock. */
+.pl-fuse {
+  height: 4px;
+  margin: 14px 0 0;
+  background: rgba(122, 140, 255, 0.16);
+  overflow: hidden;
+}
+#timer-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--gm-cyan), var(--gm-yellow), var(--gm-red));
+  transition: width 0.25s linear;
+}
+
+/* --- the rest card ----------------------------------------------------- */
+
+.pl-rest {
+  padding: 26px 22px;
+  text-align: center;
+  border: 1px solid var(--gm-green);
+  border-radius: var(--gm-radius-lg);
+  background:
+    radial-gradient(100% 80% at 50% 0%, rgba(66, 219, 131, 0.16), transparent 65%),
+    var(--gm-panel);
+  color: var(--gm-muted);
+}
+.pl-rest__mark {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  border: 3px solid var(--gm-green);
+  background: rgba(66, 219, 131, 0.14);
+  position: relative;
+  animation: pl-pop 0.45s ease;
+}
+/* A tick drawn from two borders, so the card needs no glyph and no font. */
+.pl-rest__mark::after {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 9px;
+  width: 14px;
+  height: 25px;
+  border: solid var(--gm-green);
+  border-width: 0 4px 4px 0;
+  transform: rotate(45deg);
+}
+@keyframes pl-pop {
+  from { transform: scale(0.4); opacity: 0; }
+  70% { transform: scale(1.12); }
+  to { transform: scale(1); opacity: 1; }
+}
+.pl-rest__big {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.6rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--gm-green);
+}
+.pl-rest p { margin: 8px auto 0; max-width: 46ch; font-size: 0.9rem; }
+
+/* --- the rail ---------------------------------------------------------- */
+
+.pl-panel {
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-md);
+  background: var(--gm-panel);
+  overflow: hidden;
+}
+.pl-panel__head {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--gm-line-soft);
+  background: linear-gradient(180deg, rgba(122, 140, 255, 0.09), transparent);
+}
+.pl-panel__head h2 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+.pl-panel__body { padding: 12px 14px 14px; }
+.pl-panel--role .pl-panel__head h2 { color: var(--gm-cyan); }
+.pl-panel--pay { border-color: rgba(255, 210, 28, 0.32); }
+.pl-panel--pay .pl-panel__head h2 { color: var(--gm-yellow); }
+
+.pl-seat__role {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--gm-cyan);
+}
+.pl-seat__game {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--gm-line-soft);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+.pl-seat__game .gm-ic--game { color: var(--gm-violet); }
+.pl-seat__note {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--gm-muted);
+}
+
+.pl-pay { display: flex; flex-direction: column; gap: 8px; }
+.pl-pay__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--gm-line-soft);
+  border-radius: var(--gm-radius-sm);
+  background: var(--gm-panel-2);
+}
+.pl-pay__row.is-live {
+  border-color: rgba(255, 210, 28, 0.5);
+  background: rgba(255, 210, 28, 0.1);
+}
+.pl-pay__coin {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 46px;
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--gm-yellow);
+}
+.pl-pay__what { font-size: 0.76rem; line-height: 1.35; color: var(--gm-muted); }
+
+/* --- feed -------------------------------------------------------------- */
+
+#view-play .feed {
+  margin: 0;
+  padding: 0;
+  max-height: 190px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  color: var(--gm-muted);
+  font-size: 0.8rem;
+}
+#view-play .feed li {
+  padding: 8px 14px;
+  border-top: 1px solid var(--gm-line-soft);
+  line-height: 1.35;
+}
+#view-play .feed li:first-child { border-top: 0; }
+/* A line that has just landed, easing in rather than appearing: the feed is in
+   the corner of your eye while you work the board. */
+#view-play .feed li.fresh {
+  color: var(--gm-text);
+  font-weight: 700;
+  background: rgba(255, 210, 28, 0.08);
+  animation: pl-slide 0.35s ease;
+}
+@keyframes pl-slide {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- the two screens still on the old look ------------------------------ */
+
+/* The duel card and the bomb board keep their own designs until theirs land.
+   They sit on a light plate rather than floating on the dark ground, so they
+   read as themselves rather than as something half-restyled. */
+#view-play .duel-card,
+#view-play #puzzle-mount.is-legacy {
+  border-radius: var(--gm-radius-lg);
+  background: var(--bg);
+  color: var(--ink);
+}
+#view-play #puzzle-mount.is-legacy { margin: 0 14px 16px; padding: 16px; }
+
+/* --- responsive --------------------------------------------------------- */
+
+@media (max-width: 1023px) {
+  .pl-deck { grid-template-columns: minmax(0, 1fr); }
+  .pl-rail { flex-direction: row; flex-wrap: wrap; }
+  .pl-rail .pl-panel { flex: 1 1 250px; }
+}
+
+@media (max-width: 719px) {
+  #view-play { width: calc(100% - 16px); }
+  .pl-bar { gap: 10px; padding: 10px 12px; }
+  .pl-clock { margin-left: 0; }
+  .pl-meter { flex-basis: 100%; }
+  .pl-mount { padding: 12px 8px 18px; }
+  .pl-rail { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #view-play *, #view-play *::before, #view-play *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

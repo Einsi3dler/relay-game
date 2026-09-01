@@ -5,8 +5,9 @@
 (function () {
   "use strict";
 
-  var PAD_COLOURS = ["#e15759", "#4e79a7", "#f2b418", "#59a14f",
-                     "#b07aa1", "#76b7b2", "#ff9da7", "#9c755f", "#bab0ac"];
+  // Pads take the shared piece palette, and each one keeps its own index, so a
+  // sequence is followable by position as well as by colour.
+  var T = window.RelayTheme;
   var state = null;
 
   function setPad(index, lit) {
@@ -40,15 +41,17 @@
       };
       var grid = document.createElement("div");
       grid.style.cssText =
-        "display:grid;grid-template-columns:repeat(" + side + ",72px);gap:8px;" +
-        "justify-content:center;margin:8px 0;";
+        "display:grid;grid-template-columns:repeat(" + side + ",72px);gap:10px;" +
+        "justify-content:center;padding:14px;border-radius:16px;" +
+        "background:" + T.bg + ";border:1px solid " + T.line + ";";
       for (var i = 0; i < p.pads; i++) {
         (function (i) {
           var pad = document.createElement("button");
           pad.type = "button";
           pad.style.cssText =
-            "width:72px;height:72px;border:none;border-radius:12px;cursor:pointer;" +
-            "opacity:0.35;background:" + PAD_COLOURS[i % PAD_COLOURS.length] + ";";
+            "width:72px;height:72px;border:none;border-radius:14px;cursor:pointer;" +
+            "opacity:0.35;transition:opacity 0.12s ease,box-shadow 0.12s ease;" +
+            "background:" + T.piece(i) + ";";
           pad.addEventListener("click", function () {
             if (!state.accepting) return;
             state.taps.push(i);
