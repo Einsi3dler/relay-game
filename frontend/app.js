@@ -879,6 +879,10 @@
     if (title) {
       title.textContent = "⚔️ " + (duel.name || "Duel") + " — round " + duel.round;
     }
+    if (cardId === "leader-duel-card") {
+      $("leader-duel-title").textContent =
+        (duel.name || "Duel") + ", round " + duel.round;
+    }
     // Only the choice window is a race; the reveal beat needs no pressure bar.
     startDuelCountdown(duel.phase === "choosing" ? duel.deadline : null, duel);
   }
@@ -1124,12 +1128,20 @@
     if (!iso) { box.hidden = true; return; }
     var deadline = parseDeadline(iso);
     box.hidden = false;
+    // The chip is a clock, so it reads as one. The instruction that came with
+    // it — that this number reaches nobody else — moves to the title, where it
+    // is still there for the asking and no longer fighting the digits.
+    box.title = "Call it out: the Defuser cannot see this.";
     var tick = function () {
       var left = Math.max(0, deadline - Date.now());
-      box.textContent = left > 0
-        ? "⏱️ " + Math.ceil(left / 1000) + "s — call it out, they cannot see it"
-        : "💥 Out of time — the board is gone.";
-      if (left <= 0) clearInterval(bombClockHandle);
+      var whole = Math.max(0, Math.ceil(left / 1000));
+      box.textContent = ("0" + Math.floor(whole / 60)).slice(-2) + ":" +
+        ("0" + (whole % 60)).slice(-2);
+      box.classList.toggle("is-urgent", whole <= 15);
+      if (left <= 0) {
+        box.title = "Out of time. The board is gone.";
+        clearInterval(bombClockHandle);
+      }
     };
     tick();
     bombClockHandle = setInterval(tick, 250);
@@ -1138,7 +1150,12 @@
   function hideConsoleClock() {
     clearInterval(bombClockHandle);
     var box = $("leader-bomb-clock");
-    if (box) { box.hidden = true; box.textContent = ""; }
+    if (box) {
+      box.hidden = true;
+      box.textContent = "";
+      box.title = "";
+      box.classList.remove("is-urgent");
+    }
   }
 
   function renderBombConsole(state, team) {
@@ -1205,7 +1222,7 @@
     var mount = $("leader-bomb-mount");
     mount.innerHTML = "";
     var frame = document.createElement("div");
-    frame.style.cssText = "position:relative;width:100%;overflow:hidden;";
+    frame.style.cssText = "position:absolute;inset:0;overflow:hidden;";
     var surface = document.createElement("div");
     surface.style.cssText = "position:absolute;left:0;top:0;width:" + manual.W +
       "px;height:" + manual.H + "px;transform-origin:top left;";
@@ -1213,11 +1230,59 @@
     mount.appendChild(frame);
     bombConsole.mounted = true;
 
+    // The manual's own home page is one of the stops, so the rail and the
+    // arrows walk the same list the page selector does. Read from the module's
+    // PAGES rather than a copy here: a manual page added there appears in the
+    // rail with no change to this file.
+    var stops = ["home"].concat(manual.PAGES);
+
+    function stopName(page) {
+      return page === "home" ? "Contents" : (manual.MODULE_NAMES[page] || page);
+    }
+
+    function drawRail() {
+      var rail = $("leader-bomb-pages");
+      rail.innerHTML = "";
+      stops.forEach(function (page) {
+        var open = page === bombConsole.page;
+        var tab = el("button", "gm-page-tab" + (open ? " is-open" : ""),
+          stopName(page));
+        tab.type = "button";
+        tab.setAttribute("role", "tab");
+        tab.setAttribute("aria-selected", open ? "true" : "false");
+        tab.addEventListener("click", function () {
+          bombConsole.page = page;
+          draw();
+        });
+        rail.appendChild(tab);
+      });
+      var at = stops.indexOf(bombConsole.page);
+      $("leader-bomb-count").textContent = (at + 1) + " / " + stops.length;
+      $("leader-bomb-prev").disabled = at <= 0;
+      $("leader-bomb-next").disabled = at >= stops.length - 1;
+    }
+
+    function step(by) {
+      var at = stops.indexOf(bombConsole.page) + by;
+      if (at < 0 || at >= stops.length) return;
+      bombConsole.page = stops[at];
+      draw();
+    }
+
+    $("leader-bomb-prev").onclick = function () { step(-1); };
+    $("leader-bomb-next").onclick = function () { step(1); };
+
+    // Fit both ways. The manual draws at a fixed 590x440 and the console now
+    // lives in a fold with a ceiling, so scaling on width alone would push the
+    // page out through the bottom of its own panel.
     function scaleConsole() {
-      var available = frame.clientWidth || manual.W;
-      var scale = Math.max(0.5, Math.min(available / manual.W, 1.4));
+      var availW = mount.clientWidth || manual.W;
+      var availH = mount.clientHeight || manual.H;
+      var scale = Math.max(0.5,
+        Math.min(availW / manual.W, availH / manual.H, 1.4));
       surface.style.transform = "scale(" + scale + ")";
-      frame.style.height = Math.round(manual.H * scale) + "px";
+      surface.style.left = Math.max(0, (availW - manual.W * scale) / 2) + "px";
+      surface.style.top = Math.max(0, (availH - manual.H * scale) / 2) + "px";
     }
 
     function draw() {
@@ -1231,12 +1296,24 @@
         // it to go back to, and the card is not dismissible.
         onExit: function () { bombConsole.page = "home"; draw(); }
       });
+      drawRail();
       scaleConsole();
     }
     draw();
     if (!bombConsole.resizeHandler) {
       bombConsole.resizeHandler = function () { scaleConsole(); };
       window.addEventListener("resize", bombConsole.resizeHandler);
+    }
+    // The window is not the only thing that resizes this. The console is a flex
+    // child of a deck sized to the viewport: its height settles *after* this
+    // mount and changes again every time the deck reflows — a duel starting, a
+    // roster row arriving — with no window event at all. Measuring once is how
+    // the manual ends up drawn at full size inside a short panel.
+    if (window.ResizeObserver && !bombConsole.observer) {
+      bombConsole.observer = new window.ResizeObserver(function () {
+        scaleConsole();
+      });
+      bombConsole.observer.observe(mount);
     }
   }
 
@@ -1245,11 +1322,18 @@
       window.removeEventListener("resize", bombConsole.resizeHandler);
       bombConsole.resizeHandler = null;
     }
+    if (bombConsole.observer) {
+      bombConsole.observer.disconnect();
+      bombConsole.observer = null;
+    }
     bombConsole.mounted = false;
     bombConsole.page = "home";
     hideConsoleClock();
     var mount = $("leader-bomb-mount");
     if (mount) mount.innerHTML = "";
+    var rail = $("leader-bomb-pages");
+    if (rail) rail.innerHTML = "";
+    $("leader-bomb-count").textContent = "";
     $("leader-bomb-card").hidden = true;
   }
 
@@ -1373,6 +1457,14 @@
     return i;
   }
 
+  // The mark for an assigned game. The id is the class, so a game registered
+  // later needs a stylesheet rule and nothing here; until it has one the base
+  // .gm-ic--game mask keeps the column aligned rather than painting a block.
+  function gameIcon(gameId) {
+    var slug = String(gameId || "").replace(/[^a-z0-9_]/gi, "");
+    return icon("game", slug ? "gm-ic--game-" + slug + " gm-ic--sm" : "gm-ic--sm");
+  }
+
   function el(tag, className, text) {
     var node = document.createElement(tag);
     if (className) node.className = className;
@@ -1458,6 +1550,36 @@
     return wrap;
   }
 
+  // The two seats of a live duel, above whatever the duel game draws.
+  //
+  // Initials in the team's colour, not the seeded faces the roster uses: the
+  // duel view sends the opponent's *name* and never their id, because an id is
+  // a WS credential (models.DuelSession.public). Seeding a face from anything
+  // else would invent a stranger here and show the other Grandmaster a
+  // different one for the same player.
+  function renderDuelSeats(state, duel, myTeamId) {
+    var host = $("leader-duel-seats");
+    if (!host) return;
+    host.innerHTML = "";
+    if (!duel) return;
+    var names = duel.duellists || {};
+    var teams = duel.team_of || {};
+    // Your own champion on the left, the way the roster and the race read.
+    var order = teams.b === myTeamId ? ["b", "a"] : ["a", "b"];
+    order.forEach(function (side, at) {
+      if (at) host.appendChild(el("span", "gm-seats__vs", "VS"));
+      var teamId = teams[side];
+      var team = state.teams[teamId];
+      var seat = el("div", "gm-seat" + (teamId === myTeamId ? " is-mine" : ""));
+      seat.style.setProperty("--team-color", teamColor(teamId));
+      seat.appendChild(el("span", "gm-avatar gm-avatar--initials",
+        initials(names[side] || "?")));
+      seat.appendChild(el("span", "gm-seat__name", names[side] || "Empty seat"));
+      seat.appendChild(el("span", "gm-seat__team", team ? team.name : teamId || ""));
+      host.appendChild(seat);
+    });
+  }
+
   function statusPill(player) {
     // Silenced: the server nulls the progress fields rather than lying about
     // them, so there is genuinely nothing to show.
@@ -1513,8 +1635,11 @@
     // half that must not be invented.
     var blind = silenced || team.green_count === null ||
       team.green_count === undefined;
+    // Every slot, every snapshot, in a fixed order. A bar that grew and shrank
+    // moved the thing you were reading; one that dims in place does not, and
+    // the Grandmaster learns where to look instead of scanning for it.
     if (blind) {
-      flag(flags, "Signal", "Silenced", "danger", "warning");
+      flag(flags, "Cleared", "Silenced", "danger", "warning");
       $("leader-team-count").textContent = "? / ?";
     } else {
       flag(flags, "Cleared", team.green_count + " / " + team.roster_size,
@@ -1522,14 +1647,20 @@
       $("leader-team-count").textContent =
         team.green_count + " / " + team.roster_size + " cleared";
     }
-    if (team.shield_active) flag(flags, "Shield", "Active", "on", "shield");
-    if (team.reflect_active) flag(flags, "Reflect", "Active", "on", "reflect");
-    if (team.insurance_active) flag(flags, "Insurance", "Active", "on", "insurance");
-    if (team.duel_streak) flag(flags, "Duel streak", "x" + team.duel_streak, "good", "duel");
-    if (locked) flag(flags, "Duel penalty", "Cannot advance", "warn", "warning");
+    flag(flags, "Shield", team.shield_active ? "Active" : "None",
+      team.shield_active ? "on" : "off", "shield");
+    flag(flags, "Reflect", team.reflect_active ? "Active" : "None",
+      team.reflect_active ? "on" : "off", "reflect");
+    flag(flags, "Insurance", team.insurance_active ? "Active" : "None",
+      team.insurance_active ? "on" : "off", "insurance");
+    flag(flags, "Duel streak", team.duel_streak ? "x" + team.duel_streak : "None",
+      team.duel_streak ? "good" : "off", "duel");
+    flag(flags, "Duel penalty", locked ? "Cannot advance" : "None",
+      locked ? "warn" : "off", "warning");
 
     watchSilence(team);
     renderDuel(state, "leader-duel-card", "leader-duel-mount");
+    renderDuelSeats(state, state.duel, me.team_id);
     renderBombConsole(state, team);
 
     // --- roster ---
@@ -1560,6 +1691,7 @@
       row.appendChild(who);
 
       var assign = el("div", "gm-assign");
+      assign.appendChild(gameIcon(player.assigned_game));
       assign.appendChild(el("span", null, gameName(player.assigned_game)));
       row.appendChild(assign);
 
@@ -1578,20 +1710,24 @@
     var oppBox = $("leader-opponent");
     oppBox.innerHTML = "";
     if (opponent) {
-      var opp = el("div", "gm-opp");
-      var oppName = el("span", "gm-opp__name", opponent.name);
-      oppName.style.setProperty("--opp-color", teamColor(opponent.id));
-      opp.appendChild(oppName);
+      // A band in their colour rather than a boxed panel: it is a scoreline you
+      // glance at, not a thing you work in.
+      oppBox.style.setProperty("--team-color", teamColor(opponent.id));
+      var mark = el("span", "gm-opp__logo");
+      mark.appendChild(icon("logo-" + teamLogo(state, opponent.id)));
+      oppBox.appendChild(mark);
+      oppBox.appendChild(el("span", "gm-opp__label", "Opponent team"));
+      oppBox.appendChild(el("span", "gm-opp__name", opponent.name));
+      oppBox.appendChild(el("span", "gm-spacer"));
       var lvl = el("span", "gm-opp__stat");
       lvl.appendChild(el("strong", null, "Level " + opponent.level +
         (levels ? " / " + levels : "")));
-      opp.appendChild(lvl);
+      oppBox.appendChild(lvl);
       var cleared = el("span", "gm-opp__stat");
       cleared.appendChild(el("strong", null,
         opponent.green_count + " / " + opponent.roster_size));
       cleared.appendChild(el("span", null, " cleared"));
-      opp.appendChild(cleared);
-      oppBox.appendChild(opp);
+      oppBox.appendChild(cleared);
     }
 
     renderRace(state, team, opponent, levels);
@@ -1693,13 +1829,18 @@
       card.appendChild(target);
     }
 
-    var foot = el("div", "perk-foot");
-    var cost = el("span", "perk-cost");
-    cost.appendChild(icon("coin", "gm-ic--sm"));
-    cost.appendChild(el("span", null, String(perk.cost)));
-    foot.appendChild(cost);
-
-    var buy = el("button", "gm-buy", isActive ? "Active" : "Buy");
+    // The price *is* the button. The card is the thing you read and the coin
+    // chip along its foot is the thing you press, which is one control instead
+    // of a chip sitting next to a button that says the same thing. The label
+    // that carries the meaning moved to aria-label and title, so the shrunk
+    // visible text costs a sighted reader a hover and a screen reader nothing.
+    var buy = el("button", "gm-buy" + (isActive ? " is-on" : ""));
+    if (isActive) {
+      buy.appendChild(el("span", null, "Active"));
+    } else {
+      buy.appendChild(icon("coin", "gm-ic--sm"));
+      buy.appendChild(el("span", null, String(perk.cost)));
+    }
     var poor = team.currency < perk.cost;
     // extend_wait needs a live target; the rest are aimed by the server.
     var noTarget = target !== null && !target.value;
@@ -1708,13 +1849,14 @@
       (isActive ? "Already active: " : "Buy ") + perk.name + " for " + perk.cost + " coins");
     if (poor) buy.title = "Not enough coins";
     else if (noTarget) buy.title = "No cleared teammate to target";
+    else if (isActive) buy.title = perk.name + " is already active";
+    else buy.title = "Buy " + perk.name + " for " + perk.cost + " coins";
     buy.addEventListener("click", function () {
       var message = { type: "buy_perk", perk_id: perkId };
       if (target && target.value) message.target_id = target.value;
       send(message);
     });
-    foot.appendChild(buy);
-    card.appendChild(foot);
+    card.appendChild(buy);
     return card;
   }
 
@@ -1731,6 +1873,23 @@
         (player.green ? " · cleared" : "");
       select.appendChild(option);
     });
+    // The face beside the control, since a native <select> cannot carry one and
+    // a custom listbox would trade working keyboard and screen-reader behaviour
+    // for a picture.
+    var face = $("handoff-avatar");
+    var paintFace = function () {
+      face.innerHTML = "";
+      var pick = null;
+      team.players.forEach(function (p) {
+        if (!p.is_leader && p.id === select.value) pick = p;
+      });
+      if (!pick) return;
+      face.style.setProperty("--team-color", teamColor(team.id));
+      face.innerHTML = avatarSvg(hashSeed(state.id + ":" + pick.id));
+    };
+    select.onchange = paintFace;
+    paintFace();
+
     var btn = $("handoff-btn");
     btn.disabled = !select.options.length;
     btn.onclick = function () {
@@ -1753,6 +1912,33 @@
     });
   }
 
+  // An icon and a tone per event kind. The kinds are the ones the engine
+  // actually emits (`RelayEngine._add_event`); anything it adds later falls
+  // through to the neutral row rather than vanishing.
+  var EVENT_MARKS = {
+    green: ["cleared", "good"],
+    lost_green: ["warning", "warn"],
+    advance: ["level", "on"],
+    bonus: ["star", "bonus"],
+    perk: ["duel", "danger"],
+    join: ["team", null],
+    win: ["crown", "bonus"],
+    info: ["level", null]
+  };
+
+  // Wall-clock for the reader, from the server's stamp. Not "3 minutes ago":
+  // a Grandmaster reads this feed against a bomb fuse and a duel clock, and a
+  // relative label would be the only thing on the screen that is not a time.
+  function eventTime(iso) {
+    if (!iso) return "";
+    var at = parseDeadline(iso);
+    if (!at) return "";
+    var when = new Date(at);
+    var pad = function (n) { return ("0" + n).slice(-2); };
+    return pad(when.getHours()) + ":" + pad(when.getMinutes()) + ":" +
+      pad(when.getSeconds());
+  }
+
   function logEvent(event, fresh, feedId) {
     if (!feedId) {
       feedId = lastState && lastState.me && lastState.me.is_leader
@@ -1760,8 +1946,19 @@
     }
     var feed = $(feedId);
     var item = document.createElement("li");
-    if (fresh) item.className = "fresh";
-    item.textContent = event.message;
+    // The player's feed is a quiet line under their board; only the command
+    // board spends the room on a stamp and a mark.
+    if (feedId === "leader-feed") {
+      var mark = EVENT_MARKS[event.kind] || EVENT_MARKS.info;
+      item.className = "gm-event" + (mark[1] ? " gm-event--" + mark[1] : "") +
+        (fresh ? " fresh" : "");
+      item.appendChild(el("span", "gm-event__time", eventTime(event.created_at)));
+      item.appendChild(icon(mark[0], "gm-ic--sm"));
+      item.appendChild(el("span", "gm-event__text", event.message));
+    } else {
+      if (fresh) item.className = "fresh";
+      item.textContent = event.message;
+    }
     feed.insertBefore(item, feed.firstChild);
     while (feed.children.length > 6) feed.removeChild(feed.lastChild);
   }
