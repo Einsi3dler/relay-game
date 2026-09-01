@@ -214,10 +214,31 @@ def snapshot(state: str, **params: str) -> dict[str, Any] | None:
     if state in ("won", "lost"):
         engine = _engine()
         match, seats, _ = _started(engine)
-        # The only stamped state in here: playing ten levels out to reach a
-        # scoreline would show you nothing the flag doesn't.
+        # The only stamped state in here. Playing ten levels out would take this
+        # request minutes and show you nothing these numbers don't, and on a
+        # finished match the ledger *is* the scoreline — the result screen reads
+        # it the way the coin board does — so it is stamped alongside rather
+        # than half-derived from a race that never ran.
+        won_by = "alpha" if state == "won" else "bravo"
+        lost_by = "bravo" if won_by == "alpha" else "alpha"
+        levels = match.config_snapshot["level_count"]
+        # The winner is the team that reached the last level — that is the only
+        # way `winner_team_id` is ever set — so the scoreline has to agree with
+        # the flag rather than contradict it.
+        for team_id, level, purse, ledger in (
+            (won_by, levels, 6, (14, 11, 9, 8)),
+            (lost_by, levels - 1, 3, (12, 10, 7, 5)),
+        ):
+            team = match.teams[team_id]
+            team.level = level
+            team.currency = purse
+            for player, coins in zip(seats[team_id], ledger):
+                player.coins_earned = coins
+                player.earned_level = level
         match.status = "finished"
-        match.winner_team_id = "alpha" if state == "won" else "bravo"
+        match.winner_team_id = won_by
+        # A plain player, not a Grandmaster: the seat the fog used to hide the
+        # most from is the one worth previewing.
         return match.public(seats["alpha"][2].id)
 
     return None

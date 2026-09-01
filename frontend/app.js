@@ -54,6 +54,9 @@
     // The command dashboard is the only dark screen, so the page ground has to
     // follow it. Every other view keeps style.css's light background.
     document.body.classList.toggle("gm-active", viewId === "view-leader");
+    // The two dark surfaces. The page ground follows the view rather than the
+    // other way round, so the light player screens are untouched by either.
+    document.body.classList.toggle("result-active", viewId === "view-result");
   }
 
   function toast(text) {
@@ -1984,22 +1987,267 @@
     $("choice-overlay").hidden = true;
     $("frozen-overlay").hidden = true;
     show("view-result");
+    var view = $("view-result");
     var mine = state.me ? state.me.team_id : null;
-    var levels = (state.config && state.config.level_count) || 10;
-    if (!state.winner_team_id) {
+    var myTeam = mine ? state.teams[mine] : null;
+    var theirTeam = state.teams[mine === "alpha" ? "bravo" : "alpha"];
+    var levels = state.level_count || (state.config && state.config.level_count) || 10;
+    var decided = !!state.winner_team_id;
+    var won = decided && state.winner_team_id === mine;
+
+    view.className = "view" +
+      (!decided ? " is-void" : won ? " is-win" : " is-loss");
+    $("result-crest").innerHTML = decided ? (won ? CREST_WIN : CREST_LOSS) : "";
+
+    if (!decided) {
       // The host stopped it. Nothing was decided, so nobody is told they lost.
-      $("result-emoji").textContent = "⏹";
       $("result-title").textContent = "Match ended";
       $("result-sub").textContent =
         "The host ended the session. No winner was recorded.";
+    } else {
+      $("result-title").textContent = won ? "Victory" : "Defeat";
+      var champion = state.teams[state.winner_team_id];
+      var ribbon = $("result-sub");
+      ribbon.innerHTML = "";
+      ribbon.style.setProperty("--team-color", teamColor(state.winner_team_id));
+      ribbon.appendChild(el("strong", null, "Team " + champion.name));
+      ribbon.appendChild(el("span", null, " cleared all " + levels +
+        " levels first"));
+    }
+
+    renderResultLevels(state, myTeam, theirTeam, levels);
+    renderResultTeam("result-team-mine", state, myTeam, state.winner_team_id);
+    renderResultTeam("result-team-theirs", state, theirTeam, state.winner_team_id);
+
+    $("result-table-title").textContent =
+      (myTeam ? myTeam.name : "Your team") + " performance";
+    $("result-opp-title").textContent =
+      theirTeam ? theirTeam.name : "The other side";
+    renderResultRoster("result-roster", state, myTeam, true);
+    renderResultRoster("result-opp-roster", state, theirTeam, false);
+    renderMvp(state, myTeam);
+    renderRewards(state, myTeam);
+    renderFeed(state.events, "result-feed");
+  }
+
+  // Hand-drawn, not an emoji: the crest is the loudest thing on the screen, and
+  // an emoji would be whatever the reader's system font decided it was.
+  var CREST_WIN =
+    '<svg viewBox="0 0 120 76" fill="none" aria-hidden="true">' +
+    '<path d="M14 66 L24 26 L44 44 L60 12 L76 44 L96 26 L106 66 Z" ' +
+    'fill="currentColor" opacity="0.92"/>' +
+    '<path d="M14 66 L24 26 L44 44 L60 12 L76 44 L96 26 L106 66 Z" ' +
+    'stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>' +
+    '<rect x="14" y="66" width="92" height="7" rx="3" fill="currentColor"/>' +
+    '<circle cx="60" cy="8" r="5" fill="currentColor"/>' +
+    '<circle cx="24" cy="22" r="4" fill="currentColor"/>' +
+    '<circle cx="96" cy="22" r="4" fill="currentColor"/>' +
+    "</svg>";
+
+  // The same crown, unfilled and struck through. A loss was the same race, not
+  // a different one, so it is the same silhouette rather than a sad face.
+  var CREST_LOSS =
+    '<svg viewBox="0 0 120 76" fill="none" aria-hidden="true">' +
+    '<path d="M14 66 L24 26 L44 44 L60 12 L76 44 L96 26 L106 66 Z" ' +
+    'stroke="currentColor" stroke-width="3" stroke-linejoin="round" ' +
+    'opacity="0.55"/>' +
+    '<rect x="14" y="66" width="92" height="7" rx="3" fill="currentColor" ' +
+    'opacity="0.55"/>' +
+    '<path d="M52 30 L68 50 M68 30 L52 50" stroke="currentColor" ' +
+    'stroke-width="4" stroke-linecap="round"/>' +
+    "</svg>";
+
+  // The scoreline the match actually kept. The Relay counts levels, not points,
+  // so levels are what this prints — a score would be a number the game never
+  // computed.
+  function renderResultLevels(state, mine, theirs, levels) {
+    var host = $("result-levels");
+    host.innerHTML = "";
+    [mine, theirs].forEach(function (team) {
+      if (!team) return;
+      if (host.children.length) {
+        host.appendChild(el("span", "rs-levels__vs", "vs"));
+      }
+      var box = el("div", "rs-levels__box");
+      box.style.setProperty("--team-color", teamColor(team.id));
+      box.appendChild(el("span", "rs-levels__label", team.name));
+      var value = el("span", "rs-levels__value", String(team.level));
+      value.appendChild(el("span", "rs-levels__of", " / " + levels));
+      box.appendChild(value);
+      host.appendChild(box);
+    });
+  }
+
+  function renderResultTeam(hostId, state, team, winnerId) {
+    var host = $(hostId);
+    host.innerHTML = "";
+    if (!team) return;
+    host.style.setProperty("--team-color", teamColor(team.id));
+
+    var top = el("div", "rs-team__top");
+    var logo = el("span", "rs-team__logo");
+    logo.appendChild(icon("logo-" + teamLogo(state, team.id)));
+    top.appendChild(logo);
+    top.appendChild(el("span", "rs-team__name", team.name));
+    host.appendChild(top);
+
+    if (winnerId) {
+      var champion = team.id === winnerId;
+      var badge = el("span", "rs-badge " + (champion ? "rs-badge--win" : "rs-badge--out"));
+      if (champion) badge.appendChild(icon("crown", "gm-ic--sm"));
+      badge.appendChild(el("span", null, champion ? "Winner" : "Runner up"));
+      host.appendChild(badge);
+    }
+
+    var level = el("div", "rs-stat");
+    level.appendChild(el("span", null, "Reached"));
+    level.appendChild(el("strong", null, "Level " + team.level));
+    host.appendChild(level);
+
+    var banked = el("div", "rs-stat rs-stat--coin");
+    banked.appendChild(el("span", null, "Coins earned"));
+    banked.appendChild(el("strong", null, String(teamEarnings(team))));
+    host.appendChild(banked);
+
+    // Not the cleared count: winning sets every member of the team to
+    // `finished` (RelayEngine._advance_check), so the champion's green count is
+    // always zero at this point and the stat would libel the team that won.
+    var squad = el("div", "rs-stat");
+    squad.appendChild(el("span", null, "Squad"));
+    squad.appendChild(el("strong", null, team.roster_size + " playing"));
+    host.appendChild(squad);
+  }
+
+  // What the team put in the purse across the match. Not `currency`: that is
+  // what is *left* after the Grandmaster shopped, and a team that spent well
+  // would look like it had earned nothing.
+  function teamEarnings(team) {
+    return (team.players || []).reduce(function (sum, player) {
+      return sum + (player.coins_earned || 0);
+    }, 0);
+  }
+
+  function rankedByEarnings(team) {
+    return (team.players || []).slice().sort(function (a, b) {
+      return (b.coins_earned || 0) - (a.coins_earned || 0);
+    });
+  }
+
+  function resultRole(player) {
+    if (player.is_leader) return ["Grandmaster", "is-leader"];
+    if (!player.role) return ["Unassigned", ""];
+    return [roleName(player.role),
+      player.role === "duelist" ? "is-duelist"
+        : player.role === "defuser" ? "is-defuser" : ""];
+  }
+
+  // `crown` marks your own team's top earner. The other squad's best earner is
+  // their business: gilding their row here would read as an award on the wrong
+  // side of the board.
+  function renderResultRoster(hostId, state, team, crown) {
+    var host = $(hostId);
+    host.innerHTML = "";
+    if (!team || !team.players) return;
+    var color = teamColor(team.id);
+    var total = teamEarnings(team);
+    var ranked = rankedByEarnings(team);
+    var best = ranked.length ? (ranked[0].coins_earned || 0) : 0;
+
+    ranked.forEach(function (player) {
+      var coins = player.coins_earned || 0;
+      var row = el("li", crown && coins > 0 && coins === best ? "is-top" : "");
+      row.style.setProperty("--team-color", color);
+      row.appendChild(avatarNode(state, player, team.id));
+
+      var who = el("div", "rs-who");
+      who.appendChild(el("div", "rs-who__name", player.name));
+      var role = resultRole(player);
+      who.appendChild(el("div", "rs-who__role " + role[1], role[0]));
+      row.appendChild(who);
+
+      var game = el("div", "rs-game");
+      if (player.is_leader) {
+        // A Grandmaster never held a board of their own.
+        game.appendChild(el("span", null, "Called the plays"));
+      } else {
+        game.appendChild(gameIcon(player.assigned_game));
+        game.appendChild(el("span", null, gameName(player.assigned_game)));
+      }
+      row.appendChild(game);
+
+      // Share of what this team earned, so the column adds up to the team and
+      // not to some invented denominator.
+      var share = total > 0 ? Math.round((coins / total) * 100) : 0;
+      var box = el("div", "rs-share");
+      box.appendChild(el("span", "rs-share__pct", share + "%"));
+      var meter = el("span", "rs-share__meter");
+      var fill = el("span", "rs-share__fill");
+      fill.style.width = share + "%";
+      meter.appendChild(fill);
+      box.appendChild(meter);
+      row.appendChild(box);
+
+      var value = el("span", "rs-coins");
+      value.appendChild(icon("coin", "gm-ic--sm"));
+      value.appendChild(el("span", null, String(coins)));
+      row.appendChild(value);
+
+      host.appendChild(row);
+    });
+  }
+
+  function renderMvp(state, team) {
+    var host = $("result-mvp");
+    host.innerHTML = "";
+    if (!team || !team.players || !team.players.length) return;
+    var ranked = rankedByEarnings(team);
+    var best = ranked[0];
+    var total = teamEarnings(team);
+    // Nobody banked anything, so nobody is the most valuable. Handing out the
+    // award anyway would be reading a ledger of zeroes as a result.
+    if (!best || !(best.coins_earned > 0)) {
+      host.appendChild(el("p", "rs-mvp__line",
+        "No coins were banked, so there is nobody to single out."));
       return;
     }
-    var won = state.winner_team_id === mine;
-    $("result-emoji").textContent = won ? "🏆🎉" : "😵💨";
-    $("result-title").textContent = won ? "You won!" : "You lost!";
-    $("result-sub").textContent =
-      "Team " + state.teams[state.winner_team_id].name +
-      " cleared all " + levels + " levels first.";
+
+    var card = el("div", "rs-mvp");
+    card.appendChild(avatarNode(state, best, team.id));
+    card.appendChild(el("div", "rs-mvp__name", best.name));
+    card.appendChild(el("div", "rs-mvp__what", "Top contributor"));
+
+    var share = total > 0 ? Math.round((best.coins_earned / total) * 100) : 0;
+    var line = el("p", "rs-mvp__line");
+    line.appendChild(el("strong", null, share + "%"));
+    line.appendChild(el("span", null,
+      " of everything " + team.name + " put in the purse"));
+    card.appendChild(line);
+
+    var second = el("p", "rs-mvp__line");
+    second.appendChild(el("strong", null, String(best.coins_earned)));
+    second.appendChild(el("span", null, " coins as " + resultRole(best)[0]));
+    card.appendChild(second);
+    host.appendChild(card);
+  }
+
+  function renderRewards(state, team) {
+    var host = $("result-rewards");
+    host.innerHTML = "";
+    if (!team) return;
+    // Earned and left over are different numbers and both are worth reading:
+    // the gap between them is what the Grandmaster spent on perks.
+    var earned = teamEarnings(team);
+    [["Coins earned", earned],
+     ["Spent on perks", Math.max(0, earned - (team.currency || 0))],
+     ["Left in the purse", team.currency || 0]].forEach(function (pair) {
+      var box = el("div", "rs-reward");
+      box.appendChild(icon("coin"));
+      var text = el("span");
+      text.appendChild(el("span", "rs-reward__value", String(pair[1])));
+      text.appendChild(el("span", "rs-reward__label", pair[0]));
+      box.appendChild(text);
+      host.appendChild(box);
+    });
   }
 
   // --- boot ---

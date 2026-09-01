@@ -565,6 +565,35 @@ function dashboardProbe(shell) {
   };
 }
 
+function resultProbe(shell) {
+  const $ = (id) => shell.byId[id];
+  const roster = (id) => $(id).children.map((row) => ({
+    text: allText(row),
+    top: row.classes.has("is-top"),
+    share: allText(row.children.filter((c) => c.classes.has("rs-share"))[0] || {
+      children: [], _text: "",
+    }),
+    coins: allText(row.children.filter((c) => c.classes.has("rs-coins"))[0] || {
+      children: [], _text: "",
+    }),
+  }));
+  return {
+    tone: $("view-result").className,
+    title: $("result-title").textContent,
+    sub: allText($("result-sub")),
+    crest: ($("result-crest")._html || "").slice(0, 5),
+    levels: allText($("result-levels")),
+    mine: allText($("result-team-mine")),
+    theirs: allText($("result-team-theirs")),
+    table_title: $("result-table-title").textContent,
+    roster: roster("result-roster"),
+    opponents: roster("result-opp-roster"),
+    mvp: allText($("result-mvp")),
+    rewards: $("result-rewards").children.map(allText),
+    feed: $("result-feed").children.map(allText),
+  };
+}
+
 function probe(shell) {
   const $ = (id) => shell.byId[id];
   const mount = $("leader-bomb-mount");
@@ -617,6 +646,7 @@ function probe(shell) {
       fill: $("duel-timer-fill").style.width,
     },
     dashboard: dashboardProbe(shell),
+    result: resultProbe(shell),
     overlay: {
       hidden: shell.byId["stage-overlay"].hidden,
       classes: shell.byId["stage-overlay"].className,
@@ -772,6 +802,7 @@ PREVIEW_BOOTS = (
     ("cleared", "?preview=cleared&key=dev"),
     ("leader", "?preview=leader&key=dev"),
     ("won", "?preview=won&key=dev"),
+    ("lost", "?preview=lost&key=dev"),
     ("duel", "?preview=duel&game=crown_duel&phase=reveal&key=dev"),
 )
 
@@ -1687,11 +1718,13 @@ def test_an_active_defense_is_not_offered_again(shell):
                for buy in live["perk_buys"])
 
 
-def test_the_dashboard_is_the_only_view_that_darkens_the_page(shell):
-    """The command screen is dark and every player view is light, so the page
-    ground follows the view rather than the other way round."""
+def test_the_page_ground_follows_the_view(shell):
+    """Two views are dark — the command board and the result screen — and every
+    view a player works a board in is light. The ground follows the view rather
+    than the other way round, and neither dark class outlives its own screen."""
     assert _dash(shell, "live")["body_class"] == "gm-active"
-    assert "gm-active" not in shell["console"]["records"]["lobby"]["dashboard"]["body_class"]
+    lobby = shell["console"]["records"]["lobby"]["dashboard"]["body_class"]
+    assert "gm-active" not in lobby and "result-active" not in lobby
 
 
 def test_the_handoff_names_the_role_game_and_what_it_costs_them(shell):
@@ -1916,10 +1949,109 @@ def test_the_host_can_set_one_window_for_every_duel(shell):
     ("cleared", "view-play"),
     ("leader", "view-leader"),
     ("won", "view-result"),
+    ("lost", "view-result"),
     ("duel", "view-play"),
 ])
 def test_every_gallery_entry_renders_its_view(shell, name, view):
     assert shell[f"preview:{name}"]["records"]["booted"]["view"] == [view]
+
+
+def _result(shell, name):
+    return shell[f"preview:{name}"]["records"]["booted"]["result"]
+
+
+# --- the result screen ----------------------------------------------------
+#
+# Everything on it is something the match recorded. There is no XP and no score
+# in The Relay, so the tests below are about the ledger the game does keep.
+
+
+def test_the_result_screen_names_the_outcome_from_the_viewers_seat(shell):
+    won = _result(shell, "won")
+    assert won["title"] == "Victory"
+    assert "is-win" in won["tone"]
+    lost = _result(shell, "lost")
+    assert lost["title"] == "Defeat"
+    assert "is-loss" in lost["tone"]
+    # Same match, opposite seats: the winner is named either way, and it is
+    # never the viewer's own team that gets named on a loss.
+    assert "Team Alpha" in won["sub"] and "Team Bravo" in lost["sub"]
+
+
+def test_the_scoreline_is_levels_because_that_is_what_the_game_counts(shell):
+    """A winner is only ever set by reaching the last level
+    (`RelayEngine._advance_check`), so the levels on this screen have to agree
+    with the flag rather than contradict it."""
+    won = _result(shell, "won")
+    assert "10 / 10" in won["levels"].replace(" ", " ")
+    assert "Alpha" in won["levels"] and "Bravo" in won["levels"]
+    # The champion's card says Winner; the other says Runner up. Both are shown
+    # either way round — a loss is the same scoreboard, read from the other end.
+    assert "Winner" in won["mine"] and "Runner up" in won["theirs"]
+    lost = _result(shell, "lost")
+    assert "Runner up" in lost["mine"] and "Winner" in lost["theirs"]
+
+
+def test_the_table_ranks_by_what_each_player_put_in_the_purse(shell):
+    rows = _result(shell, "won")["roster"]
+    assert len(rows) == 5, rows          # four playing plus the Grandmaster
+    coins = [int(row["coins"].strip()) for row in rows]
+    assert coins == sorted(coins, reverse=True), coins
+    # The shares are a share *of this team*, so they add up to it.
+    shares = [int(row["share"].split("%")[0]) for row in rows]
+    assert 99 <= sum(shares) <= 101, shares
+    # Exactly one top earner, and it is the one the ledger actually names.
+    assert [row["top"] for row in rows].count(True) == 1
+    assert rows[0]["top"] is True
+
+
+def test_a_grandmaster_held_no_board_of_their_own(shell):
+    """The seat that never plays cannot be shown an assigned game: it would be
+    the game they were handed before they took the seat, or nothing at all."""
+    rows = _result(shell, "won")["roster"]
+    grandmaster = [row for row in rows if "GRANDMASTER" in row["text"].upper()]
+    assert len(grandmaster) == 1
+    assert "Called the plays" in grandmaster[0]["text"]
+
+
+def test_the_other_squad_is_on_the_screen_too(shell):
+    """Fog of war ends with the match. Losing without ever seeing what the
+    other side actually did is the version of this screen worth avoiding."""
+    opponents = _result(shell, "won")["opponents"]
+    assert len(opponents) == 5
+    assert any("Gus" in row["text"] for row in opponents)
+    # ...but the gilding stays on your own table: their best earner is not
+    # your most valuable player.
+    assert not any(row["top"] for row in opponents)
+
+
+def test_the_award_goes_to_the_top_of_the_same_ledger(shell):
+    mvp = _result(shell, "won")["mvp"]
+    assert "Top contributor" in mvp
+    assert "Bo" in mvp                    # the biggest figure in the fixture
+    assert "% of everything Alpha put in the purse" in mvp
+
+
+def test_the_rewards_split_what_was_earned_from_what_is_left(shell):
+    """`currency` is what survived the perk shop, not what the team made. A
+    screen that printed it as the total would tell a team that spent well it
+    had earned nothing."""
+    rewards = " | ".join(_result(shell, "won")["rewards"])
+    assert "Coins earned" in rewards
+    assert "Spent on perks" in rewards
+    assert "Left in the purse" in rewards
+    figures = _result(shell, "won")["rewards"]
+    earned = int(figures[0].split("Coins")[0].strip())
+    spent = int(figures[1].split("Spent")[0].strip())
+    left = int(figures[2].split("Left")[0].strip())
+    assert earned == spent + left
+
+
+def test_the_crest_is_drawn_not_typed(shell):
+    """An emoji would be whatever the reader's system font decided it was, on
+    the one screen that has to land."""
+    assert _result(shell, "won")["crest"].startswith("<svg")
+    assert _result(shell, "lost")["crest"].startswith("<svg")
 
 
 def test_a_gallery_boot_never_opens_a_socket(shell):

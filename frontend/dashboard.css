@@ -2,7 +2,8 @@
  *
  * Loaded by index.html after style.css and scoped to `#view-leader` plus the
  * `gm-active` body class that show() toggles. Nothing here leaks into the
- * lobby, the play view or the result screen: those keep style.css untouched.
+ * lobby or the play view: those keep style.css untouched. The dark palette
+ * itself lives in style.css, shared with the result screen — see result.css.
  *
  * The shape is a command board, not a page of cards. A fixed bar across the
  * top, then a deck that fills the viewport: a rail of who-and-what-happened
@@ -16,31 +17,6 @@
  * inventing a dashboard-only pair, so a Grandmaster and their players read the
  * same team identity on every screen.
  */
-
-#view-leader {
-  --gm-bg: #07091f;
-  --gm-panel: #0c1230;
-  --gm-panel-2: #111943;
-  --gm-line: rgba(122, 140, 255, 0.25);
-  --gm-line-soft: rgba(122, 140, 255, 0.13);
-
-  --gm-text: #f7f8ff;
-  --gm-muted: #9aa5cb;
-
-  --gm-yellow: #ffd21c;
-  --gm-cyan: #20d4e7;
-  --gm-violet: #8a4dff;
-  --gm-pink: #ff4f94;
-  --gm-red: #ff5165;
-  --gm-green: #42db83;
-  --gm-amber: #ffa62b;
-
-  --gm-radius-sm: 8px;
-  --gm-radius-md: 14px;
-  --gm-radius-lg: 20px;
-
-  --gm-gap: 16px;
-}
 
 /* The command view is wider than every other screen; .view's 720px cap is a
    player-screen rule, so override it here only. */

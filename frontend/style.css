@@ -17,6 +17,36 @@
 
 * { box-sizing: border-box; }
 
+/* The two dark surfaces — the Grandmaster's command board and the result
+   screen — share one palette on purpose, so a match reads as one product
+   rather than two skins that drifted apart. Each surface still owns its own
+   stylesheet; this is only the vocabulary they both speak. */
+#view-leader,
+#view-result {
+  --gm-bg: #07091f;
+  --gm-panel: #0c1230;
+  --gm-panel-2: #111943;
+  --gm-line: rgba(122, 140, 255, 0.25);
+  --gm-line-soft: rgba(122, 140, 255, 0.13);
+
+  --gm-text: #f7f8ff;
+  --gm-muted: #9aa5cb;
+
+  --gm-yellow: #ffd21c;
+  --gm-cyan: #20d4e7;
+  --gm-violet: #8a4dff;
+  --gm-pink: #ff4f94;
+  --gm-red: #ff5165;
+  --gm-green: #42db83;
+  --gm-amber: #ffa62b;
+
+  --gm-radius-sm: 8px;
+  --gm-radius-md: 14px;
+  --gm-radius-lg: 20px;
+
+  --gm-gap: 16px;
+}
+
 /* The hidden attribute must always win, even over classes that set display
    (e.g. .stage-overlay's flex — without this the overlay covers the page). */
 [hidden] { display: none !important; }

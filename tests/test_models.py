@@ -130,6 +130,60 @@ def test_leader_sees_own_team_full_and_opponent_summary():
     assert opponent["level"] == 1
 
 
+def test_a_finished_match_shows_both_teams_in_full_to_everyone():
+    """Fog of war exists so neither side can scout the other while it still
+    matters. Once the match is over there is nothing left to protect, and the
+    result screen has to be able to name what the teams actually did."""
+    match = make_match()
+    match.status = "finished"
+    match.winner_team_id = "alpha"
+    # A plain player, not a Grandmaster: the seat that saw the least during the
+    # race is the one this rule is for.
+    out = match.public("p_alice")
+    for team_id in ("alpha", "bravo"):
+        team = out["teams"][team_id]
+        assert "players" in team, team_id
+        assert "currency" in team, team_id
+        assert team["level"] >= 1
+    # Including the opponent's roster and what each of them put in the purse.
+    assert [p["name"] for p in out["teams"]["bravo"]["players"]] == ["Cara", "Dave"]
+    assert all("coins_earned" in p for p in out["teams"]["bravo"]["players"])
+
+
+def test_the_fog_holds_right_up_until_the_match_ends():
+    """The lift is keyed on `finished` and nothing else, so an active match is
+    unaffected by it — a player still sees their own team as a summary and the
+    opponent as a name."""
+    out = make_match("active").public("p_alice")
+    assert "players" not in out["teams"]["alpha"]
+    assert set(out["teams"]["bravo"]) == {"id", "name", "finished"}
+
+
+def test_a_finished_match_hands_back_the_whole_event_log():
+    """The who-cleared events are held back from players during the race for
+    the same reason the roster is. A match nobody can still lose does not need
+    them held back."""
+    match = make_match()
+    match.events.append(Event(message="Alice cleared Rewire", kind="green"))
+    live = match.public("p_alice")["events"]
+    assert not any(e["kind"] == "green" for e in live)
+    match.status = "finished"
+    ended = match.public("p_alice")["events"]
+    assert any(e["kind"] == "green" for e in ended)
+
+
+def test_silence_cannot_outlive_the_match():
+    """Silence is an attack on a live Grandmaster, not on the scoreboard. A team
+    silenced as the last level fell still reads out in full on the result
+    screen."""
+    match = make_match()
+    match.teams["alpha"].silenced_until = _future()
+    match.status = "finished"
+    own = match.public("p_lead")["teams"]["alpha"]
+    assert own["green_count"] is not None
+    assert all(p["status"] != "hidden" for p in own["players"])
+
+
 def test_silence_masks_the_roster_from_the_teams_own_leader():
     """The Silence perk blinds a Grandmaster to their OWN team. The shape of the
     view is unchanged — the progress values go null so the client can render a
