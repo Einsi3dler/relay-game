@@ -1,0 +1,294 @@
+/* The Relay — the door.
+ *
+ * Scoped to `#view-join` plus the `join-active` body class that show() toggles.
+ * It takes the dark palette from style.css like every other surface, so the
+ * first screen of the product and the last one belong to each other.
+ *
+ * Two columns: everything you can act on down the left, and the artwork down
+ * the right. The artwork is decorative and marked aria-hidden — nothing in it
+ * carries information that is not also in the copy beside it.
+ */
+
+body.join-active { background: var(--gm-bg); }
+body.join-active .topbar {
+  background: transparent;
+  border-bottom: 1px solid var(--gm-line-soft);
+  box-shadow: none;
+}
+body.join-active .topbar .logo { color: var(--gm-text); }
+
+#view-join {
+  width: min(1240px, calc(100% - 28px));
+  max-width: none;
+  margin: 26px auto 40px;
+  padding: 0;
+  color: var(--gm-text);
+}
+
+#view-join :focus-visible {
+  outline: 3px solid var(--gm-yellow);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* --- the card ---------------------------------------------------------- */
+
+.jn-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  align-items: stretch;
+  border: 1px solid var(--gm-line);
+  border-radius: 26px;
+  background:
+    radial-gradient(90% 120% at 0% 0%, rgba(138, 77, 255, 0.16), transparent 60%),
+    var(--gm-panel);
+  overflow: hidden;
+}
+
+.jn-copy { padding: 40px clamp(24px, 3.4vw, 48px) 34px; min-width: 0; }
+
+.jn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(138, 77, 255, 0.24);
+  color: #d9c5ff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#view-join h1 {
+  margin: 20px 0 0;
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+  font-weight: 900;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+}
+/* The question is the invitation, so it is the part that is lit. */
+#view-join h1 em { font-style: normal; color: var(--gm-yellow); }
+
+.jn-sub {
+  margin: 14px 0 0;
+  max-width: 46ch;
+  color: var(--gm-muted);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.jn-label {
+  display: block;
+  margin: 26px 0 8px;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+/* --- fields ------------------------------------------------------------ */
+
+.jn-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--gm-line);
+  border-radius: 12px;
+  background: rgba(7, 9, 31, 0.55);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.jn-field:focus-within {
+  border-color: var(--gm-cyan);
+  box-shadow: 0 0 0 3px rgba(32, 212, 231, 0.16);
+}
+.jn-field .gm-ic { color: var(--gm-muted); }
+.jn-field__sigil {
+  color: var(--gm-muted);
+  font-weight: 900;
+  font-size: 1.05rem;
+}
+#view-join input {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--gm-text);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+}
+#view-join input::placeholder { color: var(--gm-muted); opacity: 0.75; }
+#view-join input:focus { outline: none; }
+
+/* --- the two doors ----------------------------------------------------- */
+
+.jn-choice {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+#view-join .jn-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 62px;
+  padding: 14px 22px;
+  border: 0;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 1.06rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+#view-join .jn-btn:hover { filter: brightness(1.1); }
+#view-join .jn-btn:active { transform: translateY(1px); }
+/* Hosting and joining are the two ways in, not a primary and a secondary, so
+   they carry the two team colours rather than one loud and one quiet. */
+.jn-btn--host { background: linear-gradient(180deg, #9b5cff, #7a3ce0); color: #fff; }
+.jn-btn--join { background: linear-gradient(180deg, #2ee6c8, #12b39c); color: #06231f; }
+
+/* --- the code panel ---------------------------------------------------- */
+
+/* It opens under the button that opened it, and points at it, so the panel is
+   visibly the consequence of that press rather than a new thing appearing. */
+.jn-code {
+  position: relative;
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid var(--gm-cyan);
+  border-radius: 16px;
+  background: rgba(32, 212, 231, 0.07);
+}
+.jn-code::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  right: 22%;
+  width: 14px;
+  height: 14px;
+  border-left: 1px solid var(--gm-cyan);
+  border-top: 1px solid var(--gm-cyan);
+  background: #0d1a35;
+  transform: rotate(45deg);
+}
+.jn-code__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.jn-code .jn-label { margin: 0; }
+.jn-code__hint {
+  display: block;
+  margin-top: 3px;
+  color: var(--gm-muted);
+  font-size: 0.82rem;
+}
+.jn-chip {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--gm-line);
+  border-radius: 8px;
+  background: rgba(7, 9, 31, 0.6);
+  color: var(--gm-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.jn-field--code { margin-top: 12px; padding-right: 5px; }
+#view-join .jn-go {
+  flex: none;
+  min-height: 42px;
+  padding: 10px 24px;
+  border: 0;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #2ee6c8, #12b39c);
+  color: #06231f;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+#view-join .jn-go:hover { filter: brightness(1.1); }
+
+.jn-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  color: var(--gm-red);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+/* A ring and a bar, drawn rather than typed: the one place on this screen
+   that has to be noticed is not left to a system font's idea of a glyph. */
+.jn-error::before {
+  content: "!";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: 2px solid var(--gm-red);
+  border-radius: 50%;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.jn-foot {
+  margin: 28px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--gm-line-soft);
+  text-align: center;
+}
+.jn-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gm-cyan);
+  font-weight: 800;
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+.jn-link:hover { text-decoration: underline; }
+
+/* --- the artwork -------------------------------------------------------- */
+
+/* The artwork composes at a fixed ratio and is cropped to fit, so the card
+   needs a floor or the scene arrives already cut off at the knees. */
+.jn-art { position: relative; min-height: 100%; }
+.jn-card { min-height: 620px; }
+.jn-art svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* --- responsive --------------------------------------------------------- */
+
+@media (max-width: 899px) {
+  /* The artwork is decoration; on a phone the room goes to the controls. It
+     stays as a band above them rather than leaving, so the screen still opens
+     with the game rather than with a form. */
+  .jn-card { grid-template-columns: minmax(0, 1fr); }
+  .jn-art { order: -1; min-height: 190px; }
+  .jn-copy { padding: 26px 20px 24px; }
+  #view-join { margin-top: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #view-join *, #view-join *::before, #view-join *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -637,6 +637,16 @@ function probe(shell) {
       urgent: $("play-clock").classes.has("is-urgent"),
       fill: $("timer-fill").style.width,
     },
+    join: {
+      view_hidden: $("view-join").hidden,
+      name: $("name-input").value,
+      code: $("match-input").value,
+      code_hidden: $("join-code-row").hidden,
+      host_hidden: $("host-btn").hidden,
+      join_hidden: $("join-btn").hidden,
+      error_hidden: $("join-error").hidden,
+      error: $("join-error").textContent,
+    },
     play: {
       identity: allText($("play-identity")),
       level: $("play-level-count").textContent,
@@ -680,10 +690,11 @@ const report = {};
 PLAN.scenarios.forEach((scenario) => {
   const shell = boot(scenario);
   const socket = shell.sockets[0];
-  if (scenario.search) {
-    // A gallery boot renders one fetched snapshot and stops. Opening a socket
-    // would mean the design gallery had joined somebody's match.
-    if (socket) throw new Error(scenario.name + ": a preview opened a socket");
+  if (scenario.search || !scenario.session) {
+    // A gallery boot renders one fetched snapshot and stops, and a cold visit
+    // has nothing to connect to yet. Either one opening a socket would mean it
+    // had joined somebody's match to draw a screen.
+    if (socket) throw new Error(scenario.name + ": opened a socket with no session");
   } else if (!socket) {
     throw new Error(scenario.name + ": the shell never opened a socket");
   } else {
@@ -1288,6 +1299,20 @@ def shell() -> dict:
         ],
     })
 
+    # --- the door ------------------------------------------------------------
+    # No session and no preview: the join view, which is what a cold visit to
+    # /play actually gets. The invite variant carries ?match=CODE, the link a
+    # host copies out of the lobby.
+    for name, search in (("join", ""), ("join:invited", "?match=RLY7K9")):
+        scenarios.append({
+            "name": name,
+            "config": _config_body(_engine()),
+            "session": None,
+            "search": search,
+            "snapshots": [],
+            "actions": [{"do": "record", "as": "booted"}],
+        })
+
     # --- the design gallery, booted the way the browser boots it -------------
     # `/play?preview=<state>` renders one canned snapshot from
     # backend/preview.py and opens no socket. These run the shipped app.js
@@ -1341,6 +1366,34 @@ def test_the_fake_dom_is_built_from_the_real_index_html(shell):
     # Every id the shell asks for was resolvable — an unknown one throws inside
     # the harness, which would have failed the subprocess.
     assert len(ids) > 40
+
+
+def _join(shell, name):
+    return shell[name]["records"]["booted"]["join"]
+
+
+def test_a_cold_visit_opens_the_door_and_nothing_else(shell):
+    """No session, no preview: the join view, with the code panel still shut
+    until someone asks for it."""
+    cold = shell["join"]
+    assert cold["records"]["booted"]["view"] == ["view-join"]
+    assert cold["url"] is None, "the door opened a socket"
+    door = _join(shell, "join")
+    assert door["code_hidden"] is True
+    assert door["host_hidden"] is False and door["join_hidden"] is False
+    assert door["error_hidden"] is True
+
+
+def test_an_invite_link_skips_the_choice_and_fills_the_code(shell):
+    """A host copies this link out of the lobby, so the person following it has
+    already chosen: there is nothing to host, and the code is not theirs to
+    type."""
+    invited = _join(shell, "join:invited")
+    assert invited["view_hidden"] is False
+    assert invited["code"] == "RLY7K9"
+    assert invited["code_hidden"] is False
+    # The two doors go away, because the invite already picked one.
+    assert invited["host_hidden"] is True and invited["join_hidden"] is True
 
 
 def test_the_shell_connects_with_the_saved_session(shell):

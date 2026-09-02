@@ -58,6 +58,7 @@
     // other way round, so the light player screens are untouched by either.
     document.body.classList.toggle("result-active", viewId === "view-result");
     document.body.classList.toggle("play-active", viewId === "view-play");
+    document.body.classList.toggle("join-active", viewId === "view-join");
   }
 
   function toast(text) {

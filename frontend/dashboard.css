@@ -123,6 +123,7 @@ body.gm-active .topbar { display: none; }
 .gm-ic--level { -webkit-mask-image: url("/static/assets/ui/level.svg"); mask-image: url("/static/assets/ui/level.svg"); }
 .gm-ic--bomb { -webkit-mask-image: url("/static/assets/ui/bomb.svg"); mask-image: url("/static/assets/ui/bomb.svg"); }
 .gm-ic--spectating { -webkit-mask-image: url("/static/assets/ui/spectating.svg"); mask-image: url("/static/assets/ui/spectating.svg"); }
+.gm-ic--key { -webkit-mask-image: url("/static/assets/ui/key.svg"); mask-image: url("/static/assets/ui/key.svg"); }
 
 .gm-ic--perk-freeze { -webkit-mask-image: url("/static/assets/perks/freeze.svg"); mask-image: url("/static/assets/perks/freeze.svg"); }
 .gm-ic--perk-scramble { -webkit-mask-image: url("/static/assets/perks/scramble.svg"); mask-image: url("/static/assets/perks/scramble.svg"); }

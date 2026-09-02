@@ -69,7 +69,17 @@ body {
   max-width: 720px;
   margin: 0 auto;
 }
-.logo { font-weight: 800; font-size: 1.2rem; letter-spacing: 0.3px; }
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: 0.3px;
+}
+/* Drawn, not typed: the wordmark should not be whichever flag the reader's
+   system font happens to ship. */
+.logo svg { width: 15px; height: 20px; color: #ffd21c; flex: none; }
 .chip {
   background: var(--violet);
   color: #fff;
