@@ -108,6 +108,32 @@ def test_a_forged_cookie_opens_nothing(client):
     assert client.get("/api/preview?preview=lobby").status_code == 404
 
 
+def test_every_duel_can_be_seen_on_its_card_round(client):
+    """Crown Duel's first engine round is the secret strategy beat, so the
+    gallery used to have no way to reach the hand — the screen the cards
+    actually live on. `phase=cards` resolves whatever is open and leaves the
+    round behind it live."""
+    for duel in REGISTERED_DUELS:
+        body = client.get(
+            f"/api/preview?preview=duel&game={duel.id}&phase=cards"
+            f"&key={preview.PREVIEW_KEY}"
+        ).json()["state"]["duel"]
+        assert body["phase"] == "choosing", duel.id
+        assert body["round"] == 2, duel.id
+
+
+def test_the_card_round_actually_deals_crown_duel_a_hand(client):
+    """The point of the entry: five cards to look at, not a strategy prompt."""
+    body = client.get(
+        f"/api/preview?preview=duel&game=crown_duel&phase=cards"
+        f"&key={preview.PREVIEW_KEY}"
+    ).json()["state"]["duel"]["payload"]
+    assert body["phase"] == "combat"
+    assert [card["type"] for card in body["hand"]] == [
+        "king", "knight", "guard", "assassin", "peasant",
+    ]
+
+
 def test_the_key_opens_it(client):
     response = client.get(GALLERY)
     assert response.status_code == 200
