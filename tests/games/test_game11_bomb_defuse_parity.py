@@ -37,6 +37,12 @@ const vm = require("vm");
 const context = { window: {} };
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(process.argv[4], "utf8"), context);
+// theme.js first, the way both pages load it: a renderer reads its colours
+// from window.RelayTheme, so a harness without it is not the browser. Its path
+// comes off the game file's own, since this script runs from a temp directory.
+vm.runInContext(fs.readFileSync(
+  process.argv[2].replace(/[\\/](games|duels)[\\/][^\\/]+$/, "/theme.js"),
+  "utf8"), context);
 vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), context);
 const game = context.window.RelayGames.bomb_defuse;
 const cases = JSON.parse(fs.readFileSync(process.argv[3], "utf8")).cases;

@@ -10,15 +10,18 @@
 (function () {
   "use strict";
 
+  var T = window.RelayTheme;
+
   // Sides of a cell and the step that crosses each one (mirror of
   // backend/games/game10_threadline.py — same names, same meaning).
   var STEPS = { n: [-1, 0], s: [1, 0], e: [0, 1], w: [0, -1] };
   var OPPOSITE = { n: "s", s: "n", e: "w", w: "e" };
 
   var COLOR = {
-    cable: "#8338ec", cableSoft: "#c9a3f5", cell: "#fff", grid: "#d8d2c8",
-    blocked: "#2b2b33", anchor: "#ffd166", done: "#2a9d8f", socket: "#118ab2",
-    port: "#e63946",
+    cable: T.accent, cableSoft: T.fade(T.accent, 0.45),
+    cell: T.cell, grid: T.grid,
+    blocked: T.bgDeep, anchor: T.goal, done: T.good, socket: T.sideA,
+    port: T.hazard,
   };
 
   // Why a step was refused, in the player's words. Keyed by the reason strings
@@ -221,8 +224,9 @@
       } else if (role.kind === "start" || role.kind === "end") background = COLOR.socket;
       button.style.cssText = state.cellCss +
         "background:" + background + ";" +
-        "color:" + (role.kind === "blocked" || role.kind === "start" || role.kind === "end"
-          ? "#fff" : "#2b2b33") + ";" +
+        "color:" + (role.kind === "blocked" ? T.muted
+          : role.kind === "start" || role.kind === "end" ? T.ink
+          : T.ink) + ";" +
         (isHead ? "box-shadow:inset 0 0 0 3px " + COLOR.cable + ";" : "");
       button.disabled = state.done;
     });
@@ -324,7 +328,8 @@
     button.setAttribute("aria-label", aria);
     button.style.cssText =
       "min-width:84px;min-height:48px;font-size:0.95rem;font-weight:900;" +
-      "border:2px solid " + COLOR.cable + ";border-radius:12px;background:#fff;cursor:pointer;";
+      "border:2px solid " + COLOR.cable + ";border-radius:12px;" +
+      "background:" + T.cell + ";color:" + T.text + ";cursor:pointer;";
     button.addEventListener("click", handler);
     return button;
   }
@@ -409,7 +414,8 @@
       state.undoBtn = makeButton("↶ UNDO", "Remove the last step", undo);
       state.restartBtn = makeButton("↺ RESTART", "Back to the start socket", restart);
       state.checkBtn = makeButton("CHECK", "Submit this cable", submit);
-      state.checkBtn.style.cssText += "background:" + COLOR.cable + ";color:#fff;";
+      state.checkBtn.style.cssText += "background:" + T.goal + ";color:" + T.ink +
+        ";border-color:" + T.goal + ";box-shadow:" + T.glow(T.goal, 14) + ";";
       controls.appendChild(state.undoBtn);
       controls.appendChild(state.restartBtn);
       controls.appendChild(state.checkBtn);
@@ -429,7 +435,8 @@
         "itself or enter a blocked cell, and every corner spends one of your " +
         "bends. A red bar on an anchor is a port: the cable has to cross that " +
         "side. Keys: arrows to draw, Backspace to undo, r to start over.";
-      hint.style.cssText = "color:#8a8a96;font-size:0.85rem;margin:8px 0 0;";
+      hint.style.cssText =
+        "color:" + T.muted + ";font-size:0.85rem;margin:8px 0 0;";
       root.appendChild(hint);
 
       container.appendChild(root);

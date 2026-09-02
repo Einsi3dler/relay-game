@@ -8,6 +8,8 @@
 (function () {
   "use strict";
 
+  var T = window.RelayTheme;
+
   // The six legal actions, in the fixed order that seeds the orientation table
   // (mirror of backend/games/game9_shadow_cast.py — the same order, or
   // `initial_orientation` would mean something different here).
@@ -28,8 +30,10 @@
 
   // Three shades per cube so the solid reads without relying on colour, plus a
   // dark outline on every face.
-  var FACE = { top: "#a8ded7", front: "#2a9d8f", side: "#1d6f66" };
-  var EDGE = "#123f3a";
+  // Three faces of one solid, lit from one direction, so they stay a family
+  // rather than three unrelated colours.
+  var FACE = { top: T.faceTop, front: T.faceFront, side: T.faceSide };
+  var EDGE = T.bgDeep;
 
   var state = null;
 
@@ -227,8 +231,8 @@
         var wrong = against && against[row].charAt(col) !== rows[row].charAt(col);
         var css = "border-radius:3px;display:flex;align-items:center;justify-content:center;" +
           "font-weight:900;line-height:1;font-size:" + Math.floor(cell * 0.6) + "px;" +
-          "background:" + (on ? "#2b2b33" : "#f0e8dc") + ";color:#ff6b6b;";
-        if (wrong) css += "outline:2px solid #ff6b6b;outline-offset:-2px;";
+          "background:" + (on ? T.faceFront : T.cell) + ";color:" + T.hazard + ";";
+        if (wrong) css += "outline:2px solid " + T.hazard + ";outline-offset:-2px;";
         html += '<div style="' + css + '">' + (wrong ? "✕" : "") + "</div>";
       }
     }
@@ -246,12 +250,14 @@
     var label = ok ? "✓ matched" : "✗ " + off + " cell" + (off === 1 ? "" : "s") + " off";
     return '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
       '<div style="font-weight:900;font-size:0.75rem;letter-spacing:0.05em;">' + title + "</div>" +
-      '<div style="font-size:0.68rem;color:#8a8a96;font-weight:700;">TARGET</div>' +
+      '<div style="font-size:0.68rem;color:' + T.muted +
+        ';font-weight:700;">TARGET</div>' +
       gridHtml(target, null, cell) +
-      '<div style="font-size:0.68rem;color:#8a8a96;font-weight:700;margin-top:2px;">NOW</div>' +
+      '<div style="font-size:0.68rem;color:' + T.muted +
+        ';font-weight:700;margin-top:2px;">NOW</div>' +
       gridHtml(live, target, cell) +
       '<div style="font-size:0.72rem;font-weight:800;color:' +
-      (ok ? "#2a9d8f" : "#8a8a96") + ';">' + label + "</div>" +
+      (ok ? T.good : T.muted) + ';">' + label + "</div>" +
       "</div>";
   }
 
@@ -348,7 +354,8 @@
     button.setAttribute("aria-label", aria);
     button.style.cssText =
       "min-width:64px;min-height:48px;font-size:1rem;font-weight:900;" +
-      "border:2px solid #2a9d8f;border-radius:12px;background:#fff;cursor:pointer;";
+      "border:2px solid " + T.fade(T.faceFront, 0.6) + ";border-radius:12px;" +
+      "background:" + T.cell + ";color:" + T.text + ";cursor:pointer;";
     button.addEventListener("click", handler);
     return button;
   }
@@ -425,7 +432,8 @@
         "display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap;";
       var restartBtn = makeButton("↺ RESTART", "Back to the starting pose", restart);
       state.checkBtn = makeButton("CHECK", "Submit these turns", submit);
-      state.checkBtn.style.cssText += "background:#8338ec;color:#fff;border-color:#8338ec;";
+      state.checkBtn.style.cssText += "background:" + T.goal + ";color:" + T.ink +
+        ";border-color:" + T.goal + ";box-shadow:" + T.glow(T.goal, 14) + ";";
       controls.appendChild(restartBtn);
       controls.appendChild(state.checkBtn);
       root.appendChild(controls);
@@ -443,7 +451,8 @@
         "TOP target. A shadow cell fills when any cube sits behind it, so several " +
         "different poses can be right. Keys: x, y, z to turn, hold Shift for the " +
         "other way, r to start over.";
-      hint.style.cssText = "color:#8a8a96;font-size:0.85rem;margin:8px 0 0;";
+      hint.style.cssText =
+        "color:" + T.muted + ";font-size:0.85rem;margin:8px 0 0;";
       root.appendChild(hint);
 
       container.appendChild(root);

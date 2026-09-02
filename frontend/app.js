@@ -57,6 +57,7 @@
     // The two dark surfaces. The page ground follows the view rather than the
     // other way round, so the light player screens are untouched by either.
     document.body.classList.toggle("result-active", viewId === "view-result");
+    document.body.classList.toggle("play-active", viewId === "view-play");
   }
 
   function toast(text) {
@@ -795,22 +796,102 @@
     renderFeed(state.events, "event-feed");
   }
 
+  // Games that keep their own design until theirs lands. Their boards sit on a
+  // light plate inside the dark frame rather than half-restyled on it.
+  var LEGACY_BOARDS = { bomb_defuse: true };
+
+  // The bar: who you are, which side, and how far the team has left to run.
+  // Not who has cleared — a playing member is not sent that, on purpose
+  // (docs/WEBSOCKET_PROTOCOL.md, "visibility is Grandmaster-exclusive").
   function renderStrip(state) {
     var me = state.me;
-    var strip = $("team-strip");
-    strip.innerHTML = "";
     var team = me && me.team_id ? state.teams[me.team_id] : null;
+    var who = $("play-identity");
+    who.innerHTML = "";
     if (!team) return;
-    var row = document.createElement("div");
-    row.className = "team-row " + team.id;
-    row.innerHTML =
-      '<span class="team-name">' + (team.id === "alpha" ? "🔥" : "🌊") + " " +
-      team.name + "</span>" +
-      '<span class="stage-tag">Level ' + team.level + "</span>" +
-      '<span class="muted">' + (state.duel && state.duel.you
-        ? "You are the ⚔️ Duelist"
-        : "Your game: " + gameName(me.assigned_game)) + "</span>";
-    strip.appendChild(row);
+    var color = teamColor(team.id);
+    who.style.setProperty("--team-color", color);
+    who.appendChild(avatarNode(state, me, team.id));
+
+    var box = el("div");
+    box.appendChild(el("div", "pl-who__name", me.name));
+    var tags = el("div", "pl-tags");
+    tags.appendChild(el("span", "pl-tag pl-tag--team", team.name));
+    var duelling = !!(state.duel && state.duel.you);
+    var roleCls = "pl-tag pl-tag--role" +
+      (me.role === "duelist" || duelling ? " is-duelist" : "") +
+      (me.role === "defuser" ? " is-defuser" : "");
+    tags.appendChild(el("span", roleCls, me.role ? roleName(me.role) : "Player"));
+    box.appendChild(tags);
+    who.appendChild(box);
+
+    // The host sets the match length in the lobby, so the ceiling is on the
+    // match and not on the server default.
+    var levels = state.level_count || (state.config && state.config.level_count);
+    $("play-level-fill").style.width =
+      (levels ? Math.min(100, (team.level / levels) * 100) : 0) + "%";
+    $("play-level-count").textContent =
+      team.level + (levels ? " / " + levels : "");
+
+    renderSeat(state, me, duelling);
+    renderEarnings(state, me);
+  }
+
+  // What you were handed and what it means for the board in front of you.
+  function renderSeat(state, me, duelling) {
+    var host = $("play-role");
+    host.innerHTML = "";
+    host.appendChild(el("div", "pl-seat__role",
+      me.role ? roleName(me.role) : "Player"));
+
+    var game = el("div", "pl-seat__game");
+    if (duelling) {
+      game.appendChild(icon("duel", "gm-ic--sm"));
+      game.appendChild(el("span", null, "The server picks your duel"));
+    } else {
+      game.appendChild(gameIcon(me.assigned_game));
+      game.appendChild(el("span", null, gameName(me.assigned_game)));
+    }
+    host.appendChild(game);
+
+    host.appendChild(el("p", "pl-seat__note", duelling
+      ? "You never solve a puzzle. Win your duels and your team advances."
+      : "Your Grandmaster picked this seat for you. Clear the board to turn "
+        + "green for the team."));
+  }
+
+  // The board in front of you is worth this much to the purse. Straight off
+  // the match's own currency config, so a host who retunes it is not
+  // contradicted here.
+  function renderEarnings(state, me) {
+    var host = $("play-earnings");
+    host.innerHTML = "";
+    var conf = state.config || {};
+    var box = el("div", "pl-pay");
+    var row = function (amount, what, live) {
+      var line = el("div", "pl-pay__row" + (live ? " is-live" : ""));
+      var coin = el("span", "pl-pay__coin");
+      coin.appendChild(icon("coin", "gm-ic--sm"));
+      coin.appendChild(el("span", null, String(amount)));
+      line.appendChild(coin);
+      line.appendChild(el("span", "pl-pay__what", what));
+      box.appendChild(line);
+    };
+    if (me.role === "duelist") {
+      // A Duelist banks duel wins, never clears, and the payout doubles on a
+      // streak up to the cap.
+      row(conf.duel_win_currency, "for winning a duel round", true);
+      if (conf.duel_currency_cap) {
+        row(conf.duel_currency_cap, "the most one streak can pay");
+      }
+    } else {
+      row(conf.currency_per_clear, "for clearing this level",
+        me.status === "solving");
+      row(conf.currency_bonus_first, "for your first bonus this level",
+        me.status === "bonus");
+      row(conf.currency_bonus_repeat, "for each bonus after it");
+    }
+    host.appendChild(box);
   }
 
   function renderMe(state) {
@@ -825,7 +906,12 @@
     $("bonus-badge").hidden = me.status !== "bonus";
     $("puzzle-card").hidden = !puzzle;
     if (puzzle) {
+      $("play-game-name").textContent = gameName(me.assigned_game);
       $("puzzle-prompt").textContent = puzzle.prompt;
+      // The bomb board brings its own look until its design lands, so it gets
+      // a plate to sit on instead of the dark ground the others are drawn for.
+      $("puzzle-mount").className =
+        "pl-mount" + (LEGACY_BOARDS[me.assigned_game] ? " is-legacy" : "");
       mountPuzzle(puzzle);
     } else {
       unmountPuzzle();
@@ -1018,23 +1104,42 @@
 
   // Countdown driven by a server deadline; the server stays authoritative in
   // every case — the bar says what is left, it never decides anything.
+  // One clock, three meanings. The kind sits above the digits rather than in
+  // front of them, so the number itself is the same size and in the same place
+  // whichever deadline is running — you learn where to look once.
+  var COUNTDOWN_KINDS = {
+    bonus: "Bonus deadline",
+    puzzle: "Board deadline",
+    cleared: "Holding cleared"
+  };
+
   function startCountdown(deadlineIso, status, puzzle) {
     clearInterval(timerHandle);
     var bar = $("timer-bar"), label = $("timer-label");
-    if (!deadlineIso) { bar.hidden = true; label.hidden = true; return; }
+    var clock = $("play-clock");
+    if (!deadlineIso) {
+      bar.hidden = true;
+      label.hidden = true;
+      clock.hidden = true;
+      clock.classList.remove("is-urgent");
+      return;
+    }
     var deadline = parseDeadline(deadlineIso);
     var total = countdownSeconds(status, puzzle) * 1000;
     bar.hidden = false;
     label.hidden = false;
-    var prefix = status === "bonus" ? "🔥 Bonus deadline: "
-      : status === "puzzle" ? "⏱️ Board deadline: "
-      : "⏳ Holding cleared: ";
+    clock.hidden = false;
+    $("play-clock-label").textContent =
+      COUNTDOWN_KINDS[status] || COUNTDOWN_KINDS.cleared;
     var tick = function () {
       var left = Math.max(0, deadline - Date.now());
+      var whole = Math.ceil(left / 1000);
       $("timer-fill").style.width = Math.min(100, (left / total) * 100) + "%";
-      label.textContent = prefix + Math.ceil(left / 1000) + "s";
+      label.textContent = ("0" + Math.floor(whole / 60)).slice(-2) + ":" +
+        ("0" + (whole % 60)).slice(-2);
+      clock.classList.toggle("is-urgent", whole <= 15);
       if (left <= 0) {
-        label.textContent = "⏳ Time's up — waiting for the server…";
+        $("play-clock-label").textContent = "Waiting for the server";
         clearInterval(timerHandle);
       }
     };

@@ -9,6 +9,8 @@
        the page chrome around them. -->
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/landing.css">
+  <link rel="stylesheet" href="/static/board.css">
+  <link rel="stylesheet" href="/static/explore.css">
   <style>
     /* explore.html only — the picker and result chrome live in landing.css */
     .result-card { text-align: center; }
@@ -17,7 +19,7 @@
     #mission-blurb { color: var(--relay-muted); }
   </style>
 </head>
-<body class="relay-page relay-page--doc">
+<body class="relay-page relay-page--doc explore-dark">
   <div class="rl-band">
     <svg class="rl-band__track" viewBox="0 0 1440 400" preserveAspectRatio="none" aria-hidden="true" focusable="false">
       <g fill="none" stroke-linecap="round">
@@ -123,6 +125,7 @@
 
   <div id="toast" class="toast" hidden></div>
 
+  <script src="/static/theme.js" defer></script>
   <script src="/static/games/fallback.js" defer></script>
   <script src="/static/games/rewire.js" defer></script>
   <script src="/static/games/sweep.js" defer></script>

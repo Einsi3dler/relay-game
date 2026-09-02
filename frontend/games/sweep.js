@@ -4,6 +4,10 @@
 (function () {
   "use strict";
 
+  var T = window.RelayTheme;
+  // A revealed cell is a solved cell, so it wears `good`; an unopened one is
+  // just board. Colours come from theme.js, never from literals here.
+
   var state = null;
 
   function key(r, c) { return r + "," + c; }
@@ -50,10 +54,13 @@
           cell.type = "button";
           var revealedN = state.revealed[key(r, c)];
           var isFlag = !!state.flags[key(r, c)];
+          var open = revealedN !== undefined;
           cell.style.cssText =
             "width:44px;height:44px;font:bold 16px sans-serif;cursor:pointer;" +
-            "border:1px solid #345;background:" +
-            (revealedN !== undefined ? "#182818" : "#2a3440") + ";color:#cde;";
+            "border-radius:5px;transition:background 0.12s ease;" +
+            "border:1px solid " + (open ? T.fade(T.good, 0.4) : T.grid) + ";" +
+            "background:" + (open ? T.fade(T.good, 0.12) : T.cell) + ";" +
+            "color:" + (open ? T.good : T.text) + ";";
           cell.textContent =
             revealedN !== undefined ? (revealedN || "") : isFlag ? "🚩" : "";
           cell.addEventListener("click", function () {
@@ -86,12 +93,14 @@
       p.clues.forEach(function (cell) { state.clues[key(cell.r, cell.c)] = cell.n; });
       p.revealed.forEach(function (cell) { state.revealed[key(cell.r, cell.c)] = cell.n; });
       state.grid.style.cssText =
-        "display:grid;grid-template-columns:repeat(" + p.cols + ",44px);gap:2px;" +
-        "justify-content:center;margin:8px 0;";
+        "display:grid;grid-template-columns:repeat(" + p.cols + ",44px);gap:3px;" +
+        "justify-content:center;padding:10px;border-radius:12px;" +
+        "background:" + T.bg + ";border:1px solid " + T.line + ";";
       var hint = document.createElement("p");
       hint.textContent = "Left-click: reveal · Right-click: flag. Flag every mine.";
       var submit = document.createElement("button");
       submit.type = "button";
+      submit.className = "board-go";
       submit.textContent = "Submit flags";
       submit.addEventListener("click", function () {
         var flags = Object.keys(state.flags);

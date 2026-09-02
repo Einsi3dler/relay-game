@@ -8,14 +8,18 @@
 (function () {
   "use strict";
 
+  // Packet and exit colours come from the shared piece palette; every packet
+  // also wears its glyph, so a packet is matched to its exit by shape.
+  var T = window.RelayTheme;
+
   var DELTAS = { straight: 0, down: 1, up: -1 };
   var STATE_ARROW = { straight: "→", down: "↘", up: "↗" };
   // Shape carries the meaning for colour-blind players; colour reinforces it.
   var KIND_STYLE = {
-    circle: { glyph: "●", colour: "#4e79a7" },
-    triangle: { glyph: "▲", colour: "#e15759" },
-    square: { glyph: "■", colour: "#59a14f" },
-    diamond: { glyph: "◆", colour: "#8338ec" },
+    circle: { glyph: "●", colour: T.piece(0) },
+    triangle: { glyph: "▲", colour: T.piece(1) },
+    square: { glyph: "■", colour: T.piece(3) },
+    diamond: { glyph: "◆", colour: T.piece(4) },
   };
   var TICK_MS = 260;                 // action shown, then the belt advances
 
@@ -214,7 +218,7 @@
         var el = document.createElement("div");
         var css = "border-radius:4px;display:flex;align-items:center;justify-content:center;" +
           "font-weight:900;line-height:1;font-size:" + Math.floor(px * 0.5) + "px;" +
-          "background:#f0e8dc;";
+          "background:" + T.cell + ";";
 
         if (column === -1) {
           // Staging: what is still queued for this lane, and on which turn it
@@ -245,12 +249,13 @@
         if (column === board.columns) {
           // The exit column: what this lane accepts.
           var exitStyle = KIND_STYLE[board.exits[row]];
-          css = css.replace("background:#f0e8dc;", "background:#fff;") +
+          css = css.replace("background:" + T.cell + ";",
+            "background:" + T.bgDeep + ";") +
             "border:3px dashed " + exitStyle.colour + ";color:" + exitStyle.colour + ";";
           el.textContent = exitStyle.glyph;
           el.title = board.exits[row] + " exit";
         } else if (board.blockers[key(row, column)]) {
-          css += "background:#2b2b33;color:#ff6b6b;";
+          css += "background:" + T.fade(T.hazard, 0.22) + ";color:" + T.hazard + ";";
           el.textContent = "✖";
           el.title = "Blocker";
         } else {
@@ -258,13 +263,14 @@
           var padIndex = board.holdAt[key(row, column)];
           if (switchIndex !== undefined) {
             var switchSpec = board.switches[switchIndex];
-            css += "background:#ffe8b3;color:#2b2b33;cursor:pointer;" +
-              "border:2px solid #c9a227;";
+            css += "background:" + T.fade(T.goal, 0.22) + ";color:" + T.goal +
+              ";cursor:pointer;border:2px solid " + T.goal + ";";
             el.textContent = STATE_ARROW[switchSpec.states[state.view.switchIndex[switchIndex]]];
             el.title = "Junction " + (switchIndex + 1);
             bindAction(el, ["toggle", switchSpec.id]);
           } else if (padIndex !== undefined) {
-            css += "background:#e8f0ff;color:#2b2b33;border:2px dashed #4e79a7;";
+            css += "background:" + T.fade(T.wall, 0.14) + ";color:" + T.text +
+              ";border:2px dashed " + T.wall + ";";
             el.textContent = state.view.charges[padIndex] > 0 ? "⏸" : "·";
             el.title = "Hold pad " + board.holds[padIndex].id;
             bindAction(el, ["hold", board.holds[padIndex].id]);
@@ -274,11 +280,12 @@
         var packetIndex = here[key(row, column)];
         if (packetIndex !== undefined && column < board.columns) {
           var packetStyle = KIND_STYLE[board.packets[packetIndex].kind];
-          css += "background:" + packetStyle.colour + ";color:#fff;";
+          css += "background:" + packetStyle.colour + ";color:" + T.ink +
+            ";box-shadow:" + T.glow(packetStyle.colour, 10) + ";";
           // Keep a junction readable when a packet is standing on it — the
           // gold frame says "this arrow is one you can flip".
           if (board.switchAt[key(row, column)] !== undefined) {
-            css += "border:3px solid #c9a227;cursor:pointer;";
+            css += "border:3px solid " + T.goal + ";cursor:pointer;";
           }
           // The packet's own next edge — one tick only, never a longer preview.
           el.textContent = packetStyle.glyph + nextArrow(packetIndex);
@@ -387,7 +394,8 @@
     btn.setAttribute("aria-label", aria);
     btn.style.cssText =
       "min-width:52px;min-height:48px;font-size:1rem;font-weight:900;" +
-      "border:2px solid #c9a227;border-radius:12px;background:#fff;cursor:pointer;";
+      "border:2px solid " + T.fade(T.goal, 0.55) + ";border-radius:12px;" +
+      "background:" + T.cell + ";color:" + T.text + ";cursor:pointer;";
     btn.addEventListener("click", handler);
     return btn;
   }
@@ -457,7 +465,7 @@
           act(["hold", pad.id]);
         });
         chip.style.minWidth = "60px";
-        chip.style.borderColor = "#4e79a7";
+        chip.style.borderColor = T.wall;
         state.holdChips.push(chip);
         chipRow.appendChild(chip);
       });
@@ -468,10 +476,12 @@
         "display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap;";
       state.passBtn = makeButton("PASS ▶", "Pass this turn", function () { act(["pass"]); });
       state.passBtn.style.cssText +=
-        "background:#c9a227;color:#2b2b33;border-color:#c9a227;min-width:104px;";
+        "background:" + T.fade(T.goal, 0.75) + ";color:" + T.ink +
+        ";border-color:" + T.goal + ";min-width:104px;";
       var restartBtn = makeButton("↺ RESTART", "Reset the belt", restart);
       var checkBtn = makeButton("CHECK", "Submit your schedule", submit);
-      checkBtn.style.cssText += "background:#8338ec;color:#fff;border-color:#8338ec;";
+      checkBtn.style.cssText += "background:" + T.goal + ";color:" + T.ink +
+        ";border-color:" + T.goal + ";box-shadow:" + T.glow(T.goal, 14) + ";";
       controls.appendChild(state.passBtn);
       controls.appendChild(restartBtn);
       controls.appendChild(checkBtn);
@@ -491,7 +501,8 @@
         "wrong exit or falling off the belt all lose the run. Packets waiting to the left " +
         "show the turn they join the belt, and the little arrow on a packet shows only its " +
         "next step. No undo — RESTART resets the whole belt.";
-      hint.style.cssText = "color:#8a8a96;font-size:0.85rem;margin:8px 0 0;";
+      hint.style.cssText =
+        "color:" + T.muted + ";font-size:0.85rem;margin:8px 0 0;";
       root.appendChild(hint);
 
       container.appendChild(root);

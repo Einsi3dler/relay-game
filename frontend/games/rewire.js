@@ -1,8 +1,13 @@
 // REWIRE renderer — rotate tiles until power reaches every sink.
 // Implements the GAME_MODULE_SPEC §10 interface; answer = row-major
 // orientations "1,0,3,2,...". Live glow is cosmetic; the server revalidates.
+//
+// Colours come from theme.js, never from literals here: a live wire is `good`
+// on every board in the game, and a dead one is `muted` on all of them.
 (function () {
   "use strict";
+
+  var T = window.RelayTheme;
 
   var DELTAS = { 0: [-1, 0], 1: [0, 1], 2: [1, 0], 3: [0, -1] };
   var SHAPE_EDGES = { end: [0], straight: [0, 2], elbow: [0, 1], tee: [0, 1, 2] };
@@ -57,19 +62,24 @@
           var tile = document.createElement("button");
           tile.type = "button";
           tile.className = "rewire-tile";
+          var live = !!powered[r + "," + c];
           tile.style.cssText =
-            "width:64px;height:64px;border:1px solid #345;padding:0;cursor:pointer;" +
-            "background:" + (powered[r + "," + c] ? "#0e2a12" : "#101820") + ";";
+            "width:64px;height:64px;padding:0;cursor:pointer;border-radius:6px;" +
+            "border:1px solid " + (live ? T.fade(T.good, 0.55) : T.grid) + ";" +
+            "background:" + (live ? T.fade(T.good, 0.12) : T.cell) + ";" +
+            "transition:background 0.15s ease,border-color 0.15s ease;" +
+            (live ? "box-shadow:" + T.glow(T.good, 10) + ";" : "");
           var isSource = p.source[0] === r && p.source[1] === c;
           var isSink = p.sinks.some(function (s) { return s[0] === r && s[1] === c; });
-          var color = powered[r + "," + c] ? "#7CFC00" : "#607080";
-          if (isSource) color = "#FFD700";
+          var color = live ? T.good : T.muted;
+          if (isSource) color = T.source;
           tile.innerHTML =
             '<svg viewBox="0 0 100 100" width="62" height="62" ' +
             'style="transform:rotate(' + state.orients[i] * 90 + 'deg);display:block">' +
             '<path d="' + SHAPE_PATHS[p.tiles[i].shape] + '" stroke="' + color +
             '" stroke-width="12" fill="none" stroke-linecap="round"/>' +
-            (isSink ? '<circle cx="50" cy="50" r="16" fill="none" stroke="#FF6347" stroke-width="6"/>' : "") +
+            (isSink ? '<circle cx="50" cy="50" r="16" fill="none" stroke="' +
+              T.sink + '" stroke-width="6"/>' : "") +
             "</svg>";
           tile.addEventListener("click", function () {
             state.orients[i] = (state.orients[i] + 1) % 4;
@@ -91,12 +101,14 @@
         grid: document.createElement("div"),
       };
       state.grid.style.cssText =
-        "display:grid;grid-template-columns:repeat(" + p.cols + ",64px);gap:2px;" +
-        "justify-content:center;margin:8px 0;";
+        "display:grid;grid-template-columns:repeat(" + p.cols + ",64px);gap:4px;" +
+        "justify-content:center;padding:10px;border-radius:12px;" +
+        "background:" + T.bg + ";border:1px solid " + T.line + ";";
       var hint = document.createElement("p");
       hint.textContent = "Click a tile to rotate it. Gold = source, red rings = sinks.";
       var submit = document.createElement("button");
       submit.type = "button";
+      submit.className = "pl-go";
       submit.textContent = "Submit wiring";
       submit.addEventListener("click", function () {
         api.submit(state.orients.join(","));

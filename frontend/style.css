@@ -17,12 +17,14 @@
 
 * { box-sizing: border-box; }
 
-/* The two dark surfaces — the Grandmaster's command board and the result
-   screen — share one palette on purpose, so a match reads as one product
-   rather than two skins that drifted apart. Each surface still owns its own
-   stylesheet; this is only the vocabulary they both speak. */
-#view-leader,
-#view-result {
+/* The dark palette, shared by every dark surface: the Grandmaster's command
+   board, the player's board screen, the result screen and the board frame that
+   practice mode mounts into. Declared on :root rather than on a list of views,
+   because a custom property paints nothing on its own — it only does anything
+   where something references it — and a list is one more place to forget to
+   add a surface to. theme.js is this same vocabulary for the boards
+   themselves; keep the two in step. */
+:root {
   --gm-bg: #07091f;
   --gm-panel: #0c1230;
   --gm-panel-2: #111943;
@@ -247,12 +249,7 @@ input:focus { border-color: var(--sun); }
 .timer-label { text-align: center; font-weight: 800; margin-bottom: 10px; }
 
 .prompt { font-weight: 700; font-size: 1.05rem; margin: 0 0 10px; }
-#puzzle-mount button { font-family: inherit; }
-#puzzle-mount > button, #puzzle-mount .submit {
-  margin-top: 10px; font-size: 1rem; font-weight: 800; color: #fff;
-  background: var(--violet); border: none; border-radius: 12px;
-  padding: 12px 18px; cursor: pointer; min-height: 46px;
-}
+/* Board controls moved to board.css, shared with practice mode. */
 
 .rest { text-align: center; border: 2px solid var(--green); }
 .rest-big { font-size: 1.6rem; font-weight: 800; }
