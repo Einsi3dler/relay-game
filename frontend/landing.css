@@ -914,14 +914,14 @@ body.relay-page {
 }
 
 
-/* The developer preview: on the nav because it is easier to find than to
-   remember, and behind a password because it is not for players. Set apart
-   from the four links that are, so nobody reads it as part of the tour. */
-.rl-nav__dev {
-  padding: 5px 12px;
-  border: 1px dashed rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  opacity: 0.75;
-  font-size: 0.86rem;
+/* The developer preview: a button in the header, next to Play but never
+   competing with it. Play is the one thing a visitor came to do; this is a
+   door for one person, so it is outlined rather than filled and it wears a
+   padlock to say so before the password does. */
+.rl-nav__dev { margin-left: 14px; }
+.rl-nav__dev svg { width: 15px; height: 15px; }
+@media (max-width: 899px) {
+  /* On a phone the header keeps only what a visitor needs. The preview has a
+     URL, and the person who wants it knows it. */
+  .rl-nav__dev { display: none; }
 }
-.rl-nav__dev:hover { opacity: 1; border-color: rgba(255, 255, 255, 0.5); }
