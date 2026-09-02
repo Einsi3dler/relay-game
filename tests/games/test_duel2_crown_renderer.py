@@ -53,19 +53,24 @@ def test_card_round_lock_and_reveal_rule():
     report = run("crown_duel", SNAPSHOT + r"""
 const root = element("div");
 renderer.mount(root, duel(), api);
-report.cards = textsOf(root, "duel-card-label");
+report.cards = textsOf(root, "cd-card__name");
 
+// Picking is not committing: a duel round is ten seconds and a mis-tap used
+// to spend the whole round, so the card only leaves on the second press.
 const king = labelled(root, "King");
 king.click();
-king.click();                     // a second press must not double-send
+report.sentOnPick = sent.slice();
+const lock = labelled(root, "Lock in");
+lock.click();
+lock.click();                     // a second press must not double-send
 report.sent = sent.slice();
 report.lockedAfterClick = buttons(root).every((b) => b.disabled);
 
 // The opponent has locked in, but the server sent no choice: nothing may
 // render it, and their hand is not in the payload at all.
 renderer.update(duel({ locked: { a: true, b: true }, choices: { a: "king" } }));
-report.openHands = textsOf(root, "duel-hand");
-report.openSubs = textsOf(root, "duel-sub");
+report.openHands = deepTextsOf(root, "cd-pick__face");
+report.openSubs = textsOf(root, "cd-seat__sub");
 
 renderer.update(duel({
   phase: "reveal", locked: { a: true, b: true },
@@ -76,12 +81,13 @@ renderer.update(duel({
             crowns: { a: 1, b: 0 } },
   },
 }));
-report.revealHands = textsOf(root, "duel-hand");
+report.revealHands = deepTextsOf(root, "cd-pick__face");
 report.revealText = textOf(root);
 report.revealButtons = buttons(root).length;
 """)
 
     assert report["cards"] == ["King", "Knight", "Guard", "Assassin", "Peasant"]
+    assert report["sentOnPick"] == [], "picking a card must not commit it"
     assert report["sent"] == [["king", "d1", 1]], "a second press must not resend"
     assert report["lockedAfterClick"] is True
 
@@ -89,10 +95,15 @@ report.revealButtons = buttons(root).length;
     # of the whole tree would be no use — your own hand draws all five cards
     # by design — so this reads the two seat faces, which is where a played
     # card is the only thing that can appear.
-    assert report["openHands"] == ["👑", "🔒"], "theirs is a lock, not a card"
-    assert report["openSubs"] == ["5 cards", "5 cards"], "counts, never cards"
+    mine, theirs = report["openHands"]
+    assert "King" in mine, "your own played card shows"
+    assert theirs == "Locked in", "theirs is a lock, not a card"
+    for card in ("King", "Knight", "Guard", "Assassin", "Peasant"):
+        assert card not in theirs, f"{card} leaked before the reveal"
+    assert report["openSubs"] == ["5 cards left", "5 cards left"], \
+        "counts, never cards"
 
-    assert report["revealHands"] == ["👑", "⚔️"], "both cards are public now"
+    assert report["revealHands"] == ["King", "Knight"], "both cards are public now"
     assert "You take the Crown" in report["revealText"]
     assert report["revealButtons"] == 0, "no controls during the reveal beat"
 
@@ -106,18 +117,18 @@ report.strategyButtons = buttons(root)
   .map((b) => textOf(b).replace(/\s+/g, " ").trim());
 
 labelled(root, "Royal Sacrifice").click();
-report.step1 = textsOf(root, "duel-step-label");
+report.step1 = textsOf(root, "cd-step");
 labelled(root, "King").click();
 labelled(root, "Knight").click();
-report.step2 = textsOf(root, "duel-step-label");
+report.step2 = textsOf(root, "cd-step");
 // The two cards being destroyed cannot also be the one rewritten.
 report.burningDisabled = buttons(root)
   .filter((b) => b.classList.contains("burning"))
   .every((b) => b.disabled);
 
 labelled(root, "Assassin").click();
-report.step3 = textsOf(root, "duel-step-label");
-report.offered = textsOf(root, "duel-card-label");
+report.step3 = textsOf(root, "cd-step");
+report.offered = textsOf(root, "cd-card__name");
 // A rewrite has to change something: Assassin -> Assassin is not offered.
 report.noOpDisabled = labelled(root, "Assassin").disabled;
 
@@ -131,7 +142,10 @@ report.sent = sent.slice();
 report.builderClosed = labelled(root, "Confirm sacrifice") === undefined;
 """)
 
-    assert report["strategyButtons"] == ["🃏 Play normally", "⚡ Royal Sacrifice"]
+    assert report["strategyButtons"] == [
+        "Play on Keep your hand as it is",
+        "Royal Sacrifice Burn two cards to rewrite a third",
+    ]
     assert report["step1"] == ["1 of 3 — choose two cards to destroy"]
     assert report["step2"] == ["2 of 3 — choose the card to rewrite"]
     assert report["burningDisabled"] is True
@@ -157,17 +171,18 @@ renderer.update(duel({
     last: { kind: "strategy", round: 1, sacrificed: { a: false, b: true } },
   },
 }));
-report.status = textsOf(root, "duel-status");
-report.subs = textsOf(root, "duel-sub");
-report.cards = textsOf(root, "duel-card-label");
-report.hands = textsOf(root, "duel-hand");
+report.status = textsOf(root, "cd-status");
+report.subs = textsOf(root, "cd-seat__sub");
+report.cards = textsOf(root, "cd-card__name");
+report.hands = deepTextsOf(root, "cd-pick__face");
 """)
 
     assert report["status"] == ["⚡ Your opponent performed a Royal Sacrifice."]
     # All the other seat's hand ever shows is how many cards are left in it.
-    assert report["subs"] == ["5 cards", "3 cards · ⚡"]
+    assert report["subs"] == ["5 cards left", "3 cards left, sacrifice spent"]
     assert report["cards"] == [], "no card of either hand is on the table"
-    assert report["hands"] == ["🃏", "⚡"], "only the strategy choices are public"
+    assert report["hands"] == ["Played on", "Sacrificed"], \
+        "only the strategy choices are public, never what they did"
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")

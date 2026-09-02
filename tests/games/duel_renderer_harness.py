@@ -63,6 +63,15 @@ function descend(node) {
   return out;
 }
 
+// Every string under each node with this class, children included. A face
+// built from child elements has no textContent of its own.
+function deepTextsOf(node, className) {
+  return descend(node)
+    .filter((n) => String(n.className || "").split(" ").indexOf(className) >= 0)
+    .map((n) => [n].concat(descend(n))
+      .map((c) => String(c.textContent || "").trim()).filter(Boolean).join(" "));
+}
+
 // Every string rendered anywhere in the tree.
 function textOf(node) {
   return descend(node)

@@ -371,3 +371,460 @@
     transition: none !important;
   }
 }
+
+
+/* ==========================================================================
+   CROWN DUEL
+   --------------------------------------------------------------------------
+   Five characters, a counter table and one hidden hand rewrite. The screen is
+   a scoreboard across the top, three columns under it (the rules you need, the
+   two picks facing each other, and what the other side is doing), and your
+   hand along the bottom.
+
+   Each character owns a hue and keeps it everywhere: in the rules table, on
+   the card, and on the pick it becomes. That is the only way five cards stay
+   apart at a glance in ten seconds — and every one of them carries its name
+   and its portrait too, so the hue is never doing the work alone.
+   ========================================================================== */
+
+#duel-card .cd {
+  --cd-king: var(--gm-yellow);
+  --cd-knight: #3bb6ff;
+  --cd-guard: #42db83;
+  --cd-assassin: #a970ff;
+  --cd-peasant: var(--gm-amber);
+
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 16px 16px;
+}
+
+.cd-card--king, .cd-rules__row--king { --card: var(--cd-king); }
+.cd-card--knight, .cd-rules__row--knight { --card: var(--cd-knight); }
+.cd-card--guard, .cd-rules__row--guard { --card: var(--cd-guard); }
+.cd-card--assassin, .cd-rules__row--assassin { --card: var(--cd-assassin); }
+.cd-card--peasant, .cd-rules__row--peasant { --card: var(--cd-peasant); }
+
+.cd-art { width: 100%; height: auto; display: block; }
+
+/* --- the scoreboard ------------------------------------------------------ */
+
+.cd-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+.cd-seat {
+  --seat: var(--dl-a);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--seat) 55%, transparent);
+  border-radius: var(--gm-radius-md);
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--seat) 20%, transparent), transparent 65%),
+    var(--gm-panel-2);
+}
+.cd-seat--them { --seat: var(--dl-b); text-align: right; }
+.cd-seat__body { flex: 1; min-width: 0; }
+.cd-seat__name {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--seat);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cd-seat__sub { font-size: 0.72rem; font-weight: 700; color: var(--gm-muted); }
+
+/* A shield, cut from the frame rather than drawn, so it takes the seat's hue
+   without a second asset. */
+.cd-shield {
+  width: 34px;
+  height: 40px;
+  flex: none;
+  border: 2px solid var(--seat);
+  background: color-mix(in srgb, var(--seat) 22%, transparent);
+  clip-path: polygon(50% 0, 100% 16%, 100% 62%, 50% 100%, 0 62%, 0 16%);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--seat) 45%, transparent);
+}
+
+.cd-crowns { display: flex; gap: 6px; margin: 5px 0 4px; }
+.cd-seat--them .cd-crowns { justify-content: flex-end; }
+.cd-crown {
+  width: 15px;
+  height: 11px;
+  border: 2px solid color-mix(in srgb, var(--seat) 55%, transparent);
+  /* the outline of a crown: three points and a band */
+  clip-path: polygon(0 100%, 0 26%, 22% 52%, 50% 0, 78% 52%, 100% 26%, 100% 100%);
+}
+.cd-crown.is-won {
+  background: var(--seat);
+  border-color: var(--seat);
+  box-shadow: 0 0 10px var(--seat);
+}
+
+.cd-title { text-align: center; }
+#duel-card .cd-title h2 {
+  margin: 0;
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #fff3c4 10%, var(--gm-yellow) 55%, #c98a12 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: var(--gm-yellow);
+  -webkit-text-fill-color: transparent;
+}
+.cd-round {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+
+/* --- the three columns --------------------------------------------------- */
+
+.cd-body {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(0, 1.6fr) minmax(180px, 0.8fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.cd-rules, .cd-watch__box {
+  padding: 12px 14px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-md);
+  background: var(--gm-panel-2);
+}
+.cd-rules__head {
+  margin: 0 0 10px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gm-yellow);
+}
+.cd-rules__list { list-style: none; margin: 0; padding: 0; }
+.cd-rules__row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 0;
+  border-top: 1px solid var(--gm-line-soft);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.cd-rules__row:first-child { border-top: 0; }
+.cd-rules__row > .cd-art { width: 20px; flex: none; }
+.cd-rules__who {
+  flex: 1;
+  min-width: 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--card, var(--gm-text));
+}
+.cd-rules__gt { color: var(--gm-muted); font-weight: 700; font-size: 0.64rem; }
+.cd-rules__prey { display: flex; gap: 3px; }
+.cd-rules__prey .cd-art { width: 19px; opacity: 0.85; }
+.cd-rules__note {
+  margin: 10px 0 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--gm-muted);
+}
+
+/* --- the arena ----------------------------------------------------------- */
+
+.cd-arena { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.cd-status {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--gm-text);
+}
+.cd-versus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+}
+.cd-versus__mark {
+  flex: none;
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 900;
+  background: linear-gradient(100deg, var(--dl-a) 20%, var(--dl-b) 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: var(--dl-a);
+  -webkit-text-fill-color: transparent;
+}
+
+.cd-pick { --seat: var(--dl-a); flex: 1 1 0; min-width: 0; text-align: center; }
+.cd-pick--theirs { --seat: var(--dl-b); }
+.cd-pick__face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 148px;
+  padding: 12px 10px;
+  border: 2px solid var(--seat);
+  border-radius: var(--gm-radius-md);
+  background:
+    radial-gradient(80% 60% at 50% 25%, color-mix(in srgb, var(--seat) 26%, transparent), transparent 70%),
+    var(--gm-bg);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--seat) 30%, transparent);
+}
+.cd-pick__face .cd-art { max-width: 92px; }
+.cd-pick__name {
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--seat);
+}
+.cd-pick__word { font-size: 1rem; font-weight: 900; color: var(--seat); }
+/* The back of a card: a crown mark on a field, and nothing that hints at what
+   is under it, because nothing here knows. */
+.cd-pick__back {
+  width: 62px;
+  height: 78px;
+  border: 2px solid color-mix(in srgb, var(--seat) 60%, transparent);
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(45deg,
+      color-mix(in srgb, var(--seat) 14%, transparent) 0 6px, transparent 6px 12px),
+    var(--gm-panel);
+}
+.cd-pick__back.is-locked { box-shadow: 0 0 16px color-mix(in srgb, var(--seat) 50%, transparent); }
+.cd-pick__label {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+
+/* --- what the other side is doing ---------------------------------------- */
+
+.cd-watch__box { text-align: center; }
+.cd-watch__box strong {
+  display: block;
+  margin: 10px 0 6px;
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: var(--dl-b);
+}
+.cd-watch__box.is-ready strong { color: var(--gm-green); }
+.cd-watch__box span:not(.cd-watch__ring) {
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--gm-muted);
+}
+.cd-watch__ring {
+  display: block;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto;
+  border: 3px dashed color-mix(in srgb, var(--dl-b) 60%, transparent);
+  border-radius: 50%;
+  animation: cd-turn 5s linear infinite;
+}
+.cd-watch__box.is-ready .cd-watch__ring {
+  border-style: solid;
+  border-color: var(--gm-green);
+  animation: none;
+}
+@keyframes cd-turn { to { transform: rotate(360deg); } }
+
+/* --- the hand ------------------------------------------------------------ */
+
+.cd-stage { display: flex; flex-direction: column; gap: 12px; }
+.cd-step, .cd-note {
+  margin: 0;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--gm-muted);
+}
+.cd-step {
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gm-yellow);
+}
+
+.cd-hand {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 10px;
+}
+#duel-card .cd-card {
+  --card: var(--gm-line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px 8px;
+  border: 2px solid color-mix(in srgb, var(--card) 55%, transparent);
+  border-radius: var(--gm-radius-md);
+  background:
+    radial-gradient(75% 50% at 50% 18%, color-mix(in srgb, var(--card) 30%, transparent), transparent 72%),
+    var(--gm-panel-2);
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+#duel-card .cd-card .cd-art { max-width: 96px; }
+.cd-card__name {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.cd-card__plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(7, 9, 31, 0.55);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+.cd-card__state { color: var(--gm-green); }
+.cd-card__note { color: var(--gm-violet); }
+
+#duel-card .cd-card:hover:not(:disabled) {
+  transform: translateY(-3px);
+  border-color: var(--card);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--card) 45%, transparent);
+}
+#duel-card .cd-card.is-picked {
+  border-color: var(--card);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--card) 60%, transparent);
+}
+#duel-card .cd-card.is-picked .cd-card__state { color: var(--card); }
+#duel-card .cd-card.is-burning { border-color: var(--gm-red); }
+#duel-card .cd-card.is-burning .cd-card__plate { color: var(--gm-red); }
+/* Spent cards stay on the table: a hand you can see shrinking is the game. */
+#duel-card .cd-card.is-spent { opacity: 0.34; cursor: not-allowed; }
+#duel-card .cd-card.is-spent .cd-card__state { color: var(--gm-muted); }
+#duel-card .cd-card:disabled { cursor: not-allowed; }
+
+/* --- the two commits ----------------------------------------------------- */
+
+.cd-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+#duel-card .cd-lock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 200px;
+  padding: 11px 26px;
+  border: 0;
+  border-radius: var(--gm-radius-md);
+  background: linear-gradient(180deg, #ffd85a, var(--gm-yellow));
+  color: #241a05;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(255, 210, 28, 0.26);
+}
+#duel-card .cd-lock strong {
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+#duel-card .cd-lock span { font-size: 0.7rem; font-weight: 700; opacity: 0.75; }
+#duel-card .cd-lock:disabled {
+  background: rgba(122, 140, 255, 0.14);
+  color: var(--gm-muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+#duel-card .cd-clear {
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-md);
+  background: rgba(122, 140, 255, 0.12);
+  color: var(--gm-text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+#duel-card .cd-clear:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* --- the strategy beat ---------------------------------------------------- */
+
+.cd-strategy { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+#duel-card .cd-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 210px;
+  padding: 14px 20px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-md);
+  background: var(--gm-panel-2);
+  color: var(--gm-text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+#duel-card .cd-choice strong { font-size: 1rem; font-weight: 900; }
+#duel-card .cd-choice span { font-size: 0.74rem; color: var(--gm-muted); }
+#duel-card .cd-choice:hover:not(:disabled) { border-color: var(--gm-cyan); }
+#duel-card .cd-choice--sacrifice { border-color: rgba(169, 112, 255, 0.5); }
+#duel-card .cd-choice--sacrifice strong { color: var(--cd-assassin); }
+#duel-card .cd-choice:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* --- the Grandmaster's copy ----------------------------------------------- */
+
+/* A watcher gets no hand and no controls, so the columns that exist to be
+   acted on go with them. */
+#view-leader .cd-body { grid-template-columns: minmax(0, 1fr); }
+#view-leader .cd-rules,
+#view-leader .cd-watch { display: none; }
+#view-leader .cd-top { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+#view-leader .cd-title h2 { font-size: 1rem; }
+#view-leader .cd-pick__face { min-height: 96px; }
+#view-leader .cd-pick__face .cd-art { max-width: 56px; }
+
+/* --- responsive ------------------------------------------------------------ */
+
+@media (max-width: 1023px) {
+  .cd-body { grid-template-columns: minmax(0, 1fr); }
+  .cd-rules__list { columns: 2; }
+}
+@media (max-width: 619px) {
+  .cd-top { grid-template-columns: minmax(0, 1fr); }
+  .cd-hand { grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); }
+  .cd-rules__list { columns: 1; }
+}

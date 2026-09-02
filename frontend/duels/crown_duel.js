@@ -14,15 +14,13 @@
 (function () {
   "use strict";
 
-  var ART = {
-    king: "👑", knight: "⚔️", guard: "🛡️", assassin: "🗡️", peasant: "🌾",
-  };
+  // One portrait per character, drawn rather than typed. Swapping a file for a
+  // richer illustration needs no change here: the src is built from the type.
+  var ART_PATH = "/static/assets/duels/";
   var LABEL = {
     king: "King", knight: "Knight", guard: "Guard",
     assassin: "Assassin", peasant: "Peasant",
   };
-  var GUIDE = "King beats the fighters · Peasant beats King · every fighter " +
-    "beats Peasant · Guard beats Knight beats Assassin beats Guard";
 
   var state = null;
 
@@ -40,62 +38,146 @@
     return node;
   }
 
-  // A strategy round's choice is a word, not a card: it shows as itself.
-  var STRATEGY_ART = { normal: "🃏", sacrifice: "⚡" };
+  // A strategy round's choice is a word, not a card, so it shows as a word.
+  var STRATEGY_LABEL = { normal: "Played on", sacrifice: "Sacrificed" };
 
   function art(type) {
-    return ART[type] || "❓";
+    var img = document.createElement("img");
+    img.src = ART_PATH + type + ".svg";
+    img.alt = "";
+    img.className = "cd-art";
+    return img;
   }
 
-  function hand(choice, locked) {
-    if (choice) return ART[choice] || STRATEGY_ART[choice] || "❓";
-    return locked ? "🔒" : "…";
+  // What a seat is showing. Before the reveal that is nothing at all, which is
+  // the whole point of the game: never a placeholder that hints at a card.
+  function fillHand(host, choice, locked) {
+    host.innerHTML = "";
+    if (choice && LABEL[choice]) {
+      host.appendChild(art(choice));
+      host.appendChild(el("span", "cd-pick__name", LABEL[choice]));
+      return;
+    }
+    if (choice) {
+      host.appendChild(el("span", "cd-pick__word", STRATEGY_LABEL[choice] || choice));
+      return;
+    }
+    host.appendChild(el("span", "cd-pick__back" + (locked ? " is-locked" : "")));
+    host.appendChild(el("span", "cd-pick__name",
+      locked ? "Locked in" : "Choosing"));
   }
 
   // Crowns taken, hollow for the rest of the race.
-  function pips(won, needed) {
-    var out = "";
-    for (var i = 0; i < needed; i++) out += i < won ? "●" : "○";
-    return out;
+  function pips(host, won, needed) {
+    host.innerHTML = "";
+    for (var i = 0; i < needed; i++) {
+      host.appendChild(el("span", "cd-crown" + (i < won ? " is-won" : "")));
+    }
+    host.setAttribute("aria-label", won + " of " + needed + " crowns");
   }
 
+  // A scoreboard seat: who, how many crowns, and how much hand is left. The
+  // card they are holding is never here — only what the server has revealed.
   function seat(kind) {
-    var root = el("div", "duel-seat duel-seat-" + kind);
-    var face = el("div", "duel-hand", "…");
-    var name = el("div", "duel-name", kind === "you" ? "You" : "Opponent");
-    var score = el("div", "duel-pips", "");
-    var cards = el("div", "duel-sub", "");
-    root.appendChild(face);
-    root.appendChild(name);
-    root.appendChild(score);
-    root.appendChild(cards);
-    return { root: root, face: face, name: name, score: score, cards: cards };
+    var root = el("div", "cd-seat cd-seat--" + kind);
+    var body = el("div", "cd-seat__body");
+    var name = el("div", "cd-seat__name", kind === "you" ? "You" : "Opponent");
+    var score = el("div", "cd-crowns");
+    var cards = el("div", "cd-seat__sub", "");
+    body.appendChild(name);
+    body.appendChild(score);
+    body.appendChild(cards);
+    var shield = el("span", "cd-shield");
+    if (kind === "you") { root.appendChild(shield); root.appendChild(body); }
+    else { root.appendChild(body); root.appendChild(shield); }
+    return { root: root, name: name, score: score, cards: cards };
+  }
+
+  function pickSlot(kind, label) {
+    var box = el("div", "cd-pick cd-pick--" + kind);
+    var face = el("div", "cd-pick__face");
+    box.appendChild(face);
+    box.appendChild(el("span", "cd-pick__label", label));
+    return { root: box, face: face };
   }
 
   function build(container) {
-    var root = el("div", "duel duel-crown");
-    var header = el("div", "duel-header");
+    var root = el("div", "cd");
+
+    var top = el("div", "cd-top");
     var you = seat("you");
     var them = seat("them");
-    header.appendChild(you.root);
-    header.appendChild(el("div", "duel-versus", "VS"));
-    header.appendChild(them.root);
+    var title = el("div", "cd-title");
+    title.appendChild(el("h2", null, "Crown Duel"));
+    var round = el("div", "cd-round", "");
+    title.appendChild(round);
+    top.appendChild(you.root);
+    top.appendChild(title);
+    top.appendChild(them.root);
+    root.appendChild(top);
 
-    var round = el("div", "duel-round", "");
-    var status = el("div", "duel-status", "");
-    var stage = el("div", "duel-stage");
-    var guide = el("p", "duel-guide", GUIDE);
+    var body = el("div", "cd-body");
+    var rules = el("aside", "cd-rules");
+    body.appendChild(rules);
 
-    root.appendChild(header);
-    root.appendChild(round);
-    root.appendChild(status);
+    var arena = el("div", "cd-arena");
+    var status = el("div", "cd-status", "");
+    arena.appendChild(status);
+    var duelRow = el("div", "cd-versus");
+    var yourPick = pickSlot("mine", "Your pick");
+    var theirPick = pickSlot("theirs", "Their pick");
+    duelRow.appendChild(yourPick.root);
+    duelRow.appendChild(el("span", "cd-versus__mark", "VS"));
+    duelRow.appendChild(theirPick.root);
+    arena.appendChild(duelRow);
+    body.appendChild(arena);
+
+    var aside = el("aside", "cd-watch");
+    body.appendChild(aside);
+    root.appendChild(body);
+
+    var stage = el("div", "cd-stage");
     root.appendChild(stage);
-    root.appendChild(guide);
     container.appendChild(root);
     return {
       root: root, round: round, status: status, stage: stage,
+      rules: rules, watch: aside,
+      yourPick: yourPick, theirPick: theirPick,
       you: you, them: them,
     };
+  }
+
+  // The counter table, built from the payload's own `beats` map. Not a
+  // sentence written here: a hand-written summary of the rules is one balance
+  // change away from lying, and this one cannot be.
+  function renderRules(payload) {
+    var host = state.dom.rules;
+    var beats = payload.beats || {};
+    var types = payload.types || [];
+    var signature = JSON.stringify([types, beats]);
+    if (state.rulesSignature === signature) return;
+    state.rulesSignature = signature;
+    host.innerHTML = "";
+
+    host.appendChild(el("h3", "cd-rules__head", "How it works"));
+    var list = el("ul", "cd-rules__list");
+    types.forEach(function (type) {
+      var row = el("li", "cd-rules__row cd-rules__row--" + type);
+      row.appendChild(art(type));
+      row.appendChild(el("span", "cd-rules__who", LABEL[type] || type));
+      row.appendChild(el("span", "cd-rules__gt", "beats"));
+      var prey = el("span", "cd-rules__prey");
+      (beats[type] || []).forEach(function (loser) {
+        var mark = art(loser);
+        mark.title = LABEL[loser] || loser;
+        prey.appendChild(mark);
+      });
+      row.appendChild(prey);
+      list.appendChild(row);
+    });
+    host.appendChild(list);
+    host.appendChild(el("p", "cd-rules__note",
+      "Only the same card against itself draws."));
   }
 
   // --- the stage -----------------------------------------------------------
@@ -104,21 +186,22 @@
     // Lock the stage immediately; the server confirms with the next snapshot.
     state.sending = true;
     state.sacrifice = null;
+    state.pick = null;
     state.api.choose(move, duel.id, duel.round);
   }
 
   function renderStrategy(duel, payload) {
     var stage = state.dom.stage;
-    var row = el("div", "duel-moves");
+    var row = el("div", "cd-strategy");
 
-    var normal = button("duel-move", "");
-    normal.appendChild(el("span", "duel-move-art", "🃏"));
-    normal.appendChild(el("span", "duel-move-label", "Play normally"));
+    var normal = button("cd-choice", "");
+    normal.appendChild(el("strong", null, "Play on"));
+    normal.appendChild(el("span", null, "Keep your hand as it is"));
     normal.disabled = state.locked;
 
-    var offer = button("duel-move duel-move--sacrifice", "");
-    offer.appendChild(el("span", "duel-move-art", "⚡"));
-    offer.appendChild(el("span", "duel-move-label", "Royal Sacrifice"));
+    var offer = button("cd-choice cd-choice--sacrifice", "");
+    offer.appendChild(el("strong", null, "Royal Sacrifice"));
+    offer.appendChild(el("span", null, "Burn two cards to rewrite a third"));
     offer.disabled = state.locked || !payload.can_sacrifice;
 
     normal.addEventListener("click", function () {
@@ -137,10 +220,10 @@
     stage.appendChild(row);
 
     if (!payload.can_sacrifice && !payload.sacrifice_used[duel.you]) {
-      stage.appendChild(el("p", "duel-note",
+      stage.appendChild(el("p", "cd-note",
         "A sacrifice costs two cards and one to play — you need three."));
     } else if (payload.sacrifice_used[duel.you]) {
-      stage.appendChild(el("p", "duel-note", "Your Royal Sacrifice is spent."));
+      stage.appendChild(el("p", "cd-note", "Your Royal Sacrifice is spent."));
     }
   }
 
@@ -154,19 +237,22 @@
     });
 
     var step = plan.burn.length < 2 ? 1 : (plan.target === null ? 2 : 3);
-    stage.appendChild(el("p", "duel-step-label", step === 1
+    stage.appendChild(el("p", "cd-step", step === 1
       ? "1 of 3 — choose two cards to destroy"
       : step === 2
         ? "2 of 3 — choose the card to rewrite"
         : "3 of 3 — choose what it becomes"));
 
     if (step < 3) {
-      var cards = el("div", "duel-cards");
+      var cards = el("div", "cd-hand");
       available.forEach(function (card) {
         var burning = plan.burn.indexOf(card.id) >= 0;
-        var node = button("duel-card" + (burning ? " burning" : ""));
-        node.appendChild(el("span", "duel-card-art", art(card.type)));
-        node.appendChild(el("span", "duel-card-label", LABEL[card.type]));
+        var node = button("cd-card cd-card--" + card.type +
+          (burning ? " is-burning" : ""));
+        node.appendChild(art(card.type));
+        node.appendChild(el("span", "cd-card__name", LABEL[card.type]));
+        node.appendChild(el("span", "cd-card__plate",
+          burning ? "Destroying" : "Keep"));
         node.disabled = step === 2 && burning;
         node.addEventListener("click", function () {
           if (node.disabled) return;
@@ -187,11 +273,14 @@
       available.forEach(function (card) {
         if (card.id === plan.target) target = card;
       });
-      var types = el("div", "duel-cards");
+      var types = el("div", "cd-hand");
       payload.transform_types.forEach(function (type) {
-        var node = button("duel-card" + (plan.type === type ? " chosen" : ""));
-        node.appendChild(el("span", "duel-card-art", art(type)));
-        node.appendChild(el("span", "duel-card-label", LABEL[type]));
+        var node = button("cd-card cd-card--" + type +
+          (plan.type === type ? " is-picked" : ""));
+        node.appendChild(art(type));
+        node.appendChild(el("span", "cd-card__name", LABEL[type]));
+        node.appendChild(el("span", "cd-card__plate",
+          plan.type === type ? "Becomes this" : "Rewrite into"));
         // A rewrite has to rewrite something, and the crown is never minted.
         node.disabled = !!target && target.type === type;
         node.addEventListener("click", function () {
@@ -202,13 +291,13 @@
         types.appendChild(node);
       });
       stage.appendChild(types);
-      stage.appendChild(el("p", "duel-note",
+      stage.appendChild(el("p", "cd-note",
         "Two cards are destroyed for good. Your opponent is told a sacrifice " +
         "happened, never what changed."));
     }
 
-    var actions = el("div", "duel-actions");
-    var confirm = button("duel-lock", "Confirm sacrifice");
+    var actions = el("div", "cd-actions");
+    var confirm = button("cd-lock", "Confirm sacrifice");
     confirm.disabled = state.locked || plan.burn.length !== 2 ||
       plan.target === null || plan.type === null;
     confirm.addEventListener("click", function () {
@@ -218,7 +307,7 @@
         plan.target + "=" + plan.type);
       render(state.duel);
     });
-    var cancel = button("duel-cancel", "Cancel");
+    var cancel = button("cd-clear", "Cancel");
     cancel.addEventListener("click", function () {
       state.sacrifice = null;
       render(state.duel);
@@ -228,28 +317,64 @@
     stage.appendChild(actions);
   }
 
+  // Pick, then lock. The commit is one message either way, but a duel round is
+  // ten seconds and a mis-tap used to be the whole round — so the card only
+  // leaves the browser when the second button is pressed.
   function renderCombat(duel, payload) {
     var stage = state.dom.stage;
-    var cards = el("div", "duel-cards");
+    var cards = el("div", "cd-hand");
     payload.hand.forEach(function (card) {
       var spent = card.status !== "available";
-      var node = button("duel-card" + (spent ? " spent" : ""));
-      node.appendChild(el("span", "duel-card-art", art(card.type)));
-      node.appendChild(el("span", "duel-card-label", LABEL[card.type]));
+      var picked = state.pick === card.id;
+      var node = button("cd-card cd-card--" + card.type +
+        (spent ? " is-spent" : "") + (picked ? " is-picked" : ""));
+      node.appendChild(art(card.type));
+      node.appendChild(el("span", "cd-card__name", LABEL[card.type]));
+      var plate = el("span", "cd-card__plate");
+      plate.appendChild(el("span", "cd-card__state",
+        spent ? "Used" : picked ? "Picked" : "Available"));
       if (card.origin !== card.type) {
-        node.appendChild(el("span", "duel-card-note", "rewritten"));
+        plate.appendChild(el("span", "cd-card__note", "rewritten"));
       }
+      node.appendChild(plate);
       node.disabled = spent || state.locked || !state.open;
       node.addEventListener("click", function () {
         if (node.disabled) return;
-        node.disabled = true;                    // never a second press
-        node.classList.add("chosen");
-        send(duel, card.type);
+        state.pick = state.pick === card.id ? null : card.id;
         render(state.duel);
       });
       cards.appendChild(node);
     });
     stage.appendChild(cards);
+
+    var chosen = null;
+    payload.hand.forEach(function (card) {
+      if (card.id === state.pick && card.status === "available") chosen = card;
+    });
+
+    var actions = el("div", "cd-actions");
+    var lock = button("cd-lock", "");
+    lock.appendChild(el("strong", null, "Lock in"));
+    lock.appendChild(el("span", null, chosen
+      ? "Commit " + LABEL[chosen.type] : "Pick a card first"));
+    lock.disabled = !chosen || state.locked;
+    lock.addEventListener("click", function () {
+      if (lock.disabled) return;
+      lock.disabled = true;                      // never a second press
+      send(duel, chosen.type);
+      render(state.duel);
+    });
+    actions.appendChild(lock);
+
+    var clear = button("cd-clear", "Change pick");
+    clear.disabled = !chosen || state.locked;
+    clear.addEventListener("click", function () {
+      if (clear.disabled) return;
+      state.pick = null;
+      render(state.duel);
+    });
+    actions.appendChild(clear);
+    stage.appendChild(actions);
   }
 
   function renderStage(duel) {
@@ -260,6 +385,7 @@
     var signature = JSON.stringify([
       duel.id, duel.round, duel.phase, payload.phase, state.locked,
       state.open, payload.hand, payload.can_sacrifice, state.sacrifice,
+      state.pick,
     ]);
     if (state.stageSignature === signature) return;
     state.stageSignature = signature;
@@ -342,16 +468,35 @@
       ? (names[seats[1]] || "Opponent") : (names.b || "B");
     [dom.you, dom.them].forEach(function (panel, index) {
       var side = seats[index];
-      panel.face.textContent = hand(choices[side], locked[side]);
-      panel.score.textContent = pips(crowns[side] || 0, needed);
+      pips(panel.score, crowns[side] || 0, needed);
       var count = left[side];
-      panel.cards.textContent = count === undefined ? "" : count + " cards" +
-        (payload.sacrifice_used && payload.sacrifice_used[side] ? " · ⚡" : "");
+      var spent = payload.sacrifice_used && payload.sacrifice_used[side];
+      panel.cards.textContent = count === undefined ? ""
+        : count + " cards left" + (spent ? ", sacrifice spent" : "");
     });
 
-    dom.root.className = "duel duel-crown duel-" + duel.phase;
+    // The two picks facing each other. Neither carries a card until the server
+    // has revealed one.
+    fillHand(dom.yourPick.face, choices[seats[0]], locked[seats[0]]);
+    fillHand(dom.theirPick.face, choices[seats[1]], locked[seats[1]]);
+
+    // What the other side is doing, in the panel the mockup keeps for it.
+    dom.watch.innerHTML = "";
+    var theirLocked = !!locked[seats[1]];
+    var watch = el("div", "cd-watch__box" + (theirLocked ? " is-ready" : ""));
+    watch.appendChild(el("span", "cd-watch__ring"));
+    watch.appendChild(el("strong", null, theirLocked
+      ? "Their card is in" : "They are deciding"));
+    watch.appendChild(el("span", null, theirLocked
+      ? "Both cards land when the round resolves."
+      : "You will never see what they picked before the reveal."));
+    dom.watch.appendChild(watch);
+
+    dom.root.className = "cd cd--" + duel.phase +
+      (payload.phase ? " cd--" + payload.phase : "");
     dom.round.textContent = roundLine(payload);
     dom.status.textContent = statusLine(duel);
+    renderRules(payload);
     renderStage(duel);
   }
 
@@ -360,7 +505,7 @@
     mount: function (container, duel, api) {
       state = {
         container: container, api: api, dom: build(container),
-        sacrifice: null, sending: false, stageSignature: null,
+        sacrifice: null, sending: false, stageSignature: null, pick: null,
       };
       render(duel);
     },
@@ -371,6 +516,7 @@
         state.round = duel.round;
         state.sacrifice = null;
         state.sending = false;
+        state.pick = null;
       }
       render(duel);
     },

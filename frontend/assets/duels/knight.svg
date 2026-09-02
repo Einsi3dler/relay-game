@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" fill="none">
+  <defs>
+    <radialGradient id="knight-aura" cx="0.5" cy="0.38" r="0.62">
+      <stop offset="0" stop-color="#3bb6ff" stop-opacity="0.62"/>
+      <stop offset="1" stop-color="#3bb6ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="knight-cloth" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#10243c"/>
+      <stop offset="1" stop-color="#0d1024"/>
+    </linearGradient>
+    <linearGradient id="knight-rim" x1="0" y1="0" x2="1" y2="0.4">
+      <stop offset="0" stop-color="#3bb6ff"/>
+      <stop offset="0.55" stop-color="#3bb6ff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="knight-glow" x="-45%" y="-45%" width="190%" height="190%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="80" cy="80" rx="74" ry="76" fill="url(#knight-aura)"/>
+  <!-- shoulders -->
+  <path d="M18 200 q6 -52 62 -60 q56 8 62 60 z" fill="url(#knight-cloth)"/>
+  <path d="M18 200 q6 -52 62 -60" stroke="url(#knight-rim)" stroke-width="3" fill="none"/>
+  <!-- head -->
+  <path d="M80 46 q24 0 24 30 q0 30 -24 42 q-24 -12 -24 -42 q0 -30 24 -30 z"
+        fill="#1a1f3a"/>
+  <path d="M80 46 q-24 0 -24 30 q0 30 24 42" stroke="url(#knight-rim)"
+        stroke-width="2.5" fill="none"/>
+  <!-- eyes: the one lit thing on every face, so a bust reads as a fighter -->
+  <g filter="url(#knight-glow)" fill="#3bb6ff">
+    <ellipse cx="71" cy="78" rx="4.5" ry="3"/>
+    <ellipse cx="89" cy="78" rx="4.5" ry="3"/>
+  </g>
+  
+  <path d="M56 52 q24 -14 48 0 v40 q0 26 -24 38 q-24 -12 -24 -38 z" fill="#26354f"/>
+  <path d="M56 52 q24 -14 48 0" stroke="#8fd4ff" stroke-width="3" fill="none"/>
+  <g filter="url(#knight-glow)">
+    <rect x="62" y="72" width="36" height="8" rx="3" fill="#3bb6ff"/>
+    <path d="M80 12 q16 12 12 34 l-10 -8 l-10 8 q-4 -22 8 -34 z" fill="#3bb6ff"/>
+  </g>
+  <path d="M74 92 v22 M86 92 v22" stroke="#6fc6ff" stroke-width="2.5" opacity="0.7"/>
+</svg>

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" fill="none">
+  <defs>
+    <radialGradient id="guard-aura" cx="0.5" cy="0.38" r="0.62">
+      <stop offset="0" stop-color="#42db83" stop-opacity="0.62"/>
+      <stop offset="1" stop-color="#42db83" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="guard-cloth" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#0f2e1f"/>
+      <stop offset="1" stop-color="#0d1024"/>
+    </linearGradient>
+    <linearGradient id="guard-rim" x1="0" y1="0" x2="1" y2="0.4">
+      <stop offset="0" stop-color="#42db83"/>
+      <stop offset="0.55" stop-color="#42db83" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="guard-glow" x="-45%" y="-45%" width="190%" height="190%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <ellipse cx="80" cy="80" rx="74" ry="76" fill="url(#guard-aura)"/>
+  <!-- shoulders -->
+  <path d="M18 200 q6 -52 62 -60 q56 8 62 60 z" fill="url(#guard-cloth)"/>
+  <path d="M18 200 q6 -52 62 -60" stroke="url(#guard-rim)" stroke-width="3" fill="none"/>
+  <!-- head -->
+  <path d="M80 46 q24 0 24 30 q0 30 -24 42 q-24 -12 -24 -42 q0 -30 24 -30 z"
+        fill="#1a1f3a"/>
+  <path d="M80 46 q-24 0 -24 30 q0 30 24 42" stroke="url(#guard-rim)"
+        stroke-width="2.5" fill="none"/>
+  <!-- eyes: the one lit thing on every face, so a bust reads as a fighter -->
+  <g filter="url(#guard-glow)" fill="#42db83">
+    <ellipse cx="71" cy="78" rx="4.5" ry="3"/>
+    <ellipse cx="89" cy="78" rx="4.5" ry="3"/>
+  </g>
+  
+  <g filter="url(#guard-glow)">
+    <path d="M104 118 h34 v42 q0 26 -17 34 q-17 -8 -17 -34 z" fill="#123d2a"
+          stroke="#42db83" stroke-width="3"/>
+    <path d="M121 130 v42 M110 148 h22" stroke="#42db83" stroke-width="3"/>
+  </g>
+  <path d="M30 196 L54 40" stroke="#7de8ab" stroke-width="5" stroke-linecap="round"/>
+  <path d="M54 40 l-9 14 l18 0 z" fill="#42db83"/>
+  <path d="M58 54 q22 -10 44 0" stroke="#42db83" stroke-width="3" fill="none"
+        opacity="0.7"/>
+</svg>
