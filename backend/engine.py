@@ -559,6 +559,38 @@ class RelayEngine:
         )
         return result
 
+    def release_leader(self, match: Match, player_id: str) -> EngineResult:
+        """The Grandmaster gives the seat back, in the lobby only.
+
+        `claim_leader` was one-way: a player who took the seat by accident could
+        only get out of it by being kicked or by leaving and rejoining. Letting
+        go is the other half of claiming, and it is safe precisely because the
+        lobby has not started — `start_blocker` already refuses to start a team
+        with no Grandmaster, so releasing cannot strand a match, only delay it.
+
+        Not `give_leader`: that is the mid-match handover, which costs the
+        recipient their cleared status and hands over a role and a board. There
+        is none of that here, so this is its own, much smaller, thing.
+        """
+        if match.status != "lobby":
+            return EngineResult.rejected("the match has already started")
+        player = match.players.get(player_id)
+        if player is None:
+            return EngineResult.rejected("unknown player")
+        if not player.is_leader or player.team_id is None:
+            return EngineResult.rejected("you are not a Grandmaster")
+        team = match.teams[player.team_id]
+        player.is_leader = False
+        team.leader_id = None
+        result = EngineResult(changed=True)
+        self._add_event(
+            match,
+            result,
+            f"{player.name} stepped down as team {team.name}'s Grandmaster.",
+            "info",
+        )
+        return result
+
     def give_leader(
         self,
         match: Match,

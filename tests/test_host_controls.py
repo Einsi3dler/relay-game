@@ -270,6 +270,54 @@ def test_a_player_leaves_the_lobby(engine):
     assert result.kicked_player_ids == [bob.id]
 
 
+def test_a_grandmaster_can_step_back_down_in_the_lobby(engine):
+    """Claiming used to be one-way: the only ways out of the seat were being
+    kicked or leaving and rejoining. Letting go is the other half of it."""
+    match, host = lobby(engine)
+    bob, _ = engine.join_match(match, "Bob", "alpha", now=NOW)
+    assert engine.claim_leader(match, bob.id).ok
+    assert engine.release_leader(match, bob.id).ok
+    assert match.teams["alpha"].leader_id is None
+    assert bob.is_leader is False
+    # And the seat is genuinely free again, not just unattributed.
+    assert engine.claim_leader(match, host.id).ok
+    assert match.teams["alpha"].leader_id == host.id
+
+
+def test_releasing_the_seat_blocks_the_start_rather_than_stranding_it(engine):
+    """Safe precisely because the lobby has not started: the existing blocker
+    already refuses a team with no Grandmaster, so this delays a match rather
+    than breaking one."""
+    match, host = lobby(engine)
+    bob, _ = engine.join_match(match, "Bob", "alpha", now=NOW)
+    assert engine.claim_leader(match, bob.id).ok
+    assert engine.release_leader(match, bob.id).ok
+    blocker = engine.start_blocker(match)
+    assert blocker and "Grandmaster" in blocker
+
+
+def test_only_the_holder_can_release_the_seat(engine):
+    match, host = lobby(engine)
+    bob, _ = engine.join_match(match, "Bob", "alpha", now=NOW)
+    assert engine.claim_leader(match, bob.id).ok
+    denied = engine.release_leader(match, host.id)
+    assert not denied.ok
+    assert match.teams["alpha"].leader_id == bob.id
+
+
+def test_the_seat_cannot_be_released_once_the_race_is_on(engine):
+    """Mid-match the seat changes hands through `give_leader`, which costs the
+    recipient their cleared status. Walking out of it and leaving the team with
+    nobody calling the plays is not the same thing."""
+    match, host = lobby(engine)
+    bob, _ = engine.join_match(match, "Bob", "alpha", now=NOW)
+    assert engine.claim_leader(match, bob.id).ok
+    match.status = "active"
+    denied = engine.release_leader(match, bob.id)
+    assert not denied.ok
+    assert match.teams["alpha"].leader_id == bob.id
+
+
 def test_leaving_frees_the_grandmaster_seat(engine):
     match, host = lobby(engine)
     bob, _ = engine.join_match(match, "Bob", "alpha", now=NOW)

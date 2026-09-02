@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/static/board.css">
   <link rel="stylesheet" href="/static/play.css">
   <link rel="stylesheet" href="/static/join.css">
+  <link rel="stylesheet" href="/static/lobby.css">
 </head>
 <body>
   <header class="topbar">
@@ -176,87 +177,182 @@
     </div>
   </section>
 
-  <!-- lobby: pick teams, claim the Grandmaster seat, assign roles + games -->
+  <!-- lobby: pick teams, claim the Grandmaster seat, assign roles + games.
+       Every hook renderLobby reaches for is unchanged; the frame is new. -->
   <section id="view-lobby" class="view" hidden>
-    <div class="card">
-      <h1 id="lobby-title">Lobby</h1>
-      <p class="sub">Code: <strong id="lobby-code"></strong>
-        <button id="copy-link" class="mini-btn">📋 Copy invite link</button>
-      </p>
-      <div id="lobby-unassigned" class="team-box unassigned-box">
-        <h2>🧍 No team yet</h2><ul></ul>
+    <header class="lb-bar">
+      <span class="lb-mark">
+        <svg viewBox="0 0 24 32" aria-hidden="true" focusable="false">
+          <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
+        </svg>
+        <span>Relay</span>
+      </span>
+      <div class="lb-title">
+        <h1 id="lobby-title">Lobby</h1>
+        <p>Build your teams. Assign roles. Pick the games. Then start the race.</p>
       </div>
-      <div class="lobby-teams">
-        <div id="lobby-team-alpha" class="team-box team-alpha-box">
-          <h2><span class="team-sigil">🔥</span> <span class="team-name"></span>
-            <span class="team-tag" hidden></span></h2>
-          <ul></ul>
-          <button class="btn team-alpha join-team-btn" data-team="alpha">Join</button>
-          <button class="mini-btn claim-leader-btn" data-team="alpha" hidden>🎖️ Claim Grandmaster</button>
+      <div class="lb-code">
+        <span class="lb-field__label">Match code</span>
+        <strong id="lobby-code"></strong>
+      </div>
+      <button id="copy-link" class="lb-btn lb-btn--ghost">Copy invite link</button>
+    </header>
+
+    <div id="lobby-unassigned" class="lb-panel lb-panel--waiting">
+      <header class="lb-panel__head">
+        <i class="gm-ic gm-ic--team gm-ic--sm" aria-hidden="true"></i>
+        <h2>No team yet</h2>
+      </header>
+      <ul class="lb-roster"></ul>
+    </div>
+
+    <div class="lb-teams">
+      <section id="lobby-team-alpha" class="lb-team lb-team--alpha">
+        <header class="lb-team__head">
+          <span class="lb-team__sigil team-sigil" aria-hidden="true"></span>
+          <h2 class="team-name"></h2>
+          <span class="lb-spacer"></span>
+          <span class="lb-tag team-tag" hidden></span>
+        </header>
+        <ul class="lb-roster"></ul>
+        <footer class="lb-team__foot">
+          <span class="lb-count">
+            <i class="gm-ic gm-ic--team gm-ic--sm" aria-hidden="true"></i>
+            <span class="lb-count__value"></span>
+          </span>
+          <span class="lb-spacer"></span>
+          <button class="lb-btn lb-btn--claim claim-leader-btn" data-team="alpha" hidden>
+            <i class="gm-ic gm-ic--crown gm-ic--sm" aria-hidden="true"></i>
+            Claim Grandmaster
+          </button>
+          <button class="lb-btn lb-btn--release release-leader-btn" data-team="alpha" hidden>
+            <i class="gm-ic gm-ic--crown gm-ic--sm" aria-hidden="true"></i>
+            Release the seat
+          </button>
+          <button class="lb-btn lb-btn--alpha join-team-btn" data-team="alpha">Join</button>
+        </footer>
+      </section>
+
+      <div class="lb-vs" aria-hidden="true"><span>vs</span></div>
+
+      <section id="lobby-team-bravo" class="lb-team lb-team--bravo">
+        <header class="lb-team__head">
+          <span class="lb-team__sigil team-sigil" aria-hidden="true"></span>
+          <h2 class="team-name"></h2>
+          <span class="lb-spacer"></span>
+          <span class="lb-tag team-tag" hidden></span>
+        </header>
+        <ul class="lb-roster"></ul>
+        <footer class="lb-team__foot">
+          <span class="lb-count">
+            <i class="gm-ic gm-ic--team gm-ic--sm" aria-hidden="true"></i>
+            <span class="lb-count__value"></span>
+          </span>
+          <span class="lb-spacer"></span>
+          <button class="lb-btn lb-btn--claim claim-leader-btn" data-team="bravo" hidden>
+            <i class="gm-ic gm-ic--crown gm-ic--sm" aria-hidden="true"></i>
+            Claim Grandmaster
+          </button>
+          <button class="lb-btn lb-btn--release release-leader-btn" data-team="bravo" hidden>
+            <i class="gm-ic gm-ic--crown gm-ic--sm" aria-hidden="true"></i>
+            Release the seat
+          </button>
+          <button class="lb-btn lb-btn--bravo join-team-btn" data-team="bravo">Join</button>
+        </footer>
+      </section>
+    </div>
+
+    <div class="lb-deck">
+      <section id="assign-panel" class="lb-panel" hidden>
+        <header class="lb-panel__head">
+          <i class="gm-ic gm-ic--crown gm-ic--sm" aria-hidden="true"></i>
+          <h2>Assign roles and games</h2>
+        </header>
+        <p class="lb-panel__note">Give every teammate a role, then a game from
+          that role. No two the same.</p>
+        <div class="lb-assign__head" aria-hidden="true">
+          <span>Player</span><span>Role</span><span>Role rule</span><span>Game</span>
         </div>
-        <div id="lobby-team-bravo" class="team-box team-bravo-box">
-          <h2><span class="team-sigil">🌊</span> <span class="team-name"></span>
-            <span class="team-tag" hidden></span></h2>
-          <ul></ul>
-          <button class="btn team-bravo join-team-btn" data-team="bravo">Join</button>
-          <button class="mini-btn claim-leader-btn" data-team="bravo" hidden>🎖️ Claim Grandmaster</button>
+        <div id="assign-rows"></div>
+        <p class="lb-panel__foot">Every player needs a role, and games inside one
+          role have to be unique.</p>
+      </section>
+
+      <section id="host-panel" class="lb-panel lb-panel--host" hidden>
+        <header class="lb-panel__head">
+          <i class="gm-ic gm-ic--level gm-ic--sm" aria-hidden="true"></i>
+          <h2>Host controls</h2>
+        </header>
+
+        <div class="lb-set">
+          <span class="lb-set__what"><strong>Min players per team</strong></span>
+          <span class="lb-stepper">
+            <button id="min-down" class="lb-step" aria-label="Fewer">&minus;</button>
+            <strong id="min-value">4</strong>
+            <button id="min-up" class="lb-step" aria-label="More">+</button>
+          </span>
         </div>
-      </div>
-      <p class="sub lobby-foot">Roles are open to both sides; the games each
-        squad is bringing stay with that squad until the race starts.</p>
+
+        <div class="lb-set">
+          <span class="lb-set__what">
+            <strong>Max players per team</strong>
+            <span id="cap-note" class="lb-set__note"></span>
+          </span>
+          <span class="lb-stepper">
+            <button id="max-down" class="lb-step" aria-label="Fewer">&minus;</button>
+            <strong id="max-value">12</strong>
+            <button id="max-up" class="lb-step" aria-label="More">+</button>
+          </span>
+        </div>
+
+        <div class="lb-set">
+          <span class="lb-set__what">
+            <label for="level-count"><strong>Rounds to win</strong></label>
+            <span id="round-note" class="lb-set__note"></span>
+          </span>
+          <select id="level-count" class="lb-select"></select>
+        </div>
+
+        <div class="lb-set">
+          <span class="lb-set__what">
+            <label for="duel-seconds"><strong>Duel round timer</strong></label>
+            <span id="duel-seconds-note" class="lb-set__note"></span>
+          </span>
+          <select id="duel-seconds" class="lb-select"></select>
+        </div>
+
+        <div class="lb-set lb-set--name">
+          <label for="name-alpha"><strong>Team names</strong></label>
+          <span class="lb-rename">
+            <input id="name-alpha" class="lb-input" maxlength="20" autocomplete="off">
+            <button id="rename-alpha" class="lb-btn lb-btn--ghost">Rename</button>
+          </span>
+        </div>
+        <div class="lb-set lb-set--name">
+          <label class="sr-only" for="name-bravo">Team Bravo name</label>
+          <span class="lb-rename">
+            <input id="name-bravo" class="lb-input" maxlength="20" autocomplete="off">
+            <button id="rename-bravo" class="lb-btn lb-btn--ghost">Rename</button>
+          </span>
+        </div>
+
+        <button id="start-btn" class="lb-go">Start the race</button>
+        <p id="start-blocker" class="lb-blocker"></p>
+        <button id="cancel-session" class="lb-btn lb-btn--danger">Cancel session</button>
+        <p class="lb-panel__foot">Bins the lobby for everyone. Nothing has been
+          played yet.</p>
+      </section>
     </div>
-    <div id="assign-panel" class="card" hidden>
-      <h2>🎖️ Assign roles &amp; games</h2>
-      <p class="sub">Give every teammate a role, then a game from that role — no two the same.</p>
-      <div id="assign-rows"></div>
-    </div>
-    <div id="host-panel" class="card" hidden>
-      <h2>🎛️ Host controls</h2>
-      <div class="host-row">
-        <span>Min players per team</span>
-        <span class="stepper">
-          <button id="min-down" class="mini-btn">−</button>
-          <strong id="min-value">4</strong>
-          <button id="min-up" class="mini-btn">+</button>
-        </span>
-      </div>
-      <div class="host-row">
-        <span>Max players per team</span>
-        <span class="stepper">
-          <button id="max-down" class="mini-btn">−</button>
-          <strong id="max-value">12</strong>
-          <button id="max-up" class="mini-btn">+</button>
-        </span>
-      </div>
-      <p id="cap-note" class="sub cap-note"></p>
-      <div class="host-row">
-        <label for="level-count">Rounds to win</label>
-        <select id="level-count" class="round-select"></select>
-      </div>
-      <p id="round-note" class="sub cap-note"></p>
-      <div class="host-row">
-        <label for="duel-seconds">Duel round timer</label>
-        <select id="duel-seconds" class="round-select"></select>
-      </div>
-      <p id="duel-seconds-note" class="sub cap-note"></p>
-      <div class="host-row name-row">
-        <label for="name-alpha">🔥 Team name</label>
-        <input id="name-alpha" class="team-name-input" maxlength="20" autocomplete="off">
-        <button id="rename-alpha" class="mini-btn">Rename</button>
-      </div>
-      <div class="host-row name-row">
-        <label for="name-bravo">🌊 Team name</label>
-        <input id="name-bravo" class="team-name-input" maxlength="20" autocomplete="off">
-        <button id="rename-bravo" class="mini-btn">Rename</button>
-      </div>
-      <button id="start-btn" class="btn team-auto">🚦 Start the race</button>
-      <p id="start-blocker" class="sub"></p>
-      <button id="cancel-session" class="btn danger-btn">✖ Cancel session</button>
-      <p class="sub">Bins the lobby for everyone. Nothing has been played yet.</p>
-    </div>
-    <div class="view lobby-actions">
-      <button id="claim-host" class="btn team-auto" hidden>🙋 Claim host</button>
-      <button id="leave-lobby" class="mini-btn leave-btn">🚪 Leave the lobby</button>
+
+    <div class="lb-foot">
+      <button id="claim-host" class="lb-foot__btn" hidden>
+        <i class="gm-ic gm-ic--crown gm-ic--sm" aria-hidden="true"></i>
+        <span><strong>Claim host</strong>Take control of this lobby.</span>
+      </button>
+      <span class="lb-spacer"></span>
+      <button id="leave-lobby" class="lb-foot__btn lb-foot__btn--out">
+        <span><strong>Leave lobby</strong>Leave and return to the main menu.</span>
+      </button>
     </div>
   </section>
 

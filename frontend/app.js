@@ -59,6 +59,7 @@
     document.body.classList.toggle("result-active", viewId === "view-result");
     document.body.classList.toggle("play-active", viewId === "view-play");
     document.body.classList.toggle("join-active", viewId === "view-join");
+    document.body.classList.toggle("lobby-active", viewId === "view-lobby");
   }
 
   function toast(text) {
@@ -358,11 +359,28 @@
     var isHost = player.id === state.host_player_id;
     var iAmHost = state.host_player_id === session.playerId;
     var row = document.createElement("li");
+    if (player.is_leader) row.className = "is-leader";
     var label = document.createElement("span");
-    label.textContent =
-      player.name + (isHost ? " 🎛️" : "") + (player.is_leader ? " 🎖️" : "") +
-      (me ? " (you)" : "") + (player.connected ? "" : " 💤") +
-      (player.role ? " · " + roleName(player.role) : "");
+    label.className = "lb-who";
+    label.appendChild(avatarNode(state, player, player.team_id));
+
+    var box = el("span", "lb-who__box");
+    var nameRow = el("span", "lb-who__name");
+    if (player.is_leader) nameRow.appendChild(icon("crown", "gm-ic--sm"));
+    nameRow.appendChild(el("span", null, player.name));
+    if (me) nameRow.appendChild(el("span", "lb-badge lb-badge--you", "You"));
+    if (isHost) nameRow.appendChild(el("span", "lb-badge", "Host"));
+    box.appendChild(nameRow);
+
+    var under = el("span", "lb-who__role");
+    if (player.is_leader) under.textContent = "Grandmaster";
+    else if (player.role) under.textContent = roleName(player.role);
+    else under.textContent = "No role yet";
+    if (!player.connected) {
+      under.appendChild(el("span", "lb-badge lb-badge--off", "Away"));
+    }
+    box.appendChild(under);
+    label.appendChild(box);
     row.appendChild(label);
     var controls = document.createElement("span");
     controls.className = "host-controls";
@@ -371,28 +389,35 @@
       var hand = document.createElement("button");
       hand.className = "mini-btn";
       hand.title = "Hand over the Grandmaster seat";
-      hand.textContent = "🎖️→";
+      hand.setAttribute("aria-label", "Hand the Grandmaster seat to " + player.name);
+      hand.appendChild(icon("crown", "gm-ic--sm"));
       hand.addEventListener("click", function () {
         send({ type: "give_leader", target_id: player.id });
       });
       controls.appendChild(hand);
     }
     if (iAmHost && !me) {
-      [["alpha", "🔥"], ["bravo", "🌊"]].forEach(function (pair) {
-        if (player.team_id === pair[0]) return;
+      ["alpha", "bravo"].forEach(function (target) {
+        if (player.team_id === target) return;
         var move = document.createElement("button");
         move.className = "mini-btn";
-        move.title = "Move to " + teamName(state, pair[0]);
-        move.textContent = "→" + pair[1];
+        var where = "Move to " + teamName(state, target);
+        move.title = where;
+        move.setAttribute("aria-label", where + ": " + player.name);
+        // The team's own mark, so the button says which side it sends them to
+        // rather than which direction the arrow points.
+        move.style.setProperty("--team-color", teamColor(target));
+        move.appendChild(icon("logo-" + teamLogo(state, target), "gm-ic--sm"));
         move.addEventListener("click", function () {
-          sendAction({ action: "move", target_id: player.id, team_id: pair[0] });
+          sendAction({ action: "move", target_id: player.id, team_id: target });
         });
         controls.appendChild(move);
       });
       var kick = document.createElement("button");
       kick.className = "mini-btn kick";
-      kick.title = "Kick";
-      kick.textContent = "✕";
+      kick.title = "Remove from the match";
+      kick.setAttribute("aria-label", "Remove " + player.name + " from the match");
+      kick.textContent = "\u2715";
       kick.addEventListener("click", function () {
         sendAction({ action: "kick", target_id: player.id });
       });
@@ -425,13 +450,20 @@
         teamList.appendChild(playerRow(state, player));
       });
       // The name is the host's to set, so it is read from state every render
-      // rather than baked into the markup.
+      // rather than baked into the markup. The mark comes with it: drawn from
+      // the match id, the same silhouette this team wears on every screen.
       box.querySelector(".team-name").textContent = team.name;
+      var sigil = box.querySelector(".team-sigil");
+      sigil.innerHTML = "";
+      sigil.appendChild(icon("logo-" + teamLogo(state, teamId)));
+      sigil.style.setProperty("--team-color", teamColor(teamId));
+      box.querySelector(".lb-count__value").textContent =
+        team.players.length + " / " + ((state.max_players || 0) + 1) + " seats";
       var tag = box.querySelector(".team-tag");
       var isMine = !!me && me.team_id === teamId;
       tag.hidden = !me;
       tag.textContent = isMine ? "your squad" : "opponents";
-      tag.className = "team-tag " + (isMine ? "tag-mine" : "tag-theirs");
+      tag.className = "lb-tag team-tag " + (isMine ? "tag-mine" : "tag-theirs");
       box.classList.toggle("is-mine", isMine);
       box.classList.toggle("is-theirs", !!me && !isMine);
 
@@ -453,6 +485,15 @@
         (!leader || !leader.connected);
       claimBtn.hidden = !canClaim;
       claimBtn.onclick = function () { sendAction({ action: "claim_leader" }); };
+
+      // ...and given back, while the lobby is still a lobby. Claiming used to
+      // be one-way: the only ways out of the seat were being kicked or leaving
+      // and rejoining.
+      var releaseBtn = box.querySelector(".release-leader-btn");
+      releaseBtn.hidden = !(me && me.team_id === teamId && me.is_leader);
+      releaseBtn.onclick = function () {
+        sendAction({ action: "release_leader" });
+      };
     });
 
     renderAssignPanel(state);
@@ -589,11 +630,33 @@
     var rows = $("assign-rows");
     rows.innerHTML = "";
     team.players.forEach(function (player) {
-      if (player.is_leader) return;
+      if (player.is_leader) {
+        // On the table, because they are on the team. Nothing on the row is a
+        // control, because the seat has no role to pick and no board to hand
+        // out — and a missing row reads as a bug rather than as that rule.
+        var seat = el("div", "assign-row is-leader");
+        var who = el("span", "lb-who");
+        who.appendChild(avatarNode(state, player, team.id));
+        var seatBox = el("span", "lb-who__box");
+        var seatName = el("span", "lb-who__name");
+        seatName.appendChild(icon("crown", "gm-ic--sm"));
+        seatName.appendChild(el("span", null, player.name));
+        seatBox.appendChild(seatName);
+        who.appendChild(seatBox);
+        seat.appendChild(who);
+        seat.appendChild(el("span", "muted", "Grandmaster"));
+        seat.appendChild(el("span", "muted", "Leads the squad"));
+        seat.appendChild(el("span", "muted", "No board of their own"));
+        rows.appendChild(seat);
+        return;
+      }
       var row = document.createElement("div");
       row.className = "assign-row";
-      var label = document.createElement("span");
-      label.textContent = player.name;
+      var label = el("span", "lb-who");
+      label.appendChild(avatarNode(state, player, team.id));
+      var nameBox = el("span", "lb-who__box");
+      nameBox.appendChild(el("span", "lb-who__name", player.name));
+      label.appendChild(nameBox);
       row.appendChild(label);
 
       var roleSelect = document.createElement("select");
@@ -620,23 +683,21 @@
       };
       row.appendChild(roleSelect);
 
+      row.appendChild(el("span", "muted", roleRule(player.role)));
+
       if (player.role === "duelist") {
         // The server picks a Duelist's game, so there is nothing to choose.
-        var fixed = document.createElement("span");
-        fixed.className = "muted";
-        fixed.textContent = "⚔️ the server picks the duel";
-        row.appendChild(fixed);
+        row.appendChild(el("span", "muted", "Picked at kickoff"));
         rows.appendChild(row);
         return;
       }
 
       if (roleIsFixed(player.role)) {
-        // A fixed role names its own game — you choose who holds it, not what
+        // A fixed role names its own game: you choose who holds it, not what
         // they play.
-        var locked = document.createElement("span");
-        locked.className = "muted";
-        locked.textContent = "💣 " + gameName(player.assigned_game) +
-          " — the role fixes it";
+        var locked = el("span", "lb-fixed");
+        locked.appendChild(gameIcon(player.assigned_game));
+        locked.appendChild(el("span", null, gameName(player.assigned_game)));
         row.appendChild(locked);
         rows.appendChild(row);
         return;
@@ -671,6 +732,19 @@
       row.appendChild(select);
       rows.appendChild(row);
     });
+  }
+
+  // What the role decides for you, in one line. Derived from the same catalogue
+  // the selects are built from, so a role added to config.ROLES describes
+  // itself here without a second table to keep in step.
+  function roleRule(roleId) {
+    if (!roleId) return "Pick a role first";
+    if (roleId === "duelist") return "The server picks the duel";
+    if (roleIsFixed(roleId)) return "The role fixes the game";
+    var games = roleGames(roleId);
+    var library = ((serverConfig && serverConfig.library) || []).length;
+    if (!games.length || games.length >= library) return "Any game in the library";
+    return games.length + " games to choose from";
   }
 
   function findPlayer(state, playerId) {
