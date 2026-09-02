@@ -662,6 +662,7 @@ function probe(shell) {
     duel_clock: {
       card_hidden: $("duel-card").hidden,
       title: $("duel-title").textContent,
+      round: $("duel-round").textContent,
       hidden: $("duel-clock").hidden,
       text: $("duel-clock").textContent,
       classes: $("duel-clock").className,
@@ -1996,10 +1997,14 @@ def test_the_duel_clock_stops_between_rounds(shell):
     assert reveal["card_hidden"] is False          # the duel is still on screen
 
 
-def test_the_duel_title_names_the_game_and_the_round(shell):
-    assert shell["duel_clock"]["records"]["open"]["duel_clock"]["title"] == (
-        "⚔️ Rock Paper Scissors — round 1"
-    )
+def test_the_duel_bar_names_the_game_the_round_and_the_target(shell):
+    """Three facts in three places rather than one sentence that has to be
+    re-read every time any of them changes."""
+    bar = shell["duel_clock"]["records"]["open"]["duel_clock"]
+    assert bar["title"] == "Rock Paper Scissors"
+    # How many rounds it takes to win is the thing that makes the score mean
+    # something, and it comes off the duel's own payload.
+    assert bar["round"] == "Round 1 · first to 2"
 
 
 def test_the_host_can_set_one_window_for_every_duel(shell):

@@ -28,11 +28,19 @@ function element(tag) {
   const el = {
     tagName: tag, className: "", children: [], style: {}, parentNode: null,
     listeners: {}, html: "", textContent: "", disabled: false, type: "",
+    attrs: {}, src: "", alt: "",
     classList: {
       _set: new Set(),
       add(name) { this._set.add(name); },
+      remove(name) { this._set.delete(name); },
       contains(name) { return this._set.has(name); },
+      toggle(name, force) {
+        const on = force === undefined ? !this._set.has(name) : !!force;
+        if (on) this._set.add(name); else this._set.delete(name);
+        return on;
+      },
     },
+    setAttribute(name, value) { this.attrs[name] = String(value); },
     appendChild(child) { this.children.push(child); child.parentNode = this; return child; },
     addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); },
     click() { (this.listeners.click || []).forEach((fn) => fn()); },
@@ -64,13 +72,19 @@ function textOf(node) {
     .join(" ");
 }
 
-// Just the two played hands. The move *buttons* name every move by design
-// (you pick from them), so only the hands can carry a leak.
+// Just the two played hands. The move *cards* name every move by design (you
+// pick from them), so only the hands can carry a leak. A hand is now artwork
+// rather than an emoji, so this reads everything a hand could smuggle a move
+// out in: its text, its markup, and the src/alt of any image under it.
 function handsOf(node) {
   return descend(node)
-    .filter((n) => n.className === "duel-hand")
-    .map((n) => String(n.textContent || ""))
-    .join(" ");
+    .filter((n) => n.className === "dl-hand")
+    .map((hand) => [hand].concat(descend(hand))
+      .map((n) => [n.textContent, n.html, n.src, n.alt]
+        .concat(Object.values(n.attrs || {}))
+        .filter(Boolean).join(" "))
+      .join(" "))
+    .join(" | ");
 }
 
 const context = { window: {}, document: { createElement: element } };
@@ -156,11 +170,16 @@ def test_renderer_lifecycle_and_reveal_rule(tmp_path):
 
     # The security-critical assertion: while the round is open the opponent has
     # locked in, but their move is nowhere in the rendered tree.
-    assert "✊" in report["openRoundHands"], "your own hand should show"
-    assert "🔒" in report["openRoundHands"], "theirs shows as locked, not a move"
-    assert "✌️" not in report["openRoundHands"], "scissors leaked before reveal"
+    mine, theirs = report["openRoundHands"].split("|")
+    assert "rock" in mine.lower(), "your own hand should show"
+    assert "locked in" in theirs, "theirs shows as locked, not as a move"
+    for move in ("rock", "paper", "scissors"):
+        assert move not in theirs.lower(), f"{move} leaked before the reveal"
 
-    assert report["revealHands"].split() == ["✊", "✌️"], "both hands are public"
+    # Reveal: both hands are public, and each is the move that was played.
+    shown_mine, shown_theirs = report["revealHands"].split("|")
+    assert "rock" in shown_mine.lower()
+    assert "scissors" in shown_theirs.lower()
     assert "took that round" in report["revealText"]
 
     assert report["leaderButtons"] == 0, "a Grandmaster cannot play the duel"

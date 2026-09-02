@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="pp-sheet" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#fff6d5"/>
+      <stop offset="0.55" stop-color="#f0dda4"/>
+      <stop offset="1" stop-color="#d8bd78"/>
+    </linearGradient>
+    <linearGradient id="pp-roll" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c9a24f"/>
+      <stop offset="1" stop-color="#8a6a24"/>
+    </linearGradient>
+    <radialGradient id="pp-aura" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffd21c" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#ffd21c" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="pp-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <ellipse cx="100" cy="100" rx="88" ry="76" fill="url(#pp-aura)"/>
+
+  <!-- the sheet, curling at the foot -->
+  <path d="M56 44 h88 v96 q-44 22 -88 0 z" fill="url(#pp-sheet)"/>
+  <path d="M56 140 q44 22 88 0 v12 q-44 22 -88 0 z" fill="#c9ad6e"/>
+
+  <!-- the runes -->
+  <g filter="url(#pp-glow)" stroke="#c98a12" stroke-linecap="round">
+    <circle cx="100" cy="92" r="24" stroke-width="3" fill="none"/>
+    <path d="M100 60 v64 M68 92 h64" stroke-width="2.5"/>
+    <path d="M78 70 l44 44 M122 70 l-44 44" stroke-width="2"/>
+    <path d="M70 128 h26 M104 128 h26" stroke-width="2.5"/>
+  </g>
+
+  <!-- rolled ends -->
+  <rect x="42" y="34" width="116" height="18" rx="9" fill="url(#pp-roll)"/>
+  <rect x="42" y="34" width="116" height="7" rx="3.5" fill="#e6c87e" opacity="0.6"/>
+  <circle cx="42" cy="43" r="9" fill="#8a6a24"/>
+  <circle cx="158" cy="43" r="9" fill="#8a6a24"/>
+
+  <!-- sparks lifting off -->
+  <g fill="#ffd21c">
+    <path d="M164 74 l7 -4 l-2 8 z" opacity="0.9"/>
+    <path d="M32 108 l8 -3 l-3 9 z" opacity="0.8"/>
+    <circle cx="170" cy="132" r="3.5" opacity="0.85"/>
+    <circle cx="34" cy="70" r="3" opacity="0.7"/>
+    <circle cx="150" cy="168" r="2.5" opacity="0.6"/>
+  </g>
+</svg>
