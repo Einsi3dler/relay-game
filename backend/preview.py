@@ -19,16 +19,26 @@ Two rules keep it honest:
     engine, and it never enters the match store, so no real game can collide
     with a preview and no preview outlives its request.
 
-Hidden behind `?key=` (`PREVIEW_KEY`, override with `RELAY_PREVIEW_KEY`). A
-wrong key is a 404 rather than a 403, so the path does not announce itself —
-but the default key is in this file, and this file is on GitHub. Treat it as a
-closed door, not a locked one, and set the environment variable if the server
-is reachable by anyone else. The door is worth little anyway: what is behind it
-is dummy players on a throwaway match, never anybody's real one.
+Behind a password. Two ways in, and they are the same secret:
+
+  * `?key=` on the URL, for scripts and screenshots.
+  * A form at `/preview`, which sets a cookie so the key stops riding along in
+    every link and in the browser history.
+
+The secret is `RELAY_PREVIEW_KEY`. **The default is `"dev"` and this file is on
+GitHub**, so the default is not a secret at all — set the environment variable
+(see `.env.local`, which is gitignored) and the real one never enters the repo.
+
+Even set, treat this as a closed door rather than a locked one. It keeps the
+gallery out of the way of people who should not be poking at it; it is not a
+defence against anyone who wants in. What is behind it is dummy players on a
+throwaway match, never anybody's real one, so the stakes are low by design.
 """
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -54,8 +64,28 @@ SQUADS = {
 }
 
 
+COOKIE_NAME = "relay_preview"
+
+
 def enabled(key: str | None) -> bool:
-    return bool(key) and key == PREVIEW_KEY
+    """True when this key is the password. Constant-time, so the comparison
+    cannot be used to learn the key one character at a time."""
+    return bool(key) and hmac.compare_digest(key, PREVIEW_KEY)
+
+
+def cookie_token() -> str:
+    """What a correct password earns: a hash of it, not the password itself, so
+    the secret is not sitting in a cookie jar in plain text. Anyone who knows
+    the key can compute this, which is fine — it only ever claims "this browser
+    knew the password", and that is all it needs to say."""
+    return hashlib.sha256(("relay-preview:" + PREVIEW_KEY).encode()).hexdigest()
+
+
+def authorised(key: str | None, cookie: str | None) -> bool:
+    """Either way in. The cookie is checked in constant time too."""
+    if enabled(key):
+        return True
+    return bool(cookie) and hmac.compare_digest(cookie, cookie_token())
 
 
 def _now() -> datetime:
@@ -259,7 +289,10 @@ def _effect_deadline(effect: str) -> str:
 
 def _link(key: str, state: str, label: str, note: str, **params: str) -> str:
     query = "".join(f"&{name}={value}" for name, value in params.items())
-    href = f"/play?preview={state}{query}&key={key}"
+    # No key in the href when a cookie is already carrying it: otherwise the
+    # password ends up in every link on the page and in the browser history.
+    suffix = f"&key={key}" if key else ""
+    href = f"/play?preview={state}{query}{suffix}"
     return (
         f'<li><a href="{href}"><strong>{label}</strong>'
         f'<span>{note}</span></a></li>'
@@ -268,6 +301,98 @@ def _link(key: str, state: str, label: str, note: str, **params: str) -> str:
 
 def _plain(href: str, label: str, note: str) -> str:
     return f'<li><a href="{href}"><strong>{label}</strong><span>{note}</span></a></li>'
+
+
+LOGIN_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Developer preview</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body {{ background: var(--gm-bg); color: var(--gm-text); }}
+  .pv-wrap {{
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 20px;
+  }}
+  .pv-card {{
+    width: min(420px, 100%);
+    padding: 30px 28px;
+    border: 1px solid var(--gm-line);
+    border-radius: var(--gm-radius-lg);
+    background: var(--gm-panel);
+  }}
+  .pv-mark {{
+    display: flex; align-items: center; gap: 9px;
+    font-weight: 900; font-size: 1.05rem; letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }}
+  .pv-mark svg {{ width: 15px; height: 20px; color: var(--gm-yellow); }}
+  h1 {{ margin: 18px 0 6px; font-size: 1.5rem; font-weight: 900; }}
+  p.sub {{ margin: 0 0 22px; color: var(--gm-muted); font-size: 0.9rem; line-height: 1.5; }}
+  label {{
+    display: block; margin-bottom: 8px; font-size: 0.7rem; font-weight: 800;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--gm-muted);
+  }}
+  input {{
+    width: 100%; min-height: 48px; padding: 10px 14px;
+    border: 1px solid var(--gm-line); border-radius: 12px;
+    background: rgba(7, 9, 31, 0.6); color: var(--gm-text);
+    font: inherit; font-weight: 700;
+  }}
+  input:focus {{ outline: none; border-color: var(--gm-cyan); }}
+  button {{
+    width: 100%; margin-top: 14px; min-height: 48px;
+    border: 0; border-radius: 12px;
+    background: linear-gradient(180deg, #ffd85a, var(--gm-yellow));
+    color: #241a05; font: inherit; font-weight: 900; font-size: 1rem;
+    text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
+  }}
+  .pv-error {{
+    margin: 14px 0 0; color: var(--gm-red); font-size: 0.88rem; font-weight: 800;
+  }}
+  .pv-foot {{
+    margin: 22px 0 0; padding-top: 16px;
+    border-top: 1px solid var(--gm-line-soft);
+    color: var(--gm-muted); font-size: 0.78rem; line-height: 1.5;
+  }}
+  a {{ color: var(--gm-cyan); }}
+</style>
+</head>
+<body>
+<div class="pv-wrap">
+  <div class="pv-card">
+    <span class="pv-mark">
+      <svg viewBox="0 0 24 32" aria-hidden="true" focusable="false">
+        <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
+      </svg>
+      <span>Relay</span>
+    </span>
+    <h1>Developer preview</h1>
+    <p class="sub">Every screen in the product, rendered on demand from a
+      throwaway match. Not part of the game.</p>
+    <form method="post" action="{path}">
+      <label for="pv-key">Password</label>
+      <input id="pv-key" name="key" type="password" autocomplete="current-password"
+             autofocus required>
+      <button type="submit">Open the gallery</button>
+    </form>
+    {error}
+    <p class="pv-foot">Nothing behind this door is anybody's real match: every
+      entry builds its own throwaway one and throws it away again.
+      <a href="/">Back to the site</a></p>
+  </div>
+</div>
+</body>
+</html>
+"""
+
+
+def login_html(failed: bool = False) -> str:
+    error = '<p class="pv-error">That is not the password.</p>' if failed else ""
+    return LOGIN_TEMPLATE.format(path=PREVIEW_PATH, error=error)
 
 
 def gallery_html(key: str) -> str:
@@ -377,11 +502,10 @@ TEMPLATE = """<!DOCTYPE html>
   <ul>{boards}</ul>
 
   <footer>
-    <p>Hidden behind <code>?key={key}</code>. The default key is in the source
-    and the source is public, so this is a closed door rather than a locked
-    one. Set <code>RELAY_PREVIEW_KEY</code> if the server is reachable by
-    anyone but you. Nothing real is behind it either way: every entry builds a
-    fresh match of dummy players that is never stored.</p>
+    <p>Behind a password, held in <code>RELAY_PREVIEW_KEY</code>. The default
+    is in the source and the source is public, so this is a closed door rather
+    than a locked one. Nothing real is behind it either way: every entry builds
+    a fresh match of dummy players that is never stored.</p>
   </footer>
 </main>
 </body>

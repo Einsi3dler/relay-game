@@ -912,3 +912,16 @@ body.relay-page {
   }
   .rl-pulse { stroke-dasharray: none; opacity: 0.5; }
 }
+
+
+/* The developer preview: on the nav because it is easier to find than to
+   remember, and behind a password because it is not for players. Set apart
+   from the four links that are, so nobody reads it as part of the tour. */
+.rl-nav__dev {
+  padding: 5px 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  opacity: 0.75;
+  font-size: 0.86rem;
+}
+.rl-nav__dev:hover { opacity: 1; border-color: rgba(255, 255, 255, 0.5); }
