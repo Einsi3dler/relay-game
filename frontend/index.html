@@ -10,32 +10,170 @@
   <link rel="stylesheet" href="/static/result.css">
   <link rel="stylesheet" href="/static/board.css">
   <link rel="stylesheet" href="/static/play.css">
+  <link rel="stylesheet" href="/static/join.css">
 </head>
 <body>
   <header class="topbar">
-    <span class="logo">🏁 The Relay</span>
+    <span class="logo">
+      <svg viewBox="0 0 24 32" aria-hidden="true" focusable="false">
+        <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
+      </svg>
+      <span>The Relay</span>
+    </span>
     <span id="match-chip" class="chip" hidden></span>
   </header>
 
-  <!-- landing: host or join -->
-  <section id="view-join" class="view card">
-    <h1>Ready to race?</h1>
-    <p class="sub">Two teams, ten levels. A Grandmaster calls the plays; the squad clears the games. Host a match or join with a code.</p>
-    <label for="name-input">Your name</label>
-    <input id="name-input" maxlength="16" placeholder="Ada" autocomplete="off">
-    <div class="team-pick">
-      <button id="host-btn" class="btn team-auto">🎛️ Host a match</button>
-      <button id="join-btn" class="btn team-bravo">🔑 Join with code</button>
-    </div>
-    <div id="join-code-row" hidden>
-      <label for="match-input">Match code</label>
-      <input id="match-input" maxlength="12" placeholder="e.g. a1b2c3d4" autocomplete="off">
-      <div class="team-pick">
-        <button id="join-go" class="btn team-alpha">Join lobby</button>
+  <!-- landing: host or join. Every id the shell binds to is unchanged; the
+       change is the frame around them. -->
+  <section id="view-join" class="view">
+    <div class="jn-card">
+      <div class="jn-copy">
+        <span class="jn-badge">
+          <i class="gm-ic gm-ic--team gm-ic--sm" aria-hidden="true"></i>
+          2 teams &middot; 10 levels &middot; 1 goal
+        </span>
+
+        <h1>Ready to <em>race?</em></h1>
+        <p class="jn-sub">Two teams. Ten levels. A Grandmaster calls the plays;
+          the squad clears the games. Host a match or join with a code.</p>
+
+        <label class="jn-label" for="name-input">Your name</label>
+        <span class="jn-field">
+          <i class="gm-ic gm-ic--team gm-ic--sm" aria-hidden="true"></i>
+          <input id="name-input" maxlength="16" placeholder="Ada" autocomplete="off">
+        </span>
+
+        <div class="jn-choice">
+          <button id="host-btn" class="jn-btn jn-btn--host">
+            <i class="gm-ic gm-ic--level gm-ic--sm" aria-hidden="true"></i>
+            Host a match
+          </button>
+          <button id="join-btn" class="jn-btn jn-btn--join">
+            <i class="gm-ic gm-ic--key gm-ic--sm" aria-hidden="true"></i>
+            Join with code
+          </button>
+        </div>
+
+        <div id="join-code-row" class="jn-code" hidden>
+          <div class="jn-code__head">
+            <span>
+              <label class="jn-label" for="match-input">Match code</label>
+              <span class="jn-code__hint">Enter the 6 to 8 character code from your host.</span>
+            </span>
+            <span class="jn-chip">Example: RLY7K9</span>
+          </div>
+          <span class="jn-field jn-field--code">
+            <span class="jn-field__sigil" aria-hidden="true">#</span>
+            <input id="match-input" maxlength="12" placeholder="Enter match code" autocomplete="off">
+            <button id="join-go" class="jn-go">Join</button>
+          </span>
+          <p id="join-error" class="jn-error" hidden></p>
+        </div>
+
+        <p class="jn-foot">
+          <a href="/games" class="jn-link">
+            <i class="gm-ic gm-ic--star gm-ic--sm" aria-hidden="true"></i>
+            New here? Meet the games
+          </a>
+        </p>
+      </div>
+
+      <!-- Hand-drawn, like the rest of this product's artwork: two squads on
+           two tracks and the baton between them. Inline so it takes the same
+           palette everything else does. -->
+      <div class="jn-art" aria-hidden="true">
+        <svg viewBox="0 0 620 760" preserveAspectRatio="xMidYMid slice" focusable="false">
+          <defs>
+            <linearGradient id="jn-teal" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0" stop-color="#0e7f7a"/>
+              <stop offset="1" stop-color="#2ee6c8"/>
+            </linearGradient>
+            <linearGradient id="jn-violet" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0" stop-color="#4a1f9e"/>
+              <stop offset="1" stop-color="#9b5cff"/>
+            </linearGradient>
+            <linearGradient id="jn-gold" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#ffe27a"/>
+              <stop offset="0.5" stop-color="#ffc21c"/>
+              <stop offset="1" stop-color="#e08a00"/>
+            </linearGradient>
+            <radialGradient id="jn-halo" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0" stop-color="#8a4dff" stop-opacity="0.55"/>
+              <stop offset="1" stop-color="#8a4dff" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="jn-spark" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0" stop-color="#ffe27a" stop-opacity="0.85"/>
+              <stop offset="1" stop-color="#ffc21c" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <rect width="620" height="760" fill="#160c3a"/>
+          <ellipse cx="360" cy="330" rx="330" ry="300" fill="url(#jn-halo)"/>
+
+          <!-- the two tracks, receding -->
+          <path d="M20 780 C 90 620 150 560 250 470 S 360 320 330 170"
+                fill="none" stroke="url(#jn-teal)" stroke-width="74"
+                stroke-linecap="round" opacity="0.95"/>
+          <path d="M20 780 C 90 620 150 560 250 470 S 360 320 330 170"
+                fill="none" stroke="#0a3f45" stroke-width="74"
+                stroke-linecap="round" opacity="0.28"/>
+          <path d="M20 780 C 90 620 150 560 250 470 S 360 320 330 170"
+                fill="none" stroke="#a8fff0" stroke-width="5"
+                stroke-linecap="round" stroke-dasharray="20 26" opacity="0.75"/>
+
+          <path d="M270 800 C 350 650 460 600 510 480 S 560 300 500 190"
+                fill="none" stroke="url(#jn-violet)" stroke-width="82"
+                stroke-linecap="round"/>
+          <path d="M270 800 C 350 650 460 600 510 480 S 560 300 500 190"
+                fill="none" stroke="#d9bcff" stroke-width="5"
+                stroke-linecap="round" stroke-dasharray="22 28" opacity="0.7"/>
+
+          <!-- a marker chevron on the violet track -->
+          <path d="M470 640 l58 -34 l0 24 l52 -30 l0 44 l-52 30 l0 24 z"
+                fill="#ffb02e"/>
+
+          <!-- teal pawn -->
+          <ellipse cx="205" cy="536" rx="66" ry="24" fill="#0b6b6b" opacity="0.75"/>
+          <ellipse cx="205" cy="530" rx="52" ry="18" fill="#1fd8c0" opacity="0.35"/>
+          <path d="M180 522 q25 -14 50 0 q-6 -34 -25 -52 q-19 18 -25 52 z" fill="#12b39c"/>
+          <circle cx="205" cy="456" r="27" fill="#2ee6c8"/>
+          <circle cx="197" cy="448" r="9" fill="#a8fff0" opacity="0.7"/>
+
+          <!-- violet pawn -->
+          <ellipse cx="470" cy="452" rx="60" ry="22" fill="#3a1580" opacity="0.8"/>
+          <ellipse cx="470" cy="447" rx="46" ry="16" fill="#9b5cff" opacity="0.35"/>
+          <path d="M447 440 q23 -13 46 0 q-6 -31 -23 -48 q-17 17 -23 48 z" fill="#7a3ce0"/>
+          <circle cx="470" cy="378" r="25" fill="#a970ff"/>
+          <circle cx="463" cy="371" r="8" fill="#e4d2ff" opacity="0.7"/>
+
+          <!-- the baton, mid-handover -->
+          <ellipse cx="392" cy="292" rx="150" ry="120" fill="url(#jn-spark)"/>
+          <g transform="rotate(-38 392 292)">
+            <rect x="300" y="258" width="188" height="70" rx="35"
+                  fill="url(#jn-gold)"/>
+            <ellipse cx="488" cy="293" rx="16" ry="35" fill="#fff0b8"/>
+            <ellipse cx="488" cy="293" rx="10" ry="24" fill="#d98f00"/>
+            <path d="M382 268 l-26 34 h20 l-10 30 l30 -38 h-19 z" fill="#241a05"/>
+            <rect x="300" y="258" width="188" height="20" rx="10"
+                  fill="#fff3c4" opacity="0.4"/>
+          </g>
+
+          <!-- confetti -->
+          <rect x="96" y="300" width="26" height="26" rx="5" fill="#20d4e7" transform="rotate(20 109 313)"/>
+          <rect x="530" y="176" width="22" height="22" rx="5" fill="#2ee6c8" transform="rotate(-24 541 187)"/>
+          <path d="M598 258 l22 -14 l-6 26 z" fill="#ff5165"/>
+          <path d="M560 700 l26 -16 l-8 30 z" fill="#ff5165"/>
+          <path d="M158 232 l16 30 l-32 4 z" fill="#8a4dff"/>
+          <path d="M556 96 l-22 40 h18 l-10 34 l30 -48 h-18 z" fill="#ffc21c"/>
+          <circle cx="470" cy="118" r="7" fill="#20d4e7"/>
+          <circle cx="118" cy="418" r="6" fill="#ff5165"/>
+          <circle cx="596" cy="600" r="6" fill="#ffc21c"/>
+          <rect x="376" y="140" width="12" height="44" rx="6" fill="#5b7cff" transform="rotate(28 382 162)"/>
+          <rect x="252" y="640" width="12" height="40" rx="6" fill="#c77dff" transform="rotate(-18 258 660)"/>
+          <path d="M600 430 l18 -10 l-4 20 z" fill="#2ee6c8"/>
+        </svg>
       </div>
     </div>
-    <p id="join-error" class="error-line" hidden></p>
-    <p class="sub games-link-row"><a href="/games" class="games-link">📖 New here? Meet the games</a></p>
   </section>
 
   <!-- lobby: pick teams, claim the Grandmaster seat, assign roles + games -->

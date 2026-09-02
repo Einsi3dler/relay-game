@@ -72,6 +72,7 @@ and the fill changed to `currentColor`. Geometry is untouched.
 | `perks/reflect.svg` | `refresh-cw` |
 | `perks/insurance.svg` | `umbrella` |
 | `ui/star.svg` | `star` |
+| `ui/key.svg` | `key-round` |
 
 **Modifications:** whitespace collapsed onto one line. Geometry, `viewBox`,
 `stroke="currentColor"` and stroke widths are unchanged, except `ui/star.svg`,
