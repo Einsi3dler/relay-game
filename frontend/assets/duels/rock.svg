@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <radialGradient id="rk-heat" cx="0.5" cy="0.62" r="0.55">
+      <stop offset="0" stop-color="#ff7a18" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#ff7a18" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rk-stone" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#5d5f70"/>
+      <stop offset="0.5" stop-color="#33364a"/>
+      <stop offset="1" stop-color="#1b1d2c"/>
+    </linearGradient>
+    <linearGradient id="rk-lit" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#8f93a8"/>
+      <stop offset="1" stop-color="#474a60"/>
+    </linearGradient>
+    <filter id="rk-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <ellipse cx="100" cy="132" rx="86" ry="52" fill="url(#rk-heat)"/>
+
+  <!-- the four knuckles, lit from upper left -->
+  <path d="M40 92 l26 -22 l30 8 l-4 34 l-32 8 z" fill="url(#rk-lit)"/>
+  <path d="M92 78 l30 -12 l30 14 l-6 34 l-32 8 z" fill="url(#rk-lit)"/>
+  <path d="M146 80 l26 12 l4 30 l-30 12 l-6 -32 z" fill="url(#rk-stone)"/>
+
+  <!-- the mass of the fist -->
+  <path d="M34 108 l38 -8 l44 -4 l44 6 l16 24 l-14 40 l-40 14 l-52 -4 l-32 -22 z"
+        fill="url(#rk-stone)"/>
+  <path d="M56 118 l44 -6 l46 6 l10 18 l-12 28 l-38 10 l-42 -6 l-16 -22 z"
+        fill="#282b3d"/>
+
+  <!-- magma running in the seams between the blocks -->
+  <g filter="url(#rk-glow)" fill="none" stroke-linecap="round"
+     stroke-linejoin="round">
+    <path d="M46 116 l30 8 l-14 18 l30 6 l-10 22" stroke="#ff8a2b" stroke-width="5"/>
+    <path d="M110 112 l18 16 l-12 16 l24 10" stroke="#ffc061" stroke-width="4.5"/>
+    <path d="M150 122 l14 10 l-6 18" stroke="#ff6a12" stroke-width="4"/>
+    <path d="M84 92 l12 -16 l18 12" stroke="#ff9c3a" stroke-width="4"/>
+    <path d="M60 96 l-10 -10" stroke="#ff6a12" stroke-width="3.5"/>
+  </g>
+  <!-- the seams themselves, so the heat has something to run through -->
+  <g stroke="#12131f" stroke-width="2.5" fill="none" opacity="0.9">
+    <path d="M72 104 v58 M112 100 v62 M148 108 l-4 54"/>
+  </g>
+
+  <!-- chips thrown off -->
+  <path d="M22 74 l12 -6 l2 12 z" fill="#4a4d63"/>
+  <path d="M178 62 l12 4 l-8 10 z" fill="#5d5f70"/>
+  <path d="M170 168 l14 2 l-8 10 z" fill="#3a3d52"/>
+  <circle cx="30" cy="150" r="4" fill="#ff8a2b" opacity="0.8"/>
+  <circle cx="176" cy="118" r="3" fill="#ffb545" opacity="0.7"/>
+</svg>

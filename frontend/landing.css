@@ -912,3 +912,16 @@ body.relay-page {
   }
   .rl-pulse { stroke-dasharray: none; opacity: 0.5; }
 }
+
+
+/* The developer preview: a button in the header, next to Play but never
+   competing with it. Play is the one thing a visitor came to do; this is a
+   door for one person, so it is outlined rather than filled and it wears a
+   padlock to say so before the password does. */
+.rl-nav__dev { margin-left: 14px; }
+.rl-nav__dev svg { width: 15px; height: 15px; }
+@media (max-width: 899px) {
+  /* On a phone the header keeps only what a visitor needs. The preview has a
+     URL, and the person who wants it knows it. */
+  .rl-nav__dev { display: none; }
+}

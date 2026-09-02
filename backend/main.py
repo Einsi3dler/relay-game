@@ -13,9 +13,13 @@ import contextlib
 import random
 import time
 from pathlib import Path
+from urllib.parse import parse_qs
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import (
+    Cookie, FastAPI, HTTPException, Query, Request, WebSocket,
+    WebSocketDisconnect,
+)
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -223,14 +227,50 @@ async def games_page():
 # --- the design gallery (backend/preview.py) ------------------------------
 # A dev tool, not part of the game: every page and every screen state on
 # demand, so the ones that only exist inside a running match can be looked at
-# while they are being redesigned. A wrong key 404s like any unknown path.
+# while they are being redesigned.
+#
+# Two ways past the door and one secret behind both: `?key=` on the URL, or the
+# password form, which trades the password for a cookie so it stops riding
+# along in every link. See the module docstring in backend/preview.py for what
+# this gate is and, more importantly, what it is not.
 
 
 @app.get(preview.PREVIEW_PATH, response_model=None)
-async def preview_gallery(key: str | None = None):
+async def preview_gallery(
+    key: str | None = None,
+    relay_preview: str | None = Cookie(default=None),
+):
+    if not preview.authorised(key, relay_preview):
+        return HTMLResponse(preview.login_html())
+    # Once the cookie is carrying the secret, the links stop carrying it.
+    return HTMLResponse(preview.gallery_html("" if not key else key))
+
+
+@app.post(preview.PREVIEW_PATH, response_model=None)
+async def preview_login(request: Request):
+    """Trade the password for a cookie, then land on the gallery itself.
+
+    A redirect rather than rendering the gallery straight into the POST
+    response, so the password is not sitting in a page the browser will re-post
+    on refresh.
+
+    The body is parsed by hand rather than through FastAPI's `Form`, which
+    needs `python-multipart`. One password box is not worth a third runtime
+    dependency on a stack that deliberately has two.
+    """
+    body = (await request.body()).decode("utf-8", "replace")
+    key = parse_qs(body).get("key", [""])[0]
     if not preview.enabled(key):
-        raise HTTPException(status_code=404, detail="Not found.")
-    return HTMLResponse(preview.gallery_html(key))
+        return HTMLResponse(preview.login_html(failed=True), status_code=401)
+    response = RedirectResponse(preview.PREVIEW_PATH, status_code=303)
+    response.set_cookie(
+        preview.COOKIE_NAME,
+        preview.cookie_token(),
+        max_age=60 * 60 * 24 * 30,
+        httponly=True,   # no script needs it, so no script may read it
+        samesite="lax",
+    )
+    return response
 
 
 @app.get("/api/preview")
@@ -240,6 +280,7 @@ async def preview_snapshot(
     game: str | None = None,
     phase: str | None = None,
     effect: str | None = None,
+    relay_preview: str | None = Cookie(default=None),
 ) -> dict:
     """The snapshot behind one gallery entry.
 
@@ -248,7 +289,7 @@ async def preview_snapshot(
     One name the whole way through, so there is no translation step to get
     wrong — which is exactly what did go wrong the first time.
     """
-    if not preview.enabled(key):
+    if not preview.authorised(key, relay_preview):
         raise HTTPException(status_code=404, detail="Not found.")
     params = {
         name: value

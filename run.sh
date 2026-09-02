@@ -4,6 +4,15 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Local secrets, if there are any. Gitignored, so nothing in it reaches the
+# repo — which is the point: a password committed to a public repo is not one.
+if [ -f .env.local ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env.local
+  set +a
+fi
+
 if [ -d .venv ]; then
   # shellcheck disable=SC1091
   source .venv/bin/activate

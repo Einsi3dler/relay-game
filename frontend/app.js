@@ -1039,9 +1039,16 @@
     } else {
       renderer.update(duel);
     }
+    // The game names itself, the round counts itself, and the clock is its own
+    // thing. Three facts in three places rather than one sentence that has to
+    // be re-read every time any of them changes.
     var title = $("duel-title");
-    if (title) {
-      title.textContent = "⚔️ " + (duel.name || "Duel") + " — round " + duel.round;
+    if (title) title.textContent = duel.name || "Duel";
+    var round = $("duel-round");
+    if (round) {
+      var target = (duel.payload && duel.payload.wins_needed) || 0;
+      round.textContent = "Round " + duel.round +
+        (target ? " \u00b7 first to " + target : "");
     }
     if (cardId === "leader-duel-card") {
       $("leader-duel-title").textContent =

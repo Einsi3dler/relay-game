@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/static/play.css">
   <link rel="stylesheet" href="/static/join.css">
   <link rel="stylesheet" href="/static/lobby.css">
+  <link rel="stylesheet" href="/static/duel.css">
 </head>
 <body>
   <header class="topbar">
@@ -401,12 +402,16 @@
 
         <!-- Left on the old look on purpose: the Duelist screen has its own
              design coming. See the note in docs/CONTRIBUTING.md. -->
-        <div id="duel-card" class="card duel-card" hidden>
-          <p class="prompt">
-            <span id="duel-title">⚔️ DUEL</span>
+        <div id="duel-card" hidden>
+          <header class="dl-bar">
+            <span class="dl-bar__game">
+              <i class="gm-ic gm-ic--duel gm-ic--sm" aria-hidden="true"></i>
+              <span id="duel-title">Duel</span>
+            </span>
+            <span class="dl-bar__round" id="duel-round"></span>
             <span id="duel-clock" class="duel-clock" hidden aria-live="off">–</span>
-          </p>
-          <div id="duel-timer-bar" class="timer-bar duel-timer" hidden><div id="duel-timer-fill"></div></div>
+          </header>
+          <div id="duel-timer-bar" class="dl-fuse" hidden><div id="duel-timer-fill"></div></div>
           <div id="duel-mount"></div>
         </div>
 

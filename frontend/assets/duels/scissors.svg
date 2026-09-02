@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="sc-steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eaf4ff"/>
+      <stop offset="0.45" stop-color="#a9c4e8"/>
+      <stop offset="1" stop-color="#5a76a8"/>
+    </linearGradient>
+    <linearGradient id="sc-ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5ad2ff"/>
+      <stop offset="1" stop-color="#8a4dff"/>
+    </linearGradient>
+    <radialGradient id="sc-aura" cx="0.5" cy="0.45" r="0.55">
+      <stop offset="0" stop-color="#3b82ff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#3b82ff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="sc-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <ellipse cx="100" cy="88" rx="86" ry="78" fill="url(#sc-aura)"/>
+
+  <!-- the two blades, crossing above the pivot -->
+  <path d="M74 116 L138 24 l14 10 L86 128 z" fill="url(#sc-steel)"/>
+  <path d="M126 116 L62 24 l-14 10 L114 128 z" fill="url(#sc-steel)"/>
+
+  <!-- lit edges -->
+  <g filter="url(#sc-glow)">
+    <path d="M138 24 l14 10 L86 128" stroke="#7fe4ff" stroke-width="2.5" fill="none"
+          stroke-linejoin="round"/>
+    <path d="M62 24 l-14 10 L114 128" stroke="#b98cff" stroke-width="2.5" fill="none"
+          stroke-linejoin="round"/>
+  </g>
+
+  <!-- the pivot -->
+  <circle cx="100" cy="122" r="12" fill="#7d8db0"/>
+  <circle cx="100" cy="122" r="5" fill="#1b1d2c"/>
+
+  <!-- the ring handles -->
+  <g stroke="url(#sc-ring)" stroke-width="11" fill="none" filter="url(#sc-glow)">
+    <ellipse cx="66" cy="158" rx="26" ry="22"/>
+    <ellipse cx="134" cy="158" rx="26" ry="22"/>
+  </g>
+
+  <!-- shards -->
+  <g fill="#7fe4ff">
+    <path d="M22 66 l10 -5 l-2 11 z" opacity="0.85"/>
+    <path d="M178 66 l-10 -5 l2 11 z" opacity="0.85"/>
+    <circle cx="30" cy="120" r="3" opacity="0.7"/>
+    <circle cx="172" cy="120" r="3" opacity="0.7"/>
+  </g>
+</svg>

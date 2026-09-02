@@ -1,0 +1,373 @@
+/* The Relay — the duel screen.
+ *
+ * Scoped to `#duel-card` (the Duelist's own view) and reused, smaller, inside
+ * the Grandmaster's duel watch. The renderers in frontend/duels/ own the
+ * markup; this is the light on it.
+ *
+ * Two seats facing each other, a call to act, and the moves as cards. The
+ * lighting is doing the work: each side owns a hue and is rimmed in it, the
+ * cards glow in their own, and the only thing that pulses is the thing on a
+ * clock. Nothing here is decoration for its own sake — a duel is five seconds
+ * long and the screen has to say whose turn it is to be nervous.
+ *
+ * Card art is /static/assets/duels/<move>.svg, one file per move. Swapping a
+ * file for a richer illustration needs no change here or in the renderer.
+ */
+
+#duel-card {
+  --dl-a: #a970ff;      /* the seat on the left */
+  --dl-b: #3bb6ff;      /* the seat on the right */
+  --dl-rock: #a970ff;
+  --dl-paper: var(--gm-yellow);
+  --dl-scissors: #3bb6ff;
+
+  position: relative;
+  border: 1px solid rgba(138, 77, 255, 0.4);
+  border-radius: var(--gm-radius-lg);
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgba(138, 77, 255, 0.22), transparent 70%),
+    radial-gradient(60% 50% at 50% 100%, rgba(59, 130, 255, 0.14), transparent 70%),
+    var(--gm-panel);
+  overflow: hidden;
+  color: var(--gm-text);
+}
+
+/* Light raking in from both edges, the way the two sides are lit. */
+#duel-card::before,
+#duel-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 34%;
+  height: 62%;
+  pointer-events: none;
+  opacity: 0.5;
+}
+#duel-card::before {
+  left: 0;
+  background: linear-gradient(115deg, var(--dl-a) 0%, transparent 58%);
+}
+#duel-card::after {
+  right: 0;
+  background: linear-gradient(245deg, var(--dl-b) 0%, transparent 58%);
+}
+
+/* --- the bar ------------------------------------------------------------ */
+
+.dl-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(138, 77, 255, 0.28);
+  background: linear-gradient(180deg, rgba(138, 77, 255, 0.2), transparent);
+}
+.dl-bar__game {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.dl-bar__game .gm-ic { color: var(--dl-a); }
+.dl-bar__round {
+  padding: 5px 13px;
+  border: 1px solid rgba(138, 77, 255, 0.45);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #d3b9ff;
+}
+
+/* The clock is the loudest thing on the bar, because it is the only thing on
+   it that is running out. */
+#duel-card .duel-clock {
+  float: none;
+  padding: 4px 16px;
+  border: 2px solid var(--gm-yellow);
+  border-radius: 999px;
+  background: rgba(255, 210, 28, 0.12);
+  color: var(--gm-yellow);
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+#duel-card .duel-clock.urgent {
+  border-color: var(--gm-red);
+  background: rgba(255, 81, 101, 0.14);
+  color: var(--gm-red);
+}
+
+.dl-fuse { height: 3px; background: rgba(122, 140, 255, 0.16); overflow: hidden; }
+#duel-timer-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--dl-a), var(--gm-yellow), var(--gm-red));
+  transition: width 0.25s linear;
+}
+
+.dl { position: relative; padding: 10px 18px 14px; }
+
+/* --- the seats ---------------------------------------------------------- */
+
+.dl-seats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  /* Room for the portraits' own glow: the card clips, and a rim light cut off
+     by an edge reads as a rendering bug rather than as light. */
+  padding: 14px 6px 20px;
+}
+
+.dl-seat {
+  --seat: var(--dl-a);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.dl-seat--right { --seat: var(--dl-b); flex-direction: row-reverse; }
+.dl-seat--right .dl-seat__body { align-items: flex-end; text-align: right; }
+
+/* An angled frame rather than a circle: it is a fighter's card, and the cut
+   corners are what makes it read as one at this size. */
+.dl-portrait {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 84px;
+  flex: none;
+  border: 2px solid var(--seat);
+  background:
+    radial-gradient(70% 70% at 50% 30%, color-mix(in srgb, var(--seat) 40%, transparent), transparent),
+    var(--gm-bg);
+  clip-path: polygon(22% 0, 78% 0, 100% 18%, 100% 82%, 78% 100%, 22% 100%, 0 82%, 0 18%);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--seat) 45%, transparent);
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.9rem;
+  font-weight: 900;
+  color: var(--seat);
+}
+.dl-seat.is-victor .dl-portrait {
+  border-color: var(--gm-green);
+  color: var(--gm-green);
+  box-shadow: 0 0 30px rgba(66, 219, 131, 0.55);
+}
+
+.dl-seat__body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.dl-seat__name {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The hand: nothing before the reveal, a dot once committed, the art after. */
+.dl-hand {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  color: var(--gm-muted);
+}
+.dl-hand img { width: 34px; height: 34px; display: block; }
+.dl-hand__wait { font-size: 1.4rem; letter-spacing: 0.18em; line-height: 1; }
+.dl-seat.is-locked .dl-hand__wait { color: var(--seat); }
+
+.dl-pips { display: flex; gap: 7px; }
+.dl-pip {
+  width: 13px;
+  height: 13px;
+  border: 2px solid color-mix(in srgb, var(--seat) 60%, transparent);
+  border-radius: 50%;
+}
+.dl-pip.is-won {
+  background: var(--seat);
+  box-shadow: 0 0 10px var(--seat);
+}
+
+/* The clash mark. Two colours meeting is the whole idea of the screen. */
+.dl-vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 0 4px;
+}
+.dl-vs span {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 2.1rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  background: linear-gradient(100deg, var(--dl-a) 20%, var(--dl-b) 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: var(--dl-a);
+  -webkit-text-fill-color: transparent;
+}
+
+/* --- the call ----------------------------------------------------------- */
+
+.dl-call {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 6px 14px;
+}
+.dl-call__text {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+/* Chevrons pointing inward at the thing you have to do, and only while you
+   still have to do it. */
+.dl-call.is-urgent .dl-call__text { color: var(--gm-yellow); }
+.dl-call.is-urgent::before,
+.dl-call.is-urgent::after {
+  content: "";
+  width: 42px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gm-yellow));
+  animation: dl-sweep 1.1s ease-in-out infinite;
+}
+.dl-call.is-urgent::after { transform: scaleX(-1); }
+@keyframes dl-sweep { 50% { opacity: 0.3; } }
+
+/* --- the cards ---------------------------------------------------------- */
+
+.dl-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0 6px 6px;
+}
+
+#duel-card .dl-card {
+  --card: var(--gm-line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 10px 10px;
+  border: 2px solid color-mix(in srgb, var(--card) 70%, transparent);
+  border-radius: var(--gm-radius-md);
+  background:
+    radial-gradient(75% 55% at 50% 22%,
+      color-mix(in srgb, var(--card) 46%, transparent), transparent 72%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--card) 12%, transparent), transparent 55%),
+    var(--gm-panel-2);
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.dl-card--rock { --card: var(--dl-rock); }
+.dl-card--paper { --card: var(--dl-paper); }
+.dl-card--scissors { --card: var(--dl-scissors); }
+
+#duel-card .dl-card:hover:not(:disabled) {
+  transform: translateY(-4px);
+  border-color: var(--card);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--card) 45%, transparent);
+}
+#duel-card .dl-card:disabled { cursor: not-allowed; }
+/* Spent: the ones you did not pick step back rather than vanish, so the row
+   still reads as a choice that was made. */
+#duel-card .dl-card.is-spent { opacity: 0.32; }
+#duel-card .dl-card.is-chosen {
+  border-color: var(--card);
+  box-shadow: 0 0 34px color-mix(in srgb, var(--card) 60%, transparent);
+  opacity: 1;
+}
+
+.dl-card__art {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  display: block;
+  filter:
+    drop-shadow(0 8px 20px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 22px color-mix(in srgb, var(--card) 45%, transparent));
+}
+
+.dl-card__plate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  padding: 8px 6px 4px;
+  border-top: 1px solid color-mix(in srgb, var(--card) 35%, transparent);
+}
+.dl-card__name {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gm-text);
+}
+.dl-card__sub {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--card) 75%, var(--gm-muted));
+}
+
+/* --- the Grandmaster's copy --------------------------------------------- */
+
+/* Same renderer, a third of the width, and no cards because a watcher gets no
+   buttons. The seat strip above it already names both players, so the names
+   here would be the same row twice. */
+#view-leader .dl { padding: 0; }
+#view-leader .dl-seats { padding: 0 0 10px; gap: 8px; }
+#view-leader .dl-seat__name { display: none; }
+#view-leader .dl-portrait { width: 44px; height: 52px; font-size: 1.1rem; }
+#view-leader .dl-vs span { font-size: 1.2rem; }
+#view-leader .dl-hand { min-height: 26px; }
+#view-leader .dl-hand img { width: 26px; height: 26px; }
+#view-leader .dl-call { padding-bottom: 0; }
+#view-leader .dl-call__text { font-size: 0.75rem; letter-spacing: 0.1em; }
+
+/* --- responsive ---------------------------------------------------------- */
+
+@media (max-width: 599px) {
+  .dl-seats { gap: 8px; }
+  .dl-portrait { width: 54px; height: 64px; font-size: 1.4rem; }
+  .dl-seat__name { font-size: 1rem; }
+  .dl-vs span { font-size: 1.5rem; }
+  .dl-cards { gap: 8px; }
+  #duel-card .dl-card { padding: 10px 6px 8px; }
+  .dl-card__name { font-size: 0.85rem; }
+  .dl-card__sub { font-size: 0.58rem; letter-spacing: 0.06em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #duel-card *, #duel-card *::before, #duel-card *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

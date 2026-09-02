@@ -43,15 +43,69 @@ def links(client) -> list[str]:
 # --- the door -------------------------------------------------------------
 
 @pytest.mark.parametrize("path", [
-    preview.PREVIEW_PATH,
-    f"{preview.PREVIEW_PATH}?key=",
-    f"{preview.PREVIEW_PATH}?key=wrong",
     "/api/preview?state=lobby",
     "/api/preview?key=wrong&state=lobby",
 ])
-def test_the_wrong_key_is_a_404_not_a_403(client, path):
-    """A 403 would confirm the path exists. A 404 says nothing."""
+def test_the_api_stays_silent_without_the_key(client, path):
+    """A 403 would confirm the path exists. A 404 says nothing, and nothing is
+    what a script poking at the API should learn."""
     assert client.get(path).status_code == 404
+
+
+@pytest.mark.parametrize("path", [
+    preview.PREVIEW_PATH,
+    f"{preview.PREVIEW_PATH}?key=",
+    f"{preview.PREVIEW_PATH}?key=wrong",
+])
+def test_the_door_asks_for_the_password(client, path):
+    """The page itself is linked from the site, so hiding it behind a 404 would
+    be pretending it is not there while pointing at it. It asks instead, and
+    gives nothing away until asked correctly."""
+    response = client.get(path)
+    assert response.status_code == 200
+    assert "Developer preview" in response.text
+    assert "Password" in response.text
+    # The door is a door, not a peephole: none of the gallery is behind it yet.
+    assert "Design gallery" not in response.text
+    # ...and it does not hand over the answer it is asking for.
+    assert f'value="{preview.PREVIEW_KEY}"' not in response.text
+
+
+def test_the_wrong_password_is_refused_and_sets_no_cookie(client):
+    response = client.post(preview.PREVIEW_PATH, data={"key": "not-it"})
+    assert response.status_code == 401
+    assert "not the password" in response.text
+    assert preview.COOKIE_NAME not in response.cookies
+
+
+def test_the_password_trades_for_a_cookie(client):
+    response = client.post(
+        preview.PREVIEW_PATH, data={"key": preview.PREVIEW_KEY},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == preview.PREVIEW_PATH
+    jar = response.cookies[preview.COOKIE_NAME]
+    # The cookie carries a hash, never the password itself.
+    assert jar != preview.PREVIEW_KEY
+    assert jar == preview.cookie_token()
+
+
+def test_the_cookie_opens_the_gallery_without_the_key_in_any_link(client):
+    """Once the browser is carrying the secret, the links stop carrying it —
+    otherwise the password ends up in every href and in the history."""
+    client.post(preview.PREVIEW_PATH, data={"key": preview.PREVIEW_KEY})
+    body = client.get(preview.PREVIEW_PATH).text
+    assert "Design gallery" in body
+    assert "key=" not in body
+    # ...and the snapshots behind those links open on the cookie alone.
+    assert client.get("/api/preview?preview=lobby").status_code == 200
+
+
+def test_a_forged_cookie_opens_nothing(client):
+    client.cookies.set(preview.COOKIE_NAME, "0" * 64)
+    assert "Design gallery" not in client.get(preview.PREVIEW_PATH).text
+    assert client.get("/api/preview?preview=lobby").status_code == 404
 
 
 def test_the_key_opens_it(client):

@@ -7,11 +7,15 @@
 // The client never learns the opponent's move before the server reveals it:
 // duel.choices only ever contains what the server chose to send. Everything
 // here renders from that, so there is nothing to peek at in the DOM either.
+//
+// The card art lives in /static/assets/duels/*.svg, one file per move, drawn
+// rather than generated. Swapping a file for a richer illustration needs no
+// change here: the slot is an <img> and the art is whatever that file is.
 (function () {
   "use strict";
 
-  var ART = { rock: "✊", paper: "✋", scissors: "✌️" };
   var LABEL = { rock: "Rock", paper: "Paper", scissors: "Scissors" };
+  var ART = "/static/assets/duels/";
 
   var state = null;
 
@@ -22,60 +26,92 @@
     return node;
   }
 
-  function hand(move, locked) {
-    if (move) return ART[move] || "❓";
-    return locked ? "🔒" : "…";
+  function initials(name) {
+    return String(name || "?").trim().charAt(0).toUpperCase() || "?";
   }
 
-  // Score pips: filled for wins taken, hollow for the rest of the race.
-  function pips(won, needed) {
-    var out = "";
-    for (var i = 0; i < needed; i++) out += i < won ? "●" : "○";
-    return out;
+  // What this move does to the one it beats, straight off the payload the
+  // server sends (`BEATS` in backend/games/duel1_rps.py). Not flavour text
+  // invented here: a card that stated the rules wrongly would be worse than a
+  // card that stated nothing.
+  var VERB = { rock: "Crushes", paper: "Covers", scissors: "Cuts" };
+
+  function subtitle(move, beats) {
+    var loser = beats && beats[move];
+    if (!loser) return "";
+    return (VERB[move] || "Beats") + " " + (LABEL[loser] || loser).toLowerCase();
+  }
+
+  // The hand a seat is showing: the played move once the server reveals it, a
+  // lock while it is committed but secret, and nothing at all before that.
+  function handNode(move, locked) {
+    if (move) {
+      var art = document.createElement("img");
+      art.src = ART + move + ".svg";
+      art.alt = LABEL[move] || move;
+      return art;
+    }
+    var dots = el("span", "dl-hand__wait", locked ? "●" : "…");
+    dots.setAttribute("aria-label", locked ? "locked in" : "still choosing");
+    return dots;
+  }
+
+  function pipRow(host, won, needed) {
+    host.innerHTML = "";
+    for (var i = 0; i < needed; i++) {
+      host.appendChild(el("span", "dl-pip" + (i < won ? " is-won" : "")));
+    }
+    host.setAttribute("aria-label", won + " of " + needed + " rounds won");
+  }
+
+  function seat(side) {
+    var box = el("div", "dl-seat dl-seat--" + side);
+    var frame = el("span", "dl-portrait");
+    frame.appendChild(el("span", "dl-portrait__mark", "?"));
+    box.appendChild(frame);
+    var body = el("span", "dl-seat__body");
+    body.appendChild(el("span", "dl-hand"));
+    body.appendChild(el("span", "dl-seat__name", ""));
+    body.appendChild(el("span", "dl-pips"));
+    box.appendChild(body);
+    return box;
   }
 
   function build(container) {
-    var root = el("div", "duel");
+    var root = el("div", "dl");
 
-    var header = el("div", "duel-header");
-    var you = el("div", "duel-seat duel-seat-you");
-    you.appendChild(el("div", "duel-hand", "…"));
-    you.appendChild(el("div", "duel-name", "You"));
-    you.appendChild(el("div", "duel-pips", ""));
+    var seats = el("div", "dl-seats");
+    var left = seat("left");
+    var versus = el("div", "dl-vs");
+    versus.appendChild(el("span", null, "VS"));
+    var right = seat("right");
+    seats.appendChild(left);
+    seats.appendChild(versus);
+    seats.appendChild(right);
+    root.appendChild(seats);
 
-    var versus = el("div", "duel-versus", "VS");
+    var call = el("div", "dl-call");
+    call.appendChild(el("span", "dl-call__text", ""));
+    root.appendChild(call);
 
-    var them = el("div", "duel-seat duel-seat-them");
-    them.appendChild(el("div", "duel-hand", "…"));
-    them.appendChild(el("div", "duel-name", "Opponent"));
-    them.appendChild(el("div", "duel-pips", ""));
-
-    header.appendChild(you);
-    header.appendChild(versus);
-    header.appendChild(them);
-
-    var status = el("div", "duel-status", "");
-    var moves = el("div", "duel-moves");
-
-    root.appendChild(header);
-    root.appendChild(status);
-    root.appendChild(moves);
+    var cards = el("div", "dl-cards");
+    root.appendChild(cards);
     container.appendChild(root);
 
+    var parts = function (box) {
+      return {
+        seat: box,
+        mark: box.querySelector(".dl-portrait__mark"),
+        portrait: box.querySelector(".dl-portrait"),
+        hand: box.querySelector(".dl-hand"),
+        name: box.querySelector(".dl-seat__name"),
+        pips: box.querySelector(".dl-pips"),
+      };
+    };
     return {
-      root: root, status: status, moves: moves,
-      you: {
-        hand: you.querySelector(".duel-hand"),
-        name: you.querySelector(".duel-name"),
-        pips: you.querySelector(".duel-pips"),
-        seat: you,
-      },
-      them: {
-        hand: them.querySelector(".duel-hand"),
-        name: them.querySelector(".duel-name"),
-        pips: them.querySelector(".duel-pips"),
-        seat: them,
-      },
+      root: root, cards: cards,
+      call: call, callText: call.querySelector(".dl-call__text"),
+      you: parts(left), them: parts(right),
     };
   }
 
@@ -84,6 +120,7 @@
     var mine = duel.you;
     var alreadyChose = !!(mine && duel.locked && duel.locked[mine]);
     var available = (duel.payload && duel.payload.moves) || [];
+    var beats = (duel.payload && duel.payload.beats) || null;
 
     // Rebuild only when the button set or its enabled-ness actually changes,
     // so a re-render never steals a click mid-press.
@@ -91,48 +128,61 @@
       "|" + duel.round;
     if (state.movesSignature === signature) return;
     state.movesSignature = signature;
-    state.dom.moves.innerHTML = "";
+    state.dom.cards.innerHTML = "";
 
     if (!mine) return; // a Grandmaster watches; they never get buttons
 
     available.forEach(function (move) {
-      var button = el("button", "duel-move");
-      button.type = "button";
-      button.disabled = !open || alreadyChose;
-      button.innerHTML = '<span class="duel-move-art">' + (ART[move] || "?") +
-        '</span><span class="duel-move-label">' + (LABEL[move] || move) +
-        "</span>";
-      button.addEventListener("click", function () {
-        if (button.disabled) return;
+      var card = el("button", "dl-card dl-card--" + move);
+      card.type = "button";
+      card.disabled = !open || alreadyChose;
+
+      var art = document.createElement("img");
+      art.src = ART + move + ".svg";
+      art.alt = "";
+      art.className = "dl-card__art";
+      card.appendChild(art);
+
+      var plate = el("span", "dl-card__plate");
+      plate.appendChild(el("span", "dl-card__name", LABEL[move] || move));
+      var sub = subtitle(move, beats);
+      if (sub) plate.appendChild(el("span", "dl-card__sub", sub));
+      card.appendChild(plate);
+
+      card.addEventListener("click", function () {
+        if (card.disabled) return;
         // Lock the row immediately; the server confirms via the next snapshot.
-        state.dom.moves.querySelectorAll("button").forEach(function (other) {
+        var all = state.dom.cards.querySelectorAll("button");
+        Array.prototype.forEach.call(all, function (other) {
           other.disabled = true;
+          other.classList.add("is-spent");
         });
-        button.classList.add("chosen");
+        card.classList.remove("is-spent");
+        card.classList.add("is-chosen");
         state.api.choose(move, duel.id, duel.round);
       });
-      state.dom.moves.appendChild(button);
+      state.dom.cards.appendChild(card);
     });
   }
 
   function statusLine(duel) {
     if (duel.phase === "done") {
-      var won = duel.you && duel.winner_side === duel.you;
       if (!duel.you) return "Duel over.";
-      return won ? "🏆 You won the duel!" : "💥 You lost the duel.";
+      return duel.winner_side === duel.you
+        ? "You won the duel" : "You lost the duel";
     }
     if (duel.phase === "reveal") {
       var last = duel.last_round;
       if (!last) return "Round over.";
-      if (!last.winner) return "🤝 Tie — replaying the round.";
+      if (!last.winner) return "A tie. Replaying the round.";
       if (!duel.you) return "Round " + last.round + " decided.";
-      return last.winner === duel.you ? "✅ You took that round."
-        : "❌ They took that round.";
+      return last.winner === duel.you
+        ? "You took that round" : "They took that round";
     }
     var mine = duel.you;
-    if (mine && duel.locked && duel.locked[mine]) return "Locked in — waiting…";
+    if (mine && duel.locked && duel.locked[mine]) return "Locked in. Waiting.";
     if (!mine) return "Round " + duel.round + " in progress.";
-    return "Choose — fast!";
+    return "Choose fast";
   }
 
   function render(duel) {
@@ -144,26 +194,29 @@
     var locked = duel.locked || {};
     var wins = duel.wins || {};
     var needed = (duel.payload && duel.payload.wins_needed) || 2;
+    // Seats stay in a/b order for a watching Grandmaster: neither one is "you",
+    // so calling one of them yours would be a lie about whose duel this is.
+    var here = mine || "a";
+    var there = theirs || "b";
 
-    if (mine) {
-      dom.you.name.textContent = names[mine] || "You";
-      dom.them.name.textContent = names[theirs] || "Opponent";
-      dom.you.hand.textContent = hand(choices[mine], locked[mine]);
-      dom.them.hand.textContent = hand(choices[theirs], locked[theirs]);
-      dom.you.pips.textContent = pips(wins[mine] || 0, needed);
-      dom.them.pips.textContent = pips(wins[theirs] || 0, needed);
-    } else {
-      // Grandmaster view: seats stay in a/b order, neither is "you".
-      dom.you.name.textContent = names.a || "A";
-      dom.them.name.textContent = names.b || "B";
-      dom.you.hand.textContent = hand(choices.a, locked.a);
-      dom.them.hand.textContent = hand(choices.b, locked.b);
-      dom.you.pips.textContent = pips(wins.a || 0, needed);
-      dom.them.pips.textContent = pips(wins.b || 0, needed);
-    }
+    [[dom.you, here], [dom.them, there]].forEach(function (pair) {
+      var box = pair[0], side = pair[1];
+      var who = names[side] || (side === here && mine ? "You" : "Opponent");
+      box.name.textContent = who;
+      box.mark.textContent = initials(who);
+      box.hand.innerHTML = "";
+      box.hand.appendChild(handNode(choices[side], locked[side]));
+      pipRow(box.pips, wins[side] || 0, needed);
+      box.seat.classList.toggle("is-mine", !!mine && side === mine);
+      box.seat.classList.toggle("is-locked", !!locked[side] && !choices[side]);
+      box.seat.classList.toggle(
+        "is-victor", duel.phase === "done" && duel.winner_side === side);
+    });
 
-    dom.root.className = "duel duel-" + duel.phase;
-    dom.status.textContent = statusLine(duel);
+    dom.root.className = "dl dl--" + duel.phase;
+    dom.callText.textContent = statusLine(duel);
+    dom.call.classList.toggle(
+      "is-urgent", duel.phase === "choosing" && !(mine && locked[mine]));
     renderMoves(duel);
   }
 

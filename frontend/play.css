@@ -390,10 +390,9 @@ body.play-active .topbar { display: none; }
 
 /* --- the two screens still on the old look ------------------------------ */
 
-/* The duel card and the bomb board keep their own designs until theirs land.
-   They sit on a light plate rather than floating on the dark ground, so they
-   read as themselves rather than as something half-restyled. */
-#view-play .duel-card,
+/* The bomb board keeps its own design until its own lands. It sits on a light
+   plate rather than floating on the dark ground, so it reads as itself rather
+   than as something half-restyled. The duel card has its design now: duel.css. */
 #view-play #puzzle-mount.is-legacy {
   border-radius: var(--gm-radius-lg);
   background: var(--bg);
