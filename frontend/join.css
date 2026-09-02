@@ -243,7 +243,44 @@ body.join-active .topbar .logo { color: var(--gm-text); }
   line-height: 1;
 }
 
+/* --- the rejoin panel --------------------------------------------------- */
+
+/* Same panel, quieter: violet rather than the cyan of the two doors above it,
+   because reaching for this one means something already went wrong. It takes
+   no pointer arrow — the link that opens it sits below, in the footer. */
+.jn-rejoin {
+  border-color: var(--gm-violet);
+  background: rgba(138, 77, 255, 0.08);
+}
+.jn-rejoin::before { display: none; }
+.jn-rejoin .jn-field:focus-within {
+  border-color: var(--gm-violet);
+  box-shadow: 0 0 0 3px rgba(138, 77, 255, 0.18);
+}
+/* The code is read off a screen and typed back one character at a time, so it
+   is set wide and upper-case: a rejoin code should never look like a word. */
+#rejoin-code-input {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+}
+/* The treatment is for the code, not for the word asking them to type one. */
+#rejoin-code-input::placeholder {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+#view-join .jn-rejoin .jn-go {
+  background: linear-gradient(180deg, #a97bff, #7433e8);
+  color: #f7f8ff;
+}
+
 .jn-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 26px;
+  flex-wrap: wrap;
   margin: 28px 0 0;
   padding-top: 20px;
   border-top: 1px solid var(--gm-line-soft);
@@ -259,6 +296,16 @@ body.join-active .topbar .logo { color: var(--gm-text); }
   text-decoration: none;
 }
 .jn-link:hover { text-decoration: underline; }
+/* A link that happens to be a <button>, because it acts on this page rather
+   than going anywhere. */
+.jn-link--btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  color: var(--gm-violet);
+  cursor: pointer;
+}
 
 /* --- the artwork -------------------------------------------------------- */
 

@@ -33,15 +33,27 @@
   var finished = false;
   var leaving = false;   // we asked to go; the close that follows is not a kick
 
-  // --- session persistence (refresh restores the match) ---
+  // --- session persistence (a closed tab restores the match) ---
+  //
+  // localStorage, not sessionStorage: a seat is held for the whole match, so
+  // the identity that reclaims it has to outlive the tab. Closing the browser,
+  // a crash, or a phone reaping the tab all used to lose the seat for good.
+  // Only a deliberate exit (kicked, cancelled, played again) clears it; see the
+  // close-code handling in `connect`.
 
   function saveSession() {
-    try { sessionStorage.setItem("relay", JSON.stringify(session)); } catch (e) {}
+    try { localStorage.setItem("relay", JSON.stringify(session)); } catch (e) {}
   }
   function loadSession() {
-    try { return JSON.parse(sessionStorage.getItem("relay")); } catch (e) { return null; }
+    try {
+      var saved = localStorage.getItem("relay");
+      // One-time carry-over for a tab that was mid-match when this shipped.
+      if (saved === null) saved = sessionStorage.getItem("relay");
+      return JSON.parse(saved);
+    } catch (e) { return null; }
   }
   function clearSession() {
+    try { localStorage.removeItem("relay"); } catch (e) {}
     try { sessionStorage.removeItem("relay"); } catch (e) {}
     session = null;
   }
@@ -193,6 +205,16 @@
       if (!code) { showJoinError("Enter a match code."); return; }
       joinMatch(code, name);
     });
+    $("rejoin-toggle").addEventListener("click", function () {
+      offerRejoin(session && session.matchId, null);
+    });
+    $("rejoin-go").addEventListener("click", function () {
+      var matchId = $("rejoin-match-input").value.trim();
+      var code = $("rejoin-code-input").value.trim();
+      if (!matchId) { showRejoinError("Enter the match code."); return; }
+      if (!code) { showRejoinError("Enter your rejoin code."); return; }
+      rejoinMatch(matchId, code);
+    });
     $("play-again").addEventListener("click", function () {
       clearSession();
       window.location.href = "/play";
@@ -243,8 +265,46 @@
       .catch(function (error) { showJoinError(error.message); });
   }
 
+  function rejoinMatch(matchId, code) {
+    fetch("/api/matches/" + encodeURIComponent(matchId) + "/rejoin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: code }),
+    })
+      .then(function (response) {
+        return response.json().then(function (body) {
+          if (!response.ok) throw new Error(body.detail || "Could not rejoin.");
+          // The seat carries the name — the player never retypes it.
+          session = {
+            matchId: matchId, playerId: body.player.id, name: body.player.name,
+          };
+          saveSession();
+          try {
+            window.history.replaceState(null, "", "/play?match=" + matchId);
+          } catch (e) {}
+          connect();
+        });
+      })
+      .catch(function (error) { showRejoinError(error.message); });
+  }
+
+  // Open the door back in: used by the "lost your seat" link and by a 4404.
+  function offerRejoin(matchId, message) {
+    show("view-join");
+    $("rejoin-row").hidden = false;
+    if (matchId) $("rejoin-match-input").value = matchId;
+    $("rejoin-code-input").focus();
+    if (message) toast(message);
+  }
+
   function showJoinError(text) {
     var el = $("join-error");
+    el.textContent = text;
+    el.hidden = false;
+  }
+
+  function showRejoinError(text) {
+    var el = $("rejoin-error");
     el.textContent = text;
     el.hidden = false;
   }
@@ -278,7 +338,16 @@
         toast("The host cancelled the session.");
         return;
       }
-      if (event.code === 4404) { clearSession(); show("view-join"); return; }
+      if (event.code === 4404) {
+        // The server does not know this seat any more, but the player might
+        // still own it: an evicted match, a restarted server, or an id that
+        // went stale all land here. Keep the saved session (it holds the match
+        // code worth prefilling) and offer the rejoin code as the way back,
+        // rather than silently forgetting who they were.
+        offerRejoin(session && session.matchId,
+          "That seat could not be resumed. Your rejoin code will get it back.");
+        return;
+      }
       setTimeout(connect, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, 5000);
     };
@@ -897,6 +966,14 @@
       (me.role === "duelist" || duelling ? " is-duelist" : "") +
       (me.role === "defuser" ? " is-defuser" : "");
     tags.appendChild(el("span", roleCls, me.role ? roleName(me.role) : "Player"));
+    // Shown rather than stored, because the whole point of it is to survive the
+    // browser that would have stored it. Sitting on the badge means a player
+    // has already read it by the time they need it.
+    if (me.rejoin_code) {
+      var codeTag = el("span", "pl-tag pl-tag--code", me.rejoin_code);
+      codeTag.title = "Your rejoin code. With the match code it gets this seat back.";
+      tags.appendChild(codeTag);
+    }
     box.appendChild(tags);
     who.appendChild(box);
 
@@ -1808,6 +1885,8 @@
 
     // --- command bar ---
     $("leader-match-code").textContent = state.id;
+    $("leader-rejoin-code").textContent = me.rejoin_code || "";
+    $("leader-rejoin").hidden = !me.rejoin_code;
     $("leader-team-badge").style.setProperty("--team-color", color);
     $("leader-team-title").textContent = team.name;
     // The host picks the match length in the lobby, so the real ceiling is on
@@ -1878,6 +1957,11 @@
         (player.role === "duelist" ? " is-duelist" : "") +
         (player.role === "defuser" ? " is-defuser" : "");
       who.appendChild(el("div", roleCls, player.role ? roleName(player.role) : "Unassigned"));
+      // Only this dashboard is sent these. A player who has lost their browser
+      // asks their Grandmaster, who reads it off the row.
+      if (player.rejoin_code) {
+        who.appendChild(el("div", "gm-who__code", player.rejoin_code));
+      }
       row.appendChild(who);
 
       var assign = el("div", "gm-assign");

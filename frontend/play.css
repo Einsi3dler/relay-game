@@ -113,6 +113,13 @@ body.play-active .topbar { display: none; }
 }
 .pl-tag--role.is-duelist { border-color: var(--gm-pink); color: var(--gm-pink); }
 .pl-tag--role.is-defuser { border-color: var(--gm-red); color: var(--gm-red); }
+/* The way back into this seat. Dashed and unfilled: it belongs to the badge
+   without claiming to be part of who you are, the way team and role do. */
+.pl-tag--code {
+  border: 1px dashed var(--gm-line);
+  color: var(--gm-muted);
+  letter-spacing: 0.14em;
+}
 
 .pl-meter { min-width: 168px; flex: 1 1 168px; }
 .pl-meter__row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
