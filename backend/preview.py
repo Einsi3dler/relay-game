@@ -192,6 +192,29 @@ def _play_a_duel_round(engine: RelayEngine, match: Match) -> None:
         engine.on_duel_timer(match, DUEL_SCOPE, "duel_reveal", now=_now())
 
 
+def _open_the_card_round(engine: RelayEngine, match: Match) -> None:
+    """Commit whatever the open round is asking for and let the next one open.
+
+    Crown Duel's first engine round is the secret strategy beat, so a preview
+    that stops at round one never reaches the hand — which is the screen the
+    cards actually live on, and the one worth looking at. This resolves the
+    round that is open and leaves the following one live rather than revealed.
+    """
+    duel = match.duel
+    for side in SIDES_IN_ORDER:
+        moves = _duel_moves(duel.module, duel.state, side)
+        if not moves:
+            return
+        engine.duel_choice(
+            match, duel.sides[side], duel.id, duel.state.round_index,
+            moves[0], now=_now(),
+        )
+    engine.on_duel_timer(match, DUEL_SCOPE, "duel_reveal", now=_now())
+
+
+SIDES_IN_ORDER = ("a", "b")
+
+
 def _duel_module(game_id: str | None) -> DuelModule:
     for duel in REGISTERED_DUELS:
         if duel.id == game_id:
@@ -237,8 +260,11 @@ def snapshot(state: str, **params: str) -> dict[str, Any] | None:
         module = _duel_module(params.get("game"))
         engine = _engine(module)
         match, seats, _ = _started(engine)
-        if params.get("phase") == "reveal":
+        phase = params.get("phase")
+        if phase == "reveal":
             _play_a_duel_round(engine, match)
+        elif phase == "cards":
+            _open_the_card_round(engine, match)
         return match.public(seats["alpha"][1].id)
 
     if state in ("won", "lost"):
@@ -425,12 +451,16 @@ def gallery_html(key: str) -> str:
               effect=effect)
         for effect in config.SCREEN_EFFECTS
     )
+    duel_phases = (
+        ("open", "choosing", "the round as it opens"),
+        ("cards", "cards", "the round after the first: Crown Duel's hand"),
+        ("reveal", "reveal", "both moves on the table"),
+    )
     duels = "\n".join(
-        _link(key, "duel", f"{duel.name} · {phase}",
-              "choosing a move" if phase == "open" else "both moves on the table",
-              game=duel.id, phase="choosing" if phase == "open" else "reveal")
+        _link(key, "duel", f"{duel.name} · {label}", note,
+              game=duel.id, phase=phase)
         for duel in REGISTERED_DUELS
-        for phase in ("open", "reveal")
+        for label, phase, note in duel_phases
     )
     return TEMPLATE.format(
         pages=pages, boards=boards, shell=shell, effects=effects, duels=duels,
