@@ -460,6 +460,124 @@ def test_ws_duplicate_connect_supersedes_with_4001(client, fake_games):
             assert ws2.receive_json()["type"] == "state_snapshot"
 
 
+# --- rejoin (recovering a seat after the browser holding it is gone) ---
+
+def rejoin(client, match_id: str, code: str):
+    return client.post(f"/api/matches/{match_id}/rejoin", json={"code": code})
+
+
+def test_rejoin_hands_back_the_original_seat(client, fake_games):
+    """The end-to-end path: read the code off your own snapshot, lose the id,
+    trade the code for it, and connect to the seat you were already in."""
+    match_id = create_match(client)
+    ids = fill_match(client, match_id)
+    player_id = ids["alpha"][0]
+    with connect(client, match_id, player_id) as (_ws, me):
+        code = me["rejoin_code"]
+        was = (me["assigned_game"], me["role"], me["status"])
+    assert code
+
+    response = rejoin(client, match_id, code)
+    assert response.status_code == 200
+    assert response.json()["player"]["id"] == player_id  # the same seat
+
+    with connect(client, match_id, player_id) as (_ws, me):
+        assert (me["assigned_game"], me["role"], me["status"]) == was
+        assert me["connected"] is True
+
+
+def test_rejoin_takes_the_code_as_a_player_would_type_it(client, fake_games):
+    match_id = create_match(client)
+    player_id = join(client, match_id, "Ada", "alpha").json()["player"]["id"]
+    with connect(client, match_id, player_id) as (_ws, me):
+        code = me["rejoin_code"]
+    assert rejoin(client, match_id, code.lower()).json()["player"]["id"] == player_id
+
+
+def test_rejoin_refuses_a_code_nobody_holds(client, fake_games):
+    match_id = create_match(client)
+    join(client, match_id, "Ada", "alpha")
+    assert rejoin(client, match_id, "ZZZZZZ").status_code == 400
+    assert rejoin(client, match_id, "").status_code == 400
+
+
+def test_rejoin_needs_a_match_that_exists(client, fake_games):
+    assert rejoin(client, "nope", "ZZZZZZ").status_code == 404
+
+
+def test_join_is_still_shut_once_the_match_starts(client, fake_games):
+    """Rejoin is a door for people who already have a seat, not a way to add
+    one mid-race. /join stays closed."""
+    match_id = create_match(client)
+    fill_match(client, match_id)
+    assert join(client, match_id, "Latecomer", "alpha").status_code == 400
+
+
+def test_a_rejoined_socket_supersedes_the_abandoned_one(client, fake_games):
+    """The case rejoin exists for is a browser that is gone, but a half-open
+    socket the server has not noticed must not lock the owner out either."""
+    match_id = create_match(client)
+    ids = fill_match(client, match_id)
+    player_id = ids["alpha"][0]
+    url = f"/ws/matches/{match_id}?player_id={player_id}"
+    with client.websocket_connect(url) as stale:
+        stale.receive_json()
+        snapshot = stale.receive_json()
+        code = snapshot["state"]["me"]["rejoin_code"]
+        recovered = rejoin(client, match_id, code).json()["player"]["id"]
+        with client.websocket_connect(
+            f"/ws/matches/{match_id}?player_id={recovered}"
+        ) as fresh:
+            fresh.receive_json()
+            fresh.receive_json()
+            with pytest.raises(WebSocketDisconnect) as exc:
+                stale.receive_json()
+            assert exc.value.code == 4001
+
+
+def test_a_rejoin_code_never_reaches_another_player(client, fake_games):
+    """A code buys a seat, so a snapshot that carried someone else's would let
+    any player take it."""
+    match_id = create_match(client)
+    ids = fill_match(client, match_id)
+    codes = {}
+    for player_id in ids["alpha"]:
+        with connect(client, match_id, player_id) as (_ws, me):
+            codes[player_id] = me["rejoin_code"]
+
+    mine = ids["alpha"][0]
+    with client.websocket_connect(
+        f"/ws/matches/{match_id}?player_id={mine}"
+    ) as ws:
+        ws.receive_json()
+        raw = ws.receive_text()
+    for player_id, code in codes.items():
+        if player_id == mine:
+            assert code in raw          # your own, so you can read it
+        else:
+            assert code not in raw      # everyone else's, never
+
+
+def test_a_grandmaster_is_sent_the_teams_codes_to_read_back(client, fake_games):
+    match_id = create_match(client)
+    ids = fill_match(client, match_id)
+    codes = {}
+    for player_id in ids["alpha"]:
+        with connect(client, match_id, player_id) as (_ws, me):
+            codes[player_id] = me["rejoin_code"]
+    with client.websocket_connect(
+        f"/ws/matches/{match_id}?player_id={ids['alpha-lead']}"
+    ) as ws:
+        ws.receive_json()
+        snapshot = ws.receive_json()
+    roster = snapshot["state"]["teams"]["alpha"]["players"]
+    seen = {row["id"]: row.get("rejoin_code") for row in roster}
+    for player_id, code in codes.items():
+        assert seen[player_id] == code
+    # Their own team only: the opponent view has no roster to carry codes on.
+    assert "players" not in snapshot["state"]["teams"]["bravo"]
+
+
 def test_ws_errors_for_bad_messages(client, fake_games):
     match_id = create_match(client)
     ids = fill_match(client, match_id)

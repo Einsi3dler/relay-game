@@ -426,7 +426,9 @@ Purchases are Grandmaster-only, during an active match only.
 
 Cut on purpose — **do not add these** without a design decision:
 
-- More than 2 teams; persistence / database / accounts.
+- More than 2 teams; persistence / database / accounts. Rejoining a seat is
+  deliberately **not** an account: the rejoin code lives and dies with the
+  match, in memory, like everything else.
 - Mid-match joining; reconnect "backlog" puzzles.
 
 ## 9. Edge cases and their rulings
@@ -434,7 +436,8 @@ Cut on purpose — **do not add these** without a design decision:
 | Situation | Ruling |
 | --- | --- |
 | A player disconnects mid-level | Status and timers are untouched — no grace period, no auto-kick. A cleared player's status decays via the normal wait-expiry rule. On reconnect: `cleared` resumes status and timer; a `solving` or `bonus` player is served a **fresh** instance (prevents replay-to-rewatch, esp. ECHO). |
-| The Grandmaster disconnects mid-match | The team plays on but can't buy perks or receive a handoff until the Grandmaster returns. There is no mid-match Grandmaster *claim* — only the Grandmaster can give the seat away (§11). |
+| A player loses the browser holding their seat | The seat is still theirs. Every player is given a short **rejoin code** at join, shown on their own screen and on their Grandmaster's roster; with the match code it buys their `player_id` back at any point in the match (WEBSOCKET_PROTOCOL.md §2). Without it the seat is unrecoverable *and* unfillable — `roster_size` is frozen at the start — so the team could never advance again. |
+| The Grandmaster disconnects mid-match | The team plays on but can't buy perks or receive a handoff until the Grandmaster returns. There is no mid-match Grandmaster *claim* — only the Grandmaster can give the seat away (§11). A Grandmaster who has lost their browser returns the same way anyone else does, on their **own** rejoin code and therefore their original id, so the no-claim rule is untouched. |
 | Team is all cleared but one player's socket is dead | Advancement still fires (server-authoritative). |
 | A frozen player's freeze lapses | Cleared lazily on their next submit; no timer fires. |
 | A screen effect lapses | Nothing fires. The deadline simply stops being sent, and the client drops the class. Reconnecting mid-effect resumes with the time left, because the server sends a deadline rather than a duration. |

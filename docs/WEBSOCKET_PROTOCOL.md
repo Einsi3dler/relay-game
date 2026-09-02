@@ -17,6 +17,7 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
 | `GET` | `/api/config` | — | `{ "teams": ["alpha","bravo"], "players_per_team": 12, "max_players_ceiling": 12, "min_players_default": 4, "min_level_count": 3, "max_level_count": 10, "team_name_max": 20, "level_count": 10, "wait_seconds": 180, "duel_round_seconds_min": 3, "duel_round_seconds_max": 30, "duel_round_seconds_choices": [3,5,8,10,12,15,20,30], "perks": { ... }, "roles": { "<role_id>": {"name": str, "games": [<game_id>, ...] \| null}, ... }, "library": [ {"id","name","role"}, ... ], "duels": [ {"id","name","choice_seconds"}, ... ] }` |
 | `POST` | `/api/matches` | `{}` | `{ "match": <MatchPublic> }` — creates a match, returns its id |
 | `POST` | `/api/matches/{id}/join` | `{ "name": str, "team_id": "alpha"\|"bravo"\|null }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` |
+| `POST` | `/api/matches/{id}/rejoin` | `{ "code": str }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` — trades a rejoin code for the `player_id` that owns the seat |
 | `GET` | `/api/matches/{id}` | — | `{ "match": <MatchPublic> }` (spectate / rejoin lookup) |
 
 - `library` is the registered game catalogue that feeds the Grandmaster's
@@ -58,6 +59,24 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
   the match is evicted: the code stops resolving, so nobody can rejoin a lobby
   that no longer exists.
 - `player_id` is the socket's **only credential** — treat it like a session token.
+- **Rejoin codes.** Every player is also given a short, readable `rejoin_code`
+  at join (`config.REJOIN_CODE_*`). It buys the `player_id` back over
+  `POST /api/matches/{id}/rejoin`, which works at **any** point in a match —
+  unlike `/join`, which is lobby-only. That is the whole point: a browser that
+  lost its `player_id` (tab closed, storage cleared, different device) would
+  otherwise be locked out of a seat that is still being held for it, and the
+  frozen `roster_size` means the team could never advance again.
+  - The endpoint **resolves an identity and mutates nothing**. The returned id
+    is then used to connect normally, so `on_reconnect` stays the single path
+    that touches match state.
+  - It is not gated on the player being disconnected: a half-open socket the
+    server has not noticed must not lock the real owner out, and the `4001`
+    supersede rule above already handles the second socket.
+  - A rejoin code is a **credential of the same class as `player_id`**, so it
+    reaches exactly two views: your own `me` (`PlayerPrivate.rejoin_code`), and
+    your own Grandmaster's roster rows, so they can read it back to you. It
+    never appears in the lobby view, an opponent summary, or the finished-match
+    view, all of which every player receives.
 
 ### 2.1 Client → Server messages
 

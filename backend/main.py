@@ -197,6 +197,10 @@ class JoinBody(BaseModel):
     team_id: str | None = None
 
 
+class RejoinBody(BaseModel):
+    code: str
+
+
 def _serve_page(filename: str):
     page = FRONTEND_DIR / filename
     if page.exists():
@@ -431,6 +435,24 @@ async def join_match(match_id: str, body: JoinBody) -> dict:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         await apply_and_broadcast(match, result)
+    return {"player": player.public(), "match": match.public()}
+
+
+@app.post("/api/matches/{match_id}/rejoin")
+async def rejoin_match(match_id: str, body: RejoinBody) -> dict:
+    """Trade a rejoin code for the player id that owns the seat.
+
+    Unlike /join this works at any point in a match — that is the whole point.
+    Nothing changes here; the client connects with the id it gets back and the
+    socket's usual `on_reconnect` does the rest.
+    """
+    match = await _require_match(match_id)
+    async with locks.for_match(match_id):
+        touch(match_id)
+        try:
+            player = engine.rejoin(match, body.code)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
     return {"player": player.public(), "match": match.public()}
 
 

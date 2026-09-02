@@ -21,6 +21,7 @@ that cannot land is rejected without consuming a shield, a reflect or a coin.
 
 from __future__ import annotations
 
+import hmac
 import random
 import secrets
 from dataclasses import dataclass, field
@@ -56,6 +57,36 @@ def utc_now() -> datetime:
 def _new_seed() -> int:
     # Unguessable, server-side only (ARCHITECTURE.md §"Seeds").
     return secrets.randbits(63)
+
+
+def normalise_rejoin_code(code: str) -> str:
+    """A code as typed, reduced to the form it was minted in.
+
+    Players read these off a screen and out loud, so accept the shapes that
+    honestly mean the same code: any case, and any spaces or dashes they add to
+    make six characters easier to hold in their head.
+    """
+    return "".join(
+        char for char in code.upper() if char not in " -\t–—"
+    )
+
+
+def _new_rejoin_code(match: Match) -> str:
+    """A code no other seat in this match already holds.
+
+    Uniqueness is a correctness rule, not a nicety: `rejoin` resolves a code to
+    exactly one seat, so a collision would make somebody's recovery ambiguous.
+    A match holds at most a few dozen codes out of ~9x10^8, so the loop
+    effectively never runs twice.
+    """
+    taken = {player.rejoin_code for player in match.players.values()}
+    while True:
+        code = "".join(
+            secrets.choice(config.REJOIN_CODE_ALPHABET)
+            for _ in range(config.REJOIN_CODE_LENGTH)
+        )
+        if code not in taken:
+            return code
 
 
 def _parse_iso(value: str) -> datetime:
@@ -188,6 +219,7 @@ class RelayEngine:
         player = Player(
             id=f"p_{secrets.token_hex(8)}",  # long + random — the WS credential
             name=name,
+            rejoin_code=_new_rejoin_code(match),
             team_id=team.id if team else None,
             status="lobby",
             connected=True,
@@ -203,6 +235,31 @@ class RelayEngine:
         else:
             self._add_event(match, result, f"{player.name} joined.", "join")
         return player, result
+
+    def rejoin(self, match: Match, code: str) -> Player:
+        """Resolve a rejoin code back to the seat that holds it.
+
+        Recovery of an *identity*, not of state: a browser that lost its
+        `player_id` trades this code for it and then connects normally, so
+        `on_reconnect` remains the one and only path that touches match state.
+        Nothing here mutates, which is why it can be safe mid-match.
+
+        Deliberately not gated on `match.status` — a lobby-only rejoin would
+        miss every case this exists for. Deliberately not gated on
+        `player.connected` either: a half-open socket the server has not noticed
+        yet must not lock the real owner out, and the WS endpoint already
+        supersedes a stale socket (CLOSE_SUPERSEDED) when the second one opens.
+        """
+        typed = normalise_rejoin_code(code)
+        if not typed:
+            raise ValueError("enter your rejoin code")
+        for player in match.players.values():
+            # Constant-time per comparison, like every other credential check
+            # here (see backend/preview.py): a character-by-character early exit
+            # would leak the prefix of a live code.
+            if player.rejoin_code and hmac.compare_digest(player.rejoin_code, typed):
+                return player
+        raise ValueError("no seat matches that code")
 
     def set_team(
         self, match: Match, player_id: str, team_id: str

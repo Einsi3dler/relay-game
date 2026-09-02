@@ -66,6 +66,10 @@ class Event:
 class Player:
     id: str  # long + random — it is the WS credential
     name: str
+    # Short, readable, and a credential all the same: it buys back `id`, so it
+    # reaches only this player (`private`) and their own Grandmaster
+    # (`Team.public(reveal_codes=True)`). Never broadcast.
+    rejoin_code: str = ""
     team_id: str | None = None  # None while unassigned in the lobby
     # "lobby" | "solving" | "cleared" | "bonus" | "duelling" | "leading" | "finished"
     status: str = "lobby"
@@ -159,6 +163,9 @@ class Player:
             view["deadline"] = mine
         return {
             **self.public(),
+            # Your own seat, and only ever your own: this is what buys `id` back
+            # after a browser is lost, so it rides the personalised `me` block.
+            "rejoin_code": self.rejoin_code,
             "current_puzzle": view,
             "timer_kind": self.timer_kind,
             "timer_deadline": self.timer_deadline,
@@ -192,7 +199,7 @@ class Team:
 
     def public(
         self, players: dict[str, Player], silenced: bool = False,
-        hide_games: bool = False,
+        hide_games: bool = False, reveal_codes: bool = False,
     ) -> dict[str, Any]:
         """Full view: own team for its leader, and everyone in the lobby.
 
@@ -200,6 +207,11 @@ class Team:
         roles stay visible so the sides can be balanced before the start, but
         which game each of them will actually play does not — that is the
         loadout, and scouting it before the race is not part of the game.
+
+        `reveal_codes` adds each member's rejoin code, so a Grandmaster can read
+        one back to a player who lost their browser. Off everywhere else: the
+        code buys a seat, so the lobby view and the finished-match view (both of
+        which every player receives) must never carry it.
 
         Under `silenced` (the Silence perk) the progress read-out is masked —
         `green_count` and every playing member's status go null. The shape is
@@ -216,6 +228,9 @@ class Team:
             view["board_deadline"] = (
                 member.puzzle_deadline if member.deadline_is_hidden() else None
             )
+        if reveal_codes:
+            for member, view in zip(members, roster):
+                view["rejoin_code"] = member.rejoin_code
         if hide_games:
             for view in roster:
                 view["assigned_game"] = None
@@ -414,7 +429,13 @@ class Match:
             return team.summary(self.players)
         if me.is_leader:
             if team.id == me.team_id:
-                return team.public(self.players, silenced=is_future(team.silenced_until))
+                # The one view that carries rejoin codes: a Grandmaster is the
+                # person a stranded player asks for theirs.
+                return team.public(
+                    self.players,
+                    silenced=is_future(team.silenced_until),
+                    reveal_codes=True,
+                )
             return team.summary(self.players, include_green=True)
         if team.id == me.team_id:
             return team.summary(self.players)
