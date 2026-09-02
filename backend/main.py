@@ -433,6 +433,8 @@ def _run_lobby_action(match: Match, player_id: str, fields: dict) -> EngineResul
         return engine.leave_match(match, player_id)
     if action == "claim_leader":
         return engine.claim_leader(match, player_id)
+    if action == "release_leader":
+        return engine.release_leader(match, player_id)
     if action == "assign_role":
         return engine.assign_role(
             match, player_id, fields.get("target_id", ""), fields.get("role_id", "")

@@ -1,0 +1,583 @@
+/* The Relay — the lobby.
+ *
+ * Scoped to `#view-lobby` plus the `lobby-active` body class that show()
+ * toggles, on the same dark palette as every other surface. It was the last
+ * light screen in the app: walking join -> lobby -> play used to go dark,
+ * light, dark.
+ *
+ * The shape follows what the screen is for. The two squads face each other at
+ * the top, because balancing them is the first job. Underneath, the two jobs
+ * that belong to one person each: the Grandmaster's assignment table on the
+ * left, the host's dials on the right. A player who is neither sees only the
+ * teams, which is the whole screen collapsing to the part that is theirs.
+ */
+
+body.lobby-active { background: var(--gm-bg); }
+body.lobby-active .topbar { display: none; }
+
+#view-lobby {
+  width: min(1520px, calc(100% - 26px));
+  max-width: none;
+  margin: 0 auto 30px;
+  padding: 14px 0 0;
+  color: var(--gm-text);
+  font-variant-numeric: tabular-nums;
+}
+
+#view-lobby :focus-visible {
+  outline: 3px solid var(--gm-yellow);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.lb-spacer { flex: 1; }
+.lb-field__label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+
+/* --- the bar ----------------------------------------------------------- */
+
+.lb-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  margin-bottom: var(--gm-gap);
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-lg);
+  background: linear-gradient(180deg, var(--gm-panel-2), var(--gm-panel));
+}
+.lb-mark { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.lb-mark svg { width: 17px; height: 23px; color: var(--gm-yellow); }
+.lb-mark span {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-weight: 900;
+  font-size: 1.15rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.lb-title { min-width: 0; padding-left: 18px; border-left: 1px solid var(--gm-line); }
+#view-lobby h1 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gm-violet);
+}
+.lb-title p { margin: 2px 0 0; color: var(--gm-muted); font-size: 0.86rem; }
+
+.lb-code {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  padding: 7px 16px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-sm);
+  background: rgba(7, 9, 31, 0.5);
+}
+.lb-code strong {
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  color: var(--gm-yellow);
+}
+
+/* --- buttons ------------------------------------------------------------ */
+
+#view-lobby .lb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 9px 16px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-sm);
+  background: rgba(122, 140, 255, 0.12);
+  color: var(--gm-text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+#view-lobby .lb-btn:hover:not(:disabled) { background: rgba(122, 140, 255, 0.26); }
+#view-lobby .lb-btn:active:not(:disabled) { transform: translateY(1px); }
+#view-lobby .lb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.lb-btn--alpha { border-color: var(--alpha); background: color-mix(in srgb, var(--alpha) 22%, transparent); }
+.lb-btn--bravo { border-color: var(--bravo); background: color-mix(in srgb, var(--bravo) 22%, transparent); }
+.lb-btn--claim { border-color: rgba(255, 210, 28, 0.55); color: var(--gm-yellow); background: rgba(255, 210, 28, 0.12); }
+#view-lobby .lb-btn--danger {
+  width: 100%;
+  border-color: rgba(255, 81, 101, 0.5);
+  background: rgba(255, 81, 101, 0.12);
+  color: #ff8b98;
+}
+
+/* --- the two squads ----------------------------------------------------- */
+
+.lb-teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: var(--gm-gap);
+}
+
+.lb-team {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--team-edge, var(--gm-line));
+  border-radius: var(--gm-radius-lg);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--team-edge, #7a8cff) 14%, transparent), transparent 42%),
+    var(--gm-panel);
+  overflow: hidden;
+}
+.lb-team--alpha { --team-edge: var(--alpha); }
+.lb-team--bravo { --team-edge: var(--bravo); }
+
+.lb-team__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--gm-line-soft);
+}
+.lb-team__sigil { font-size: 1.2rem; }
+#view-lobby .lb-team__head h2 {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--team-edge);
+}
+.lb-tag {
+  flex: none;
+  padding: 4px 11px;
+  border: 1px solid var(--gm-line);
+  border-radius: 999px;
+  background: rgba(7, 9, 31, 0.5);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+/* Your own squad is the one you act on, so it is the one that is lit. */
+.lb-tag.tag-mine { border-color: var(--gm-green); color: var(--gm-green); }
+
+/* The roster rows. `renderLobby` builds <li> with a label span and an optional
+   .host-controls span, so the row is a two-part flex and nothing here depends
+   on what is inside either part. */
+#view-lobby .lb-roster { list-style: none; margin: 0; padding: 0; flex: 1; }
+#view-lobby .lb-roster li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border: 0;
+  border-top: 1px solid var(--gm-line-soft);
+  background: none;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+#view-lobby .lb-roster li:first-child { border-top: 0; }
+#view-lobby .lb-roster li > span:first-child { flex: 1; min-width: 0; }
+#view-lobby .host-controls { display: flex; gap: 6px; flex: none; }
+#view-lobby .host-controls .mini-btn {
+  min-height: 32px;
+  padding: 5px 11px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-sm);
+  background: rgba(122, 140, 255, 0.12);
+  color: var(--gm-text);
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+#view-lobby .host-controls .mini-btn:hover { background: rgba(122, 140, 255, 0.28); }
+#view-lobby .host-controls .mini-btn .gm-ic { color: var(--team-color, currentColor); }
+#view-lobby .host-controls .mini-btn.kick {
+  border-color: rgba(255, 81, 101, 0.5);
+  background: rgba(255, 81, 101, 0.12);
+  color: #ff8b98;
+}
+
+.lb-team__foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-top: 1px solid var(--gm-line-soft);
+  background: rgba(7, 9, 31, 0.4);
+}
+.lb-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--gm-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+/* Not decoration: it is the one mark on the screen saying these two lists are
+   opposed rather than one long roster split in half. */
+.lb-vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+}
+.lb-vs span {
+  font-family: "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gm-yellow);
+}
+
+/* --- panels ------------------------------------------------------------- */
+
+.lb-deck {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.85fr);
+  gap: var(--gm-gap);
+  align-items: start;
+}
+
+.lb-panel {
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-md);
+  background: var(--gm-panel);
+  overflow: hidden;
+}
+.lb-panel--waiting { margin-bottom: var(--gm-gap); }
+.lb-panel--waiting:not([hidden]):has(.lb-roster:empty) { display: none; }
+.lb-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--gm-line-soft);
+  background: linear-gradient(180deg, rgba(122, 140, 255, 0.09), transparent);
+}
+#view-lobby .lb-panel__head h2 {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.lb-panel--host .lb-panel__head { color: var(--gm-violet); }
+.lb-panel__note {
+  margin: 0;
+  padding: 12px 16px 0;
+  color: var(--gm-muted);
+  font-size: 0.84rem;
+}
+.lb-panel__foot {
+  margin: 0;
+  padding: 10px 16px 14px;
+  color: var(--gm-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+/* --- the assignment table ----------------------------------------------- */
+
+#assign-panel { --lb-cols: minmax(96px, 0.85fr) minmax(120px, 1fr) minmax(96px, 0.9fr) minmax(120px, 1fr); }
+
+.lb-assign__head,
+#view-lobby .assign-row {
+  display: grid;
+  grid-template-columns: var(--lb-cols);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+}
+.lb-assign__head {
+  margin-top: 12px;
+  border-top: 1px solid var(--gm-line-soft);
+  border-bottom: 1px solid var(--gm-line-soft);
+  background: rgba(7, 9, 31, 0.45);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+#view-lobby .assign-row {
+  border-bottom: 1px solid var(--gm-line-soft);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+#view-lobby .assign-row:last-child { border-bottom: 0; }
+/* The Grandmaster's own row: on the table because they are on the team, but
+   nothing on it is a control, because the seat has no board to hand out. */
+#view-lobby .assign-row.is-leader { background: rgba(255, 210, 28, 0.06); }
+#view-lobby .assign-row .muted { color: var(--gm-muted); font-size: 0.8rem; }
+
+#view-lobby .assign-select,
+#view-lobby .lb-select {
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-sm);
+  background: var(--gm-bg);
+  color: var(--gm-text);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+#view-lobby .assign-select:disabled { opacity: 0.5; }
+
+/* The face-plus-name pair, shared by the roster rows and the assignment table
+   so a teammate looks the same in both places. */
+.lb-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+#view-lobby .gm-avatar { width: 34px; height: 34px; }
+.lb-who__box { min-width: 0; }
+.lb-who__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb-who__name .gm-ic--crown { color: var(--gm-yellow); }
+.lb-who__role {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--gm-cyan);
+}
+#view-lobby .lb-roster li.is-leader { background: rgba(255, 210, 28, 0.07); }
+#view-lobby .lb-roster li.is-leader .lb-who__role { color: var(--gm-yellow); }
+
+.lb-badge {
+  padding: 2px 8px;
+  border: 1px solid var(--gm-line);
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+.lb-badge--you { border-color: var(--gm-green); color: var(--gm-green); }
+.lb-badge--off { border-color: rgba(255, 166, 43, 0.5); color: var(--gm-amber); }
+
+.lb-team__sigil {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 9px;
+  border: 1px solid var(--team-color, var(--gm-line));
+  color: var(--team-color, var(--gm-text));
+}
+.lb-team__sigil .gm-ic { width: 20px; height: 20px; }
+
+.lb-btn--release {
+  border-color: rgba(255, 166, 43, 0.5);
+  background: rgba(255, 166, 43, 0.12);
+  color: var(--gm-amber);
+}
+
+.lb-fixed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--gm-muted);
+}
+.lb-fixed .gm-ic--game { color: var(--gm-violet); }
+
+/* --- host dials ---------------------------------------------------------- */
+
+.lb-set {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--gm-line-soft);
+}
+.lb-set__what { flex: 1; min-width: 0; font-size: 0.88rem; }
+.lb-set__note {
+  display: block;
+  margin-top: 3px;
+  color: var(--gm-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+.lb-set--name { display: block; }
+.lb-set--name > label { display: block; margin-bottom: 8px; font-size: 0.88rem; }
+/* The base select rule is id-scoped, so this has to be too or it loses and the
+   dial swallows its own label. */
+#view-lobby .lb-set .lb-select { width: auto; min-width: 176px; flex: none; }
+.lb-set__what { flex: 1 1 auto; }
+#view-lobby .lb-team__foot .lb-btn { flex: none; }
+
+.lb-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 4px;
+  border: 1px solid var(--gm-line);
+  border-radius: 999px;
+  background: rgba(7, 9, 31, 0.5);
+}
+.lb-stepper strong { min-width: 30px; text-align: center; font-weight: 900; }
+#view-lobby .lb-step {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(122, 140, 255, 0.16);
+  color: var(--gm-text);
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+#view-lobby .lb-step:hover:not(:disabled) { background: rgba(122, 140, 255, 0.32); }
+#view-lobby .lb-step:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.lb-rename { display: flex; gap: 9px; }
+#view-lobby .lb-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-sm);
+  background: var(--gm-bg);
+  color: var(--gm-text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+#view-lobby .lb-go {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 16px;
+  min-height: 54px;
+  padding: 14px 20px;
+  border: 0;
+  border-radius: var(--gm-radius-md);
+  background: linear-gradient(180deg, #ffd85a, var(--gm-yellow));
+  color: #241a05;
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(255, 210, 28, 0.24);
+}
+#view-lobby .lb-go:hover:not(:disabled) { background: linear-gradient(180deg, #ffe89a, #ffdd4d); }
+#view-lobby .lb-go:disabled {
+  background: rgba(122, 140, 255, 0.14);
+  color: var(--gm-muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.lb-blocker {
+  margin: 0 16px 14px;
+  text-align: center;
+  color: var(--gm-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.lb-panel--host .lb-btn--danger { width: calc(100% - 32px); margin: 0 16px; }
+
+/* --- the way out --------------------------------------------------------- */
+
+.lb-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: var(--gm-gap);
+  padding: 12px 16px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-md);
+  background: var(--gm-panel);
+}
+#view-lobby .lb-foot__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-sm);
+  background: rgba(122, 140, 255, 0.1);
+  color: var(--gm-text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+#view-lobby .lb-foot__btn:hover { background: rgba(122, 140, 255, 0.24); }
+.lb-foot__btn strong { display: block; font-size: 0.9rem; font-weight: 900; }
+.lb-foot__btn span span,
+.lb-foot__btn > span { font-size: 0.76rem; color: var(--gm-muted); }
+.lb-foot__btn--out { margin-left: auto; }
+.lb-foot__btn--out:hover { border-color: rgba(255, 81, 101, 0.5); }
+
+/* --- responsive ---------------------------------------------------------- */
+
+@media (max-width: 1099px) {
+  .lb-deck { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 859px) {
+  /* Two squads cannot face each other across a phone, so they stack and the
+     VS becomes a divider between them rather than a gutter. */
+  .lb-teams { grid-template-columns: minmax(0, 1fr); }
+  .lb-vs { width: auto; padding: 2px 0; }
+  #view-lobby { width: calc(100% - 18px); }
+  .lb-bar { gap: 12px; padding: 12px; }
+  .lb-title { padding-left: 0; border-left: 0; }
+  .lb-code { margin-left: 0; }
+  #assign-panel { --lb-cols: minmax(0, 1fr) minmax(0, 1fr); }
+  .lb-assign__head { display: none; }
+  #view-lobby .assign-row { row-gap: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #view-lobby *, #view-lobby *::before, #view-lobby *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
