@@ -697,6 +697,13 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
                             with contextlib.suppress(Exception):
                                 await kicked_socket.close(code=protocol.CLOSE_KICKED)
                     await apply_and_broadcast(match, result)
+                    if player_id in result.kicked_player_ids:
+                        # `leave` is the one action that kicks its own caller,
+                        # so the loop above has just closed *this* socket. Stand
+                        # down instead of going back around to receive_json,
+                        # which would raise on a socket the server itself shut.
+                        # The broadcast above already told everyone else.
+                        return
                     if match.status == "cancelled":
                         # The lobby is gone. Everyone has the snapshot saying
                         # so; close them out and drop the match rather than

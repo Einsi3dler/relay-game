@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import inspect
+import re
 import time
 from contextlib import contextmanager
 from urllib.parse import parse_qs, urlparse
@@ -948,6 +951,234 @@ def test_duel_renderers_are_served(client, duel_id):
     assert response.status_code == 200
     assert "RelayDuels" in response.text
     assert f'/static/duels/{duel_id}.js' in client.get("/play").text
+
+
+# --- the ways out, over the socket ---------------------------------------
+#
+# `release_leader` was wired in the engine, the dispatcher and the button, and
+# still did nothing, because the one list that decides whether a message reaches
+# the engine had never heard of it. It was only ever tested at the engine. Every
+# door out of a match now gets driven the way a player drives it, because the
+# seam that broke is the seam between the button and the rules.
+
+
+def state_until(ws, ready, tries: int = 30) -> dict:
+    """The next snapshot that satisfies `ready`, failing loudly on a refusal.
+
+    `next_state` returns the *first* snapshot queued, which on a socket that has
+    been sitting there is usually one from before the action under test. Say
+    what you are waiting for instead of counting messages.
+    """
+    for _ in range(tries):
+        message = ws.receive_json()
+        if message["type"] == "error":
+            raise AssertionError(f"action refused: {message['error']}")
+        if message["type"] == "state_snapshot" and ready(message["state"]):
+            return message["state"]
+    raise AssertionError("no snapshot matched")
+
+
+def test_every_lobby_action_has_a_dispatch_arm():
+    """`_run_lobby_action` ends in a bare `return engine.claim_host(...)`, so an
+    action added to the whitelist without an arm does not error — it silently
+    becomes a claim on the host seat. Read the arms out of the source and make
+    the fallthrough prove it is the only one."""
+    source = inspect.getsource(server._run_lobby_action)
+    dispatched = set(re.findall(r'action == "([a-z_]+)"', source))
+    missing = set(protocol.LOBBY_ACTIONS) - dispatched - {"claim_host"}
+    assert not missing, f"these fall through to claim_host: {sorted(missing)}"
+
+
+def test_a_player_can_leave_and_the_seat_is_freed(client, fake_games):
+    """The lobby's own exit button. The socket closes the way a kick does, and
+    the client tells the two apart by remembering that it asked."""
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", "alpha").json()["player"]["id"]
+    guest_id = join(client, match_id, "Guest", "alpha").json()["player"]["id"]
+    with connect(client, match_id, host_id) as (host_ws, _):
+        with connect(client, match_id, guest_id) as (guest_ws, _):
+            guest_ws.send_json({"type": "lobby_action", "action": "leave"})
+            with pytest.raises(WebSocketDisconnect) as caught:
+                for _ in range(10):
+                    guest_ws.receive_json()
+            assert caught.value.code == protocol.CLOSE_KICKED
+        state = state_until(
+            host_ws, lambda s: len(s["teams"]["alpha"]["players"]) == 1)
+    names = [p["name"] for p in state["teams"]["alpha"]["players"]]
+    assert names == ["Host"], "the seat should be gone, not just empty"
+    # And the id is dead: a seat that was left cannot be reconnected to.
+    with pytest.raises(WebSocketDisconnect) as caught:
+        with client.websocket_connect(
+            f"/ws/matches/{match_id}?player_id={guest_id}"
+        ) as ws:
+            ws.receive_json()
+    assert caught.value.code == protocol.CLOSE_UNKNOWN
+
+
+def test_the_host_leaving_passes_the_seat_on(client, fake_games):
+    """Leaving must never strand a lobby, so the host seat goes to whoever is
+    still in the room rather than out of the door with them."""
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", "alpha").json()["player"]["id"]
+    guest_id = join(client, match_id, "Guest", "bravo").json()["player"]["id"]
+    with connect(client, match_id, guest_id) as (guest_ws, _):
+        with connect(client, match_id, host_id) as (host_ws, _):
+            host_ws.send_json({"type": "lobby_action", "action": "leave"})
+            with pytest.raises(WebSocketDisconnect):
+                for _ in range(10):
+                    host_ws.receive_json()
+        state = state_until(guest_ws, lambda s: s["host_player_id"] == guest_id)
+    assert state["host_player_id"] == guest_id
+    assert state["teams"]["alpha"]["players"] == []  # the seat left with them
+
+
+def test_cancel_session_shuts_every_socket_and_bins_the_match(client, fake_games):
+    """The host's way out of a lobby that is not going to happen. Everyone is
+    closed with 4402 — its own code, so the client can say "the host cancelled"
+    rather than "you were kicked" — and the match stops resolving, so nobody
+    can rejoin a lobby that no longer exists."""
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", "alpha").json()["player"]["id"]
+    guest_id = join(client, match_id, "Guest", "bravo").json()["player"]["id"]
+    with connect(client, match_id, guest_id) as (guest_ws, _):
+        with connect(client, match_id, host_id) as (host_ws, _):
+            host_ws.send_json(
+                {"type": "lobby_action", "action": "cancel_session"})
+            with pytest.raises(WebSocketDisconnect) as host_caught:
+                for _ in range(10):
+                    host_ws.receive_json()
+            assert host_caught.value.code == protocol.CLOSE_CANCELLED
+        with pytest.raises(WebSocketDisconnect) as guest_caught:
+            for _ in range(10):
+                guest_ws.receive_json()
+        assert guest_caught.value.code == protocol.CLOSE_CANCELLED
+    assert client.get(f"/api/matches/{match_id}").status_code == 404
+
+
+def test_end_session_stops_a_running_match_for_everyone(client, fake_games):
+    """The one host control that outlives the lobby. It does not close sockets:
+    the match finishes, and everybody watches it finish."""
+    match_id = create_match(client)
+    ids = fill_match(client, match_id)
+    with connect(client, match_id, ids["bravo"][0]) as (player_ws, _):
+        with connect(client, match_id, ids["alpha-lead"]) as (host_ws, _):
+            host_ws.send_json({"type": "lobby_action", "action": "end_session"})
+            done = state_until(host_ws, lambda s: s["status"] == "finished")
+            assert done["status"] == "finished"
+        state = state_until(player_ws, lambda s: s["status"] == "finished")
+    assert state["status"] == "finished"
+    assert state["ended_reason"] == "host_ended"
+    assert state["winner_team_id"] is None  # stopped, not won
+
+
+def test_only_the_host_can_end_or_cancel(client, fake_games):
+    match_id = create_match(client)
+    join(client, match_id, "Host", "alpha")
+    guest_id = join(client, match_id, "Guest", "bravo").json()["player"]["id"]
+    with connect(client, match_id, guest_id) as (ws, _):
+        for action in ("cancel_session", "end_session"):
+            ws.send_json({"type": "lobby_action", "action": action})
+            assert drain_for_error(ws)
+    assert client.get(f"/api/matches/{match_id}").json()["match"]["status"] == "lobby"
+
+
+def test_an_absent_host_seat_can_be_claimed(client, fake_games):
+    """`claim_host` is the dispatcher's fallthrough arm, so it is the one action
+    whose wiring cannot be proved by watching it get refused."""
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", "alpha").json()["player"]["id"]
+    guest_id = join(client, match_id, "Guest", "bravo").json()["player"]["id"]
+    with connect(client, match_id, guest_id) as (ws, _):
+        # Not while the host is here.
+        ws.send_json({"type": "lobby_action", "action": "claim_host"})
+        assert "still here" in drain_for_error(ws)
+    with client.websocket_connect(
+        f"/ws/matches/{match_id}?player_id={host_id}"
+    ) as host_ws:
+        host_ws.receive_json(); host_ws.receive_json()
+    with connect(client, match_id, guest_id) as (ws, _):
+        ws.send_json({"type": "lobby_action", "action": "claim_host"})
+        state = next_state(ws, tries=30)
+    assert state["host_player_id"] == guest_id
+
+
+def test_the_host_can_move_and_rename_over_the_socket(client, fake_games):
+    """Two host controls with no socket coverage of their own."""
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", "alpha").json()["player"]["id"]
+    guest_id = join(client, match_id, "Guest", None).json()["player"]["id"]
+    with connect(client, match_id, host_id) as (ws, _):
+        ws.send_json({"type": "lobby_action", "action": "move",
+                      "target_id": guest_id, "team_id": "bravo"})
+        state = next_state(ws, tries=30)
+        assert [p["name"] for p in state["teams"]["bravo"]["players"]] == ["Guest"]
+        assert state["unassigned"] == []
+        ws.send_json({"type": "lobby_action", "action": "set_team_name",
+                      "team_id": "alpha", "name": "Kestrel"})
+        state = next_state(ws, tries=30)
+    assert state["teams"]["alpha"]["name"] == "Kestrel"
+
+
+# --- the Grandmaster seat, over the socket --------------------------------
+
+
+def test_the_grandmaster_seat_can_be_handed_over_in_the_lobby(client, fake_games):
+    """The lobby handoff is not the mid-match one: it moves the flag and
+    nothing else. `give_leader` covers both, so both need driving."""
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", "alpha").json()["player"]["id"]
+    mate_id = join(client, match_id, "Mate", "alpha").json()["player"]["id"]
+    with connect(client, match_id, host_id) as (ws, _):
+        ws.send_json({"type": "lobby_action", "action": "claim_leader"})
+        assert next_state(ws, tries=30)["me"]["is_leader"] is True
+        ws.send_json({"type": "give_leader", "target_id": mate_id})
+        state = next_state(ws, tries=30)
+    assert state["me"]["is_leader"] is False
+    assert state["teams"]["alpha"]["leader_id"] == mate_id
+    # Lobby only: nobody was demoted out of a board they were playing.
+    assert state["me"]["status"] == "lobby"
+    with connect(client, match_id, mate_id) as (_, me):
+        assert me["is_leader"] is True
+
+
+def test_the_seat_goes_round_the_houses_and_still_works(client, fake_games):
+    """Claim it, step down, claim it again, hand it on. Each of those is a
+    different engine method reached through the same one-word action, and the
+    seat has to end up where the last one put it."""
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", "alpha").json()["player"]["id"]
+    mate_id = join(client, match_id, "Mate", "alpha").json()["player"]["id"]
+    with connect(client, match_id, host_id) as (ws, _):
+        ws.send_json({"type": "lobby_action", "action": "claim_leader"})
+        assert next_state(ws, tries=30)["teams"]["alpha"]["leader_id"] == host_id
+        ws.send_json({"type": "lobby_action", "action": "release_leader"})
+        assert next_state(ws, tries=30)["teams"]["alpha"]["leader_id"] is None
+        ws.send_json({"type": "lobby_action", "action": "claim_leader"})
+        assert next_state(ws, tries=30)["teams"]["alpha"]["leader_id"] == host_id
+        ws.send_json({"type": "give_leader", "target_id": mate_id})
+        state = next_state(ws, tries=30)
+    assert state["teams"]["alpha"]["leader_id"] == mate_id
+
+
+def test_a_released_seat_can_be_taken_by_someone_else(client, fake_games):
+    """What stepping down is for: `claim_leader` refuses a seat whose holder is
+    present, so releasing has to actually free it for a teammate."""
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", "alpha").json()["player"]["id"]
+    mate_id = join(client, match_id, "Mate", "alpha").json()["player"]["id"]
+    with connect(client, match_id, mate_id) as (mate_ws, _):
+        with connect(client, match_id, host_id) as (host_ws, _):
+            host_ws.send_json({"type": "lobby_action", "action": "claim_leader"})
+            next_state(host_ws, tries=30)
+            # Taken, and its holder is right here.
+            mate_ws.send_json({"type": "lobby_action", "action": "claim_leader"})
+            assert "Grandmaster" in drain_for_error(mate_ws)
+            host_ws.send_json({"type": "lobby_action", "action": "release_leader"})
+            state_until(host_ws, lambda s: s["teams"]["alpha"]["leader_id"] is None)
+        mate_ws.send_json({"type": "lobby_action", "action": "claim_leader"})
+        state = state_until(
+            mate_ws, lambda s: s["teams"]["alpha"]["leader_id"] == mate_id)
+    assert state["teams"]["alpha"]["leader_id"] == mate_id
 
 
 # --- God mode over the wire (backend/god.py) ------------------------------
