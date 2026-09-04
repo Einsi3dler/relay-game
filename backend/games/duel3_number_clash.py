@@ -57,10 +57,13 @@ class NumberClash:
     # The module scores the match itself (see the header), so one returned
     # winner *is* the duel.
     wins_needed = 1
+    staked = False   # fought with the team's coins? Not this one.
 
     # --- lifecycle -------------------------------------------------------
 
-    def new_duel(self, seed: int) -> DuelState:
+    def new_duel(
+        self, seed: int, stakes: dict[str, int] | None = None
+    ) -> DuelState:
         # Both hands are 1..9; `seed` is part of the contract for duel games
         # that randomise their setup.
         return DuelState(

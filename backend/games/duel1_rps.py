@@ -39,8 +39,11 @@ class RockPaperScissorsDuel:
     name = "Rock Paper Scissors"
     choice_seconds = CHOICE_SECONDS
     wins_needed = WINS_NEEDED
+    staked = False   # fought with the team's coins? Not this one.
 
-    def new_duel(self, seed: int) -> DuelState:
+    def new_duel(
+        self, seed: int, stakes: dict[str, int] | None = None
+    ) -> DuelState:
         # RPS has no randomised setup; `seed` is part of the contract for duel
         # games that do. The payload is pure render data — the move set the
         # client draws buttons for, and the rules it displays.

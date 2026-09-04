@@ -160,7 +160,13 @@ def test_a_duel_plays_to_a_finish_and_pays_the_winner(engine_for, module, seed):
     assert winner_side in SIDES
     winner = match.players[duel.sides[winner_side]]
     loser = match.players[duel.sides[other_side(winner_side)]]
-    assert green(winner) and not green(loser)
+    assert green(winner)
+    # Losing holds your team back only while another duel is still coming. A
+    # staked duel is fought once a level, so its loser stands down green with
+    # the winner and carries the once-per-level advance lock instead.
+    series_over = match.duels_played >= match.config_snapshot["duels_per_level"]
+    assert green(loser) is series_over
+    assert series_over == bool(getattr(module, "staked", False))
     assert match.teams[duel.team_of[winner_side]].currency >= config.DUEL_WIN_CURRENCY
     assert winner.coins_earned >= config.DUEL_WIN_CURRENCY
     # Both moves are public now, and the duel says who took it.

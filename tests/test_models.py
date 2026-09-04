@@ -102,8 +102,9 @@ def test_match_public_shape():
     assert set(out) == {"id", "status", "host_player_id", "min_players",
                         "max_players", "level_count", "duel_round_seconds",
                         "ended_reason", "winner_team_id", "config", "teams",
-                        "unassigned", "events", "duel", "me"}
+                        "unassigned", "events", "duel", "pending_stake", "me"}
     assert out["duel"] is None  # no Duelists in this fixture
+    assert out["pending_stake"] is None  # and nothing being funded
     assert out["status"] == "active"
     assert out["winner_team_id"] is None
     assert out["config"]["wait_seconds"] == 180

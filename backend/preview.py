@@ -127,7 +127,23 @@ def _seated_match(engine: RelayEngine) -> tuple[Match, dict, dict]:
 def _started(engine: RelayEngine) -> tuple[Match, dict, dict]:
     match, seats, leaders = _seated_match(engine)
     engine.start_match(match, now=_now())
+    _settle_stake(engine, match, leaders)
     return match, seats, leaders
+
+
+def _settle_stake(engine: RelayEngine, match: Match, leaders: dict) -> None:
+    """Fund a staked duel (BID WAR) so the gallery has one to draw.
+
+    A staked duel does not exist until both Grandmasters answer, so a preview
+    that skipped this would render an empty card rather than the game.
+    """
+    if match.pending_stake is None:
+        return
+    for leader in leaders.values():
+        engine.answer_stake(match, leader.id, PREVIEW_STAKE, now=_now())
+
+
+PREVIEW_STAKE = 20  # a purse big enough for the card to look like a real sale
 
 
 def _clear(engine: RelayEngine, match: Match, player) -> None:

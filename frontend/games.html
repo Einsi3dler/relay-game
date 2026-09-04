@@ -377,7 +377,7 @@
       <li><a href="#rps-duel"><strong>RPS Duel</strong> Pure prediction. First to two, five seconds a throw.</a></li>
       <li><a href="#crown-duel"><strong>Crown Duel</strong> Five characters, counters, and one hidden rewrite of your hand.</a></li>
       <li><a href="#number-clash"><strong>Number Clash</strong> Nine numbers, each spent once. First to four points.</a></li>
-      <li><a href="#bid-war"><strong>Bid War</strong> Twenty coins, five secret auctions, every bid spent.</a></li>
+      <li><a href="#bid-war"><strong>Bid War</strong> Staked with your team&rsquo;s own coins. Five blind lots, every bid spent.</a></li>
     </ul>
     <p class="tip">Every one of these four is a game about the person opposite you rather than a system to solve. What they did last round is the only real information you have, and they are reading yours the same way.</p>
   </section>
@@ -453,26 +453,34 @@
 
   <section class="view card game-card" id="bid-war">
     <h2><span class="stage-chip stage-duel">Duelist</span> BID WAR</h2>
-    <p class="cat">Head-to-head · bluff and economy</p>
+    <p class="cat">Head-to-head &middot; the staked duel</p>
 
-    <h3>How to play</h3>
+    <h3>This one is bought, not given</h3>
+    <p>The other three duels are free. This one is fought with <strong>your team&rsquo;s own coins</strong>, out of the same purse your Grandmaster buys perks from. Before it opens you ask them for a stake, they answer with whatever they choose, and you bid with exactly that.</p>
+    <p class="beat"><strong>They can grant any number.</strong> More than you asked, less, or nothing at all. Granting nothing is a legal answer: you still play, you just bid with an empty hand.</p>
+    <p class="beat"><strong>The two purses are not equal.</strong> That is the whole design. A Grandmaster who believes in their champion can outfund the other side, and pays for it in perks they now cannot buy. You are never told what the other team staked until the sale opens.</p>
+    <p class="beat"><strong>The grant is spent either way.</strong> It leaves the purse the moment it is granted and does not come back. Only what you <em>win</em> is paid back in. Stake 20, win 12, and your team is 8 down on the exchange.</p>
+    <p class="beat"><strong>Nobody answering is not a stall.</strong> If a Grandmaster leaves it too long, the server stakes a small default for them and the duel starts anyway.</p>
+
+    <h3>How the sale runs</h3>
     <ul>
-      <li>You both start with <strong>20 coins</strong>. Five prizes worth <strong>1 to 5 Victory Points</strong> go under the hammer one at a time, in an order the server shuffles fresh for every duel.</li>
-      <li>You can see the <strong>lot on the block and the one after it</strong>, and no further. Knowing the 5 was still to come would settle every bid before it.</li>
-      <li>Each round you both name an exact bid inside a <strong>10-second</strong> window. The higher bid takes the prize, and <strong>both bids are spent</strong>. The losing bid buys nothing at all.</li>
-      <li><strong>Most Victory Points takes the duel</strong>, however they were bought. Three cheap lots lose to one 5. Coins still in your hand at the end are worth <strong>nothing</strong>.</li>
+      <li>Five lots go under the hammer, each worth <strong>coins</strong>. Both of you secretly name an exact bid inside a <strong>10-second</strong> window.</li>
+      <li>The higher bid takes the lot, and <strong>both bids are spent</strong>. The losing bid buys nothing at all.</li>
+      <li>What you win goes back to <strong>your team&rsquo;s purse</strong>. Most coins won takes the duel, however they were bought.</li>
+      <li>Coins still in your hand at the end are worth <strong>nothing</strong>, and they are not refunded either. Sitting on them is the losing move twice over.</li>
+      <li>An <strong>equal bid pays nobody</strong> and rolls that lot onto the next one, which is then worth both together. If the last lot goes unsold that way it becomes an overtime lot, and you both get a <strong>fresh 5 coins</strong> to fight for it, refilled until somebody takes it.</li>
     </ul>
 
-    <h3>Ties and overtime</h3>
-    <ul>
-      <li>An <strong>equal bid pays nobody</strong> and rolls that prize <strong>onto the next lot</strong>, which is then worth both together. A mirror bid is the expensive way to make the following auction bigger for both of you.</li>
-      <li>If the <strong>last</strong> lot goes unsold that way, it does not evaporate. It becomes an overtime prize, and you both get a <strong>fresh 5 coins</strong> to bid for it. Tie that too and you both get another 5 and bid again for the same lot, until somebody takes it.</li>
-    </ul>
+    <h3>You cannot count the lots</h3>
+    <p>A lot is not drawn from a fixed ladder. It is <strong>rolled when it opens</strong>, and its floor is recalculated from the coins you and your opponent still hold between you.</p>
+    <p class="beat"><strong>Big is never safe to assume.</strong> Paying over the odds because this must be the big one can be answered by the next lot being worth double. Or half.</p>
+    <p class="beat"><strong>Late lots still matter.</strong> Because the floor tracks the money left rather than a fixed table, lots shrink as the purses drain but never stop being worth contesting. The last auction is as live as the first.</p>
+    <p class="beat"><strong>There is no lookahead.</strong> You see the lot on the block and nothing behind it. The next one genuinely does not exist yet: its value depends on what this auction costs the pair of you.</p>
 
-    <h3>The arithmetic</h3>
-    <p>Twenty coins across five lots is an average of four a lot, and the prizes total fifteen points. You do not need to win auctions, you need to win <strong>eight points</strong> worth of them. That is the 5 and the 3, or the 5 and the 4, or the 4 and the 3 and the 1.</p>
-    <p class="beat"><strong>Everything you spend early is a lot you cannot contest later.</strong> Overpaying for the 1 is not just a bad lot, it is a 5 you have disarmed yourself for. And they are doing exactly this arithmetic about you, from a coin balance they can see.</p>
-    <p class="tip">Both balances are public all match, so a low bid is never really a bluff about your wealth, only about your intent. The genuinely hidden thing is which lot you have decided to lose.</p>
+    <h3>One duel, not two</h3>
+    <p>Every other duel is fought twice a level. This one is fought <strong>once</strong>. Both teams already paid for it out of their purses, and a bonus round would ask them to do it again in the same breath. When it resolves, both champions stand down green.</p>
+
+    <p class="tip">Both purses are public the moment the sale opens, so a low bid is never a bluff about your wealth, only about your intent. Two things stay genuinely hidden: what the lot after this one is worth, and which lot you have quietly decided to lose.</p>
   </section>
 
   <section class="view card">

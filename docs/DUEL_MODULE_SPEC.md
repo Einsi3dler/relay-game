@@ -255,3 +255,40 @@ The last three carry state between rounds and score themselves (§4.1, §4.2).
 Crown Duel spends *two* engine rounds on one of its own: a strategy round that
 publishes only whether a Royal Sacrifice happened, then the card round it sets
 up. That beat is skipped once neither Duelist can legally sacrifice.
+
+
+---
+
+## Staked duels
+
+A duel module may declare `staked = True`. BID WAR is the only one that does.
+
+A staked duel is **fought with the two teams' own coins**. The engine collects
+a stake from each Grandmaster before the duel exists, because the module cannot
+open without knowing what each seat can bid.
+
+What the engine guarantees:
+
+- `new_duel(seed, stakes)` is called with `stakes` as `{"a": int, "b": int}` —
+  the coins each side was granted. They are **deliberately unequal**: a
+  Grandmaster funds their own champion, and the other side's grant is never
+  shown to them before the sale opens.
+- `settlement(state) -> {"a": int, "b": int}` is read exactly once, when the
+  duel ends, and paid into the two team purses. Return **winnings only**. The
+  stake left the purse when it was granted and must not be returned, or funding
+  a champion stops being a gamble.
+- A staked duel is fought **once per level**, not twice. `config.DUELS_PER_LEVEL`
+  still governs the free duels; a staked one ends its own series, and both
+  champions stand down green.
+- The engine only deals a staked duel when **both** purses hold at least
+  `config.DUEL_STAKE_MIN_PURSE`. Teams open a match on nothing, so without this
+  the level-one duel would be fought with two empty hands. When it cannot be
+  funded, `registry.pick_duel(seed, free_only=True)` deals a free duel instead.
+
+What the module must still guarantee, unchanged: never raise. `stakes` that is
+missing, short, or holds nonsense is a grant of nothing, not an error — a duel
+that refused to open would strand both teams.
+
+The negotiation itself is engine-side and no module sees it: `PendingStake` on
+the `Match`, the `request_stake` / `answer_stake` client messages, and a
+`stake_request` timer whose lapse auto-grants `config.DUEL_STAKE_DEFAULT`.

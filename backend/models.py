@@ -366,6 +366,68 @@ class DuelSession:
 
 
 @dataclass
+class PendingStake:
+    """A staked duel (BID WAR) waiting on both Grandmasters.
+
+    It sits on the Match rather than inside `DuelSession` on purpose: until
+    both grants are in, the duel has no `DuelState` at all, because the module
+    cannot open the sale without knowing what each seat can bid. This is the
+    gap between "we know who is fighting and with what game" and "the duel
+    exists", and nothing else in the engine has to know about that gap.
+    """
+
+    duel_game_id: str
+    sides: dict[str, str] = field(default_factory=dict)     # side -> player id
+    team_of: dict[str, str] = field(default_factory=dict)   # side -> team id
+    asks: dict[str, int] = field(default_factory=dict)      # side -> requested
+    grants: dict[str, int] = field(default_factory=dict)    # side -> granted
+    deadline: str | None = None  # UTC ISO; lapsing auto-grants the default
+
+    def settled(self) -> bool:
+        """Both Grandmasters have answered, one way or the other."""
+        return all(side in self.grants for side in SIDES)
+
+    def side_of(self, player_id: str) -> str | None:
+        for side, seat_player_id in self.sides.items():
+            if seat_player_id == player_id:
+                return side
+        return None
+
+    def public(self, me: Player, players: dict[str, Player]) -> dict[str, Any]:
+        """What `me` may see of the negotiation.
+
+        A Duelist sees their own ask and their own grant. A Grandmaster sees
+        their champion's ask so they can answer it. Neither side learns what
+        the *other* team staked: an opponent's purse is the one thing worth
+        knowing before the first bid, and it stays hidden until the duel opens
+        and the module's own payload publishes it.
+        """
+        mine = self.side_of(me.id)
+        if mine is None and me.is_leader:
+            mine = next(
+                (
+                    side
+                    for side, team_id in self.team_of.items()
+                    if team_id == me.team_id
+                ),
+                None,
+            )
+        return {
+            "duel_game_id": self.duel_game_id,
+            "deadline": self.deadline,
+            "side": mine,
+            "duellists": {
+                side: players[player_id].name
+                for side, player_id in self.sides.items()
+                if player_id in players
+            },
+            "ask": self.asks.get(mine) if mine else None,
+            "granted": self.grants.get(mine) if mine else None,
+            "settled": mine in self.grants if mine else False,
+        }
+
+
+@dataclass
 class Match:
     id: str
     status: str = "lobby"  # "lobby" | "active" | "finished"
@@ -384,6 +446,9 @@ class Match:
     config_snapshot: dict[str, Any] = field(default_factory=dict)  # frozen at start
     duel: DuelSession | None = None  # the live cross-team duel, if any
     duels_played: int = 0  # duels finished in the current level's series
+    # A staked duel that both Grandmasters still owe an answer on. Never
+    # set at the same time as `duel`: one replaces the other.
+    pending_stake: PendingStake | None = None
 
     def unassigned(self) -> list[Player]:
         """Lobby players who haven't picked (or been given) a team yet."""
@@ -401,6 +466,18 @@ class Match:
         if not (me.is_leader or me.id in self.duel.sides.values()):
             return None
         return self.duel.public(me, self.players, self.duel_window())
+
+    def _stake_view(self, me: Player | None) -> dict[str, Any] | None:
+        """The stake negotiation, for the four seats it concerns.
+
+        Same audience rule as `_duel_view`: the two Duelists and the two
+        Grandmasters. An ordinary solver never learns a duel is being funded.
+        """
+        if self.pending_stake is None or me is None:
+            return None
+        if not (me.is_leader or me.id in self.pending_stake.sides.values()):
+            return None
+        return self.pending_stake.public(me, self.players)
 
     def duel_window(self) -> int | None:
         """The round window in force: the host's override once the match has
@@ -478,5 +555,6 @@ class Match:
             "unassigned": [player.public() for player in self.unassigned()],
             "events": [event.public() for event in events],
             "duel": self._duel_view(me),
+            "pending_stake": self._stake_view(me),
             "me": me.private() if me else None,
         }

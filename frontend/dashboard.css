@@ -1300,3 +1300,14 @@ body.gm-active .host-live .btn {
     transition: none !important;
   }
 }
+
+/* --- staked duels: the Grandmaster answering ----------------------------- */
+
+/* Gold rather than the duel panel's violet: this is a spend, and it reads with
+   the coin board and the perk shop rather than with the fight it pays for. */
+.gm-panel--stake { border-color: rgba(255, 210, 28, 0.4); }
+.gm-panel--stake .gm-panel__head .gm-ic { color: var(--gm-yellow); }
+.gm-panel--stake .stk__row { justify-content: flex-start; margin-top: 12px; }
+.gm-panel--stake .stk__state { font-size: 0.85rem; color: var(--gm-muted); }
+#leader-stake-ask { color: var(--gm-text); font-weight: 800; }
+#leader-stake-clock { color: var(--gm-yellow); }

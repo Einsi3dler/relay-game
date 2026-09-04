@@ -60,9 +60,21 @@ def duel_match(
     return match, members, leaders
 
 
-def start(engine, match):
+def start(engine, match, stake: int = 20):
+    """Start the match, and fund a staked duel if one is waiting.
+
+    BID WAR does not open until both Grandmasters answer, so without this every
+    duel test would find `match.duel` empty. Tests about the *funding* itself
+    live in tests/test_duel_stakes.py and drive the negotiation by hand.
+    """
     result = engine.host_start(match, match.host_player_id, now=NOW)
     assert result.match_started, result.error
+    if match.pending_stake is not None:
+        for team in match.teams.values():
+            team.currency = max(team.currency, stake)
+        for team_id in match.pending_stake.team_of.values():
+            leader_id = match.teams[team_id].leader_id
+            assert engine.answer_stake(match, leader_id, stake, now=NOW).ok
     return result
 
 

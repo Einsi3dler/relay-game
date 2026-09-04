@@ -428,6 +428,24 @@
           <div id="puzzle-mount" class="pl-mount"></div>
         </div>
 
+        <!-- A staked duel (BID WAR) is bought before it is fought. This is the
+             Duelist's half of that: ask, then wait to be answered. -->
+        <div id="stake-card" class="stk" hidden>
+          <h2 class="stk__title">Your Grandmaster funds this duel</h2>
+          <p id="stake-blurb" class="stk__blurb">
+            You bid with your team's own coins. Ask for what you want, then it
+            is their call.
+          </p>
+          <div id="stake-ask-row" class="stk__row">
+            <label class="stk__label" for="stake-input">Ask for</label>
+            <input id="stake-input" class="stk__input" type="number"
+                   min="0" step="1" value="10" inputmode="numeric">
+            <button id="stake-ask" class="stk__go" type="button">Ask</button>
+          </div>
+          <p id="stake-state" class="stk__state"></p>
+          <p id="stake-clock" class="stk__clock"></p>
+        </div>
+
         <!-- Left on the old look on purpose: the Duelist screen has its own
              design coming. See the note in docs/CONTRIBUTING.md. -->
         <div id="duel-card" hidden>
@@ -575,6 +593,30 @@
       <!-- the stage: the two live boards a Grandmaster actually watches. Flex,
            so a hidden duel or a hidden bomb hands its width to the other. -->
       <div class="gm-stage">
+        <section id="leader-stake-card" class="gm-panel gm-panel--stake" hidden>
+          <header class="gm-panel__head">
+            <i class="gm-ic gm-ic--coin" aria-hidden="true"></i>
+            <h2>Stake your champion</h2>
+            <span class="gm-spacer"></span>
+            <span class="gm-panel__meta" id="leader-stake-clock"></span>
+          </header>
+          <p class="gm-panel__sub" id="leader-stake-ask">
+            Your Duelist has not named a number yet.
+          </p>
+          <p class="gm-panel__sub">
+            Whatever you grant leaves the purse now and does not come back. They
+            bid with exactly that, against a purse the other side has set in
+            secret.
+          </p>
+          <div class="stk__row">
+            <label class="stk__label" for="leader-stake-input">Stake</label>
+            <input id="leader-stake-input" class="stk__input" type="number"
+                   min="0" step="1" value="10" inputmode="numeric">
+            <button id="leader-stake-go" class="stk__go" type="button">Fund</button>
+          </div>
+          <p class="stk__state" id="leader-stake-state"></p>
+        </section>
+
         <section id="leader-duel-card" class="gm-panel gm-panel--duel" hidden>
           <header class="gm-panel__head">
             <i class="gm-ic gm-ic--duel" aria-hidden="true"></i>

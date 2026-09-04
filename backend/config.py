@@ -98,6 +98,30 @@ DUEL_REVEAL_SECONDS = 3      # reveal beat between rounds of the same duel
 DUEL_PENALTY_SECONDS = 60    # advance lock on the losing team, once per level
 DUEL_WIN_CURRENCY = 2        # paid to the winning team, doubling per...
 DUEL_CURRENCY_CAP = 8        # ...consecutive win, capped here
+# --- Staked duels (BID WAR) ---
+# A staked duel is bought, not given: the Duelist asks their Grandmaster for
+# coins out of the team purse, and bids with exactly what they are handed. The
+# grant is spent whether they win or lose, so funding a champion is a real
+# trade against the perk shop.
+# Below this in EITHER purse the server deals a free duel instead: teams open
+# a match on nothing, and a staked duel fought with two empty hands is decided
+# by a tiebreak neither side paid for.
+DUEL_STAKE_MIN_PURSE = 8
+DUEL_STAKE_REQUEST_SECONDS = 25  # the window a Grandmaster has to answer
+DUEL_STAKE_DEFAULT = 10          # auto-granted when they never do (capped by
+                                 # what the purse actually holds, including 0)
+# A lot is worth coins, rolled fresh each time, and its floor is recomputed
+# from what BOTH Duelists still hold — so lots shrink in step with the money
+# left and stay worth contesting to the last auction. Floor = combined purses
+# / DIVISOR, ceiling = floor * SPREAD.
+#
+# PROVISIONAL, and the knob to turn first: at 1.2 a single lot is worth close
+# to every coin on the table, so a staked duel pays a team far more than it
+# costs them. Raise the divisor to deflate it (at 4.0 a lot is worth about a
+# quarter of the table) without changing the shape of the game.
+DUEL_STAKE_LOT_FLOOR_DIVISOR = 1.2
+DUEL_STAKE_LOT_SPREAD = 2.0      # a lot rolls in [floor, floor * SPREAD]
+
 # The per-round choice window. Each duel module declares its own natural cost
 # (`choice_seconds`: 5s to throw a hand, 10s to read a hand of cards), and the
 # host may override it for the whole match so every duel runs at the pace their
