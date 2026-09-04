@@ -199,8 +199,16 @@ browser. Approach:
   cannot be lazy, because the server itself must fire to reveal. Any future
   deadline that must run alongside an existing one needs its own scope, or to be
   lazy.
+- The `"duel"` scope carries one more kind than its name suggests:
+  `duel_stake`, the window a staked duel waits for both Grandmasters to fund
+  it (`config.DUEL_STAKE_REQUEST_SECONDS`). It fires *before* `match.duel`
+  exists, so `on_duel_timer` handles it ahead of the guard that requires a live
+  duel. Its lapse grants the default and opens the duel, so an absent
+  Grandmaster can never stall both teams.
 - `main.py`'s fire callback routes on `kind` — `wait` to `on_wait_expired`,
-  `duel_*` to `on_duel_timer`.
+  `duel_*` to `on_duel_timer`. **That prefix is load-bearing**: a duel-scope
+  timer named anything else falls through to `on_wait_expired` with the duel
+  scope in place of a player id, and silently never fires.
 - The engine stays pure: it never sleeps. It only says *"schedule/cancel this
   deadline."* `TimerService` is the only place that touches the clock and the loop.
 

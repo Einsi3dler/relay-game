@@ -87,6 +87,38 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   receives the other's move before the round resolves; a losing team is held
   even when otherwise fully green. · [ALL]
 
+- [x] **V10 Rejoin by code** — a seat survives the browser that claimed it. Every
+  player is given a short readable `rejoin_code` at join;
+  `POST /api/matches/{id}/rejoin` trades it for the original `player_id` at any
+  point in a match, and the client session moved from `sessionStorage` to
+  `localStorage` so closing a tab no longer loses it. The engine already held a
+  disconnected seat indefinitely, so this is identity recovery only:
+  `rejoin` mutates nothing and `on_reconnect` stays the one path that touches
+  match state. Rebinding to the **existing** `Player` is what keeps the frozen
+  `roster_size` correct and leaves a live duel's id-keyed sides intact.
+  **AC:** a lost seat no longer blocks its team from advancing for the rest of
+  the match; a rejoin code reaches only its own player and their own
+  Grandmaster; a deliberate exit (kicked, cancelled) still clears the session.
+  · [C][F]
+
+- [x] **V11 Staked duels (BID WAR)** — the Duelist's coins now come out of the
+  team purse instead of appearing from nowhere. Each Duelist asks their
+  Grandmaster for a stake (`request_stake`) and the Grandmaster answers with any
+  amount they choose (`answer_stake`); the two purses are **deliberately
+  unequal**, the grant is spent win or lose, and only winnings return. Lots are
+  worth coins and are rolled against what both seats still hold, so there is no
+  ladder to count and no lookahead to publish. A staked duel is fought **once**
+  per level. Needed a `DuelModule` extension (`staked`, `new_duel(seed, stakes)`,
+  `settlement`) and a new pre-duel phase (`PendingStake`, the `duel_stake`
+  timer). See [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md) §Staked duels,
+  GAME_DESIGN §2b.
+  **AC:** an absent Grandmaster cannot stall both teams (the window lapses into
+  a default); a staked duel is never dealt to teams that cannot fund one; the
+  opposing stake never reaches the other side, through the snapshot **or** the
+  event feed.
+  **Provisional:** `DUEL_STAKE_LOT_FLOOR_DIVISOR` is inflationary at 1.2 — see
+  [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md). · [ALL]
+
 ### v2 stretch (only after V5–V7)
 
 - [ ] More games for the library (see `game/RELAY_EXPANSION_GAMES_README.md`) —
@@ -349,7 +381,8 @@ For **each** of Game 1–4 (`[G1]`…`[G4]`):
 - [x] ~~Randomised game order or a 5th game~~ — games 5–9 (MIRROR RUN, OVERPRINT,
   STACKDROP, LANE SHIFT, SHADOW CAST) shipped; per-player assignment replaced the
   fixed order.
-- [ ] Rejoin-by-code UX niceties.
+- [x] ~~Rejoin-by-code UX niceties~~ — shipped as **V10** above, including the
+  join-screen rejoin panel and the offer-to-rejoin path on a dropped socket.
 
 ---
 

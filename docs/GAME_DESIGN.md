@@ -94,8 +94,32 @@ others, or one window the **host** sets in the lobby for all of them)
 window lapses — a Duelist who lets it lapse forfeits that round, so stalling never
 pays. Ties replay. The duel ends on the game's own target: first to two for RPS,
 most Crowns over three rounds for CROWN DUEL, first to four points for NUMBER
-CLASH, most Victory Points across five auctions for BID WAR. Which of them you get
+CLASH, most coins won across five lots for BID WAR. Which of them you get
 is the server's pick, not the Grandmaster's.
+
+**Staked duels.** BID WAR is the exception to almost everything above, and it is
+marked `staked` in the catalogue. It is fought with the team's **own coins**
+rather than a pool the game hands out:
+
+- Before it opens, each Duelist asks their Grandmaster for a stake
+  (`request_stake`) and the Grandmaster answers with **any** amount they choose
+  (`answer_stake`), including nothing. The champion bids with exactly that.
+- **The two purses are deliberately unequal.** Funding your champion past the
+  other side is a real advantage, bought with perks you can no longer afford.
+  Neither side sees the other's stake until the sale opens.
+- The grant leaves the purse when it is granted and **does not come back**. Only
+  what the Duelist wins is paid back in, so staking 20 to win 12 is a loss.
+- Lots are worth coins and are **rolled when they open**, with a floor
+  recomputed from what both seats still hold
+  (`DUEL_STAKE_LOT_FLOOR_DIVISOR`). Nobody can count a ladder, and the lot after
+  the current one cannot be shown because its value depends on what this one
+  costs the pair of you.
+- A staked duel is fought **once per level**, not twice. Both teams already paid
+  for it, and the bonus round would ask them to do it again in the same breath.
+  When it resolves, both champions stand down green.
+- The server only deals it when **both** purses hold at least
+  `DUEL_STAKE_MIN_PURSE`. Teams open a match on nothing, so otherwise the
+  level-one duel would be two empty hands settled by a free tiebreak.
 
 **What a duel is worth.**
 

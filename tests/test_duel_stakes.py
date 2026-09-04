@@ -15,7 +15,7 @@ from __future__ import annotations
 import pytest
 
 from backend import config
-from backend.engine import DUEL_SCOPE, RelayEngine
+from backend.engine import DUEL_SCOPE, EngineResult, RelayEngine
 from backend.games.duel4_bid_war import BidWar
 from backend.games.duel_base import SIDES
 from backend.models import green
@@ -246,7 +246,7 @@ def test_the_window_lapsing_funds_both_sides_and_starts_the_duel(engine):
     """A duel that waited forever on an absent Grandmaster would stall both
     teams, so silence is answered with the configured default."""
     match, _, _ = waiting(engine)
-    engine.on_duel_timer(match, DUEL_SCOPE, "stake_request", now=NOW)
+    engine.on_duel_timer(match, DUEL_SCOPE, "duel_stake", now=NOW)
     assert match.pending_stake is None
     assert match.duel is not None
     for side in SIDES:
@@ -258,7 +258,7 @@ def test_the_window_lapsing_funds_both_sides_and_starts_the_duel(engine):
 def test_a_lapse_leaves_an_answer_that_was_already_given_alone(engine):
     match, _, leaders = waiting(engine)
     engine.answer_stake(match, leaders["alpha"].id, 31, now=NOW)
-    engine.on_duel_timer(match, DUEL_SCOPE, "stake_request", now=NOW)
+    engine.on_duel_timer(match, DUEL_SCOPE, "duel_stake", now=NOW)
     duel = match.duel
     assert duel.state.private["coins"][side_of_team_in(duel, "alpha")] == 31
     assert duel.state.private["coins"][side_of_team_in(duel, "bravo")] == (
@@ -270,9 +270,53 @@ def test_an_empty_purse_stakes_nothing_and_still_plays(engine):
     """Not an error. A Duelist with no coins bids zero and reaches overtime,
     which is a bleak position rather than a broken one."""
     match, _, _ = waiting(engine, purse=0)
-    engine.on_duel_timer(match, DUEL_SCOPE, "stake_request", now=NOW)
+    engine.on_duel_timer(match, DUEL_SCOPE, "duel_stake", now=NOW)
     assert match.duel is not None
     assert match.duel.state.private["coins"] == {"a": 0, "b": 0}
+
+
+def test_the_feed_never_carries_a_stake_amount(engine):
+    """The events go to everyone, so a number in one would hand the opposing
+    Duelist exactly the read that the secret stake exists to deny them."""
+    match, _, leaders = waiting(engine)
+    side = side_of_team(match, "alpha")
+    engine.request_stake(match, match.pending_stake.sides[side], 34)
+    engine.answer_stake(match, leaders["alpha"].id, 27, now=NOW)
+    feed = " ".join(event.message for event in match.events)
+    assert "has staked" in feed, "the fact of it is public"
+    assert "34" not in feed and "27" not in feed, "the amount is not"
+
+
+def test_the_staking_timer_is_routed_like_every_other_duel_timer(engine):
+    """`main.py` routes a fired timer on a `duel_` prefix. A duel-scope timer
+    named anything else falls through to `on_wait_expired` with the duel scope
+    in place of a player id, and silently never fires — so the auto-grant that
+    stops an absent Grandmaster stalling both teams would never happen.
+    """
+    import inspect
+
+    from backend import main as server
+
+    match, _, _ = waiting(engine)
+    kind = next(
+        timer.kind for timer in _scheduled(engine, match)
+        if timer.scope_id == DUEL_SCOPE
+    )
+    assert kind.startswith("duel_"), kind
+    # And the routing this depends on is really there.
+    assert 'kind.startswith("duel_")' in inspect.getsource(server._timer_fired)
+
+
+def _scheduled(engine, match):
+    """The timers `_open_staking` asked for, by re-running it on a fresh duel."""
+    result = EngineResult()
+    pending = match.pending_stake
+    seats = engine._duel_seats(match)
+    match.pending_stake = None
+    engine._open_staking(
+        match, result, engine.registry.duel_by_id(pending.duel_game_id), seats, NOW
+    )
+    return result.schedule
 
 
 # --- visibility ---

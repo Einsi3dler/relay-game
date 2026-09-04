@@ -143,7 +143,7 @@ class TimerRequest:
 
     scope_id: str
     kind: str  # "wait" | "puzzle" | "duel_round" | "duel_reveal" | "duel_next"
-               # | "stake_request" (a staked duel waiting on the Grandmasters)
+               # | "duel_stake" (a staked duel waiting on the Grandmasters)
     #          | "duel_penalty"
     deadline: str  # UTC ISO
 
@@ -1803,7 +1803,7 @@ class RelayEngine:
             player.timer_deadline = None
             result.cancel.append(player.id)
         match.pending_stake.deadline = self._start_scope_timer(
-            match, DUEL_SCOPE, "stake_request", result, now,
+            match, DUEL_SCOPE, "duel_stake", result, now,
             seconds=config.DUEL_STAKE_REQUEST_SECONDS,
         )
         names = " vs ".join(player.name for _, player, _ in seats)
@@ -1835,14 +1835,10 @@ class RelayEngine:
         # Asking for more than the purse holds is not an error, it is a
         # negotiating position — but there is no point letting it run away.
         pending.asks[side] = max(0, min(int(amount), team.currency))
-        player = match.players.get(player_id)
-        if player is not None:
-            self._add_event(
-                match, result := EngineResult(changed=True),
-                f"{player.name} asks for {pending.asks[side]} to bid with.",
-                "duel_stake",
-            )
-            return result
+        # Deliberately no event. The ask reaches the one seat that has to answer
+        # it through `pending_stake`, and the feed is broadcast to everybody:
+        # putting a number there would hand the opposing Duelist the read that
+        # the whole secret-stake design exists to deny them.
         return EngineResult(changed=True)
 
     def answer_stake(
@@ -1885,9 +1881,12 @@ class RelayEngine:
         pending.grants[side] = granted
         duellist = match.players.get(pending.sides.get(side, ""))
         who = duellist.name if duellist else "their champion"
+        # *That* they have staked, never how much. The amount is the one thing
+        # worth knowing before the first bid, and it stays in `pending_stake`
+        # where only that team can see it. Their own purse tells them the rest.
         self._add_event(
             match, result,
-            f"Team {team.name} stakes {granted} on {who}.",
+            f"Team {team.name} has staked {who}.",
             "duel_stake",
         )
 
@@ -2190,7 +2189,7 @@ class RelayEngine:
             self._advance_check(match, team, result, now)
             return result
 
-        if (kind == "stake_request" and scope_id == DUEL_SCOPE
+        if (kind == "duel_stake" and scope_id == DUEL_SCOPE
                 and match.status == "active" and match.pending_stake is not None):
             self._stake_timeout(match, result, now)
             return result

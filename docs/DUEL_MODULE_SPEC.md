@@ -249,7 +249,7 @@ a double click sends once, and that unmount leaves nothing behind.
 | **RPS DUEL** — rock, paper, scissors | 3 | 5s | first to 2 | `backend/games/duel1_rps.py` |
 | **CROWN DUEL** — five characters, one hidden hand rewrite | 5 cards + the Royal Sacrifice | 10s | 3 rounds, most Crowns (2 settles it) | `backend/games/duel2_crown.py` |
 | **NUMBER CLASH** — 1–9, each spent once | 9 | 8s | first to 4 points | `backend/games/duel3_number_clash.py` |
-| **BID WAR** — 20 coins, 5 secret auctions | 0–balance | 10s | most Victory Points | `backend/games/duel4_bid_war.py` |
+| **BID WAR** — **staked**, 5 blind lots | 0–balance | 10s | most coins won | `backend/games/duel4_bid_war.py` |
 
 The last three carry state between rounds and score themselves (§4.1, §4.2).
 Crown Duel spends *two* engine rounds on one of its own: a strategy round that
@@ -291,4 +291,4 @@ that refused to open would strand both teams.
 
 The negotiation itself is engine-side and no module sees it: `PendingStake` on
 the `Match`, the `request_stake` / `answer_stake` client messages, and a
-`stake_request` timer whose lapse auto-grants `config.DUEL_STAKE_DEFAULT`.
+`duel_stake` timer whose lapse auto-grants `config.DUEL_STAKE_DEFAULT`.
