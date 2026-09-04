@@ -205,6 +205,17 @@
       if (!code) { showJoinError("Enter a match code."); return; }
       joinMatch(code, name);
     });
+    $("stake-ask").addEventListener("click", function () {
+      send({ type: "request_stake", amount: stakeAmount("stake-input") });
+    });
+    $("leader-stake-go").addEventListener("click", function () {
+      var amount = stakeAmount("leader-stake-input");
+      if (!window.confirm(
+        "Stake " + amount + " on your Duelist? It leaves the purse now and " +
+        "only what they win comes back."
+      )) return;
+      send({ type: "answer_stake", amount: amount });
+    });
     $("rejoin-toggle").addEventListener("click", function () {
       offerRejoin(session && session.matchId, null);
     });
@@ -237,6 +248,11 @@
       $("match-input").value = invited;
       $("name-input").focus();
     }
+  }
+
+  function stakeAmount(id) {
+    var raw = Math.floor(Number($(id).value));
+    return isFinite(raw) && raw > 0 ? raw : 0;
   }
 
   function requireName() {
@@ -1078,7 +1094,65 @@
     renderFrozen(me.frozen_until);
     flushHeldSubmit(me);
     renderScreenEffects(me.screen_effects);
+    renderStake(state);
     renderDuel(state, "duel-card", "duel-mount");
+  }
+
+  // --- staked duels (BID WAR) ---
+  //
+  // A staked duel is bought before it is fought: the Duelist asks, the
+  // Grandmaster answers with whatever they choose, and only then does the duel
+  // exist. Both halves render off `state.pending_stake`, which reaches the two
+  // Duelists and the two Grandmasters and nobody else.
+
+  function renderStake(state) {
+    var pending = state.pending_stake;
+    var card = $("stake-card");
+    var mine = pending && pending.side;
+    // The leader answers this on their own dashboard, not here.
+    var forMe = !!(mine && state.me && !state.me.is_leader);
+    card.hidden = !forMe;
+    if (!forMe) return;
+    $("stake-ask-row").hidden = pending.settled;
+    if (pending.settled) {
+      $("stake-state").textContent =
+        "Funded with " + pending.granted + ". The sale is about to open.";
+    } else if (pending.ask === null || pending.ask === undefined) {
+      $("stake-state").textContent = "";
+    } else {
+      $("stake-state").textContent =
+        "You asked for " + pending.ask + ". Waiting on your Grandmaster.";
+    }
+    $("stake-clock").textContent = stakeClock(pending);
+  }
+
+  function renderLeaderStake(state, team) {
+    var pending = state.pending_stake;
+    var card = $("leader-stake-card");
+    var mine = pending && pending.side;
+    card.hidden = !mine;
+    if (!mine) return;
+    var who = (pending.duellists || {})[pending.side] || "Your Duelist";
+    $("leader-stake-ask").textContent = (
+      pending.ask === null || pending.ask === undefined
+        ? who + " has not named a number yet."
+        : who + " is asking for " + pending.ask + "."
+    );
+    var input = $("leader-stake-input");
+    input.max = team.currency;
+    $("leader-stake-go").disabled = !!pending.settled;
+    $("leader-stake-state").textContent = pending.settled
+      ? "Staked " + pending.granted + ". The sale is about to open."
+      : "The purse holds " + team.currency + ".";
+    $("leader-stake-clock").textContent = stakeClock(pending);
+  }
+
+  function stakeClock(pending) {
+    if (!pending.deadline || pending.settled) return "";
+    var left = Math.max(0, Math.round(
+      (parseDeadline(pending.deadline) - Date.now()) / 1000
+    ));
+    return left + "s to answer, or the default is staked for you";
   }
 
   // --- duels ---
@@ -1928,6 +2002,7 @@
       locked ? "warn" : "off", "warning");
 
     watchSilence(team);
+    renderLeaderStake(state, team);
     renderDuel(state, "leader-duel-card", "leader-duel-mount");
     renderDuelSeats(state, state.duel, me.team_id);
     renderBombConsole(state, team);

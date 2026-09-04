@@ -1,37 +1,56 @@
-"""BID WAR — twenty coins, five prizes, and every bid spent whether it wins.
+"""BID WAR — the team's own coins, five blind lots, every bid spent.
 
-Five prizes worth 1 to 5 Victory Points go under the hammer in an order the
-server shuffles at the start. Both Duelists secretly bid a whole number of
-coins from the twenty they hold; the higher bid takes the prize, and **both
-bids are spent regardless**. Coins left over at the end are worth nothing. Most
-Victory Points takes the duel.
+The one **staked** duel. The others are free; this one is bought. Before it
+opens, each Duelist asks their Grandmaster for coins out of the team purse and
+fights with exactly what they are handed, so the two pools are deliberately
+**unequal**: a Grandmaster who believes in their champion can fund them past
+the other side, and pays for it out of the perk shop. The engine collects the
+stakes and hands them here (`new_duel(seed, stakes)`); the grant is gone from
+the purse either way, win or lose.
 
-A tied auction pays nobody and rolls its prize into the next one, so a mirror
-bid is the expensive way to make the following lot worth more to both of you.
+Five lots go under the hammer. Both Duelists secretly bid a whole number of
+coins, the higher bid takes the lot, and **both bids are spent regardless**.
+Most coins won takes the duel, and what each side won is paid back into their
+team's purse when it ends (`settlement`).
+
+A lot is worth **coins**, rolled fresh when it opens rather than drawn from a
+fixed ladder:
+
+    floor   = ceil(both purses still held / DUEL_STAKE_LOT_FLOOR_DIVISOR)
+    value   = a roll in [floor, floor * DUEL_STAKE_LOT_SPREAD]
+
+Two things follow, and both are the point. Nobody can count the ladder: paying
+over the odds because this "must be the big one" can be answered by a lot worth
+double. And because the floor tracks what is *still on the table*, lots shrink
+as the money drains but never stop being worth contesting, so the last auction
+matters as much as the first.
+
+It also means **the next lot cannot be shown**. Its floor depends on what this
+one costs the pair of you, so it does not exist yet. The old game published one
+lot ahead off a pre-shuffled list; a live floor and a published lookahead
+cannot both be true, and the live floor is the one that was asked for.
+
+A tied auction pays nobody and rolls its value onto the next lot, so a mirror
+bid is the expensive way to make the following one bigger for both of you.
 
 What is secret, and for how long:
 
   * the bid in flight — until both are locked, which is `base_public`'s job;
-  * **the prize order beyond the next lot** — the shuffled list lives in
-    `DuelState.private`, and the payload publishes the current prize and the
-    one after it and nothing else. Knowing the 5 was still to come would settle
-    every bid before it.
-
-Everything already spent is public: past bids, both coin balances and both VP
-totals follow from auctions that have resolved.
+  * nothing else. Both purses, both winnings and every resolved lot are public,
+    because they all follow from auctions that have already happened.
 
 Match length is the module's, not the engine's: `resolve_round` returns a side
-only once the VP totals are final and unequal, so `wins_needed` is 1 and the
-engine's tie path carries the duel from auction to auction. A duel decided on
-points rather than round wins cannot be expressed any other way — winning three
-small lots loses to one 5 VP prize, and the engine's counter has no idea.
+only once the winnings are final and unequal, so `wins_needed` is 1 and the
+engine's tie path carries the duel from auction to auction.
 """
 
 from __future__ import annotations
 
+import math
 import random
 from typing import Any
 
+from backend import config
 from backend.games.duel_base import (
     MAX_CHOICE_CHARS,
     SIDES,
@@ -39,15 +58,18 @@ from backend.games.duel_base import (
     base_public,
 )
 
-PRIZES = (1, 2, 3, 4, 5)      # Victory Points, shuffled into an order per duel
-AUCTIONS = len(PRIZES)
-STARTING_COINS = 20
+AUCTIONS = 5                  # lots under the hammer before the sale closes
 CHOICE_SECONDS = 10           # the window both Duelists bid inside
 
 # A tie that has to be broken is fought with a fresh, equal pool rather than
-# whatever coins happen to be left, so the five-auction economy stays intact.
+# whatever coins happen to be left. It is the one pool the team does not pay
+# for: purses can legitimately be empty by now (a Grandmaster may grant zero),
+# and a tiebreak nobody can bid in would never end.
 OVERTIME_COINS = 5
-OVERTIME_PRIZE = 1            # the lot when the VP totals themselves are level
+
+# Keeps one lot's roll independent of its neighbours while staying a pure
+# function of the duel seed and the auction number.
+_LOT_SALT = 7919
 
 
 def _copy_entry(entry: dict[str, Any]) -> dict[str, Any]:
@@ -57,8 +79,31 @@ def _copy_entry(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _coins(stakes: dict[str, int] | None, side: str) -> int:
+    """One seat's grant, coerced. Never raises (duel_base hard rule 5): the
+    engine always sends whole numbers, but a module that could throw here
+    would take the whole duel down with it."""
+    try:
+        return max(0, int((stakes or {}).get(side, 0)))
+    except (TypeError, ValueError):
+        return 0
+
+
+def roll_lot(seed: int, auction: int, on_the_table: int) -> int:
+    """What the next lot is worth, given what both seats still hold.
+
+    Deterministic in (seed, auction), but its *range* moves with the money
+    left, which is what keeps a late lot worth as much attention as an early
+    one. Never zero: a lot nobody would bother bidding on is not a lot.
+    """
+    divisor = config.DUEL_STAKE_LOT_FLOOR_DIVISOR
+    floor = max(1, math.ceil(max(on_the_table, 0) / divisor))
+    ceiling = max(floor, int(floor * config.DUEL_STAKE_LOT_SPREAD))
+    return random.Random(seed + auction * _LOT_SALT).randint(floor, ceiling)
+
+
 class BidWar:
-    """Twenty coins, five secret auctions, both bids always spent."""
+    """The team's coins, five blind lots, both bids always spent."""
 
     id = "bid_war"
     name = "Bid War"
@@ -66,22 +111,30 @@ class BidWar:
     # The module scores the match itself (see the header), so one returned
     # winner *is* the duel.
     wins_needed = 1
+    staked = True    # fought with the team's coins. The only one that is.
 
     # --- lifecycle -------------------------------------------------------
 
-    def new_duel(self, seed: int) -> DuelState:
-        # The prize order is the one randomised thing in this game, and it is
-        # deterministic in `seed`: the same seed replays the same auction.
-        prizes = list(PRIZES)
-        random.Random(seed).shuffle(prizes)
+    def new_duel(
+        self, seed: int, stakes: dict[str, int] | None = None
+    ) -> DuelState:
+        """Open the sale with whatever each Grandmaster granted.
+
+        `stakes` missing or short is treated as a grant of nothing rather than
+        as an error: a duel that refused to start would strand both teams, and
+        a Duelist with an empty purse can still bid zero and go to overtime.
+        """
+        purses = {side: _coins(stakes, side) for side in SIDES}
+        opening = roll_lot(seed, 1, sum(purses.values()))
         return DuelState(
             duel_game_id=self.id,
             private={
+                "seed": seed,
                 "auction": 1,                 # 1..AUCTIONS, then overtime
-                "prizes": prizes,             # SECRET beyond the next lot
-                "pot": prizes[0],             # this lot, rollovers included
-                "coins": {side: STARTING_COINS for side in SIDES},
-                "vp": {"a": 0, "b": 0},
+                "pot": opening,               # this lot, rollovers included
+                "staked": dict(purses),       # what each side was granted
+                "coins": dict(purses),        # what each side still holds
+                "won": {"a": 0, "b": 0},      # coins taken, owed to the purse
                 "overtime": False,
                 "overtime_round": 0,
                 "overtime_coins": {side: OVERTIME_COINS for side in SIDES},
@@ -97,8 +150,9 @@ class BidWar:
     ) -> str | None:
         """A whole-number bid this seat can afford, as a canonical string.
 
-        `side` decides legality: the same 15 is a legal bid for a Duelist
-        holding 20 coins and an illegal one for a Duelist holding 12.
+        `side` decides legality, and here it really does differ between seats:
+        the pools are unequal by design, so the same 15 can be legal for one
+        Duelist and impossible for the other.
         """
         try:
             raw = str(choice)
@@ -125,6 +179,13 @@ class BidWar:
         if private["overtime"]:
             return private["overtime_coins"][side]
         return private["coins"][side]
+
+    def _on_the_table(self, private: dict[str, Any]) -> int:
+        """Coins both seats still hold, which is what sets the next lot's floor."""
+        purse = (
+            private["overtime_coins"] if private["overtime"] else private["coins"]
+        )
+        return sum(purse.values())
 
     # --- resolution ------------------------------------------------------
 
@@ -156,7 +217,7 @@ class BidWar:
 
         pot = private["pot"]
         if winner is not None:
-            private["vp"][winner] += pot
+            private["won"][winner] += pot
 
         entry = {
             "auction": private["auction"],
@@ -165,7 +226,7 @@ class BidWar:
             "a": bids["a"],
             "b": bids["b"],
             "winner": winner,
-            "vp": dict(private["vp"]),
+            "won": dict(private["won"]),
             "coins": dict(private["coins"]),
         }
         private["log"].append(entry)
@@ -181,10 +242,12 @@ class BidWar:
         """Move to the next lot, or close the five-auction sale."""
         last_auction = private["auction"] >= AUCTIONS
         if not last_auction:
-            next_prize = private["prizes"][private["auction"]]
-            # A tie pays nobody, so its prize rides on top of the next one.
-            private["pot"] = next_prize if winner is not None else pot + next_prize
             private["auction"] += 1
+            rolled = roll_lot(
+                private["seed"], private["auction"], self._on_the_table(private)
+            )
+            # A tie pays nobody, so its value rides on top of the next lot.
+            private["pot"] = rolled if winner is not None else pot + rolled
             return None
 
         if winner is None:
@@ -206,20 +269,20 @@ class BidWar:
         return self._settle(private)
 
     def _settle(self, private: dict[str, Any]) -> str | None:
-        """The winner on Victory Points, or another overtime lot if level.
+        """The winner on coins won, or another overtime lot if level.
 
-        Coins still in hand are worth nothing here — they were only ever a
-        means of buying points.
-
-        The level case cannot arise with prizes 1-5: they total an odd 15, so
-        two whole scores can never meet. It is kept because that is an accident
-        of the prize table, and a duel that ended undecided would leave both
-        teams stuck with no way out.
+        Coins still in hand count for nothing here. They were only ever a means
+        of buying lots, and the grant they came from has already left the team
+        purse — which is exactly why sitting on them is the losing move.
         """
-        vp = private["vp"]
-        if vp["a"] != vp["b"]:
-            return "a" if vp["a"] > vp["b"] else "b"
-        return self._open_overtime(private, OVERTIME_PRIZE)
+        won = private["won"]
+        if won["a"] != won["b"]:
+            return "a" if won["a"] > won["b"] else "b"
+        # Lots are rolled rather than drawn from an odd-summed table, so two
+        # equal scores are entirely reachable now. Overtime is load-bearing.
+        return self._open_overtime(
+            private, roll_lot(private["seed"], AUCTIONS + 1, OVERTIME_COINS * 2)
+        )
 
     def _open_overtime(self, private: dict[str, Any], pot: int) -> str | None:
         private["overtime"] = True
@@ -229,13 +292,25 @@ class BidWar:
         private["auction"] = AUCTIONS
         return None
 
+    # --- settlement ------------------------------------------------------
+
+    def settlement(self, state: DuelState) -> dict[str, int]:
+        """Coins each side won, owed back into their team's purse.
+
+        The stake itself is *not* here: it left the purse when the Grandmaster
+        granted it and does not come back. This is winnings only, which is what
+        makes funding a champion a gamble rather than a transfer.
+        """
+        return {side: int(state.private["won"].get(side, 0)) for side in SIDES}
+
     # --- the client view -------------------------------------------------
 
     def public(
         self, state: DuelState, side: str | None, revealed: bool
     ) -> dict[str, Any]:
         """`base_public` for the reveal rule, plus a payload that publishes the
-        current lot and the next one — never the rest of the shuffled order."""
+        lot on the block and both purses — but never a lot that has not been
+        rolled, because the unrolled ones do not exist yet."""
         view = base_public(state, side, revealed)
         view["payload"] = self._payload(state, side)
         return view
@@ -249,10 +324,12 @@ class BidWar:
             "auctions": AUCTIONS,
             "auction": private["auction"],
             "prize": private["pot"],
-            "next_prize": self._next_prize(private),
-            "starting_coins": STARTING_COINS,
+            # Always None: see the module header. Kept in the payload so the
+            # client keeps one shape across every duel game.
+            "next_prize": None,
+            "staked": dict(private["staked"]),
             "coins": dict(private["coins"]),
-            "vp": dict(private["vp"]),
+            "won": dict(private["won"]),
             "overtime": private["overtime"],
             "overtime_round": private["overtime_round"],
             "overtime_coins": dict(private["overtime_coins"]),
@@ -260,15 +337,6 @@ class BidWar:
             "log": [_copy_entry(entry) for entry in private["log"]],
             "last": _copy_entry(private["last"]) if private["last"] else None,
         }
-
-    def _next_prize(self, private: dict[str, Any]) -> int | None:
-        """The lot after this one, or None when there isn't a published one.
-
-        This is the only window onto `prizes`, and it is exactly one lot wide.
-        """
-        if private["overtime"] or private["auction"] >= AUCTIONS:
-            return None
-        return private["prizes"][private["auction"]]
 
     def reset(self) -> None:
         return None  # stateless

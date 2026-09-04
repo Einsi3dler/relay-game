@@ -121,13 +121,21 @@ class GameRegistry:
     def has_duel(self, duel_game_id: str) -> bool:
         return duel_game_id in self._duels_by_id
 
-    def pick_duel(self, seed: int) -> DuelModule:
+    def pick_duel(self, seed: int, free_only: bool = False) -> DuelModule:
         """The server's choice of duel game — Duelists don't pick their own.
 
         Deterministic in `seed` so a match's duel game is reproducible from
         the seed the engine drew.
+
+        `free_only` asks for a duel nobody has to pay for. The engine uses it
+        when neither team can fund a staked one; if every registered duel is
+        staked there is nothing to fall back to, so the request is ignored
+        rather than raising.
         """
         duels = list(self._duels_by_id.values())
+        if free_only:
+            free = [duel for duel in duels if not getattr(duel, "staked", False)]
+            duels = free or duels
         if not duels:
             raise KeyError("no duel modules registered")
         return duels[seed % len(duels)]

@@ -176,6 +176,8 @@ Fill this in during/after the playtest and bring it to the V7 tuning discussion.
 | Bonus attempts / waits | | | |
 | Bonus success rate | | | |
 | Perks bought (by type) | | | all 13 — note any never bought |
+| Staked duels: what each Grandmaster granted | | | per level; note any who let the window lapse |
+| Staked duels: coins won vs coins staked | | | the inflation check — see below |
 | Wait timer lapses | | | |
 | Bomb: times the Grandmaster was asked | | | roughly, per level band |
 | Bomb: boards lost to the fuse | | | and at which levels |
@@ -191,6 +193,17 @@ Proposed config changes from this data (V7):
 - Perk costs — defense (shield 2 / reflect 4 / insurance 2 / extend_wait 1): ___
 - Screen-effect durations (wobble 12s / static 10s / mirror 10s / blackout 4s): ___
 - Per-game curve tweaks: ___
+- **`DUEL_STAKE_LOT_FLOOR_DIVISOR` (1.2): keep / change to ___** — the knob to
+  look at first. A lot is worth at least the coins both Duelists still hold
+  divided by this, so at 1.2 a single lot is worth close to the whole table and
+  a staked duel pays a team considerably more than it cost them. Raising it
+  deflates the payout without changing how the game plays: at 4.0 a lot is worth
+  about a quarter of the table. Compare "coins won vs coins staked" above; if
+  the winning team came out far ahead of what they put in, raise it.
+- `DUEL_STAKE_LOT_SPREAD` (2.0 — a lot rolls in [floor, floor x spread]): ___
+- `DUEL_STAKE_DEFAULT` (10, auto-granted when a Grandmaster never answers): ___
+- `DUEL_STAKE_MIN_PURSE` (8, below which a free duel is dealt instead): ___
+- `DUEL_STAKE_REQUEST_SECONDS` (25, the window to answer): ___
 - BOMB DEFUSE two-seat knobs — `WITHHOLD_FROM_LEVEL` (8) / `DARK_FUSE_FROM_LEVEL`
   (11) / `PUZZLE_GRACE_SECONDS` (5): ___
 

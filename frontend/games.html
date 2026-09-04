@@ -13,6 +13,70 @@
     .game-card ul { margin: 0 0 8px; padding-left: 20px; }
     .flow ol { margin: 0; padding-left: 22px; }
     .flow li { margin-bottom: 10px; }
+
+    /* A worked example: a few cells of a real board, drawn rather than
+       described, because "the 1 is satisfied" only lands once you see it.
+       These pages are the light ones, so the palette is landing.css's. */
+    .eg {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin: 0 0 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--relay-line-light);
+      border-radius: var(--relay-radius-sm, 10px);
+      background: var(--relay-paper-2);
+    }
+    .eg__grid { display: grid; gap: 4px; flex: none; }
+    .eg__c {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      border: 1px solid #cdc7dd;
+      background: #fff;
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: var(--relay-ink);
+    }
+    /* Already open, deduced safe, deduced mine. */
+    .eg__c--open { border-color: #b9d9c2; background: #eaf7ee; color: #1f8b46; }
+    .eg__c--safe { border-color: #8fd0e0; background: #e4f6fa; color: #0d7f96; }
+    .eg__c--mine { border-color: #f0aab3; background: #fdeaec; color: #c22b3d; }
+    .eg__c--mine, .eg__c--safe { font-size: 0.6rem; letter-spacing: 0.04em; text-transform: uppercase; }
+    .eg__note { margin: 0; min-width: 220px; flex: 1 1 260px; font-size: 0.93rem; }
+    /* Only the heading, never a bolded phrase inside the prose below it. */
+    .eg__note > strong { display: block; margin-bottom: 4px; }
+    .eg__key { margin: 0; font-size: 0.82rem; color: var(--relay-muted); }
+
+    /* Level curves and counter wheels read as tables or not at all. */
+    .gtable { width: 100%; border-collapse: collapse; margin: 0 0 12px; font-size: 0.9rem; }
+    .gtable th, .gtable td {
+      padding: 7px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--relay-line-light);
+    }
+    .gtable th {
+      font-weight: 800;
+      font-size: 0.74rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--relay-muted);
+    }
+    .gtable tbody tr:last-child td { border-bottom: 0; }
+    .gtable td:first-child { font-weight: 800; }
+    .gwrap { overflow-x: auto; margin-bottom: 12px; }
+
+    /* A named step inside a longer sequence. */
+    .beat {
+      margin: 0 0 10px;
+      padding-left: 14px;
+      border-left: 3px solid var(--relay-line-light);
+    }
+    .beat strong:first-child { color: var(--relay-violet); }
   </style>
 </head>
 <body class="relay-page relay-page--doc">
@@ -84,16 +148,61 @@
   <section class="view card game-card">
     <h2><span class="stage-chip stage-2">Game 2</span> SWEEP</h2>
     <p class="cat">Logical · deduction</p>
+
     <h3>What you see</h3>
-    <p>A 6×6 minesweeper board hiding 6 mines, with a safe opening region already revealed. Every number counts the mines in its eight neighbours.</p>
-    <h3>How to play</h3>
+    <p>A minesweeper grid with a chunk of it already opened for you. That opening is not random: the server finds a cell with no mines anywhere near it, opens every connected cell like it, and then opens the ring of numbered cells around that whole region. So you always start with a border of numbers to work from, never a blank wall.</p>
+    <p>Every number counts the mines in that cell's <strong>eight</strong> neighbours, diagonals included. A cell showing nothing at all is a zero: all eight of its neighbours are safe, which is why zero regions open themselves.</p>
+
+    <h3>Controls</h3>
     <ul>
-      <li>Tap a cell you've deduced is <strong>safe</strong> to reveal it.</li>
-      <li>Right-click (or long-press on touch) a cell you've deduced is a <strong>mine</strong> to flag it.</li>
-      <li>Flag all 6 mines, then submit. Revealing a mine ends the board instantly and you get a fresh one.</li>
+      <li><strong>Left-click</strong> a cell to reveal it. If it is a zero, its whole region opens with it, exactly like the opening did.</li>
+      <li><strong>Right-click</strong> (long-press on touch) to plant or remove a flag. Flags are your notes: nothing is checked until you submit.</li>
+      <li>A counter under the board reads <strong>Flags: n / total</strong>. The submit button only works at exactly the right number, so you can never submit a half-finished board by accident.</li>
+      <li>Reveal a mine and the attempt <strong>ends instantly</strong> and a brand new board arrives. You lose the time you spent, nothing else: no currency, no penalty, no mark against your team.</li>
     </ul>
-    <p class="sizes">Main: 6×6, 6 mines · Holding: 3×3, 1 mine</p>
-    <p class="tip">Every board is solvable with pure logic, so no guessing is ever required. If you're guessing, there's a deduction you haven't spotted.</p>
+
+    <h3>The three deductions</h3>
+    <p>Every board is generated so that these three rules alone are enough. There is never a coin-flip.</p>
+
+    <p class="beat"><strong>1. The satisfied number.</strong> If a number already touches that many flags, every other cell it touches is safe. A 1 next to one flag means the rest of its neighbours can be opened.</p>
+    <p class="beat"><strong>2. The exhausted number.</strong> If a number's remaining unknown neighbours are exactly as many as the mines it still needs, all of them are mines. A 2 with two unknowns left and no flags yet means both are mines.</p>
+    <p class="beat"><strong>3. Subset elimination.</strong> The one people miss. Compare two numbers whose unknown cells overlap. If one number's unknowns are entirely contained inside another's, subtract them.</p>
+
+    <div class="eg">
+      <div class="eg__grid" style="grid-template-columns:repeat(3,36px)">
+        <span class="eg__c eg__c--open">1</span>
+        <span class="eg__c eg__c--open">2</span>
+        <span class="eg__c eg__c--open">1</span>
+        <span class="eg__c eg__c--mine">mine</span>
+        <span class="eg__c eg__c--safe">safe</span>
+        <span class="eg__c eg__c--mine">mine</span>
+      </div>
+      <div class="eg__note">
+        <strong>Worked example: the 1-2-1</strong>
+        <p>Three unknowns sit under a 1, a 2 and a 1, and no other numbers touch them. Take the left 1 and the 2: the 1 sees the first two cells, the 2 sees all three. The 2 needs one more mine than the 1 does, and it touches exactly one cell the 1 does not, so <strong>that cell must be a mine</strong>. Run the same comparison from the right 1 and the left cell is a mine too. The middle is safe by elimination, and nothing here was a guess.</p>
+        <p class="eg__key">A 1-2-1 along an edge is always mine, safe, mine. Once you can see it without working it out, SWEEP gets a great deal faster.</p>
+      </div>
+    </div>
+
+    <h3>How big the board gets</h3>
+    <p>SWEEP is not a fixed board. It grows with your team's level, and the mine density climbs with it, which is why level 8 feels like a different game from level 1.</p>
+    <div class="gwrap">
+      <table class="gtable">
+        <thead><tr><th>Level</th><th>Grid</th><th>Mines</th><th>Density</th></tr></thead>
+        <tbody>
+          <tr><td>1 to 2</td><td>6×6</td><td>6</td><td>17%</td></tr>
+          <tr><td>3</td><td>6×6</td><td>7</td><td>19%</td></tr>
+          <tr><td>4 to 5</td><td>7×7</td><td>8</td><td>16%</td></tr>
+          <tr><td>6</td><td>7×7</td><td>9</td><td>18%</td></tr>
+          <tr><td>7 to 8</td><td>8×8</td><td>10</td><td>16%</td></tr>
+          <tr><td>9</td><td>8×8</td><td>11</td><td>17%</td></tr>
+          <tr><td>10</td><td>8×8</td><td>12</td><td>19%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sizes">Holding board: 3×3, 1 mine · Bonus boards climb past level 10, up to 10×10 with 18 mines</p>
+
+    <p class="tip">Every board is checked by a solver before you ever see it, and re-rolled if pure logic cannot finish it. So if you find yourself guessing, the deduction is there and you have not found it yet. Nine times out of ten it is rule 3, and it is usually sitting on the edge of the region you just opened.</p>
   </section>
 
   <section class="view card game-card">
@@ -240,73 +349,138 @@
   </section>
 
   <section class="view card game-card" id="duels">
-    <h2><span class="stage-chip stage-duel">Duelist</span> RPS DUEL</h2>
-    <p class="cat">Head-to-head · nerve</p>
+    <h2><span class="stage-chip stage-duel">Duelist</span> THE DUELIST</h2>
+    <p class="cat">Head-to-head · the role</p>
+
     <h3>The role</h3>
-    <p>Your Grandmaster can spend one of the team's four playing slots on a <strong>Duelist</strong>, a champion who never solves a puzzle. Instead you fight the other team's Duelist, over and over, for the whole match. Both teams must field one, or neither does: a duel needs two seats. You don't pick your game either: <strong>the server does</strong>, from the four below.</p>
-    <p>Every round of every duel runs on a clock, shown on your duel card and counting down in red at the end. Each game below has its own natural window, but the <strong>host can set one timer for all of them</strong> in the lobby, from 3 seconds to 30, so a group that wants faster duels just says so once.</p>
+    <p>Your Grandmaster can spend one of the team's four playing slots on a <strong>Duelist</strong>, a champion who never solves a puzzle. Instead you fight the other team's Duelist, over and over, for the whole match. Both teams must field one or neither does, because a duel needs two seats. You do not pick your game either: <strong>the server does</strong>, from the four below, and both champions play the same one.</p>
+
+    <h3>How a single duel runs</h3>
+    <p class="beat"><strong>Rounds, not turns.</strong> A duel is a sequence of rounds, and in each one you both commit at the same time. Neither of you sees the other's choice until the round has already resolved, and neither does either Grandmaster, so there is nobody to ask and nothing to look up.</p>
+    <p class="beat"><strong>The clock is per round.</strong> Every round runs on a window shown on your duel card, counting down and turning red at the end. Each game below has its own natural window, from 5 seconds to throw a hand up to 10 to read one. Your <strong>host can override it for every duel in the match</strong> from the lobby, anywhere from 3 seconds to 30.</p>
+    <p class="beat"><strong>Letting it lapse loses the round.</strong> Miss the window and you forfeit that round outright, so a guess always beats a freeze. If you both miss it, nobody is punished and the round is a draw.</p>
+    <p class="beat"><strong>A beat between rounds.</strong> After each round resolves there is a <strong>3-second</strong> pause so you can actually see what was played before the next window opens.</p>
+
+    <h3>The series: two duels a level</h3>
+    <p>This is the part that surprises people. You do not fight once per level, you fight <strong>twice</strong>: the main duel, then a bonus duel starting <strong>30 seconds</strong> after the first one resolves.</p>
+    <ul>
+      <li>Win the main duel and you are your team's green light. They cannot advance a level without you, and they can while you hold it.</li>
+      <li>Lose it and your team is held until you take the next one, <em>plus</em> a <strong>60-second advance lock</strong> on the whole team. That lock lands <strong>once per level</strong> only, so a bad run costs time and not the match.</li>
+      <li>When the <strong>second</strong> duel of the level resolves, the series is over and <strong>both</strong> champions stand down and go green, the loser included. A Duelist who loses everything can never block their own team indefinitely.</li>
+    </ul>
+
+    <h3>What a win pays</h3>
+    <p>Your team banks <strong>2 coins</strong> for a duel win, and that <strong>doubles for every duel you win in a row</strong>, capped at <strong>8</strong>. The streak is the reward, so the second and third win in a row are worth far more than the first.</p>
+
     <h3>The four duels</h3>
     <ul class="duel-index">
-      <li><a href="#duels"><strong>RPS Duel</strong> Pure prediction. First to two, five seconds a throw.</a></li>
+      <li><a href="#rps-duel"><strong>RPS Duel</strong> Pure prediction. First to two, five seconds a throw.</a></li>
       <li><a href="#crown-duel"><strong>Crown Duel</strong> Five characters, counters, and one hidden rewrite of your hand.</a></li>
       <li><a href="#number-clash"><strong>Number Clash</strong> Nine numbers, each spent once. First to four points.</a></li>
-      <li><a href="#bid-war"><strong>Bid War</strong> Twenty coins, five secret auctions, every bid spent.</a></li>
+      <li><a href="#bid-war"><strong>Bid War</strong> Staked with your team&rsquo;s own coins. Five blind lots, every bid spent.</a></li>
     </ul>
+    <p class="tip">Every one of these four is a game about the person opposite you rather than a system to solve. What they did last round is the only real information you have, and they are reading yours the same way.</p>
+  </section>
+
+  <section class="view card game-card" id="rps-duel">
+    <h2><span class="stage-chip stage-duel">Duelist</span> RPS DUEL</h2>
+    <p class="cat">Head-to-head · nerve</p>
     <h3>How to play</h3>
     <ul>
-      <li>A duel opens at kickoff and again <strong>30 seconds</strong> after the last one ends. Pick <strong>rock</strong>, <strong>paper</strong> or <strong>scissors</strong> inside a <strong>5-second</strong> window.</li>
-      <li>Neither of you sees the other's hand until the round resolves, not even your Grandmaster, so there's nobody to ask. Let the window lapse and you <strong>forfeit that round</strong>, so a guess always beats a freeze.</li>
-      <li><strong>First to two</strong> takes the duel. Ties replay.</li>
+      <li>Pick <strong>rock</strong>, <strong>paper</strong> or <strong>scissors</strong> inside a <strong>5-second</strong> window. Rock breaks scissors, scissors cut paper, paper covers rock.</li>
+      <li>The higher hand wins the round. The <strong>same hand on both sides draws</strong>, and a drawn round is simply replayed: it costs neither of you a win.</li>
+      <li><strong>First to two round wins</strong> takes the duel. With draws replaying, that is usually three or four rounds of real play.</li>
     </ul>
-    <h3>What it's worth</h3>
-    <ul>
-      <li><strong>Win</strong> and you're your team's green light: they can't advance a level without you, and they can while you hold it. Your team banks <strong>2 coins, doubling every duel you win in a row</strong>, up to 8.</li>
-      <li><strong>Lose</strong> and your team is stuck until you win the next one, <em>plus</em> a <strong>60-second lock</strong> that holds even after you win it back. That lock only lands <strong>once per level</strong>, so a bad run costs you time, not the match.</li>
-    </ul>
-    <p class="tip">There's no system to solve here, only the person opposite you. Watch what they threw last round, and remember they're watching you.</p>
+    <p class="tip">The shortest game here and the most psychological. Two rounds is not enough for a pattern to form, so the read that matters is whether they are the kind of player who repeats a winning throw or runs from it.</p>
   </section>
 
   <section class="view card game-card" id="crown-duel">
     <h2><span class="stage-chip stage-duel">Duelist</span> CROWN DUEL</h2>
     <p class="cat">Head-to-head · counters and memory</p>
-    <h3>How to play</h3>
+
+    <h3>The hand</h3>
+    <p>You both hold the same five cards: <strong>King, Knight, Guard, Assassin, Peasant</strong>. Each round you both commit one inside a <strong>10-second</strong> window, and <strong>both cards are spent</strong> whatever happens. Only the <em>same</em> card against itself draws. Every other pairing has a winner, and the winner takes a <strong>Crown</strong>.</p>
+
+    <h3>What beats what</h3>
+    <div class="gwrap">
+      <table class="gtable">
+        <thead><tr><th>Card</th><th>Beats</th><th>Loses to</th></tr></thead>
+        <tbody>
+          <tr><td>King</td><td>Knight, Guard, Assassin</td><td>Peasant</td></tr>
+          <tr><td>Peasant</td><td>King</td><td>Knight, Guard, Assassin</td></tr>
+          <tr><td>Knight</td><td>Assassin, Peasant</td><td>Guard, King</td></tr>
+          <tr><td>Guard</td><td>Knight, Peasant</td><td>Assassin, King</td></tr>
+          <tr><td>Assassin</td><td>Guard, Peasant</td><td>Knight, King</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Read it as two ideas stacked. The <strong>King crushes all three fighters but falls to the Peasant</strong>, and the three fighters cycle among themselves: <strong>Guard beats Knight beats Assassin beats Guard</strong>. The Peasant loses to every fighter, so it is a card that does exactly one thing, and your opponent knows it.</p>
+
+    <h3>Winning the duel</h3>
     <ul>
-      <li>You both hold five cards: <strong>King, Knight, Guard, Assassin, Peasant</strong>. Each round you both commit one inside a <strong>10-second</strong> window. Only the <strong>same card against itself</strong> draws; every other pairing has a winner, who takes a <strong>Crown</strong>. Both cards are spent either way.</li>
-      <li>King beats the three fighters. Peasant beats King. All three fighters beat Peasant. Between them: Guard beats Knight, Knight beats Assassin, Assassin beats Guard.</li>
-      <li><strong>Three rounds, most Crowns wins</strong>, and two of them settles it early. Level after the third and you both get fresh hands for <strong>Sudden Death</strong>, where the first round that isn't a draw takes the duel.</li>
+      <li><strong>Three rounds, most Crowns wins.</strong> Taking two of them settles it early.</li>
+      <li>Level after the third round and you both get <strong>fresh five-card hands</strong> for <strong>Sudden Death</strong>, where the first round that is not a draw takes the duel outright.</li>
+      <li>If a hand ever runs out mid-duel, it refreshes, so you are never stuck with nothing to play.</li>
     </ul>
+
     <h3>Royal Sacrifice</h3>
-    <ul>
-      <li>Once per duel, before any round, you can <strong>destroy two of your unused cards to rewrite a third</strong> into a different character. Never into a King.</li>
-      <li>Both of you commit to that decision secretly, and then it is announced: your opponent is told a sacrifice happened. They are <strong>never</strong> told which cards burned, which one changed, or what it became.</li>
-      <li>It costs you two cards out of the three rounds you have to play, so it buys surprise with tempo. Two Peasants and a King is a real hand — and nothing about it is guessable from the outside.</li>
-    </ul>
-    <p class="tip">The card you played is public the moment the round resolves, so a duel is also a memory game: count what they have spent, and remember they are counting yours.</p>
+    <p>Once per duel, before any round, you may <strong>destroy two of your unused cards to rewrite a third</strong> into a different character. Never into a King: the crown can be thrown away but not minted.</p>
+    <p class="beat"><strong>A round with a sacrifice is two decisions, not one.</strong> First both of you secretly commit to either playing normally or sacrificing. That choice resolves to nobody and scores no Crown. It only publishes <em>that</em> a sacrifice happened. Then the real combat window opens and you both pick a card. Once neither of you can legally sacrifice any more, that first step is skipped entirely and rounds go straight to cards.</p>
+    <p class="beat"><strong>They learn it happened, never what it did.</strong> Your opponent is told a sacrifice occurred. They are never told which two cards burned, which one changed, or what it became. That asymmetry is the whole game.</p>
+    <p class="beat"><strong>It costs tempo.</strong> Two cards out of the three rounds you have to play is a steep price for surprise. Two Peasants and a King is a real hand to hold, and nothing about it is guessable from outside.</p>
+
+    <p class="tip">The card you played is public the moment the round resolves, so this is also a memory game. Count what they have spent, work out what must still be in their hand, and remember they are counting yours. A sacrifice is worth its cost mostly because it breaks that count.</p>
   </section>
 
   <section class="view card game-card" id="number-clash">
     <h2><span class="stage-chip stage-duel">Duelist</span> NUMBER CLASH</h2>
     <p class="cat">Head-to-head · spending</p>
+
     <h3>How to play</h3>
     <ul>
-      <li>You both hold <strong>1 to 9</strong>, each playable once. Every round you both commit one inside an <strong>8-second</strong> window; the higher number takes a point, equal numbers draw, and <strong>both numbers are spent either way</strong>.</li>
-      <li><strong>First to four points</strong> takes the duel, over at most seven rounds. Still level after that and it runs on until someone gets there.</li>
-      <li>Everything played is face up afterwards, so you always know exactly what is left in both hands.</li>
+      <li>You both hold <strong>1 through 9</strong>, each playable once. Every round you both commit one inside an <strong>8-second</strong> window.</li>
+      <li>The <strong>higher number takes a point</strong>, equal numbers draw and pay nobody, and <strong>both numbers are spent either way</strong>. There is no way to hold a card back once it is committed.</li>
+      <li><strong>First to four points</strong> takes the duel, across at most seven rounds. Still level after the seventh and it goes to <strong>Sudden Death</strong>, running on until somebody reaches four.</li>
+      <li>Nothing stays secret for long. Every number played is revealed as the round resolves, so both hands are fully known at all times. The only hidden thing is the number currently in flight.</li>
     </ul>
-    <p class="tip">Beating their 1 with your 9 wins the round and hands them the better trade. The hard question is never which number wins — it is which one is worth spending.</p>
+
+    <h3>Why it is harder than it looks</h3>
+    <p>There is no power, no arithmetic and nothing to memorise, which is exactly what makes it awkward. The question is never <em>which number wins</em>, it is <strong>what a number is worth this round</strong>.</p>
+    <p class="beat"><strong>The 9 is a trap.</strong> Beating their 1 with your 9 wins you a point and hands them the better trade: they spent their worst card, you spent your best, and every remaining round is now tilted against you.</p>
+    <p class="beat"><strong>You have nine numbers and need four points.</strong> That means you can afford to lose five rounds outright. Deliberately throwing your 1 into a round you expect to lose is not a waste, it is how you keep your 8 and 9 for rounds that matter.</p>
+    <p class="tip">Watch the gap. Once you hold a higher card than anything left in their hand, that card is a guaranteed point whenever you choose to spend it, and they can see that coming too.</p>
   </section>
 
   <section class="view card game-card" id="bid-war">
     <h2><span class="stage-chip stage-duel">Duelist</span> BID WAR</h2>
-    <p class="cat">Head-to-head · bluff and economy</p>
-    <h3>How to play</h3>
+    <p class="cat">Head-to-head &middot; the staked duel</p>
+
+    <h3>This one is bought, not given</h3>
+    <p>The other three duels are free. This one is fought with <strong>your team&rsquo;s own coins</strong>, out of the same purse your Grandmaster buys perks from. Before it opens you ask them for a stake, they answer with whatever they choose, and you bid with exactly that.</p>
+    <p class="beat"><strong>They can grant any number.</strong> More than you asked, less, or nothing at all. Granting nothing is a legal answer: you still play, you just bid with an empty hand.</p>
+    <p class="beat"><strong>The two purses are not equal.</strong> That is the whole design. A Grandmaster who believes in their champion can outfund the other side, and pays for it in perks they now cannot buy. You are never told what the other team staked until the sale opens.</p>
+    <p class="beat"><strong>The grant is spent either way.</strong> It leaves the purse the moment it is granted and does not come back. Only what you <em>win</em> is paid back in. Stake 20, win 12, and your team is 8 down on the exchange.</p>
+    <p class="beat"><strong>Nobody answering is not a stall.</strong> If a Grandmaster leaves it too long, the server stakes a small default for them and the duel starts anyway.</p>
+
+    <h3>How the sale runs</h3>
     <ul>
-      <li>You both start with <strong>20 coins</strong>. Five prizes worth <strong>1 to 5 Victory Points</strong> go up one at a time, in an order the server shuffles. You can see the lot on the block and the one after it, never further.</li>
-      <li>Each round you both name an exact bid inside a <strong>10-second</strong> window. The higher bid takes the prize — and <strong>both bids are spent</strong>. The losing one buys nothing.</li>
-      <li>Equal bids pay nobody and <strong>roll that prize into the next lot</strong>, so a mirror bid makes the following one bigger for both of you.</li>
-      <li><strong>Most Victory Points takes the duel</strong>, however they were bought: three cheap lots lose to one 5. Coins left at the end are worth nothing. If the last lot ties, you both get a fresh five coins and bid again for it.</li>
+      <li>Five lots go under the hammer, each worth <strong>coins</strong>. Both of you secretly name an exact bid inside a <strong>10-second</strong> window.</li>
+      <li>The higher bid takes the lot, and <strong>both bids are spent</strong>. The losing bid buys nothing at all.</li>
+      <li>What you win goes back to <strong>your team&rsquo;s purse</strong>. Most coins won takes the duel, however they were bought.</li>
+      <li>Coins still in your hand at the end are worth <strong>nothing</strong>, and they are not refunded either. Sitting on them is the losing move twice over.</li>
+      <li>An <strong>equal bid pays nobody</strong> and rolls that lot onto the next one, which is then worth both together. If the last lot goes unsold that way it becomes an overtime lot, and you both get a <strong>fresh 5 coins</strong> to fight for it, refilled until somebody takes it.</li>
     </ul>
-    <p class="tip">Twenty coins over five lots is four a lot on average. Everything you spend early is a lot you cannot contest later, and they are doing the same arithmetic about you.</p>
+
+    <h3>You cannot count the lots</h3>
+    <p>A lot is not drawn from a fixed ladder. It is <strong>rolled when it opens</strong>, and its floor is recalculated from the coins you and your opponent still hold between you.</p>
+    <p class="beat"><strong>Big is never safe to assume.</strong> Paying over the odds because this must be the big one can be answered by the next lot being worth double. Or half.</p>
+    <p class="beat"><strong>Late lots still matter.</strong> Because the floor tracks the money left rather than a fixed table, lots shrink as the purses drain but never stop being worth contesting. The last auction is as live as the first.</p>
+    <p class="beat"><strong>There is no lookahead.</strong> You see the lot on the block and nothing behind it. The next one genuinely does not exist yet: its value depends on what this auction costs the pair of you.</p>
+
+    <h3>One duel, not two</h3>
+    <p>Every other duel is fought twice a level. This one is fought <strong>once</strong>. Both teams already paid for it out of their purses, and a bonus round would ask them to do it again in the same breath. When it resolves, both champions stand down green.</p>
+
+    <p class="tip">Both purses are public the moment the sale opens, so a low bid is never a bluff about your wealth, only about your intent. Two things stay genuinely hidden: what the lot after this one is worth, and which lot you have quietly decided to lose.</p>
   </section>
 
   <section class="view card">

@@ -430,3 +430,90 @@ body.play-active .topbar { display: none; }
     transition: none !important;
   }
 }
+
+/* --- staked duels: the Duelist asking to be funded ------------------------ */
+
+/* It stands where the board would, because for that moment it *is* the board:
+   there is nothing else this seat can do until the money is settled. */
+.stk {
+  padding: 26px clamp(18px, 3vw, 32px);
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-lg);
+  background:
+    radial-gradient(80% 120% at 0% 0%, rgba(255, 210, 28, 0.1), transparent 60%),
+    var(--gm-panel);
+  text-align: center;
+}
+/* An h2, not an h1: `#view-play h1` is the board's own title treatment, and
+   this panel is not a board. */
+.stk__title {
+  margin: 0 0 10px;
+  font-size: clamp(1.25rem, 2.2vw, 1.6rem);
+  font-weight: 900;
+  line-height: 1.2;
+  color: var(--gm-text);
+}
+.stk__blurb {
+  margin: 0 auto 18px;
+  max-width: 46ch;
+  color: var(--gm-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.stk__row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.stk__label {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+.stk__input {
+  width: 108px;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-sm);
+  background: rgba(7, 9, 31, 0.6);
+  color: var(--gm-text);
+  font-family: inherit;
+  font-size: 1.15rem;
+  font-weight: 900;
+  text-align: center;
+}
+.stk__input:focus-visible,
+.stk__go:focus-visible {
+  outline: 3px solid var(--gm-yellow);
+  outline-offset: 2px;
+}
+.stk__go {
+  min-height: 46px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--gm-radius-sm);
+  background: linear-gradient(180deg, #ffd75a, #f0a800);
+  color: #2a1a00;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+.stk__go:hover:not(:disabled) { filter: brightness(1.08); }
+.stk__go:disabled { opacity: 0.5; cursor: default; }
+.stk__state {
+  margin: 14px 0 0;
+  font-weight: 800;
+  color: var(--gm-text);
+}
+/* The one number that is running out, so it is the one that is lit. */
+.stk__clock {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--gm-yellow);
+}

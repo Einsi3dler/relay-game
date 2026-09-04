@@ -116,8 +116,16 @@ class DuelModule(Protocol):
     name: str             # display name. e.g. "Rock Paper Scissors"
     choice_seconds: int   # per-round choice window — the module's time cost
     wins_needed: int      # round wins that take the duel
+    # True for a duel fought with the team's own coins (BID WAR). The engine
+    # collects a stake from each Grandmaster before the duel opens, passes the
+    # two pools to `new_duel`, and reads `settlement` when it ends. A staked
+    # duel is also fought once per level rather than twice: see
+    # config.DUEL_STAKE_* and docs/DUEL_MODULE_SPEC.md.
+    staked: bool
 
-    def new_duel(self, seed: int) -> DuelState: ...
+    # `stakes` is the coins each side was granted, keyed by side. It is None
+    # for an unstaked duel, and a staked module may assume it is not.
+    def new_duel(self, seed: int, stakes: dict[str, int] | None = None) -> DuelState: ...
     # The canonical move, or None if it is illegal. Validating and normalising
     # in one call is what guarantees `DuelState.choices` only ever holds
     # canonical values, so `resolve_round` never re-parses client text.
@@ -135,4 +143,8 @@ class DuelModule(Protocol):
     def public(
         self, state: DuelState, side: str | None, revealed: bool
     ) -> dict[str, Any]: ...
+    # Coins each side won and is owed back into their team purse, keyed by
+    # side. Staked duels only; the engine pays it once, when the duel ends.
+    # An unstaked module need not define it.
+    def settlement(self, state: DuelState) -> dict[str, int]: ...
     def reset(self) -> None: ...

@@ -33,6 +33,7 @@ import pytest
 from backend import config, preview
 from backend.engine import EngineResult, RelayEngine
 from backend.games.duel1_rps import RockPaperScissorsDuel
+from backend.games.duel4_bid_war import BidWar
 from backend.registry import REGISTERED_MODULES, GameRegistry
 
 ROOT = Path(__file__).parents[1]
@@ -624,6 +625,15 @@ function probe(shell) {
   return {
     view: ["view-join", "view-lobby", "view-play", "view-leader", "view-result"]
       .filter((id) => !$(id).hidden),
+    stake: {
+      card_hidden: $("stake-card").hidden,
+      state: $("stake-state").textContent,
+      clock: $("stake-clock").textContent,
+      ask_row_hidden: $("stake-ask-row").hidden,
+      leader_hidden: $("leader-stake-card").hidden,
+      leader_ask: $("leader-stake-ask").textContent,
+      leader_state: $("leader-stake-state").textContent,
+    },
     rejoin: {
       panel_hidden: $("rejoin-row").hidden,
       match: $("rejoin-match-input").value,
@@ -868,6 +878,22 @@ def _seat(engine, match, leaders, player, role: str, game: str | None = None):
         assert engine.assign_game(match, leader_id, player.id, game).ok
 
 
+def _fund_duel(engine: RelayEngine, match, leaders, stake: int = 20) -> None:
+    """Settle a staked duel so the scenario has one to draw.
+
+    The server picks the duel game at random, and BID WAR does not open until
+    both Grandmasters answer. Without this, a scenario would render an empty
+    duel card on whichever runs happened to draw it — a real flake, not a
+    hypothetical one.
+    """
+    if match.pending_stake is None:
+        return
+    for team in match.teams.values():
+        team.currency = max(team.currency, stake)
+    for team_id in match.pending_stake.team_of.values():
+        engine.answer_stake(match, match.teams[team_id].leader_id, stake, now=NOW)
+
+
 def _ready_lobby(engine: RelayEngine):
     """A lobby that starts: one Defuser and one filler seat per team."""
     match, seats, leaders = _lobby(engine)
@@ -1018,6 +1044,7 @@ def shell() -> dict:
         for at, (role, game) in enumerate(zip(dash_roles, dash_games)):
             _seat(engine, match, leaders, seats[team_id][at], role, game)
     assert engine.start_match(match, now=NOW).changed
+    _fund_duel(engine, match, leaders)
     dash_lead = leaders["alpha"]
     dash_team = match.teams["alpha"]
     defuser, duelist, solver, gambler, absent = seats["alpha"]
@@ -1091,6 +1118,7 @@ def shell() -> dict:
     match, seats, leaders = _ready_lobby(engine)
     lobby_snapshot = match.public(leaders["alpha"].id)
     assert engine.start_match(match, now=NOW).changed
+    _fund_duel(engine, match, leaders)
     active_snapshot = match.public(leaders["alpha"].id)
     defuser_name = seats["alpha"][0].name
     match.status = "finished"
@@ -1124,6 +1152,7 @@ def shell() -> dict:
     engine = _engine()
     match, seats, leaders = _ready_lobby(engine)
     assert engine.start_match(match, now=NOW).changed
+    _fund_duel(engine, match, leaders)
     clear_snapshot = match.public(leaders["alpha"].id)
     match.teams["bravo"].currency = 99
     assert engine.buy_perk(
@@ -1177,6 +1206,7 @@ def shell() -> dict:
                   "generalist", FILLER[index])
     assert bombless.start_blocker(match) is None
     assert bombless.start_match(match, now=NOW).changed
+    _fund_duel(bombless, match, leaders)
     scenarios.append({
         "name": "console_without_a_defuser",
         "config": _config_body(bombless),
@@ -1193,6 +1223,7 @@ def shell() -> dict:
     match, seats, leaders = _ready_lobby(engine)
     solver = seats["alpha"][1]                       # the SWEEP seat
     assert engine.start_match(match, now=NOW).changed
+    _fund_duel(engine, match, leaders)
     solving_snapshot = match.public(solver.id)
     _clear_a_player(engine, match, solver)
     cleared_snapshot = match.public(solver.id)
@@ -1234,6 +1265,7 @@ def shell() -> dict:
         _seat(duel_engine, match, leaders, seats[team_id][2], "duelist")
     assert duel_engine.host_set_duel_seconds(match, match.host_player_id, 6).ok
     assert duel_engine.start_match(match, now=NOW).changed
+    _fund_duel(duel_engine, match, leaders)
     champion = seats["alpha"][2]
     duel = match.duel
     open_round = match.public(champion.id)
@@ -1264,6 +1296,7 @@ def shell() -> dict:
     dark = _engine()
     match, seats, leaders = _ready_lobby(dark)
     assert dark.start_match(match, now=NOW).changed
+    _fund_duel(dark, match, leaders)
     defuser = seats["alpha"][0]
     assert defuser.assigned_game == "bomb_defuse"
     defuser.current_main.payload["hidden_deadline"] = True
@@ -1302,6 +1335,7 @@ def shell() -> dict:
     capped = _engine()
     match, seats, leaders = _ready_lobby(capped)
     assert capped.start_match(match, now=NOW).changed
+    _fund_duel(capped, match, leaders)
     boarder = seats["alpha"][1]
     boarder.current_main.payload["time_limit_seconds"] = BOARD_LIMIT
     capped._arm_board_deadline(match, boarder, EngineResult(), NOW)
@@ -1329,6 +1363,7 @@ def shell() -> dict:
     frozen = _engine()
     match, seats, leaders = _ready_lobby(frozen)
     assert frozen.start_match(match, now=NOW).changed
+    _fund_duel(frozen, match, leaders)
     solver = seats["alpha"][1]
     for other in seats["alpha"]:
         if other is not solver:
@@ -1370,12 +1405,44 @@ def shell() -> dict:
             "actions": [{"do": "record", "as": "booted"}],
         })
 
+    # --- funding a staked duel ----------------------------------------------
+    # BID WAR is bought before it is fought. Two seats see the negotiation and
+    # they see different halves of it, so both are drawn here.
+    staked = RelayEngine(GameRegistry(REGISTERED_MODULES, duels=[BidWar()]))
+    match, seats, leaders = _lobby(staked, per_team=3, min_players=3)
+    for team_id in config.TEAM_IDS:
+        _seat(staked, match, leaders, seats[team_id][0], "defuser")
+        _seat(staked, match, leaders, seats[team_id][1], "generalist", FILLER[0])
+        _seat(staked, match, leaders, seats[team_id][2], "duelist")
+    # A staked duel is only dealt to teams that could fund one.
+    for team in match.teams.values():
+        team.currency = 60
+    assert staked.start_match(match, now=NOW).changed
+    assert match.pending_stake is not None, "BID WAR should be waiting on the money"
+    champion = seats["alpha"][2]
+    asked = staked.request_stake(match, champion.id, 34)
+    assert asked.ok, asked.error
+    stake_lead = leaders[champion.team_id]
+    for name, viewer in (("stake:duellist", champion), ("stake:leader", stake_lead)):
+        scenarios.append({
+            "name": name,
+            "config": _config_body(staked),
+            "session": {"matchId": match.id, "playerId": viewer.id},
+            "snapshots": [match.public(viewer.id)],
+            "actions": [
+                {"do": "deliver", "snapshot": 0},
+                {"do": "record", "as": "asked"},
+            ],
+        })
+    expected["stake"] = {"ask": 34, "champion": champion.name, "purse": 60}
+
     # --- losing a seat, and getting it back ---------------------------------
     # A seat is held for the whole match, so the identity that reclaims it has
     # to outlive the tab. These cover what a dropped socket leaves behind.
     engine = _engine()
     match, seats, leaders = _ready_lobby(engine)
     assert engine.start_match(match, now=NOW).changed
+    _fund_duel(engine, match, leaders)
     stranded = seats["alpha"][1]
     stranded_snapshot = match.public(stranded.id)
     for code, name in ((4404, "gone"), (4403, "kicked"), (4402, "cancelled")):
@@ -1535,6 +1602,45 @@ def test_the_shell_connects_with_the_saved_session(shell):
     url = shell["console"]["url"]
     assert url.startswith("ws://relay.test/ws/matches/")
     assert "player_id=p_" in url
+
+
+# --- funding a staked duel ------------------------------------------------
+
+
+def test_a_duelist_is_shown_what_they_asked_for_and_who_owes_them(shell):
+    """The Duelist's half: their own ask, and the clock they are waiting on.
+    There is no board to play until the money lands, so the panel stands where
+    the board would."""
+    want = shell["_expected"]["stake"]
+    stake = shell["stake:duellist"]["records"]["asked"]["stake"]
+    assert stake["card_hidden"] is False
+    assert str(want["ask"]) in stake["state"]
+    assert "Waiting on your Grandmaster" in stake["state"]
+    assert stake["clock"], "no countdown on the one thing that lapses"
+    assert stake["leader_hidden"] is True, "a player has no command board"
+
+
+def test_a_grandmaster_is_shown_the_ask_and_what_the_purse_holds(shell):
+    """Their half: the number they have to answer, and the money they would be
+    answering it with."""
+    want = shell["_expected"]["stake"]
+    stake = shell["stake:leader"]["records"]["asked"]["stake"]
+    assert stake["leader_hidden"] is False
+    assert want["champion"] in stake["leader_ask"]
+    assert str(want["ask"]) in stake["leader_ask"]
+    assert str(want["purse"]) in stake["leader_state"]
+
+
+def test_the_stake_panel_stays_shut_when_nothing_is_being_funded(shell):
+    """Three of the four duels are free, and most of a match has no duel at
+    all. Neither panel may appear then."""
+    for name, record in (("console", "live"), ("countdown", "resting")):
+        run = shell.get(name)
+        if run is None or record not in run["records"]:
+            continue
+        stake = run["records"][record]["stake"]
+        assert stake["card_hidden"] is True, name
+        assert stake["leader_hidden"] is True, name
 
 
 # --- losing a seat, and getting it back ----------------------------------

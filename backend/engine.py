@@ -30,7 +30,9 @@ from uuid import uuid4
 
 from backend import config
 from backend.games.duel_base import SIDES, DuelModule, other_side
-from backend.models import DuelSession, Event, Match, Player, Team, green
+from backend.models import (
+    DuelSession, Event, Match, PendingStake, Player, Team, green,
+)
 from backend.registry import GameRegistry
 
 
@@ -141,6 +143,7 @@ class TimerRequest:
 
     scope_id: str
     kind: str  # "wait" | "puzzle" | "duel_round" | "duel_reveal" | "duel_next"
+               # | "duel_stake" (a staked duel waiting on the Grandmasters)
     #          | "duel_penalty"
     deadline: str  # UTC ISO
 
@@ -1011,7 +1014,7 @@ class RelayEngine:
                     continue  # champions duel instead; _start_duel seats them
                 self._serve_main(match, player, result, now)
         self._add_event(match, result, "Match started — Level 1!", "info")
-        self._start_duel(match, result, now)
+        self._open_duel(match, result, now)
         return result
 
     # --- the level loop ---
@@ -1733,8 +1736,230 @@ class RelayEngine:
             return False
         return _parse_iso(team.duel_penalty_until) > (now or utc_now())
 
-    def _start_duel(
+    def _open_duel(
         self, match: Match, result: EngineResult, now: datetime | None = None
+    ) -> None:
+        """Pick the next duel game, and either fund it or start it.
+
+        A staked duel (BID WAR) cannot be built yet: the module needs both
+        purses to roll its opening lot, and those purses are two Grandmasters'
+        decisions. So it goes through `_open_staking` first, and only reaches
+        `_start_duel` once both have answered or the window has lapsed.
+        """
+        seats = self._duel_seats(match)
+        if match.status != "active" or seats is None:
+            return
+        if any(team.finished for _, _, team in seats):
+            return
+
+        seed = _new_seed()
+        module = self.registry.pick_duel(seed)
+        if getattr(module, "staked", False) and not self._can_stake(seats):
+            # Nobody can fund it. Teams start a match on an empty purse, so
+            # without this the level-1 duel would be BID WAR fought with two
+            # empty hands: every lot tied, straight to overtime, decided by a
+            # tiebreak nobody paid for. A free duel is the honest game there.
+            module = self.registry.pick_duel(seed, free_only=True)
+        if getattr(module, "staked", False):
+            self._open_staking(match, result, module, seats, now)
+            return
+        self._start_duel(match, result, module, None, now)
+
+    @staticmethod
+    def _can_stake(seats: list) -> bool:
+        """True when BOTH purses could fund a real sale.
+
+        Both, not either: a staked duel between a rich team and a broke one is
+        not a contest, and the broke side did not choose to be there.
+        """
+        return all(
+            team.currency >= config.DUEL_STAKE_MIN_PURSE for _, _, team in seats
+        )
+
+    def _open_staking(
+        self,
+        match: Match,
+        result: EngineResult,
+        module: DuelModule,
+        seats: list,
+        now: datetime | None = None,
+    ) -> None:
+        """Ask both Grandmasters to fund their champion."""
+        match.duel = None
+        match.pending_stake = PendingStake(
+            duel_game_id=module.id,
+            sides={side: player.id for side, player, _ in seats},
+            team_of={side: team.id for side, _, team in seats},
+        )
+        for _, player, _ in seats:
+            # They are already out of the puzzle pool; the duel simply has not
+            # opened yet. Status stays `duelling` so no team counts them green.
+            player.assigned_game = module.id
+            player.status = "duelling"
+            player.current_main = None
+            player.current_bonus = None
+            player.choice_pending = False
+            player.timer_kind = None
+            player.timer_deadline = None
+            result.cancel.append(player.id)
+        match.pending_stake.deadline = self._start_scope_timer(
+            match, DUEL_SCOPE, "duel_stake", result, now,
+            seconds=config.DUEL_STAKE_REQUEST_SECONDS,
+        )
+        names = " vs ".join(player.name for _, player, _ in seats)
+        self._add_event(
+            match, result,
+            f"{module.name} — {names}. Both Grandmasters must stake their champion.",
+            "info",
+        )
+
+    def request_stake(
+        self, match: Match, player_id: str, amount: int
+    ) -> EngineResult:
+        """A Duelist names the number they want out of the team purse.
+
+        It is a request and nothing more: no coins move here, and their
+        Grandmaster is free to answer with any other number.
+        """
+        pending = match.pending_stake
+        if match.status != "active" or pending is None:
+            return EngineResult.rejected("nothing to stake on")
+        side = pending.side_of(player_id)
+        if side is None:
+            return EngineResult.rejected("you aren't in this duel")
+        if side in pending.grants:
+            return EngineResult.rejected("your stake is already set")
+        team = match.teams.get(pending.team_of.get(side, ""))
+        if team is None:
+            return EngineResult.rejected("no team to ask")
+        # Asking for more than the purse holds is not an error, it is a
+        # negotiating position — but there is no point letting it run away.
+        pending.asks[side] = max(0, min(int(amount), team.currency))
+        # Deliberately no event. The ask reaches the one seat that has to answer
+        # it through `pending_stake`, and the feed is broadcast to everybody:
+        # putting a number there would hand the opposing Duelist the read that
+        # the whole secret-stake design exists to deny them.
+        return EngineResult(changed=True)
+
+    def answer_stake(
+        self, match: Match, leader_id: str, amount: int, now: datetime | None = None
+    ) -> EngineResult:
+        """A Grandmaster funds their champion, with whatever they choose.
+
+        The granted coins leave the purse **here** and do not come back: what
+        the Duelist wins is paid separately when the duel ends. Granting zero
+        is a legal answer and means "bid with nothing".
+        """
+        pending = match.pending_stake
+        if match.status != "active" or pending is None:
+            return EngineResult.rejected("nothing to stake on")
+        leader = match.players.get(leader_id)
+        if leader is None or not leader.is_leader:
+            return EngineResult.rejected("only the Grandmaster stakes")
+        side = next(
+            (s for s, team_id in pending.team_of.items()
+             if team_id == leader.team_id),
+            None,
+        )
+        if side is None:
+            return EngineResult.rejected("your team has no champion here")
+        if side in pending.grants:
+            return EngineResult.rejected("you already staked this duel")
+        team = match.teams[leader.team_id or ""]
+        granted = max(0, min(int(amount), team.currency))
+        result = EngineResult(changed=True)
+        self._grant_stake(match, result, pending, side, granted, team)
+        self._staking_check(match, result, pending, now)
+        return result
+
+    def _grant_stake(
+        self, match: Match, result: EngineResult, pending: PendingStake,
+        side: str, granted: int, team: Team,
+    ) -> None:
+        """Move the coins out of the purse and record the answer."""
+        team.currency -= granted
+        pending.grants[side] = granted
+        duellist = match.players.get(pending.sides.get(side, ""))
+        who = duellist.name if duellist else "their champion"
+        # *That* they have staked, never how much. The amount is the one thing
+        # worth knowing before the first bid, and it stays in `pending_stake`
+        # where only that team can see it. Their own purse tells them the rest.
+        self._add_event(
+            match, result,
+            f"Team {team.name} has staked {who}.",
+            "duel_stake",
+        )
+
+    def _staking_check(
+        self, match: Match, result: EngineResult, pending: PendingStake,
+        now: datetime | None = None,
+    ) -> None:
+        """Open the duel once both Grandmasters have answered."""
+        if not pending.settled():
+            return
+        seats = self._duel_seats(match)
+        match.pending_stake = None
+        result.cancel.append(DUEL_SCOPE)
+        if seats is None or not self.registry.has_duel(pending.duel_game_id):
+            return
+        module = self.registry.duel_by_id(pending.duel_game_id)
+        self._start_duel(match, result, module, dict(pending.grants), now)
+
+    def _pay_settlement(
+        self, match: Match, result: EngineResult, duel: DuelSession
+    ) -> None:
+        """Pay a staked duel's winnings back into the two team purses.
+
+        Winnings only. The stake left the purse when it was granted and is not
+        returned, which is the whole reason funding a champion is a gamble: a
+        team that stakes 20 and wins 12 back is 8 down on the exchange.
+        """
+        settle = getattr(duel.module, "settlement", None)
+        if not getattr(duel.module, "staked", False) or settle is None:
+            return
+        for side, coins in settle(duel.state).items():
+            team = match.teams.get(duel.team_of.get(side, ""))
+            if team is None or coins <= 0:
+                continue
+            team.currency += coins
+            self._add_event(
+                match, result,
+                f"Team {team.name} takes {coins} back from the sale.",
+                "duel_stake",
+            )
+
+    def _stake_timeout(
+        self, match: Match, result: EngineResult, now: datetime | None = None
+    ) -> None:
+        """The window lapsed. Fund whoever was not funded and get on with it.
+
+        A duel that waited forever on an absent Grandmaster would stall both
+        teams, so silence is answered with `config.DUEL_STAKE_DEFAULT`, capped
+        by what the purse actually holds. An empty purse grants nothing, which
+        is a playable position rather than an error: a Duelist with no coins
+        can still bid zero and reach overtime.
+        """
+        pending = match.pending_stake
+        if pending is None:
+            return
+        for side, team_id in pending.team_of.items():
+            if side in pending.grants:
+                continue
+            team = match.teams.get(team_id)
+            if team is None:
+                pending.grants[side] = 0
+                continue
+            granted = max(0, min(config.DUEL_STAKE_DEFAULT, team.currency))
+            self._grant_stake(match, result, pending, side, granted, team)
+        self._staking_check(match, result, pending, now)
+
+    def _start_duel(
+        self,
+        match: Match,
+        result: EngineResult,
+        module: DuelModule,
+        stakes: dict[str, int] | None = None,
+        now: datetime | None = None,
     ) -> None:
         """Seat both Duelists in a fresh duel and open the first round."""
         seats = self._duel_seats(match)
@@ -1743,11 +1968,10 @@ class RelayEngine:
         if any(team.finished for _, _, team in seats):
             return
 
-        module = self.registry.pick_duel(_new_seed())
         duel = DuelSession(
             id=uuid4().hex[:8],
             module=module,
-            state=module.new_duel(_new_seed()),
+            state=module.new_duel(_new_seed(), stakes),
             sides={side: player.id for side, player, _ in seats},
             team_of={side: team.id for side, _, team in seats},
             phase="choosing",
@@ -1908,8 +2132,13 @@ class RelayEngine:
             f"{winner.name} wins the duel for team {winner_team.name} (+{pay}).",
             "info",
         )
+        self._pay_settlement(match, result, duel)
         match.duels_played += 1
-        if match.duels_played >= match.config_snapshot["duels_per_level"]:
+        # A staked duel is fought once a level, not twice. The teams already
+        # paid for it out of their purses, and a bonus round would ask them to
+        # do it again in the same breath.
+        staked = bool(getattr(duel.module, "staked", False))
+        if staked or match.duels_played >= match.config_snapshot["duels_per_level"]:
             # The series is over for this level: the main duel and its bonus are
             # spent, so no `duel_next` is queued and the champions stop duelling.
             # The loser goes green too — the once-per-level penalty stamped above
@@ -1922,6 +2151,7 @@ class RelayEngine:
             loser.timer_kind = None
             loser.timer_deadline = None
             result.cancel.append(loser.id)
+            match.duels_played = match.config_snapshot["duels_per_level"]
             self._add_event(
                 match,
                 result,
@@ -1959,6 +2189,11 @@ class RelayEngine:
             self._advance_check(match, team, result, now)
             return result
 
+        if (kind == "duel_stake" and scope_id == DUEL_SCOPE
+                and match.status == "active" and match.pending_stake is not None):
+            self._stake_timeout(match, result, now)
+            return result
+
         duel = match.duel
         if duel is None or scope_id != DUEL_SCOPE or match.status != "active":
             return EngineResult(changed=False)
@@ -1969,7 +2204,7 @@ class RelayEngine:
             self._next_round(match, result, now)
             return result
         if kind == "duel_next" and duel.phase == "done":
-            self._start_duel(match, result, now)
+            self._open_duel(match, result, now)
             return result
         return EngineResult(changed=False)
 

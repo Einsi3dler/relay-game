@@ -88,6 +88,8 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 | `choose_bonus` | — | Cleared player takes the bonus: status → `bonus`, a harder instance of their game arrives, the running wait deadline becomes the bonus deadline. |
 | `buy_perk` | `perk_id: str`, `target_id?: str` | Grandmaster-only, active match only. `target_id` is required for `extend_wait` (a cleared teammate); attack perks pick a random opponent server-side. |
 | `give_leader` | `target_id: str` | Grandmaster-only. Lobby: moves the seat. Active match: full swap, once per team per level (see [GAME_DESIGN.md](GAME_DESIGN.md) §11). |
+| `request_stake` | `amount: int` | Duelist-only, and only while a staked duel is being funded. Names the number they want out of the team purse. Moves no coins: the Grandmaster answers it. Capped at what the purse holds. |
+| `answer_stake` | `amount: int` | Grandmaster-only, once per staked duel. Funds their own champion with **any** amount they choose, more or less than was asked; `0` is a legal answer meaning "bid with nothing". The coins leave the purse here and only winnings come back. Capped at what the purse holds. |
 | `request_state` | — | Ask for a fresh `state_snapshot` (e.g. after reconnect). |
 | `heartbeat` | — | Keep-alive; server replies with a `state_snapshot`. |
 | `lobby_action` | `action: str` + action fields | Mostly lobby-only. `set_team {team_id}` (self), `leave` (self; the host seat passes on), `claim_leader` (seat empty or holder disconnected), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `set_max_players {value}` (1..ceiling; pulls `min_players` down with it), `set_level_count {value}` (3..10 rounds to win), `set_duel_seconds {value}` (3..30 seconds a duel round, or `0` to give every duel game its own window back), `set_team_name {team_id, name}`, `start`, `cancel_session`; `claim_host` (only while the host is gone). **Outside the lobby:** `end_session` (host-only, running match) and `claim_host` also work — the host holds the only control that stops a session. |
@@ -147,6 +149,9 @@ These are exactly what `.public()` returns. **No answers ever appear here.**
   "unassigned": [ <PlayerPublic>, ... ], // lobby players without a team yet
   "events": [ <Event>, ... ],           // last ~30, filtered per viewer (§2.2)
   "duel": <DuelView> | null,             // only for the two Duelists and the two Grandmasters
+  "pending_stake": <PendingStakeView> | null,  // same four seats; a staked duel
+                                         //   being funded. Never set at the
+                                         //   same time as `duel`.
   "me": <PlayerPrivate> | null           // only present for the requesting player
 }
 ```
@@ -263,6 +268,48 @@ Snapshots are personalised. Which team shape a viewer gets:
 }
 ```
 
+### PendingStakeView
+
+A **staked duel** (BID WAR) waiting on both Grandmasters. Present only for the
+two Duelists and the two Grandmasters, and only in the gap between the server
+picking the duel game and the duel existing: the module cannot open the sale
+without knowing what each seat can bid, so there is no `DuelView` yet.
+
+Each viewer sees **their own side of the negotiation and no more**. An
+opponent's purse is the one thing worth knowing before the first bid, so it
+stays hidden until the duel opens and the module's own payload publishes it.
+
+```jsonc
+{
+  "duel_game_id": "bid_war",
+  "deadline": "2026-07-02T12:00:25Z",    // when the window lapses and the
+                                         //   server stakes the default for
+                                         //   whoever has not answered
+  "side": "a",                           // the viewer's own side: their seat as
+                                         //   a Duelist, or their team's as a
+                                         //   Grandmaster. Null for neither.
+  "duellists": { "a": "Ada", "b": "Bo" }, // names only, never ids
+  "ask": 34,                             // what THIS side's Duelist asked for,
+                                         //   null until they ask
+  "granted": null,                       // what THIS side's Grandmaster gave,
+                                         //   null until they answer
+  "settled": false                       // whether this side is done
+}
+```
+
+Rules the client can rely on:
+
+- `ask` and `granted` are always **this viewer's side**. The opposing team's
+  numbers never appear in this object at all.
+- A Duelist may send `request_stake` until their own side is `settled`.
+- A Grandmaster may send `answer_stake` exactly once, and `0` is a real answer.
+- If the deadline passes, the server grants `config.DUEL_STAKE_DEFAULT` (capped
+  by the purse, so possibly `0`) to whoever has not answered, and the duel
+  opens. It never waits indefinitely on an absent Grandmaster.
+- The server only deals a staked duel when **both** purses hold at least
+  `config.DUEL_STAKE_MIN_PURSE`; otherwise it deals a free duel and this object
+  never appears. See [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md).
+
 ### DuelView
 
 The live head-to-head, present only for the two Duelists and the two
@@ -308,7 +355,7 @@ and `wins_needed`. What each adds:
 | **RPS DUEL** (no `kind`) | `moves`, `beats` | — |
 | **CROWN DUEL** `crown_duel` | `phase` (`strategy`/`combat`), `game_round`, `crowns`, `sacrifice_used`, `can_sacrifice`, **your own** `hand`, `cards_left` (counts for both), `beats`, `transform_types`, `log`, `last` | the opponent's hand, or anything about what their Royal Sacrifice did |
 | **NUMBER CLASH** `number_clash` | `points`, `numbers`, `used` (both sides — every one was revealed when its round resolved), your `available`, `log`, `last` | — |
-| **BID WAR** `bid_war` | `coins`, `vp`, `auction`, `prize`, `next_prize`, `max_bid` (yours), `overtime`, `log`, `last` | the shuffled prize order past the next lot |
+| **BID WAR** `bid_war` | `staked` (what each side was granted), `coins` (what each still holds), `won` (coins taken, owed back to the team), `auction`, `prize`, `max_bid` (yours), `overtime`, `log`, `last` | a lot that has not been rolled. `next_prize` is **always null**: the next lot's floor depends on what this auction costs the pair of you, so it does not exist yet |
 
 A Grandmaster (`you: null`) gets no hand, no purse and no choices — there is
 nothing for them to relay to their champion mid-round.
@@ -341,5 +388,12 @@ nothing for them to relay to their champion mid-round.
    per-player cleared states — that data appears only in Grandmaster snapshots.
 4. `me.current_puzzle` is non-null exactly while `solving` or `bonus`.
 5. `green_count == number of cleared players` wherever both appear.
+6. `duel` and `pending_stake` are never both non-null: a staked duel is being
+   funded or it is being fought, never both.
+7. A `pending_stake` never carries the opposing team's `ask` or `granted`, and
+   a player who is neither a Duelist nor a Grandmaster is sent `null` for it.
+8. A rejoin code appears in exactly two places: your own `me.rejoin_code`, and
+   the roster rows of your own Grandmaster's `TeamView`. Never in the lobby
+   view, an opponent summary, or a finished match.
 
 Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [GAME_DESIGN.md](GAME_DESIGN.md) · [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md)

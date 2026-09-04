@@ -1,13 +1,15 @@
 // BID WAR renderer — the Duelist's whole view.
 //
-// One lot at a time: the prize on the block, the one after it, both purses,
-// both scores, and a bid you set exactly. The stepper is the input that
-// matters — a slider alone cannot say "seven" — with quick bids beside it for
-// the common shapes.
+// Everything here is coins, because the game is now played with the team's
+// own: the purse was staked by the Grandmaster, the lot on the block is worth
+// coins, and what you win goes back to the team. One lot at a time, both
+// purses, both winnings, and a bid you set exactly. The stepper is the input
+// that matters — a slider alone cannot say "seven" — with quick bids beside it.
 //
-// The opponent's bid is never here before the reveal: their panel shows a lock
-// until `duel.choices` carries the number, and the prizes after the next one
-// are not in the payload at all, so there is nothing in the DOM to read ahead.
+// Two things are deliberately absent from the DOM because they are absent from
+// the payload: the opponent's bid before the reveal, and the next lot. The
+// next lot's floor depends on what this one costs the pair of you, so it has
+// not been rolled yet and there is nothing honest to show.
 (function () {
   "use strict";
 
@@ -64,6 +66,7 @@
     var next = el("div", "duel-prize duel-prize--next");
     var nextValue = el("div", "duel-prize-value", "–");
     next.appendChild(el("div", "duel-prize-label", "Next"));
+    next.hidden = true;   // never rolled yet — see the header
     next.appendChild(nextValue);
     prizes.appendChild(prize);
     prizes.appendChild(next);
@@ -172,9 +175,9 @@
         (entry.a === null ? "–" : entry.a) + " vs " +
         (entry.b === null ? "–" : entry.b)));
       row.appendChild(el("span", "duel-log-winner", entry.winner
-        ? "+" + entry.prize + " VP to " +
+        ? "+" + entry.prize + " to " +
           (entry.winner === state.mine ? "you" : "them")
-        : entry.prize + " VP rolls on"));
+        : entry.prize + " rolls on"));
       dom.log.appendChild(row);
     });
   }
@@ -190,13 +193,13 @@
     if (duel.phase === "reveal") {
       if (!last) return "Lot closed.";
       if (!last.winner) {
-        return "🤝 Tied bid — nobody is paid and " + last.prize +
-          " VP rolls into the next lot.";
+        return "🤝 Tied bid. Nobody is paid and " + last.prize +
+          " coins roll into the next lot.";
       }
       if (!duel.you) return "Lot " + last.auction + " sold.";
       return last.winner === duel.you
-        ? "💰 Sold to you — +" + last.prize + " VP."
-        : "❌ Sold to them — +" + last.prize + " VP.";
+        ? "💰 Sold to you: +" + last.prize + " coins for your team."
+        : "❌ Sold to them: +" + last.prize + " coins to theirs.";
     }
     if (!duel.you) return "Lot " + payload.auction + " under the hammer.";
     if (state.locked) return "Bid locked — waiting…";
@@ -204,7 +207,7 @@
   }
 
   function roundLine(payload) {
-    if (payload.overtime) return "OVERTIME — a fresh, equal purse decides it";
+    if (payload.overtime) return "OVERTIME: a fresh, equal purse decides it";
     return "Lot " + payload.auction + " of " + payload.auctions;
   }
 
@@ -219,7 +222,7 @@
     var locked = duel.locked || {};
     var coins = payload.overtime ? (payload.overtime_coins || {})
       : (payload.coins || {});
-    var vp = payload.vp || {};
+    var won = payload.won || {};
     var seats = mine ? [mine, theirs] : ["a", "b"];
 
     state.mine = mine;
@@ -235,15 +238,15 @@
     [dom.you, dom.them].forEach(function (panel, index) {
       var side = seats[index];
       panel.face.textContent = hand(choices[side], locked[side]);
-      panel.score.textContent = (vp[side] || 0) + " VP";
+      panel.score.textContent = (won[side] || 0) + " won";
       panel.coins.textContent = (coins[side] === undefined ? 0 : coins[side]) +
         (payload.overtime ? " overtime coins" : " coins");
     });
 
-    dom.prizeValue.textContent = (payload.prize || 0) + " VP";
-    dom.next.hidden = payload.next_prize === null ||
-      payload.next_prize === undefined;
-    dom.nextValue.textContent = (payload.next_prize || 0) + " VP";
+    dom.prizeValue.textContent = (payload.prize || 0) + " coins";
+    // Always hidden: the next lot has not been rolled. Kept in the DOM so the
+    // card keeps one shape across every duel game.
+    dom.next.hidden = true;
 
     dom.root.className = "duel duel-bid duel-" + duel.phase;
     dom.round.textContent = roundLine(payload);

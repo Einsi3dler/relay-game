@@ -628,6 +628,8 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
                 protocol.CHOOSE_BONUS,
                 protocol.BUY_PERK,
                 protocol.GIVE_LEADER,
+                protocol.REQUEST_STAKE,
+                protocol.ANSWER_STAKE,
             ):
                 async with locks.for_match(match_id):
                     touch(match_id)
@@ -641,6 +643,14 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
                             player_id,
                             fields["perk_id"],
                             fields.get("target_id"),
+                        )
+                    elif msg_type == protocol.REQUEST_STAKE:
+                        result = engine.request_stake(
+                            match, player_id, fields["amount"]
+                        )
+                    elif msg_type == protocol.ANSWER_STAKE:
+                        result = engine.answer_stake(
+                            match, player_id, fields["amount"]
                         )
                     else:
                         result = engine.give_leader(

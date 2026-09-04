@@ -17,6 +17,10 @@ CHOOSE_WAIT = "choose_wait"
 CHOOSE_BONUS = "choose_bonus"
 BUY_PERK = "buy_perk"
 GIVE_LEADER = "give_leader"
+# Staked duels (BID WAR): the Duelist asks their Grandmaster for coins, the
+# Grandmaster answers with what they will actually part with.
+REQUEST_STAKE = "request_stake"
+ANSWER_STAKE = "answer_stake"
 REQUEST_STATE = "request_state"
 HEARTBEAT = "heartbeat"
 LOBBY_ACTION = "lobby_action"
@@ -27,6 +31,8 @@ CLIENT_TYPES = (
     CHOOSE_BONUS,
     BUY_PERK,
     GIVE_LEADER,
+    REQUEST_STAKE,
+    ANSWER_STAKE,
     REQUEST_STATE,
     HEARTBEAT,
     LOBBY_ACTION,
@@ -132,6 +138,15 @@ def parse_client_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
                 return "Malformed message."
             fields["target_id"] = raw["target_id"]
         return msg_type, fields
+    if msg_type in (REQUEST_STAKE, ANSWER_STAKE):
+        amount = raw.get("amount")
+        # A bool is an int in Python and would sail through an isinstance
+        # check; a stake of `True` is not a number anyone typed.
+        if not isinstance(amount, int) or isinstance(amount, bool):
+            return "Malformed message."
+        if amount < 0:
+            return "Malformed message."
+        return msg_type, {"amount": amount}
     if msg_type == GIVE_LEADER:
         target_id = raw.get("target_id")
         if not isinstance(target_id, str):

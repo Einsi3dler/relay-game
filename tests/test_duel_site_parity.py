@@ -28,10 +28,11 @@ LANDING_HTML = (FRONTEND / "landing.html").read_text()
 EXPLORE_HTML = (FRONTEND / "explore.html").read_text()
 APP_JS = (FRONTEND / "app.js").read_text()
 
-# The anchor a duel's rules section lives at. RPS shares the Duelist section
-# (`#duels`), which is also where the landing page and the index point.
+# The anchor a duel's rules section lives at. Every duel now has one of its
+# own; `#duels` is the shared Duelist overview (the role, the round clock, the
+# two-duel series, what a win pays), which is what "how duels work" links to.
 ANCHORS = {
-    "rps_duel": "duels",
+    "rps_duel": "rps-duel",
     "crown_duel": "crown-duel",
     "number_clash": "number-clash",
     "bid_war": "bid-war",
