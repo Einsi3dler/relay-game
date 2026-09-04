@@ -277,6 +277,11 @@ What the engine guarantees:
   duel ends, and paid into the two team purses. Return **winnings only**. The
   stake left the purse when it was granted and must not be returned, or funding
   a champion stops being a gamble.
+- The sale is funded from the stakes:
+  `pool = 2 x min(stake_a, stake_b) x config.DUEL_STAKE_POOL_MULTIPLIER`, cut
+  into `DUEL_STAKE_LOTS` uneven pieces. Off the **smaller** stake deliberately:
+  sizing it off the sum lets a Grandmaster inflate the prize by out-staking,
+  which makes "empty the purse" the only correct move.
 - A staked duel is fought **once per level**, not twice. `config.DUELS_PER_LEVEL`
   still governs the free duels; a staked one ends its own series, and both
   champions stand down green.

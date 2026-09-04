@@ -9,7 +9,7 @@ ladder anyone could count.
 
 from __future__ import annotations
 
-import math
+import statistics
 
 import pytest
 
@@ -18,7 +18,8 @@ from backend.games.duel4_bid_war import (
     AUCTIONS,
     OVERTIME_COINS,
     BidWar,
-    roll_lot,
+    pool_for,
+    split_pool,
 )
 from backend.games.duel_base import (
     DUEL_RULES_VERSION,
@@ -65,8 +66,9 @@ def scripted(duel: BidWar, pot: int, stakes: dict | None = None) -> DuelState:
     return state
 
 
-def floor_for(on_table: int) -> int:
-    return max(1, math.ceil(on_table / config.DUEL_STAKE_LOT_FLOOR_DIVISOR))
+def expected_pool(a: int, b: int) -> int:
+    return max(config.DUEL_STAKE_POOL_FLOOR,
+               2 * min(a, b) * config.DUEL_STAKE_POOL_MULTIPLIER)
 
 
 # --- Generation ---
@@ -107,45 +109,67 @@ def test_the_module_is_the_staked_one(duel):
     assert duel._payload(duel.new_duel(1, dict(RICH)), "a")["choice_seconds"] == 10
 
 
-# --- What a lot is worth ---
+# --- What the sale is worth ---
 
-def test_a_lot_is_never_worth_less_than_the_floor(duel):
-    """The rule that keeps a late auction worth contesting: a lot is always
-    worth at least the money still on the table over the divisor."""
-    for on_table in (0, 1, 7, 40, 137):
-        for auction in range(1, AUCTIONS + 2):
-            value = roll_lot(99, auction, on_table)
-            assert value >= floor_for(on_table)
-            assert value <= max(
-                floor_for(on_table),
-                int(floor_for(on_table) * config.DUEL_STAKE_LOT_SPREAD),
-            )
+def test_the_pool_is_funded_by_the_two_stakes(duel):
+    """Money enters the game, but only in proportion to what was risked."""
+    state = duel.new_duel(7, {"a": 20, "b": 20})
+    assert sum(state.private["lots"]) == expected_pool(20, 20)
+    assert expected_pool(20, 20) == 2 * 20 * config.DUEL_STAKE_POOL_MULTIPLIER
 
 
-def test_a_lot_is_never_worthless(duel):
-    """Including when both purses are empty. A lot nobody would bid on is not
-    a lot, and it would make the last auctions meaningless."""
-    assert roll_lot(1, 1, 0) >= 1
+def test_out_staking_your_opponent_cannot_grow_the_pot(duel):
+    """The rule the whole design rests on. Sizing the pool off the COMBINED
+    stake would mean out-staking inflates the prize you are bidding for, so
+    staking everything is always right and the Grandmaster has no decision.
+    Off the smaller stake, out-staking only buys bidding power."""
+    lean = sum(duel.new_duel(3, {"a": 20, "b": 20}).private["lots"])
+    rich = sum(duel.new_duel(3, {"a": 500, "b": 20}).private["lots"])
+    assert rich == lean, "a bigger stake bought a bigger prize"
+    # And it is the SMALLER stake that sets it, whichever seat holds it.
+    assert sum(duel.new_duel(3, {"a": 20, "b": 500}).private["lots"]) == lean
 
 
-def test_the_opening_lot_is_rolled_against_both_stakes(duel):
-    state = duel.new_duel(7, {"a": 12, "b": 8})
-    assert state.private["pot"] == roll_lot(7, 1, 20)
-    assert state.private["pot"] >= floor_for(20)
+def test_a_poor_table_still_gets_a_sale(duel):
+    """Two nearly-broke teams would otherwise fight over five lots worth a coin
+    each, which is not a duel."""
+    state = duel.new_duel(1, {"a": 0, "b": 0})
+    assert sum(state.private["lots"]) == config.DUEL_STAKE_POOL_FLOOR
+    assert all(lot >= 1 for lot in state.private["lots"])
 
 
-def test_lots_are_not_a_ladder_anyone_can_count(duel):
-    """Not a proof of randomness. Just that the value moves, so paying over
-    the odds because 'this must be the big one' is a real risk."""
-    values = {roll_lot(seed, 1, 40) for seed in range(40)}
-    assert len(values) > 1
+def test_the_lots_are_deliberately_uneven(duel):
+    """A flat split is five identical decisions. The point is that most lots
+    are modest, one or two carry the sale, and telling which is the game."""
+    spreads = []
+    for seed in range(60):
+        lots = duel.new_duel(seed, {"a": 20, "b": 20}).private["lots"]
+        spreads.append(max(lots) / max(1, min(lots)))
+    assert statistics.median(spreads) > 3, "the split is too flat to matter"
 
 
-def test_the_floor_falls_with_the_money_left(duel):
-    """As purses drain the lots shrink, which is what stops the last auction
-    being worth more than anyone can pay for it."""
-    assert floor_for(40) > floor_for(10) > floor_for(2)
-    assert roll_lot(5, 2, 40) > roll_lot(5, 2, 2)
+def test_a_sale_usually_holds_a_lot_not_worth_bidding_on(duel):
+    """The strategic floor: a Duelist should sometimes be right to sit one out.
+    If every lot were worth more than a purse, every decision is the same."""
+    duds = 0
+    for seed in range(60):
+        lots = duel.new_duel(seed, {"a": 20, "b": 20}).private["lots"]
+        duds += sum(1 for lot in lots if lot < 10)
+    assert duds >= 20, "every lot was worth contesting"
+
+
+def test_the_lots_always_sum_to_the_pool(duel):
+    """Rounding a split five ways must not invent or lose coins: the pool is
+    what the teams paid for, to the coin."""
+    for seed in range(80):
+        for stakes in ({"a": 20, "b": 20}, {"a": 7, "b": 31}, {"a": 3, "b": 3}):
+            state = duel.new_duel(seed, stakes)
+            assert sum(state.private["lots"]) == pool_for(stakes)
+
+
+def test_the_split_is_deterministic_in_the_seed(duel):
+    assert split_pool(5, 200) == split_pool(5, 200)
+    assert split_pool(5, 200) != split_pool(6, 200)
 
 
 # --- Bidding ---
@@ -219,11 +243,12 @@ def test_a_tied_auction_pays_nobody_and_still_spends_both_bids(duel):
 
 
 def test_a_tied_lot_rolls_into_the_next_one(duel):
-    state = scripted(duel, 30)
+    state = duel.new_duel(9, dict(RICH))
+    first, second = state.private["lots"][0], state.private["lots"][1]
     bid(duel, state, 4, 4)
     assert state.private["auction"] == 2
-    # The next lot is its own roll *plus* the unsold one riding on top.
-    assert state.private["pot"] == 30 + roll_lot(state.private["seed"], 2, 32)
+    # The next lot is its own value *plus* the unsold one riding on top.
+    assert state.private["pot"] == first + second
     carried = state.private["pot"]
     bid(duel, state, 5, 1)
     assert state.private["won"] == {"a": carried, "b": 0}
@@ -418,17 +443,20 @@ def test_reveal_shows_both_bids(duel):
         assert view["choices"] == {"a": "7", "b": "4"}
 
 
-def test_the_next_lot_is_never_published_because_it_does_not_exist(duel):
-    """The old game showed one lot ahead off a pre-shuffled list. A lot whose
-    floor depends on what this auction costs the pair of you cannot be shown
-    before this auction resolves, so the lookahead is gone rather than faked.
-    """
-    state = scripted(duel, 20)
-    for _ in range(AUCTIONS):
+def test_only_this_lot_and_the_next_are_published(duel):
+    """One lot ahead and no further. Seeing the whole schedule would settle
+    every bid in the sale before it opened; seeing the next one is what lets a
+    Duelist decide to sit this lot out and save for what is coming."""
+    state = duel.new_duel(4, dict(RICH))
+    lots = list(state.private["lots"])
+    for index in range(AUCTIONS):
         for side in (*SIDES, None):
             payload = duel.public(state, side=side, revealed=False)["payload"]
-            assert payload["next_prize"] is None
-            assert "prizes" not in payload
+            assert payload["prize"] == state.private["pot"]
+            expected = lots[index + 1] if index + 1 < AUCTIONS else None
+            assert payload["next_prize"] == expected
+            # The rest of the schedule never leaves the server.
+            assert "lots" not in payload and "prizes" not in payload
         bid(duel, state, 2, 1)
 
 

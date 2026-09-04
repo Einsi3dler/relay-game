@@ -109,11 +109,16 @@ rather than a pool the game hands out:
   Neither side sees the other's stake until the sale opens.
 - The grant leaves the purse when it is granted and **does not come back**. Only
   what the Duelist wins is paid back in, so staking 20 to win 12 is a loss.
-- Lots are worth coins and are **rolled when they open**, with a floor
-  recomputed from what both seats still hold
-  (`DUEL_STAKE_LOT_FLOOR_DIVISOR`). Nobody can count a ladder, and the lot after
-  the current one cannot be shown because its value depends on what this one
-  costs the pair of you.
+- The sale is **funded by the two stakes**: the pool is
+  `2 x min(stake_a, stake_b) x DUEL_STAKE_POOL_MULTIPLIER`, cut into five
+  **deliberately uneven** lots. Most are modest, one or two are worth more than
+  a Duelist can pay, and a sale usually holds at least one not worth bidding on
+  at all. Misjudging which is which is the player's own problem, which is the
+  point of a gamble.
+- **`min`, not the sum.** Out-staking your opponent buys bidding power but
+  cannot grow the pot, so there is a best stake to find and going past it burns
+  coins. Sizing off the combined stake would make "empty the purse" the only
+  correct move and leave the Grandmaster no decision at all.
 - A staked duel is fought **once per level**, not twice. Both teams already paid
   for it, and the bonus round would ask them to do it again in the same breath.
   When it resolves, both champions stand down green.

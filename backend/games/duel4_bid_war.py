@@ -13,22 +13,21 @@ coins, the higher bid takes the lot, and **both bids are spent regardless**.
 Most coins won takes the duel, and what each side won is paid back into their
 team's purse when it ends (`settlement`).
 
-A lot is worth **coins**, rolled fresh when it opens rather than drawn from a
-fixed ladder:
+The sale is **funded by the two stakes**:
 
-    floor   = ceil(both purses still held / DUEL_STAKE_LOT_FLOOR_DIVISOR)
-    value   = a roll in [floor, floor * DUEL_STAKE_LOT_SPREAD]
+    pool = 2 * min(stake_a, stake_b) * DUEL_STAKE_POOL_MULTIPLIER
 
-Two things follow, and both are the point. Nobody can count the ladder: paying
-over the odds because this "must be the big one" can be answered by a lot worth
-double. And because the floor tracks what is *still on the table*, lots shrink
-as the money drains but never stop being worth contesting, so the last auction
-matters as much as the first.
+then cut into `DUEL_STAKE_LOTS` **deliberately uneven** pieces. A pool of 160
+might come out 8, 61, 5, 74, 12. So the lots are not a ladder and not a
+constant: most are small, one or two are worth more than a Duelist can pay, and
+telling which is which is the game. A lot that looks like it is not worth
+bidding on usually is not, and misjudging that is the player's own problem.
 
-It also means **the next lot cannot be shown**. Its floor depends on what this
-one costs the pair of you, so it does not exist yet. The old game published one
-lot ahead off a pre-shuffled list; a live floor and a published lookahead
-cannot both be true, and the live floor is the one that was asked for.
+`min`, not the sum, is what keeps this honest. Sizing the pool off the combined
+stake means out-staking your opponent inflates the prize you are bidding for,
+so staking everything is always right and the Grandmaster has no decision to
+make. Off the smaller stake, out-staking buys bidding power but cannot grow the
+pot: there is a best stake to find, and going past it burns coins for nothing.
 
 A tied auction pays nobody and rolls its value onto the next lot, so a mirror
 bid is the expensive way to make the following one bigger for both of you.
@@ -46,7 +45,6 @@ engine's tie path carries the duel from auction to auction.
 
 from __future__ import annotations
 
-import math
 import random
 from typing import Any
 
@@ -58,7 +56,7 @@ from backend.games.duel_base import (
     base_public,
 )
 
-AUCTIONS = 5                  # lots under the hammer before the sale closes
+AUCTIONS = config.DUEL_STAKE_LOTS   # lots under the hammer before the sale closes
 CHOICE_SECONDS = 10           # the window both Duelists bid inside
 
 # A tie that has to be broken is fought with a fresh, equal pool rather than
@@ -67,9 +65,12 @@ CHOICE_SECONDS = 10           # the window both Duelists bid inside
 # and a tiebreak nobody can bid in would never end.
 OVERTIME_COINS = 5
 
-# Keeps one lot's roll independent of its neighbours while staying a pure
-# function of the duel seed and the auction number.
-_LOT_SALT = 7919
+# Cubing a uniform weight skews the split hard toward small: most lots come out
+# modest and one or two carry the sale. A flat split gives five forgettable
+# middling lots and no reason ever to sit one out. At 3 a typical sale has about
+# one lot not worth a Duelist's while and two worth more than they can pay.
+_SKEW = 3
+_FLOOR_WEIGHT = 0.05          # so no lot rounds away to nothing
 
 
 def _copy_entry(entry: dict[str, Any]) -> dict[str, Any]:
@@ -89,17 +90,36 @@ def _coins(stakes: dict[str, int] | None, side: str) -> int:
         return 0
 
 
-def roll_lot(seed: int, auction: int, on_the_table: int) -> int:
-    """What the next lot is worth, given what both seats still hold.
+def pool_for(stakes: dict[str, int]) -> int:
+    """What the whole sale is worth, funded by the two stakes.
 
-    Deterministic in (seed, auction), but its *range* moves with the money
-    left, which is what keeps a late lot worth as much attention as an early
-    one. Never zero: a lot nobody would bother bidding on is not a lot.
+    Off the *smaller* stake: see the module header for why the sum would break
+    the game. Floored so two nearly-broke teams still have something to fight
+    over rather than five lots worth a coin each.
     """
-    divisor = config.DUEL_STAKE_LOT_FLOOR_DIVISOR
-    floor = max(1, math.ceil(max(on_the_table, 0) / divisor))
-    ceiling = max(floor, int(floor * config.DUEL_STAKE_LOT_SPREAD))
-    return random.Random(seed + auction * _LOT_SALT).randint(floor, ceiling)
+    smallest = min(_coins(stakes, side) for side in SIDES)
+    return max(
+        config.DUEL_STAKE_POOL_FLOOR,
+        2 * smallest * config.DUEL_STAKE_POOL_MULTIPLIER,
+    )
+
+
+def split_pool(seed: int, pool: int, lots: int = AUCTIONS) -> list[int]:
+    """Cut `pool` into `lots` uneven pieces, deterministically in `seed`.
+
+    Uneven is the whole point: a flat split is five identical decisions. The
+    pieces always sum to exactly `pool` (the remainder lands on the largest, so
+    rounding never invents or loses coins) and none is ever zero.
+    """
+    rng = random.Random(seed)
+    weights = [rng.random() ** _SKEW + _FLOOR_WEIGHT for _ in range(lots)]
+    total = sum(weights)
+    cut = [max(1, int(pool * weight / total)) for weight in weights]
+    drift = pool - sum(cut)
+    if drift:
+        cut[cut.index(max(cut))] = max(1, cut[cut.index(max(cut))] + drift)
+    rng.shuffle(cut)
+    return cut
 
 
 class BidWar:
@@ -125,13 +145,14 @@ class BidWar:
         a Duelist with an empty purse can still bid zero and go to overtime.
         """
         purses = {side: _coins(stakes, side) for side in SIDES}
-        opening = roll_lot(seed, 1, sum(purses.values()))
+        lots = split_pool(seed, pool_for(stakes or {}))
         return DuelState(
             duel_game_id=self.id,
             private={
                 "seed": seed,
                 "auction": 1,                 # 1..AUCTIONS, then overtime
-                "pot": opening,               # this lot, rollovers included
+                "lots": lots,                 # SECRET beyond the next one
+                "pot": lots[0],               # this lot, rollovers included
                 "staked": dict(purses),       # what each side was granted
                 "coins": dict(purses),        # what each side still holds
                 "won": {"a": 0, "b": 0},      # coins taken, owed to the purse
@@ -243,11 +264,9 @@ class BidWar:
         last_auction = private["auction"] >= AUCTIONS
         if not last_auction:
             private["auction"] += 1
-            rolled = roll_lot(
-                private["seed"], private["auction"], self._on_the_table(private)
-            )
+            nxt = private["lots"][private["auction"] - 1]
             # A tie pays nobody, so its value rides on top of the next lot.
-            private["pot"] = rolled if winner is not None else pot + rolled
+            private["pot"] = nxt if winner is not None else pot + nxt
             return None
 
         if winner is None:
@@ -281,7 +300,7 @@ class BidWar:
         # Lots are rolled rather than drawn from an odd-summed table, so two
         # equal scores are entirely reachable now. Overtime is load-bearing.
         return self._open_overtime(
-            private, roll_lot(private["seed"], AUCTIONS + 1, OVERTIME_COINS * 2)
+            private, max(1, round(sum(private["lots"]) / AUCTIONS))
         )
 
     def _open_overtime(self, private: dict[str, Any], pot: int) -> str | None:
@@ -324,9 +343,7 @@ class BidWar:
             "auctions": AUCTIONS,
             "auction": private["auction"],
             "prize": private["pot"],
-            # Always None: see the module header. Kept in the payload so the
-            # client keeps one shape across every duel game.
-            "next_prize": None,
+            "next_prize": self._next_prize(private),
             "staked": dict(private["staked"]),
             "coins": dict(private["coins"]),
             "won": dict(private["won"]),
@@ -337,6 +354,17 @@ class BidWar:
             "log": [_copy_entry(entry) for entry in private["log"]],
             "last": _copy_entry(private["last"]) if private["last"] else None,
         }
+
+    def _next_prize(self, private: dict[str, Any]) -> int | None:
+        """The lot after this one, or None when there isn't a published one.
+
+        The only window onto `lots`, and exactly one lot wide. Seeing the whole
+        schedule would settle every bid in the sale before it opened; seeing the
+        next one is what lets you decide to sit this lot out and save for it.
+        """
+        if private["overtime"] or private["auction"] >= AUCTIONS:
+            return None
+        return private["lots"][private["auction"]]
 
     def reset(self) -> None:
         return None  # stateless
