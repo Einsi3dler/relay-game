@@ -57,7 +57,15 @@ LOBBY_ACTIONS = (
     "release_leader",
     "assign_role",
     "assign_game",
+    "god_set_leader",
 )
+
+# What a God seat (backend/god.py) may send. It holds the host's controls, so
+# it needs `lobby_action`; everything else on a socket is a move in the game,
+# and a God does not get to play. The engine refuses those anyway — every one
+# of them looks the actor up in `match.players` and finds nothing — but a rule
+# that only holds by accident is one refactor from not holding.
+GOD_MESSAGE_TYPES = (LOBBY_ACTION, REQUEST_STATE, HEARTBEAT)
 
 # Server → client
 STATE_SNAPSHOT = "state_snapshot"
@@ -75,8 +83,9 @@ CLOSE_KICKED = 4403  # removed from the lobby by the host, or left of their own
 CLOSE_CANCELLED = 4402  # the host cancelled the lobby before it ever started
 
 
-def state_snapshot(match: Match, player_id: str | None = None) -> dict[str, Any]:
-    return {"type": STATE_SNAPSHOT, "state": match.public(player_id)}
+def state_snapshot(match: Match, viewer_id: str | None = None) -> dict[str, Any]:
+    """A snapshot for one viewer: a player id, or a God's observer id."""
+    return {"type": STATE_SNAPSHOT, "state": match.public(viewer_id)}
 
 
 def error_message(text: str) -> dict[str, Any]:

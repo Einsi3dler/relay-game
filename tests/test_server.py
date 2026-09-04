@@ -5,13 +5,14 @@ from __future__ import annotations
 import asyncio
 import time
 from contextlib import contextmanager
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 import backend.main as server
-from backend import config, protocol
+from backend import config, god, preview, protocol
 from backend.games.duel1_rps import RockPaperScissorsDuel
 from backend.registry import GameRegistry
 
@@ -947,3 +948,193 @@ def test_duel_renderers_are_served(client, duel_id):
     assert response.status_code == 200
     assert "RelayDuels" in response.text
     assert f'/static/duels/{duel_id}.js' in client.get("/play").text
+
+
+# --- God mode over the wire (backend/god.py) ------------------------------
+#
+# The engine half is pinned in tests/test_god_mode.py. These are the three
+# things only the socket can prove: that the door holds, that a God seat can
+# connect at all, and that it is a read-only seat nobody else can see.
+
+
+def god_match(client) -> tuple[str, str]:
+    """A match with a God running it. Returns (match_id, observer_id)."""
+    response = client.post(
+        f"/god/new?key={god.GOD_KEY}", follow_redirects=False
+    )
+    assert response.status_code == 303
+    target = response.headers["location"]
+    params = parse_qs(urlparse(target).query)
+    return params["match"][0], params["god"][0]
+
+
+@pytest.mark.parametrize("path", ["/god/new", "/god/new?key=wrong"])
+def test_god_mode_stays_silent_without_the_key(client, path):
+    """A 404, not a 403: the same answer any unknown path gives, so the door
+    does not confirm it is a door."""
+    assert client.post(path, follow_redirects=False).status_code == 404
+
+
+def test_the_god_login_trades_a_password_for_a_cookie(client):
+    assert "Password" in client.get(god.GOD_PATH).text
+    assert client.post(god.GOD_PATH, content="key=wrong").status_code == 401
+
+    response = client.post(
+        god.GOD_PATH, content=f"key={god.GOD_KEY}", follow_redirects=False
+    )
+    assert response.status_code == 303
+    assert client.cookies.get(god.COOKIE_NAME) == god.cookie_token()
+    assert "Create a match" in client.get(god.GOD_PATH).text
+
+
+def test_the_two_developer_doors_do_not_share_a_cookie(client):
+    """Both defaults are "dev", so without the scope in the cookie hash a
+    gallery cookie would open God mode. Which is the whole reason God mode has
+    a key of its own."""
+    assert preview.cookie_token() != god.cookie_token()
+    client.cookies.set(preview.COOKIE_NAME, preview.cookie_token())
+    assert client.post("/god/new", follow_redirects=False).status_code == 404
+    client.cookies.clear()
+    client.cookies.set(god.COOKIE_NAME, god.cookie_token())
+    assert client.get("/api/preview?preview=lobby").status_code == 404
+
+
+def test_a_god_can_watch_a_match_that_is_already_running(client, fake_games):
+    match_id = create_match(client)
+    response = client.post(
+        f"/god/watch?key={god.GOD_KEY}", content=f"match_id={match_id}",
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert f"match={match_id}" in response.headers["location"]
+    assert client.post(
+        f"/god/watch?key={god.GOD_KEY}", content="match_id=nosuchmatch",
+    ).status_code == 404
+
+
+def test_a_god_socket_gets_one_snapshot_and_sees_everything(client, fake_games):
+    match_id, god_id = god_match(client)
+    fill_match(client, match_id)
+    with client.websocket_connect(
+        f"/ws/matches/{match_id}?player_id={god_id}"
+    ) as ws:
+        # One snapshot, not two: a player's connect broadcasts to the match
+        # first, and a God's must not, so there is nothing to arrive ahead of
+        # their own.
+        state = ws.receive_json()["state"]
+        assert state["god"] == {"id": god_id, "name": "God"}
+        assert state["me"] is None
+        for team_id in ("alpha", "bravo"):
+            team = state["teams"][team_id]
+            assert len(team["players"]) == 5
+            assert team["currency"] is not None
+        ws.send_json({"type": "heartbeat"})
+        assert ws.receive_json()["type"] == "state_snapshot"
+
+
+def test_an_unknown_god_id_is_turned_away_like_an_unknown_player(client):
+    match_id = create_match(client)
+    with pytest.raises(WebSocketDisconnect) as caught:
+        with client.websocket_connect(
+            f"/ws/matches/{match_id}?player_id=g_nobody"
+        ) as ws:
+            ws.receive_json()
+    assert caught.value.code == protocol.CLOSE_UNKNOWN
+
+
+@pytest.mark.parametrize("message", [
+    {"type": "submit_answer", "puzzle_id": "x", "answer": "MAIN_OK"},
+    {"type": "duel_choice", "duel_id": "x", "round": 0, "choice": "rock"},
+    {"type": "buy_perk", "perk_id": "shield"},
+    {"type": "give_leader", "target_id": "x"},
+    {"type": "request_stake", "amount": 4},
+    {"type": "answer_stake", "amount": 4},
+    {"type": "choose_wait"},
+    {"type": "choose_bonus"},
+])
+def test_a_god_socket_refuses_every_move_in_the_game(client, fake_games, message):
+    match_id, god_id = god_match(client)
+    fill_match(client, match_id)
+    with client.websocket_connect(
+        f"/ws/matches/{match_id}?player_id={god_id}"
+    ) as ws:
+        before = ws.receive_json()["state"]
+        ws.send_json(message)
+        assert ws.receive_json() == {
+            "type": "error", "error": "A God seat only watches."
+        }
+        ws.send_json({"type": "request_state"})
+        assert ws.receive_json()["state"] == before  # nothing moved
+
+
+def test_a_god_holds_the_host_controls_over_the_socket(client, fake_games):
+    match_id, god_id = god_match(client)
+    ids = fill_match(client, match_id)  # the players' own host started it
+    with client.websocket_connect(
+        f"/ws/matches/{match_id}?player_id={god_id}"
+    ) as ws:
+        ws.receive_json()
+        ws.send_json({"type": "lobby_action", "action": "end_session"})
+        assert next_state(ws)["status"] == "finished"
+    assert ids["alpha"]  # sanity: the match had real players in it
+
+
+def test_a_god_names_a_grandmaster_over_the_socket(client, fake_games):
+    match_id, god_id = god_match(client)
+    wrong = join(client, match_id, "Wrong", "alpha").json()["player"]["id"]
+    right = join(client, match_id, "Right", "alpha").json()["player"]["id"]
+    with connect(client, match_id, wrong) as (player_ws, _):
+        player_ws.send_json({"type": "lobby_action", "action": "claim_leader"})
+        assert next_state(player_ws)["me"]["is_leader"] is True
+        with client.websocket_connect(
+            f"/ws/matches/{match_id}?player_id={god_id}"
+        ) as god_ws:
+            god_ws.receive_json()
+            god_ws.send_json({
+                "type": "lobby_action", "action": "god_set_leader",
+                "target_id": right,
+            })
+            state = next_state(god_ws)
+    assert state["teams"]["alpha"]["leader_id"] == right
+
+
+def test_a_god_receives_the_leader_only_events(client, fake_games):
+    """`green` is filtered out of everyone else's feed. A God is watching both
+    Grandmasters, so it has to reach them."""
+    match_id, god_id = god_match(client)
+    ids = fill_match(client, match_id)
+    with client.websocket_connect(
+        f"/ws/matches/{match_id}?player_id={god_id}"
+    ) as god_ws:
+        god_ws.receive_json()
+        with connect(client, match_id, ids["alpha"][0]) as (player_ws, me):
+            player_ws.send_json({
+                "type": "submit_answer",
+                "puzzle_id": me["current_puzzle"]["id"], "answer": MAIN_OK,
+            })
+            player_ws.receive_json()
+        kinds = set()
+        for _ in range(12):
+            message = god_ws.receive_json()
+            if message["type"] == "event":
+                kinds.add(message["event"]["kind"])
+            if "green" in kinds:
+                break
+    assert "green" in kinds
+
+
+def test_nobody_at_the_table_notices_a_god_arriving(client, fake_games):
+    """A God connecting broadcasts nothing, so a player socket that was quiet
+    stays quiet. Proved by asking for a snapshot afterwards and getting the
+    *reply* to that request rather than a queued arrival announcement."""
+    match_id, god_id = god_match(client)
+    ids = fill_match(client, match_id)
+    with connect(client, match_id, ids["alpha"][0]) as (player_ws, _):
+        with client.websocket_connect(
+            f"/ws/matches/{match_id}?player_id={god_id}"
+        ) as god_ws:
+            god_ws.receive_json()
+        player_ws.send_json({"type": "request_state"})
+        message = player_ws.receive_json()
+    assert message["type"] == "state_snapshot"
+    assert message["state"]["god"] is None

@@ -6,7 +6,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.games.base import PuzzleInstance
-from backend.models import Event, Match, Player, Team, green
+from backend.games.duel1_rps import RockPaperScissorsDuel
+from backend.games.duel_base import DuelState
+from backend.models import (
+    DuelSession, Event, Match, Observer, PendingStake, Player, Team, green,
+)
 
 
 def _future(seconds: int = 30) -> str:
@@ -92,6 +96,10 @@ def test_no_answer_anywhere_in_public_output():
         walk_no_answer(match.public())
         for player_id in match.players:
             walk_no_answer(match.public(player_id))
+        # The God view lifts every mask there is, so it is the one most worth
+        # walking: if an answer can reach a client at all, it reaches this one.
+        match.observers["g_1"] = Observer(id="g_1")
+        walk_no_answer(match.public("g_1"))
     walk_no_answer(make_puzzle().public())
 
 
@@ -102,7 +110,8 @@ def test_match_public_shape():
     assert set(out) == {"id", "status", "host_player_id", "min_players",
                         "max_players", "level_count", "duel_round_seconds",
                         "ended_reason", "winner_team_id", "config", "teams",
-                        "unassigned", "events", "duel", "pending_stake", "me"}
+                        "unassigned", "events", "duel", "pending_stake", "me",
+                        "god"}
     assert out["duel"] is None  # no Duelists in this fixture
     assert out["pending_stake"] is None  # and nothing being funded
     assert out["status"] == "active"
@@ -388,3 +397,107 @@ def test_events_capped_at_30():
 
 def test_unknown_player_id_gives_no_me():
     assert make_match().public("p_nobody")["me"] is None
+
+
+# --- the God view (backend/god.py) ---
+
+def god_match(status: str = "active") -> tuple[Match, str]:
+    match = make_match(status)
+    match.observers["g_1"] = Observer(id="g_1", name="God")
+    return match, "g_1"
+
+
+def test_a_god_sees_both_teams_whole_in_every_status():
+    """The lobby arm of `_team_view` asks whether a team is *mine*, and a God
+    has no team — so the God branch has to come first, or the one viewer meant
+    to see both loadouts would be the only one who sees neither."""
+    for status in ("lobby", "active", "finished"):
+        match, god_id = god_match(status)
+        out = match.public(god_id)
+        assert out["me"] is None
+        assert out["god"] == {"id": "g_1", "name": "God"}
+        for team_id in ("alpha", "bravo"):
+            team = out["teams"][team_id]
+            assert set(team) >= {"players", "currency", "green_count",
+                                 "shield_active", "leader_id"}
+            assert all(row["rejoin_code"] for row in team["players"])
+        alice = out["teams"]["alpha"]["players"][1]
+        assert alice["assigned_game"] == "rewire", f"masked in {status}"
+
+
+def test_a_god_sees_through_silence():
+    match, god_id = god_match()
+    match.teams["alpha"].silenced_until = _future()
+
+    blinded = match.public("p_lead")["teams"]["alpha"]
+    assert blinded["green_count"] is None  # sanity: the mask is on
+
+    seen = match.public(god_id)["teams"]["alpha"]
+    assert seen["green_count"] is not None
+    assert all(row["status"] != "hidden" for row in seen["players"])
+    assert all(row["coins_earned"] is not None for row in seen["players"]
+               if not row["is_leader"])
+
+
+def test_a_god_keeps_the_leader_only_events():
+    match, god_id = god_match()
+    match.events.append(Event(message="Alice cleared.", kind="green"))
+    kinds = {event["kind"] for event in match.public(god_id)["events"]}
+    assert "green" in kinds
+    assert "green" not in {
+        event["kind"] for event in match.public("p_alice")["events"]
+    }
+
+
+def test_the_god_key_is_null_for_everyone_else():
+    """Always present rather than appearing only on a God's own snapshot: a key
+    that comes and goes is what a shape test exists to catch, and null says
+    nothing about whether anyone is watching."""
+    match, _ = god_match()
+    for viewer in (None, "p_lead", "p_alice"):
+        assert match.public(viewer)["god"] is None
+
+
+def test_a_god_watches_the_duel_rather_than_seeing_through_it():
+    """`side_of` is None for a God, which is already the case every duel module
+    handles for a Grandmaster. Watching a duel is not seeing through it, and no
+    duel module has to learn a new audience for a God to watch one."""
+    match, god_id = god_match()
+    match.duel = DuelSession(
+        id="d1", module=RockPaperScissorsDuel(),
+        state=DuelState(duel_game_id="rps_duel", choices={"a": "rock"}),
+        sides={"a": "p_alice", "b": "p_cara"},
+        team_of={"a": "alpha", "b": "bravo"},
+    )
+    view = match.public(god_id)["duel"]
+    assert view is not None
+    assert view["you"] is None
+    assert view["choices"] == {}  # neither move, before the reveal
+    assert view["locked"] == {"a": True, "b": False}
+    # And a Duelist still sees their own, so the God branch changed nothing.
+    assert match.public("p_alice")["duel"]["choices"] == {"a": "rock"}
+
+
+def test_a_god_sees_both_sides_of_a_staked_duel():
+    """Each Grandmaster is shown their own ask and nothing of the other's.
+    A God is on neither side, so it gets both — its own method rather than a
+    flag, because `public()` derives one side from a `Player` a God is not."""
+    match, god_id = god_match()
+    match.pending_stake = PendingStake(
+        duel_game_id="bid_war",
+        sides={"a": "p_alice", "b": "p_cara"},
+        team_of={"a": "alpha", "b": "bravo"},
+        asks={"a": 9, "b": 27},
+        grants={"a": 5},
+    )
+    view = match.public(god_id)["pending_stake"]
+    assert view["asks"] == {"a": 9, "b": 27}
+    assert view["grants"] == {"a": 5}
+    assert view["team_of"] == {"a": "alpha", "b": "bravo"}
+    assert view["side"] is None and view["ask"] is None
+    assert set(view) >= set(match.public("p_lead")["pending_stake"])
+
+    # The player view is untouched: alpha's Grandmaster still learns nothing
+    # about what bravo staked.
+    theirs = match.public("p_lead")["pending_stake"]
+    assert theirs["ask"] == 9 and 27 not in list(theirs.values())

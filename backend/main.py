@@ -23,7 +23,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from backend import config, preview, protocol
+from backend import config, god, preview, protocol
 from backend.engine import EngineResult, RelayEngine
 from backend.models import LEADER_ONLY_EVENT_KINDS, Match
 from backend.registry import REGISTERED_MODULES, GameRegistry
@@ -126,9 +126,10 @@ async def apply_and_broadcast(match: Match, result: EngineResult) -> None:
         payload = protocol.event_message(event)
         if match.status != "lobby" and event.kind in LEADER_ONLY_EVENT_KINDS:
             # Who cleared / who lost cleared status is leader-only knowledge.
-            for player_id, socket in manager.match_sockets(match.id):
-                player = match.players.get(player_id)
-                if player is not None and player.is_leader:
+            for viewer_id, socket in manager.match_sockets(match.id):
+                player = match.players.get(viewer_id)
+                is_leader = player is not None and player.is_leader
+                if is_leader or viewer_id in match.observers:
                     await manager.send(socket, payload)
         else:
             await manager.broadcast(match.id, payload)
@@ -306,6 +307,94 @@ async def preview_snapshot(
             status_code=404, detail=f"No preview named {preview_name!r}."
         )
     return {"state": built}
+
+
+# --- God mode (backend/god.py) --------------------------------------------
+# Also a dev tool, but pointed at real matches rather than throwaway ones: a
+# seat that runs a session without playing in it and watches both Grandmaster
+# boards. Its own secret for that reason. Same two ways past the door.
+
+
+@app.get(god.GOD_PATH, response_model=None)
+async def god_console(
+    key: str | None = None,
+    relay_god: str | None = Cookie(default=None),
+):
+    if not god.authorised(key, relay_god):
+        return HTMLResponse(god.login_html())
+    return HTMLResponse(god.console_html())
+
+
+@app.post(god.GOD_PATH, response_model=None)
+async def god_login(request: Request):
+    """Trade the password for a cookie, then land on the console.
+
+    A redirect rather than rendering the console into the POST response, so the
+    password is not sitting in a page the browser will re-post on refresh. Body
+    parsed by hand for the same reason as `/preview`: one password box is not
+    worth a runtime dependency on `python-multipart`.
+    """
+    body = (await request.body()).decode("utf-8", "replace")
+    key = parse_qs(body).get("key", [""])[0]
+    if not god.enabled(key):
+        return HTMLResponse(god.login_html(failed=True), status_code=401)
+    response = RedirectResponse(god.GOD_PATH, status_code=303)
+    response.set_cookie(
+        god.COOKIE_NAME,
+        god.cookie_token(),
+        max_age=60 * 60 * 24 * 30,
+        httponly=True,   # no script needs it, so no script may read it
+        samesite="lax",
+    )
+    return response
+
+
+def _god_seat(match: Match, observer_id: str) -> RedirectResponse:
+    """Hand the browser its God seat: the client boots from the query string."""
+    return RedirectResponse(
+        f"/play?god={observer_id}&match={match.id}", status_code=303
+    )
+
+
+@app.post("/god/new", response_model=None)
+async def god_new_match(
+    key: str | None = None,
+    relay_god: str | None = Cookie(default=None),
+):
+    """A match with a God running it and nobody in it yet."""
+    if not god.authorised(key, relay_god):
+        raise HTTPException(status_code=404, detail="Not found.")
+    match = engine.create_match()
+    await store.add(match)
+    touch(match.id)
+    observer = engine.add_observer(match)
+    return _god_seat(match, observer.id)
+
+
+@app.post("/god/watch", response_model=None)
+async def god_watch_match(
+    request: Request,
+    key: str | None = None,
+    relay_god: str | None = Cookie(default=None),
+):
+    """Sit down behind a match that is already running.
+
+    Nothing is broadcast: a God arriving changes nothing anyone at the table
+    can see, and that is the point.
+    """
+    if not god.authorised(key, relay_god):
+        raise HTTPException(status_code=404, detail="Not found.")
+    body = (await request.body()).decode("utf-8", "replace")
+    match_id = parse_qs(body).get("match_id", [""])[0].strip().lower()
+    match = await store.get(match_id)
+    if match is None:
+        return HTMLResponse(
+            god.console_html(f"No match called {match_id!r}."), status_code=404
+        )
+    async with locks.for_match(match_id):
+        touch(match_id)
+        observer = engine.add_observer(match)
+    return _god_seat(match, observer.id)
 
 
 @app.get("/api/config")
@@ -506,6 +595,8 @@ def _run_lobby_action(match: Match, player_id: str, fields: dict) -> EngineResul
         return engine.assign_game(
             match, player_id, fields.get("target_id", ""), fields.get("game_id", "")
         )
+    if action == "god_set_leader":
+        return engine.god_set_leader(match, player_id, fields.get("target_id", ""))
     return engine.claim_host(match, player_id)  # claim_host
 
 
@@ -535,11 +626,17 @@ def _too_fast(match_id: str, player_id: str) -> bool:
 
 @app.websocket("/ws/matches/{match_id}")
 async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = ""):
+    """One socket per viewer. `player_id` carries a player id or a God's
+    observer id (backend/god.py) — the ids are prefix-namespaced, and every
+    path below either treats them alike or asks which it is."""
     await socket.accept()
     match = await store.get(match_id)
-    if match is None or player_id not in match.players:
+    if match is None or (
+        player_id not in match.players and player_id not in match.observers
+    ):
         await socket.close(code=protocol.CLOSE_UNKNOWN)
         return
+    is_god = player_id in match.observers
 
     # One socket per player: the new connection supersedes the old.
     old = manager.get(match_id, player_id)
@@ -550,14 +647,19 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
 
     async with locks.for_match(match_id):
         touch(match_id)
-        player = match.players[player_id]
-        if not player.connected:
-            # True reconnect: resume resting/holding; fresh main while solving.
-            result = engine.on_reconnect(match, player_id)
-            await apply_and_broadcast(match, result)
+        if is_god:
+            # A God arriving mutates nothing and tells nobody: no reconnect to
+            # resume, and no broadcast, because there is no news at the table.
+            await manager.send(socket, protocol.state_snapshot(match, player_id))
         else:
-            await manager.broadcast_state(match)
-        await manager.send(socket, protocol.state_snapshot(match, player_id))
+            player = match.players[player_id]
+            if not player.connected:
+                # True reconnect: resume resting/holding; fresh main while solving.
+                result = engine.on_reconnect(match, player_id)
+                await apply_and_broadcast(match, result)
+            else:
+                await manager.broadcast_state(match)
+            await manager.send(socket, protocol.state_snapshot(match, player_id))
 
     try:
         while True:
@@ -567,6 +669,17 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
                 await manager.send(socket, protocol.error_message(parsed))
                 continue
             msg_type, fields = parsed
+
+            if is_god and msg_type not in protocol.GOD_MESSAGE_TYPES:
+                # Everything else on this socket is a move in the game, and a
+                # God does not get to play. The engine refuses them all anyway
+                # (each looks the actor up in `match.players` and finds
+                # nothing), but a read-only seat should say so rather than rely
+                # on every future engine method failing closed by accident.
+                await manager.send(
+                    socket, protocol.error_message("A God seat only watches.")
+                )
+                continue
 
             if msg_type == protocol.LOBBY_ACTION:
                 async with locks.for_match(match_id):
@@ -669,7 +782,9 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
     except WebSocketDisconnect:
         pass
     finally:
-        if manager.unregister(match_id, player_id, socket):
+        # A God leaving is news to nobody, so it skips the disconnect path
+        # rather than relying on `on_disconnect` shrugging at an unknown id.
+        if manager.unregister(match_id, player_id, socket) and not is_god:
             if await store.get(match_id) is not None:
                 async with locks.for_match(match_id):
                     result = engine.on_disconnect(match, player_id)

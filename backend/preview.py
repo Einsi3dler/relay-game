@@ -37,13 +37,11 @@ throwaway match, never anybody's real one, so the stakes are low by design.
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from backend import config
+from backend import config, devgate
 from backend.engine import DUEL_SCOPE, EngineResult, RelayEngine
 from backend.games.duel_base import DuelModule
 from backend.models import Match
@@ -65,27 +63,23 @@ SQUADS = {
 
 
 COOKIE_NAME = "relay_preview"
+SCOPE = "preview"  # names this door in the cookie hash; see backend/devgate.py
 
+
+# The gate itself lives in backend/devgate.py, shared with God mode. These keep
+# their one-argument shapes because that is what every call site here reads as:
+# this door, this secret.
 
 def enabled(key: str | None) -> bool:
-    """True when this key is the password. Constant-time, so the comparison
-    cannot be used to learn the key one character at a time."""
-    return bool(key) and hmac.compare_digest(key, PREVIEW_KEY)
+    return devgate.enabled(key, PREVIEW_KEY)
 
 
 def cookie_token() -> str:
-    """What a correct password earns: a hash of it, not the password itself, so
-    the secret is not sitting in a cookie jar in plain text. Anyone who knows
-    the key can compute this, which is fine — it only ever claims "this browser
-    knew the password", and that is all it needs to say."""
-    return hashlib.sha256(("relay-preview:" + PREVIEW_KEY).encode()).hexdigest()
+    return devgate.cookie_token(SCOPE, PREVIEW_KEY)
 
 
 def authorised(key: str | None, cookie: str | None) -> bool:
-    """Either way in. The cookie is checked in constant time too."""
-    if enabled(key):
-        return True
-    return bool(cookie) and hmac.compare_digest(cookie, cookie_token())
+    return devgate.authorised(key, cookie, SCOPE, PREVIEW_KEY)
 
 
 def _now() -> datetime:
