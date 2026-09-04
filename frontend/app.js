@@ -32,6 +32,10 @@
   var HEARTBEAT_MS = 240000;
   var finished = false;
   var leaving = false;   // we asked to go; the close that follows is not a kick
+  // God mode (backend/god.py). `watching` is the team id whose Grandmaster
+  // board is on screen, or null for the God's own board — and it is also the
+  // read-only latch: send() refuses while it is set.
+  var watching = null;
 
   // --- session persistence (a closed tab restores the match) ---
   //
@@ -53,15 +57,32 @@
     } catch (e) { return null; }
   }
   function clearSession() {
-    try { localStorage.removeItem("relay"); } catch (e) {}
-    try { sessionStorage.removeItem("relay"); } catch (e) {}
+    // A God's key only. The two seats can be open in the same browser at once
+    // — testing God mode in one tab and a player in another is the whole point
+    // of the thing — and a God being kicked out of a cancelled lobby must not
+    // log the player out of a live match.
+    var key = isGod() ? "relay_god" : "relay";
+    try { localStorage.removeItem(key); } catch (e) {}
+    try { sessionStorage.removeItem(key); } catch (e) {}
     session = null;
+  }
+
+  function isGod() {
+    return !!(session && session.god);
+  }
+
+  function saveGodSession() {
+    try { localStorage.setItem("relay_god", JSON.stringify(session)); } catch (e) {}
+  }
+  function loadGodSession() {
+    try { return JSON.parse(localStorage.getItem("relay_god")); } catch (e) { return null; }
   }
 
   // --- tiny ui helpers ---
 
   function show(viewId) {
-    ["view-join", "view-lobby", "view-play", "view-leader", "view-result"]
+    ["view-join", "view-lobby", "view-play", "view-leader", "view-result",
+     "view-god"]
       .forEach(function (id) { $(id).hidden = id !== viewId; });
     // The command dashboard is the only dark screen, so the page ground has to
     // follow it. Every other view keeps style.css's light background.
@@ -72,6 +93,7 @@
     document.body.classList.toggle("play-active", viewId === "view-play");
     document.body.classList.toggle("join-active", viewId === "view-join");
     document.body.classList.toggle("lobby-active", viewId === "view-lobby");
+    document.body.classList.toggle("god-active", viewId === "view-god");
   }
 
   function toast(text) {
@@ -94,6 +116,17 @@
   }
 
   function send(fields) {
+    // A God watching a Grandmaster's board is looking at that seat's controls,
+    // drawn live and belonging to somebody else. The one latch here is what
+    // makes the whole dashboard read-only without a copy of it that omits the
+    // buttons. The God's own controls go through sendGod below.
+    if (watching) return;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify(fields));
+  }
+
+  function sendGod(fields) {
+    // The God's own controls, which have to work from either screen.
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
     socket.send(JSON.stringify(fields));
   }
@@ -108,6 +141,12 @@
 
   function previewParam() {
     return new URLSearchParams(window.location.search).get("preview");
+  }
+
+  function godParam() {
+    try {
+      return new URLSearchParams(window.location.search).get("god") || "";
+    } catch (e) { return ""; }
   }
 
   function startPreview() {
@@ -339,6 +378,24 @@
       clearInterval(heartbeatHandle);
       if (finished) return;
       if (event.code === 4001) return; // superseded by another tab — stand down
+      if (isGod()) {
+        // A God has no rejoin code and no seat to be kicked from, so none of
+        // the recovery flows below mean anything here. Every close but a
+        // transport blip is the end of this match's watch.
+        if (event.code === 4402 || event.code === 4403 || event.code === 4404) {
+          clearSession();
+          watching = null;
+          $("god-switch").hidden = true;
+          show("view-join");
+          toast(event.code === 4404
+            ? "That match is gone."
+            : "The session ended.");
+          return;
+        }
+        setTimeout(connect, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 5000);
+        return;
+      }
       if (event.code === 4403) {       // removed from the lobby
         clearSession();
         show("view-join");
@@ -412,6 +469,7 @@
     $("match-chip").textContent = state.id;
     $("match-chip").hidden = false;
     renderHostLive(state);
+    if (state.god) { renderGod(state); return; }
     if (state.status === "lobby") renderLobby(state);
     else if (state.status === "finished") renderResult(state);
     else if (state.me && state.me.is_leader) renderLeader(state);
@@ -442,7 +500,7 @@
   function playerRow(state, player) {
     var me = player.id === session.playerId;
     var isHost = player.id === state.host_player_id;
-    var iAmHost = state.host_player_id === session.playerId;
+    var iAmHost = isHosting(state);
     var row = document.createElement("li");
     if (player.is_leader) row.className = "is-leader";
     var label = document.createElement("span");
@@ -481,6 +539,22 @@
       });
       controls.appendChild(hand);
     }
+    // A God can seat a Grandmaster over a player who already holds it, which
+    // is the one move in the game itself the seat is given: a table where the
+    // wrong person grabbed the chair is a table that cannot start.
+    if (state.god && player.team_id && !player.is_leader) {
+      var crown = document.createElement("button");
+      crown.className = "mini-btn crown-btn";
+      crown.title = "Make Grandmaster";
+      crown.setAttribute("aria-label", "Make " + player.name + " Grandmaster");
+      crown.appendChild(icon("crown", "gm-ic--sm"));
+      crown.addEventListener("click", function () {
+        sendGod({
+          type: "lobby_action", action: "god_set_leader", target_id: player.id,
+        });
+      });
+      controls.appendChild(crown);
+    }
     if (iAmHost && !me) {
       ["alpha", "bravo"].forEach(function (target) {
         if (player.team_id === target) return;
@@ -516,7 +590,7 @@
     show("view-lobby");
     $("lobby-code").textContent = state.id;
     var me = state.me;
-    var iAmHost = state.host_player_id === session.playerId;
+    var iAmHost = isHosting(state);
 
     var unassignedBox = $("lobby-unassigned");
     var list = unassignedBox.querySelector("ul");
@@ -1221,7 +1295,7 @@
   // server's deadline, and off `round_seconds` — the window this match is
   // actually running, which is the host's override when they set one, not the
   // module default sitting in `payload`.
-  var DUEL_CLOCK_IDS = ["duel-clock", "leader-duel-clock"];
+  var DUEL_CLOCK_IDS = ["duel-clock", "leader-duel-clock", "god-duel-clock"];
 
   function eachDuelClock(fn) {
     DUEL_CLOCK_IDS.forEach(function (id) {
@@ -1751,10 +1825,13 @@
 
   // The level race: one star per level of the configured match length, filled
   // to each team's level. The two rows side by side are the gap.
-  function renderRace(state, mine, opponent, levels) {
-    var host = $("leader-race");
+  function renderRace(state, mine, opponent, levels, hostId, gapId) {
+    // The two ids default to the Grandmaster board's, so its own call is
+    // unchanged and the God board passes its own pair.
+    var host = $(hostId || "leader-race");
+    var gapNode = $(gapId || "leader-race-gap");
     host.innerHTML = "";
-    if (!levels) { $("leader-race-gap").textContent = ""; return; }
+    if (!levels) { gapNode.textContent = ""; return; }
 
     [mine, opponent].forEach(function (team, at) {
       if (!team) return;
@@ -1779,7 +1856,7 @@
       host.appendChild(row);
     });
 
-    var gap = $("leader-race-gap");
+    var gap = gapNode;
     if (!opponent) { gap.textContent = ""; return; }
     var lead = mine.level - opponent.level;
     // Never the colour alone: the gap is spelled out in words too.
@@ -1921,6 +1998,55 @@
     });
   }
 
+  // One roster row: who, their role and code, their game, their status. Its
+  // own function because the God board draws the same row for both teams.
+  function leaderRosterRow(state, team, player) {
+    var row = el("li");
+    if (!player.connected) row.className = "is-offline";
+
+    row.appendChild(avatarNode(state, player, team.id));
+
+    var who = el("div", "gm-who");
+    var nameRow = el("div", "gm-who__name");
+    nameRow.appendChild(el("span", null, player.name));
+    if (player.is_leader) nameRow.appendChild(icon("crown", "gm-ic--sm"));
+    if (!player.connected) {
+      var off = icon("offline", "gm-ic--sm");
+      off.removeAttribute("aria-hidden");
+      off.setAttribute("role", "img");
+      off.setAttribute("aria-label", "offline");
+      nameRow.appendChild(off);
+    }
+    who.appendChild(nameRow);
+    var roleCls = "gm-who__role" +
+      (player.role === "duelist" ? " is-duelist" : "") +
+      (player.role === "defuser" ? " is-defuser" : "");
+    var roleText = player.is_leader
+      ? "Grandmaster"
+      : (player.role ? roleName(player.role) : "Unassigned");
+    who.appendChild(el("div", roleCls, roleText));
+    // Only the command boards are sent these. A player who has lost their
+    // browser asks their Grandmaster, who reads it off the row.
+    if (player.rejoin_code) {
+      who.appendChild(el("div", "gm-who__code", player.rejoin_code));
+    }
+    row.appendChild(who);
+
+    var assign = el("div", "gm-assign");
+    if (!player.is_leader) {
+      assign.appendChild(gameIcon(player.assigned_game));
+      assign.appendChild(el("span", null, gameName(player.assigned_game)));
+    }
+    row.appendChild(assign);
+
+    var spec = statusPill(player);
+    var pill = el("span", spec[1]);
+    if (spec[2]) pill.appendChild(icon(spec[2], "gm-ic--sm"));
+    pill.appendChild(el("span", null, spec[0]));
+    row.appendChild(pill);
+    return row;
+  }
+
   function statusPill(player) {
     // Silenced: the server nulls the progress fields rather than lying about
     // them, so there is genuinely nothing to show.
@@ -2012,45 +2138,7 @@
     roster.innerHTML = "";
     team.players.forEach(function (player) {
       if (player.is_leader) return;
-      var row = el("li");
-      if (!player.connected) row.className = "is-offline";
-
-      row.appendChild(avatarNode(state, player, team.id));
-
-      var who = el("div", "gm-who");
-      var nameRow = el("div", "gm-who__name");
-      nameRow.appendChild(el("span", null, player.name));
-      if (!player.connected) {
-        var off = icon("offline", "gm-ic--sm");
-        off.removeAttribute("aria-hidden");
-        off.setAttribute("role", "img");
-        off.setAttribute("aria-label", "offline");
-        nameRow.appendChild(off);
-      }
-      who.appendChild(nameRow);
-      var roleCls = "gm-who__role" +
-        (player.role === "duelist" ? " is-duelist" : "") +
-        (player.role === "defuser" ? " is-defuser" : "");
-      who.appendChild(el("div", roleCls, player.role ? roleName(player.role) : "Unassigned"));
-      // Only this dashboard is sent these. A player who has lost their browser
-      // asks their Grandmaster, who reads it off the row.
-      if (player.rejoin_code) {
-        who.appendChild(el("div", "gm-who__code", player.rejoin_code));
-      }
-      row.appendChild(who);
-
-      var assign = el("div", "gm-assign");
-      assign.appendChild(gameIcon(player.assigned_game));
-      assign.appendChild(el("span", null, gameName(player.assigned_game)));
-      row.appendChild(assign);
-
-      var spec = statusPill(player);
-      var pill = el("span", spec[1]);
-      if (spec[2]) pill.appendChild(icon(spec[2], "gm-ic--sm"));
-      pill.appendChild(el("span", null, spec[0]));
-      row.appendChild(pill);
-
-      roster.appendChild(row);
+      roster.appendChild(leaderRosterRow(state, team, player));
     });
 
     // --- opponent: only the four facts the snapshot exposes ---
@@ -2097,6 +2185,199 @@
     silenceHandle = setTimeout(function () {
       send({ type: "request_state" });
     }, left + 250);
+  }
+
+  // --- god mode -------------------------------------------------------
+  //
+  // One extra viewer kind, and almost no extra rendering. The God's own board
+  // is new; watching a Grandmaster is the *existing* dashboard handed a
+  // projection of the God's snapshot, which is why this section is short.
+  //
+  // What is deliberately not here: any mutation of `session`. session.playerId
+  // is the WebSocket credential, and connect() is re-entered on every
+  // transport blip — pointing it at the Grandmaster being watched would open a
+  // socket as them, supersede their own with close code 4001, and take their
+  // dashboard away mid-match. The preview gallery gets away with that trick
+  // only because it never opens a socket. So: project the state, never the
+  // identity. renderLeader and all of its helpers read the snapshot and
+  // nothing else, which is what makes that possible.
+
+  function isHosting(state) {
+    // A God holds the host's controls without holding the host's seat.
+    return !!state.god || state.host_player_id === session.playerId;
+  }
+
+  function renderGod(state) {
+    renderGodSwitch(state);
+    if (watching) {
+      renderLeader(asGrandmaster(state, watching));
+      return;
+    }
+    teardownBombConsole();
+    if (state.status === "lobby") { renderLobby(state); return; }
+    if (state.status === "finished") { renderResult(asGrandmaster(state, "alpha")); return; }
+    renderGodBoard(state);
+  }
+
+  // The God's snapshot as the Grandmaster of `teamId` would have received it.
+  // Four projections and no more; everything else already lines up.
+  function asGrandmaster(state, teamId) {
+    var view = JSON.parse(JSON.stringify(state));  // lastState stays the raw one
+    var team = view.teams[teamId];
+    if (!team || !team.players) return view;
+
+    // 1. `me`: the seat's own row, which already carries its rejoin code.
+    var leader = null;
+    team.players.forEach(function (p) { if (p.is_leader) leader = p; });
+    view.me = leader ? JSON.parse(JSON.stringify(leader)) : null;
+    if (view.me) view.me.is_leader = true;
+
+    // 2. Silence blinds a Grandmaster to their own roster, and the dashboard
+    // reads that straight off the team. A God is watching from outside the
+    // attack, so the mask comes off here. The *fact* of it is not lost: the
+    // switch bar reads it off the raw snapshot, which this is a copy of.
+    team.silenced_until = null;
+
+    // 3. The stake: a God is shown both sides, a Grandmaster exactly one.
+    var stake = view.pending_stake;
+    if (stake && stake.team_of) {
+      var side = null;
+      Object.keys(stake.team_of).forEach(function (key) {
+        if (stake.team_of[key] === teamId) side = key;
+      });
+      stake.side = side;
+      stake.ask = side && stake.asks ? stake.asks[side] : null;
+      stake.granted = side && stake.grants ? stake.grants[side] : null;
+      stake.settled = !!(side && stake.grants && side in stake.grants);
+    }
+
+    // 4. The duel needs nothing: a Grandmaster is not in `duel.sides` either,
+    // so the watcher view a God receives is exactly the one they get.
+    return view;
+  }
+
+  function renderGodSwitch(state) {
+    var bar = $("god-switch");
+    bar.hidden = false;
+    document.body.classList.toggle("god-watching", !!watching);
+    $("god-switch-label").textContent = watching
+      ? "Watching " + teamName(state, watching) + "'s Grandmaster"
+      : "God mode";
+
+    var buttons = $("god-watch-buttons");
+    buttons.innerHTML = "";
+    ["alpha", "bravo"].forEach(function (teamId) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.id = "god-watch-" + teamId;
+      button.className = "god-watch" + (watching === teamId ? " is-on" : "");
+      button.style.setProperty("--team-color", teamColor(teamId));
+      button.appendChild(icon("crown", "gm-ic--sm"));
+      button.appendChild(el("span", null, teamName(state, teamId)));
+      button.addEventListener("click", function () {
+        watching = watching === teamId ? null : teamId;
+        render(lastState);
+      });
+      buttons.appendChild(button);
+    });
+
+    // Silence is real even while the God sees past it, so say so. Read off
+    // `state`, which is the God's own unmasked snapshot — the projection handed
+    // to renderLeader is a copy with this field cleared.
+    var note = $("god-switch-note");
+    var watched = watching && state.teams[watching];
+    var until = watched && watched.silenced_until;
+    var silenced = !!(until && parseDeadline(until) > Date.now());
+    note.hidden = !silenced;
+    if (silenced) {
+      note.textContent = "This Grandmaster is Silenced. You are seeing through it.";
+    }
+
+    var start = $("god-start");
+    start.hidden = state.status !== "lobby";
+    start.disabled = !!startBlocker(state);
+    start.onclick = function () {
+      sendGod({ type: "lobby_action", action: "start" });
+    };
+    var end = $("god-end");
+    end.hidden = state.status === "finished";
+    end.textContent = state.status === "lobby" ? "Cancel session" : "End session";
+    end.onclick = function () {
+      var lobby = state.status === "lobby";
+      var ask = lobby
+        ? "Cancel the session? Everyone is sent back."
+        : "End the match for everyone? No winner is recorded.";
+      if (!window.confirm(ask)) return;
+      sendGod({
+        type: "lobby_action",
+        action: lobby ? "cancel_session" : "end_session",
+      });
+    };
+  }
+
+  function renderGodBoard(state) {
+    show("view-god");
+    $("god-match-code").textContent = state.id;
+    var levels = state.level_count || (state.config && state.config.level_count);
+    $("god-status").textContent = state.status === "active"
+      ? "Race running" : state.status;
+
+    var blocker = state.status === "lobby" ? startBlocker(state) : null;
+    var note = $("god-blocker");
+    note.textContent = blocker || "";
+    note.className = "god-note" + (blocker ? " is-blocked" : "");
+
+    var host = $("god-teams");
+    host.innerHTML = "";
+    ["alpha", "bravo"].forEach(function (teamId) {
+      host.appendChild(godTeamCard(state, state.teams[teamId], levels));
+    });
+
+    renderRace(state, state.teams.alpha, state.teams.bravo, levels,
+               "god-race", "god-race-gap");
+    renderDuel(state, "god-duel-card", "god-duel-mount");
+    renderFeed(state.events, "god-feed");
+  }
+
+  function godTeamCard(state, team, levels) {
+    var card = el("section", "gm-panel god-team");
+    card.style.setProperty("--team-color", teamColor(team.id));
+
+    var head = el("header", "god-team__head");
+    var logo = el("span", "god-team__logo");
+    logo.appendChild(icon("logo-" + teamLogo(state, team.id)));
+    head.appendChild(logo);
+    head.appendChild(el("span", "god-team__name", team.name));
+    head.appendChild(el("span", "god-team__level",
+      "Level " + team.level + (levels ? " / " + levels : "")));
+    var coin = el("span", "god-team__coin");
+    coin.appendChild(icon("coin", "gm-ic--sm"));
+    coin.appendChild(el("span", null, String(team.currency)));
+    head.appendChild(coin);
+    card.appendChild(head);
+
+    // The same flag strip the Grandmaster reads, in the same fixed order.
+    var flags = el("ul", "gm-flags god-team__flags");
+    var playing = team.players.filter(function (p) { return !p.is_leader; });
+    flag(flags, "Cleared", team.green_count + " / " + playing.length,
+         team.green_count === playing.length ? "good" : null, "cleared");
+    flag(flags, "Shield", team.shield_active ? "Up" : "Down",
+         team.shield_active ? "good" : null, "shield");
+    flag(flags, "Reflect", team.reflect_active ? "Armed" : "Off",
+         team.reflect_active ? "good" : null, "reflect");
+    flag(flags, "Streak", String(team.duel_streak),
+         team.duel_streak > 0 ? "good" : null, "duel");
+    if (team.silenced_until && parseDeadline(team.silenced_until) > Date.now()) {
+      flag(flags, "Silenced", "Blinded", "danger", "warning");
+    }
+    card.appendChild(flags);
+
+    var roster = el("ul", "god-roster");
+    team.players.forEach(function (player) {
+      roster.appendChild(leaderRosterRow(state, team, player));
+    });
+    card.appendChild(roster);
+    return card;
   }
 
   function renderPerkGrid(state, team) {
@@ -2290,14 +2571,21 @@
 
   function logEvent(event, fresh, feedId) {
     if (!feedId) {
-      feedId = lastState && lastState.me && lastState.me.is_leader
-        ? "leader-feed" : "event-feed";
+      // Key off `watching`, not off lastState: render() stores the raw God
+      // snapshot before the God branch runs, so `lastState.me` is null the
+      // whole time a Grandmaster's board is on screen.
+      if (lastState && lastState.god) {
+        feedId = watching ? "leader-feed" : "god-feed";
+      } else {
+        feedId = lastState && lastState.me && lastState.me.is_leader
+          ? "leader-feed" : "event-feed";
+      }
     }
     var feed = $(feedId);
     var item = document.createElement("li");
     // The player's feed is a quiet line under their board; only the command
     // board spends the room on a stamp and a mark.
-    if (feedId === "leader-feed") {
+    if (feedId !== "event-feed") {
       var mark = EVENT_MARKS[event.kind] || EVENT_MARKS.info;
       item.className = "gm-event" + (mark[1] ? " gm-event--" + mark[1] : "") +
         (fresh ? " fresh" : "");
@@ -2608,13 +2896,34 @@
     })
     .catch(function () {});
 
-  if (previewParam()) {
+  function startGod(observerId, matchId) {
+    // The observer id *is* the credential, so it rides in the same slot a
+    // player id does — the ids are prefix-namespaced and the server asks which
+    // it is. `god: true` is the local marker; the snapshot's own `god` key is
+    // what the renderers key off.
+    session = { matchId: matchId, playerId: observerId, name: "God", god: true };
+    saveGodSession();
+    connect();
+  }
+
+  if (godParam()) {
+    // God mode (backend/god.py): /play?god=<observer_id>&match=<code>. The
+    // query string stays in the address bar rather than being tidied away by
+    // history.replaceState the way a join is — it is the God's bookmark back
+    // in, exactly as `?key=` is for the design gallery.
+    configLoaded.then(function () {
+      startGod(godParam(), inviteParam());
+    });
+  } else if (previewParam()) {
     // The design gallery (backend/preview.py): render one canned state and
     // open no socket. Waits for the config so the panels that read the perk
     // catalogue and the role list draw properly.
     configLoaded.then(startPreview);
   } else {
     bindLanding();
+    // A saved God seat is checked first and separately: the two can be open in
+    // the same browser, and they must not read each other's storage.
+    var savedGod = loadGodSession();
     var saved = loadSession();
     var invited = inviteParam();
     // An invite for a *different* match beats a stale saved session.
@@ -2622,6 +2931,12 @@
         (!invited || invited === saved.matchId)) {
       session = saved;
       connect(); // snapshot on connect restores the right view
+    } else if (!saved && !invited && savedGod && savedGod.matchId) {
+      // A bare /play with no player seat, but a God seat remembered. The God
+      // link keeps its query string, so this only matters when someone has
+      // typed the bare address; a player seat always wins over it.
+      session = savedGod;
+      configLoaded.then(connect);
     } else {
       show("view-join");
     }

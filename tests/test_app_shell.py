@@ -291,6 +291,9 @@ function boot(scenario) {
   if (scenario.legacySession) {
     stores.session.relay = JSON.stringify(scenario.legacySession);
   }
+  if (scenario.godSession) {
+    stores.local.relay_god = JSON.stringify(scenario.godSession);
+  }
   function fakeStorage(store) {
     return {
       getItem: (key) => (key in store ? store[key] : null),
@@ -437,6 +440,34 @@ function fire(node, type) {
   (node.listeners[type] || []).forEach((fn) => fn({}));
   const prop = "on" + type;
   if (typeof node[prop] === "function") node[prop]({});
+}
+
+// `textContent` here is the node's own text and nothing more (setting it drops
+// the children, exactly as a browser does), so a node assembled out of spans
+// reads as empty. Most probes want that — it is what a single label element
+// says. These two are for the ones that don't: a button holding an icon and a
+// name, or a roster row whose name is one span among several.
+function deepText(node) {
+  if (node._text) return node._text;
+  return node.children.map(deepText).join("");
+}
+
+function nth(root, className, at) {
+  const hit = descendants(root).filter((n) => n.classes.has(className));
+  if (!hit[at]) {
+    throw new Error("no ." + className + "[" + at + "] under #" +
+      (root.attrs.id || root.tagName));
+  }
+  return hit[at];
+}
+
+function byDeepText(root, text) {
+  const hit = descendants(root).filter((n) => deepText(n) === text);
+  if (!hit.length) {
+    throw new Error("no node reading " + JSON.stringify(text) + " under #" +
+      (root.attrs.id || root.tagName));
+  }
+  return hit[0];  // pre-order, so the outermost node that reads this way
 }
 
 function byText(root, text) {
@@ -623,8 +654,35 @@ function probe(shell) {
   const $ = (id) => shell.byId[id];
   const mount = $("leader-bomb-mount");
   return {
-    view: ["view-join", "view-lobby", "view-play", "view-leader", "view-result"]
+    view: ["view-join", "view-lobby", "view-play", "view-leader", "view-result",
+           "view-god"]
       .filter((id) => !$(id).hidden),
+    god: {
+      switch_hidden: $("god-switch").hidden,
+      label: $("god-switch-label").textContent,
+      note_hidden: $("god-switch-note").hidden,
+      watching: descendants($("god-watch-buttons"))
+        .filter((n) => n.classes.has("is-on")).map(deepText),
+      buttons: descendants($("god-watch-buttons"))
+        .filter((n) => n.classes.has("god-watch")).map(deepText),
+      teams: descendants($("god-teams"))
+        .filter((n) => n.classes.has("god-team__name")).map((n) => n.textContent),
+      roster: descendants($("god-teams"))
+        .filter((n) => n.classes.has("gm-who__name")).map(deepText),
+      flags: descendants($("god-teams"))
+        .filter((n) => n.classes.has("gm-flag")).map(deepText),
+      codes: descendants($("god-teams"))
+        .filter((n) => n.classes.has("gm-who__code")).map((n) => n.textContent),
+      feed: descendants($("god-feed"))
+        .filter((n) => n.classes.has("gm-event__text")).map((n) => n.textContent),
+      blocker: $("god-blocker").textContent,
+      // Every socket the shell has ever opened, so a scenario can prove the
+      // credential was never swapped for the Grandmaster's own.
+      urls: shell.sockets.map((s) => s.url),
+      sent: shell.sockets.length
+        ? shell.sockets[shell.sockets.length - 1].sent.slice()
+        : [],
+    },
     stake: {
       card_hidden: $("stake-card").hidden,
       state: $("stake-state").textContent,
@@ -741,10 +799,13 @@ const report = {};
 PLAN.scenarios.forEach((scenario) => {
   const shell = boot(scenario);
   const socket = shell.sockets[0];
-  if (scenario.search || (!scenario.session && !scenario.legacySession)) {
+  const wantsSocket = !!(scenario.session || scenario.legacySession ||
+                         scenario.godSession);
+  if (!wantsSocket) {
     // A gallery boot renders one fetched snapshot and stops, and a cold visit
     // has nothing to connect to yet. Either one opening a socket would mean it
-    // had joined somebody's match to draw a screen.
+    // had joined somebody's match to draw a screen. A God boot is the one that
+    // has a `search` *and* a socket: the seat is in the query string.
     if (socket) throw new Error(scenario.name + ": opened a socket with no session");
   } else if (!socket) {
     throw new Error(scenario.name + ": the shell never opened a socket");
@@ -768,8 +829,11 @@ PLAN.scenarios.forEach((scenario) => {
       live().onmessage({ data: JSON.stringify(action.message) });
     } else if (action.do === "click") {
       // By id when the control is one the shell binds by id anyway; by text
-      // when the point is that a human could find it.
+      // when the point is that a human could find it; by class
+      // when it is built at render time and carries only an icon.
       fire(action.id ? shell.byId[action.id]
+        : action.cls ? nth(shell.byId[action.in], action.cls, action.at || 0)
+        : action.deep ? byDeepText(shell.byId[action.in], action.deep)
         : byText(shell.byId[action.in], action.text), "click");
     } else if (action.do === "advance") {
       advance(action.ms);
@@ -1532,6 +1596,103 @@ def shell() -> dict:
             "actions": [{"do": "record", "as": "booted"}],
         })
 
+    # --- god mode (backend/god.py) ---------------------------------------
+    #
+    # Two things worth running the real client for. That the God board draws
+    # both teams whole from one snapshot, and that watching a Grandmaster's
+    # board is a *projection* — the same renderLeader, a live socket that still
+    # belongs to the God, and every control on it inert.
+    engine = _engine()
+    match, seats, leaders = _ready_lobby(engine)
+    assert engine.start_match(match, now=NOW).changed
+    _fund_duel(engine, match, leaders)
+    god = engine.add_observer(match)
+    # Silence on alpha, so the watched board proves the God sees through it.
+    match.teams["bravo"].currency = 99
+    assert engine.buy_perk(
+        match, leaders["bravo"].id, "silence", now=NOW
+    ).ok, "Silence should land on alpha"
+    assert match.teams["alpha"].silenced_until is not None
+    god_snapshot = match.public(god.id)
+    assert god_snapshot["god"]["id"] == god.id
+    god_names = {
+        team_id: [p["name"] for p in god_snapshot["teams"][team_id]["players"]]
+        for team_id in config.TEAM_IDS
+    }
+    god_team_names = {
+        team_id: god_snapshot["teams"][team_id]["name"]
+        for team_id in config.TEAM_IDS
+    }
+    scenarios.append({
+        "name": "god:board",
+        "config": _config_body(engine),
+        # The seat rides in the query string, like the gallery's key — so this
+        # is the one scenario with a `search` that also opens a socket.
+        "search": f"?god={god.id}&match={match.id}",
+        "godSession": {
+            "matchId": match.id, "playerId": god.id, "name": "God", "god": True,
+        },
+        "snapshots": [god_snapshot],
+        "actions": [
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "board"},
+            # By text: the switches are built at render time, so they are not
+            # ids the fake DOM knows from index.html.
+            {"do": "click", "in": "god-watch-buttons",
+             "deep": god_team_names["alpha"]},
+            {"do": "record", "as": "watching"},
+            # Every control on somebody else's board is drawn and dead.
+            {"do": "click", "id": "handoff-btn"},
+            {"do": "record", "as": "poked"},
+            {"do": "click", "in": "god-watch-buttons",
+             "deep": god_team_names["alpha"]},
+            {"do": "record", "as": "back"},
+            # ...but the God's own controls are not on somebody else's board.
+            {"do": "click", "id": "god-end"},
+            {"do": "record", "as": "ended"},
+        ],
+    })
+    # A God in a lobby gets the host's own panel, plus a crown on every seat.
+    lobby_engine = _engine()
+    lobby_match, lobby_seats, lobby_leaders = _lobby(lobby_engine, per_team=2)
+    lobby_god = lobby_engine.add_observer(lobby_match)
+    lobby_snapshot = lobby_match.public(lobby_god.id)
+    lobby_target = lobby_seats["alpha"][0]
+    scenarios.append({
+        "name": "god:lobby",
+        "config": _config_body(lobby_engine),
+        "search": f"?god={lobby_god.id}&match={lobby_match.id}",
+        "godSession": {
+            "matchId": lobby_match.id, "playerId": lobby_god.id,
+            "name": "God", "god": True,
+        },
+        "snapshots": [lobby_snapshot],
+        "actions": [
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "lobby"},
+            # The crown is a God-only control: seat a Grandmaster over the
+            # player who already holds it. It carries an icon and no text, so
+            # it is found by class rather than by reading.
+            {"do": "click", "in": "lobby-team-alpha", "cls": "crown-btn"},
+            {"do": "record", "as": "crowned"},
+        ],
+    })
+    expected["god_lobby"] = {
+        "id": lobby_god.id,
+        "blocker": lobby_engine.start_blocker(lobby_match),
+        # The Grandmaster's own row carries no crown, so the first one on the
+        # team belongs to the first ordinary seat.
+        "first_alpha_seat": lobby_target.id,
+    }
+
+    expected["god"] = {
+        "id": god.id,
+        "match": match.id,
+        "names": god_names,
+        "teams": god_team_names,
+        "silenced": True,
+    }
+
     plan = {"now_ms": NOW_MS, "scenarios": scenarios}
     with tempfile.TemporaryDirectory() as tmp:
         harness = Path(tmp) / "harness.js"
@@ -1561,8 +1722,9 @@ def test_the_fake_dom_is_built_from_the_real_index_html(shell):
     """`getElementById` resolves index.html's ids and nothing else, so a
     renamed element fails a test instead of getting a silent stub."""
     ids = shell["_ids"]
-    for required in ("view-play", "view-leader", "timer-bar", "timer-fill",
-                     "timer-label", "start-btn", "start-blocker",
+    for required in ("view-play", "view-leader", "view-god", "timer-bar",
+                     "timer-fill", "timer-label", "start-btn", "start-blocker",
+                     "god-switch", "god-teams", "god-feed",
                      "leader-bomb-card", "leader-bomb-mount", "leader-bomb-sub"):
         assert required in ids, required
     # Every id the shell asks for was resolvable — an unknown one throws inside
@@ -2497,3 +2659,121 @@ def test_the_gallery_draws_real_content_not_an_empty_frame(shell):
     assert "Crown Duel" in booted["duel"]["duel_clock"]["title"]
     # The Grandmaster's dashboard, with a roster on it.
     assert booted["leader"]["dashboard"]["roster"]
+
+
+# --- god mode ------------------------------------------------------------
+#
+# The seat is pinned at the engine (tests/test_god_mode.py) and over the socket
+# (tests/test_server.py). What only the real client can show is that one
+# snapshot draws the whole table, and that watching a Grandmaster is a
+# projection rather than a second dashboard: the same renderLeader, the God's
+# own socket, and every control on it inert.
+
+
+def _god(shell, phase):
+    return shell["god:board"]["records"][phase]
+
+
+def test_the_god_board_draws_the_whole_table_from_one_snapshot(shell):
+    board = _god(shell, "board")
+    want = shell["_expected"]["god"]
+    assert board["view"] == ["view-god"]
+    assert board["god"]["teams"] == [want["teams"]["alpha"], want["teams"]["bravo"]]
+    # Both rosters, whole, from a single message.
+    assert board["god"]["roster"] == want["names"]["alpha"] + want["names"]["bravo"]
+    # Rejoin codes for everyone: a God is the other person who can read one
+    # back to a player who lost their browser.
+    assert len(board["god"]["codes"]) == len(board["god"]["roster"])
+    assert all(code for code in board["god"]["codes"])
+    # And the feed is unfiltered, so the perk the other team just bought is on
+    # it alongside everything else.
+    assert any("Silence" in line for line in board["god"]["feed"])
+
+
+def test_the_god_board_flags_a_silenced_team_without_being_blinded_by_it(shell):
+    board = _god(shell, "board")
+    flags = board["god"]["flags"]
+    assert "SilencedBlinded" in flags, flags
+    # The count is still a count. A Grandmaster under Silence reads "?" here.
+    assert any(flag.startswith("Cleared0 /") for flag in flags), flags
+
+
+def test_watching_a_grandmaster_draws_their_real_board(shell):
+    """The same renderLeader, handed a projection of the God's own snapshot."""
+    watching = _god(shell, "watching")
+    assert watching["view"] == ["view-leader"]
+    assert watching["god"]["watching"] == [shell["_expected"]["god"]["teams"]["alpha"]]
+    dash = watching["dashboard"]
+    assert "god-watching" in dash["body_class"]
+    assert dash["team"] == shell["_expected"]["god"]["teams"]["alpha"]
+    assert dash["roster"], "the watched roster should be drawn"
+    # Silence is on this team, and the God is outside the attack: the read-out
+    # is the real one, where the Grandmaster's own board would say "Silenced".
+    assert "Cleared 0 / 2" in dash["flags"]
+    assert watching["console"]["card_hidden"] is False  # the bomb manual mounts
+    # The fact of the Silence is not lost, only the mask.
+    assert watching["god"]["note_hidden"] is False
+
+
+def test_a_watched_board_is_drawn_live_and_does_nothing(shell):
+    """`send()` refuses while watching, so the Grandmaster's own controls draw
+    from real state and go nowhere. Clicking the handoff button is the test."""
+    poked = _god(shell, "poked")
+    assert poked["god"]["sent"] == []
+
+
+def test_the_gods_own_controls_still_work_from_either_screen(shell):
+    """They go through sendGod, which the watching latch does not cover — or a
+    God who wandered into a Grandmaster's board could not end the session."""
+    ended = _god(shell, "ended")
+    assert ended["god"]["sent"] == [
+        {"type": "lobby_action", "action": "end_session"}
+    ]
+
+
+def test_leaving_a_watched_board_lets_go_of_it(shell):
+    back = _god(shell, "back")
+    assert back["view"] == ["view-god"]
+    assert back["god"]["watching"] == []
+    # The bomb console's clock runs on an interval; leaving has to tear it down
+    # rather than leave it ticking against a hidden node.
+    assert back["console"]["card_hidden"] is True
+    assert back["console"]["mount_children"] == 0
+
+
+def test_watching_never_borrows_the_grandmasters_credential(shell):
+    """session.playerId is the WebSocket credential and connect() is re-entered
+    on any transport blip. Pointing it at the seat being watched would open a
+    socket as that Grandmaster and supersede their own with code 4001, taking
+    their dashboard away mid-match. So the state is projected, never the
+    identity: one socket, and it is still the God's."""
+    want = shell["_expected"]["god"]
+    for phase in ("board", "watching", "poked", "back", "ended"):
+        urls = _god(shell, phase)["god"]["urls"]
+        assert len(urls) == 1, f"{phase}: opened {len(urls)} sockets"
+        assert urls[0].endswith("player_id=" + want["id"]), phase
+        assert want["match"] in urls[0]
+
+
+def test_a_god_in_a_lobby_gets_the_hosts_panel(shell):
+    """The God board delegates the lobby to renderLobby, because the lobby the
+    host already has is the lobby a God wants. The one thing the host guard has
+    to learn is that a God passes it without holding the seat."""
+    lobby = shell["god:lobby"]["records"]["lobby"]
+    want = shell["_expected"]["god_lobby"]
+    assert lobby["view"] == ["view-lobby"]
+    assert lobby["blocker"]["panel_hidden"] is False  # the host panel is drawn
+    # Same contract the host's own panel keeps: the button agrees with the
+    # engine about whether this lobby can start, and says why when it cannot.
+    assert lobby["blocker"]["disabled"] is (want["blocker"] is not None)
+    assert lobby["blocker"]["text"]
+    # Nothing offers a God a seat to leave or a host seat to claim.
+    assert lobby["god"]["switch_hidden"] is False
+
+
+def test_a_god_can_crown_a_grandmaster_from_the_lobby(shell):
+    crowned = shell["god:lobby"]["records"]["crowned"]
+    assert crowned["god"]["sent"] == [{
+        "type": "lobby_action", "action": "god_set_leader",
+        "target_id": shell["_expected"]["god_lobby"]["first_alpha_seat"],
+    }]
