@@ -31,7 +31,7 @@ from uuid import uuid4
 from backend import config
 from backend.games.duel_base import SIDES, DuelModule, other_side
 from backend.models import (
-    DuelSession, Event, Match, PendingStake, Player, Team, green,
+    DuelSession, Event, Match, Observer, PendingStake, Player, Team, green,
 )
 from backend.registry import GameRegistry
 
@@ -47,8 +47,8 @@ def _team_scope(team_id: str) -> str:
 
 def _fuse_scope(player_id: str) -> str:
     """The board deadline's own scope, so it runs alongside the wait timer
-    rather than displacing it. Player ids carry a `p_` prefix, so a bare id can
-    never look like one of these."""
+    rather than displacing it. Player ids carry a `p_` prefix and God seats a
+    `g_` one, so a bare id can never look like one of these."""
     return f"fuse:{player_id}"
 
 
@@ -263,6 +263,18 @@ class RelayEngine:
             if player.rejoin_code and hmac.compare_digest(player.rejoin_code, typed):
                 return player
         raise ValueError("no seat matches that code")
+
+    def add_observer(self, match: Match, name: str = "God") -> Observer:
+        """Seat a God on this match (backend/god.py).
+
+        Returns no `EngineResult` because there is nothing to broadcast: an
+        observer costs no seat, changes no rule, and must not be visible to
+        anyone at the table. Allowed in any status — the point of watching is
+        that you can start doing it mid-race.
+        """
+        observer = Observer(id=f"g_{secrets.token_hex(8)}", name=name)
+        match.observers[observer.id] = observer
+        return observer
 
     def set_team(
         self, match: Match, player_id: str, team_id: str
@@ -615,6 +627,53 @@ class RelayEngine:
             match,
             result,
             f"{player.name} is now team {team.name}'s Grandmaster.",
+            "info",
+        )
+        return result
+
+    def god_set_leader(
+        self, match: Match, actor_id: str, target_id: str
+    ) -> EngineResult:
+        """A God names a team's Grandmaster (lobby only).
+
+        `claim_leader` above is the players' route to the seat and is polite
+        about it: you may only take one that is empty or whose holder has gone.
+        This one overrides a seated, connected Grandmaster, which is the whole
+        point — the person running the session is the one who can fix a table
+        where the wrong player grabbed the seat.
+
+        Gated on the God seat directly rather than through `_is_host`: the host
+        controls shape a *match*, and who leads a team is a move in the game.
+        Widening `_is_host` here would quietly hand that to every host too.
+
+        The event wording is `claim_leader`'s, deliberately. Every player reads
+        that feed, and "a god named you Grandmaster" would announce a seat the
+        table is not supposed to know exists.
+        """
+        if match.status != "lobby":
+            return EngineResult.rejected("match already started")
+        if actor_id not in match.observers:
+            return EngineResult.rejected("only a God seat can do that")
+        target = match.players.get(target_id)
+        if target is None:
+            return EngineResult.rejected("unknown player")
+        if target.team_id is None:
+            return EngineResult.rejected("give them a team first")
+        team = match.teams[target.team_id]
+        if team.leader_id == target.id:
+            return EngineResult.rejected(f"{target.name} already leads this team")
+        current = match.players.get(team.leader_id or "")
+        if current is not None:
+            current.is_leader = False
+        target.is_leader = True
+        target.role = None  # the Grandmaster seat has no playing role
+        target.assigned_game = None  # leaders don't play
+        team.leader_id = target.id
+        result = EngineResult(changed=True)
+        self._add_event(
+            match,
+            result,
+            f"{target.name} is now team {team.name}'s Grandmaster.",
             "info",
         )
         return result
@@ -974,6 +1033,17 @@ class RelayEngine:
         return self._is_host(match, player_id)
 
     def _is_host(self, match: Match, player_id: str) -> EngineResult | None:
+        """The host, or a God seat watching this match.
+
+        A God holds the host's controls without holding the host *seat*:
+        `match.host_player_id` still names a real player, and deliberately so.
+        `claim_host` decides whether the seat is up for grabs by looking the
+        holder up in `match.players` and asking whether they are connected — an
+        observer id would come back None there, the guard would never fire, and
+        any player could take the host seat whenever a God was watching.
+        """
+        if player_id in match.observers:
+            return None
         if player_id != match.host_player_id:
             return EngineResult.rejected("only the host can do that")
         return None

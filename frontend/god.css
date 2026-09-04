@@ -1,0 +1,250 @@
+/* God mode — the whole table at once.
+ *
+ * The board for the person running a session and playing in none of it: both
+ * teams whole, side by side, plus the two switches into a Grandmaster's own
+ * dashboard. See backend/god.py for what the seat is and, more importantly,
+ * what it is not.
+ *
+ * This file is layout only. The components are dashboard.css's: .gm-panel,
+ * .gm-flag, .gm-race__*, .gm-event, .gm-ic--* are all global there, so a
+ * screen built out of them reads as the same product without a second copy of
+ * anything. What is scoped to #view-leader over there is the *arrangement* —
+ * one team's command board — and that is exactly the part two teams need
+ * differently.
+ *
+ * Prefix: god-.
+ */
+
+/* The page ground follows the view, as it does for the command board. */
+body.god-active {
+  background: var(--gm-bg);
+  color: var(--gm-text);
+}
+
+body.god-active .topbar { display: none; }
+
+#view-god {
+  /* style.css caps a .view at 720px, which is a reading column. Two rosters
+     and a race need the room the command board takes. */
+  max-width: 1500px;
+  padding: 14px 18px 120px;
+}
+
+.god-bar { margin-bottom: 14px; }
+.god-bar__title h1 { font-size: 1.05rem; }
+
+.god-note {
+  margin: 0;
+  max-width: 44ch;
+  color: var(--gm-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-align: right;
+}
+.god-note.is-blocked { color: var(--gm-yellow); }
+
+.god-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.god-teams {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.god-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* --- one team's card ---------------------------------------------------- */
+
+.god-team { border-top: 3px solid var(--team-color, var(--gm-line)); }
+
+.god-team__head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--gm-line-soft);
+}
+
+.god-team__logo {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  color: var(--team-color, var(--gm-text));
+}
+.god-team__logo .gm-ic { width: 100%; height: 100%; }
+
+.god-team__name {
+  font-weight: 900;
+  font-size: 0.98rem;
+  letter-spacing: 0.01em;
+}
+
+.god-team__level {
+  color: var(--gm-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.god-team__coin {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  font-weight: 900;
+  color: var(--gm-yellow);
+}
+
+.god-team__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 9px 13px 0;
+  list-style: none;
+}
+
+.god-roster {
+  margin: 0;
+  padding: 9px 13px 13px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* --- the floating switch bar -------------------------------------------- */
+/*
+ * Outside every view, like #host-live, so it survives the jump into a
+ * Grandmaster's board — which is the one screen a God cannot get back from
+ * any other way.
+ */
+
+.god-switch {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(280px, calc(100vw - 32px));
+  padding: 12px 13px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-lg);
+  background: var(--gm-panel);
+  color: var(--gm-text);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+}
+
+.god-switch__label {
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+
+.god-switch__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.god-switch__row:empty { display: none; }
+.god-switch__row .btn { flex: 1 1 110px; min-height: 38px; font-size: 0.82rem; }
+
+.god-switch__note {
+  margin: 0;
+  color: var(--gm-yellow);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.god-watch {
+  flex: 1 1 110px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid var(--gm-line);
+  border-left: 3px solid var(--team-color, var(--gm-line));
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.god-watch:hover, .god-watch:focus-visible { border-color: var(--gm-cyan); }
+.god-watch.is-on {
+  background: var(--team-color, var(--gm-line));
+  color: #07091f;
+}
+.god-watch .gm-ic { width: 15px; height: 15px; }
+
+/* --- watching a Grandmaster --------------------------------------------- */
+/*
+ * The dashboard renders in full, from a projection of the God's own snapshot,
+ * and every control on it is dead: send() refuses while watching. Saying so
+ * with the cursor and the dimming matters — a button that looks live and does
+ * nothing reads as a bug, not as a rule.
+ */
+
+body.god-watching .gm-panel--perks,
+body.god-watching .gm-panel--handoff,
+body.god-watching #leader-stake-card {
+  pointer-events: none;
+  opacity: 0.62;
+}
+
+body.god-watching .gm-panel--perks .gm-panel__head::after {
+  content: "Watching";
+  margin-left: auto;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+
+/* --- the crown, in the lobby -------------------------------------------- */
+/*
+ * A God-only control on an otherwise ordinary lobby row (the God board hands
+ * the lobby to renderLobby unchanged). It sits beside the host's move and kick
+ * buttons and inherits their shape from lobby.css; only the colour is its own,
+ * because what it does is not a host power.
+ */
+
+#view-lobby .host-controls .mini-btn.crown-btn {
+  border-color: rgba(255, 200, 61, 0.5);
+  background: rgba(255, 200, 61, 0.14);
+}
+#view-lobby .host-controls .mini-btn.crown-btn:hover {
+  background: rgba(255, 200, 61, 0.28);
+}
+#view-lobby .host-controls .mini-btn.crown-btn .gm-ic {
+  color: var(--gm-yellow);
+}
+
+@media (max-width: 1100px) {
+  .god-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 700px) {
+  .god-teams { grid-template-columns: minmax(0, 1fr); }
+  .god-note { text-align: left; }
+  .god-switch { right: 10px; left: 10px; bottom: 10px; width: auto; }
+}

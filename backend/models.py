@@ -63,6 +63,25 @@ class Event:
 
 
 @dataclass
+class Observer:
+    """A God seat: a viewer that is not a player.
+
+    Deliberately not a `Player`. Every rule in the engine that counts, seats,
+    gates or advances people reads `match.players` and `team.player_ids`, so a
+    viewer kept out of both costs no seat, blocks no start, and cannot appear on
+    a roster by accident. That is the whole reason God mode is a small change.
+
+    It holds no rejoin code — `engine.rejoin` walks the players looking for one,
+    and a God seat that could be bought for six characters would not be a dev
+    tool. It has no `connected` flag either: nothing about a God may ever reach
+    another viewer's snapshot, so there is nothing here worth broadcasting.
+    """
+
+    id: str  # "g_"-prefixed, and the WS credential, exactly like a player id
+    name: str = "God"
+
+
+@dataclass
 class Player:
     id: str  # long + random — it is the WS credential
     name: str
@@ -332,7 +351,7 @@ class DuelSession:
 
     def public(
         self,
-        me: Player,
+        me: Player | None,
         players: dict[str, Player],
         round_seconds: int | None = None,
     ) -> dict[str, Any]:
@@ -341,12 +360,17 @@ class DuelSession:
         Names only, never player ids: an id is a WS credential, and the
         opponent's is not exposed anywhere else in the protocol either.
 
+        `me` is None for a viewer holding no seat in this duel at all (a God).
+        That is already the case the modules handle for a Grandmaster, whose id
+        is not in `sides` either, so it needs no new branch below.
+
         `round_seconds` is the window this match actually runs rounds at — the
         host's override, or the module's own. The client draws its countdown
         from it, so it has to be the effective value rather than the module
         default sitting in `payload`.
         """
-        view = self.module.public(self.state, self.side_of(me.id), self.revealed())
+        side = self.side_of(me.id) if me is not None else None
+        view = self.module.public(self.state, side, self.revealed())
         view.update({
             "id": self.id,
             "name": self.module.name,
@@ -426,6 +450,36 @@ class PendingStake:
             "settled": mine in self.grants if mine else False,
         }
 
+    def god_public(self, players: dict[str, Player]) -> dict[str, Any]:
+        """Both sides of the negotiation, for a God.
+
+        Its own method rather than a flag on `public()`: that one takes a
+        `Player` and derives exactly one side from it, so a flag would leave
+        `me` unused on half the branches — a signature that lies about what it
+        needs. This is a different audience, so it is a different method.
+
+        Every key `public()` emits is still here, so the client can read one
+        shape either way; `side` is null because a God is on neither.
+        """
+        return {
+            "duel_game_id": self.duel_game_id,
+            "deadline": self.deadline,
+            "side": None,
+            "duellists": {
+                side: players[player_id].name
+                for side, player_id in self.sides.items()
+                if player_id in players
+            },
+            "ask": None,
+            "granted": None,
+            "settled": self.settled(),
+            # The God-only half: who is on which side, and what each of them
+            # asked for and got. No seat at the table ever sees both.
+            "team_of": dict(self.team_of),
+            "asks": dict(self.asks),
+            "grants": dict(self.grants),
+        }
+
 
 @dataclass
 class Match:
@@ -449,31 +503,52 @@ class Match:
     # A staked duel that both Grandmasters still owe an answer on. Never
     # set at the same time as `duel`: one replaces the other.
     pending_stake: PendingStake | None = None
+    # Dev-only God seats (backend/god.py). Kept out of `players` on purpose;
+    # see the Observer docstring for why that is what keeps the feature small.
+    observers: dict[str, Observer] = field(default_factory=dict)
 
     def unassigned(self) -> list[Player]:
         """Lobby players who haven't picked (or been given) a team yet."""
         return [p for p in self.players.values() if p.team_id is None]
 
-    def _duel_view(self, me: Player | None) -> dict[str, Any] | None:
+    def _duel_view(
+        self, me: Player | None, god: Observer | None = None
+    ) -> dict[str, Any] | None:
         """The duel reaches only the two Duelists and the two Grandmasters.
 
         A deliberate, minimal exception to the leader-exclusive visibility rule
         (REDESIGN_PLAN locked decision #9): a Duelist must see who they are
         fighting. Ordinary solvers still learn nothing about the other team.
+
+        A God watches it the way a Grandmaster does — as a non-combatant, so
+        `side_of` is None and neither choice is revealed early. Watching the
+        duel is not the same as seeing through it, and no duel module has to
+        learn a new audience for this.
         """
-        if self.duel is None or me is None:
+        if self.duel is None:
+            return None
+        if god is not None:
+            return self.duel.public(None, self.players, self.duel_window())
+        if me is None:
             return None
         if not (me.is_leader or me.id in self.duel.sides.values()):
             return None
         return self.duel.public(me, self.players, self.duel_window())
 
-    def _stake_view(self, me: Player | None) -> dict[str, Any] | None:
+    def _stake_view(
+        self, me: Player | None, god: Observer | None = None
+    ) -> dict[str, Any] | None:
         """The stake negotiation, for the four seats it concerns.
 
         Same audience rule as `_duel_view`: the two Duelists and the two
         Grandmasters. An ordinary solver never learns a duel is being funded.
+        A God sees both sides of it, which no seat at the table ever does.
         """
-        if self.pending_stake is None or me is None:
+        if self.pending_stake is None:
+            return None
+        if god is not None:
+            return self.pending_stake.god_public(self.players)
+        if me is None:
             return None
         if not (me.is_leader or me.id in self.pending_stake.sides.values()):
             return None
@@ -487,7 +562,16 @@ class Match:
             return self.config_snapshot.get("duel_round_seconds")
         return self.duel_round_seconds
 
-    def _team_view(self, team: Team, me: Player | None) -> dict[str, Any]:
+    def _team_view(
+        self, team: Team, me: Player | None, god: Observer | None = None
+    ) -> dict[str, Any]:
+        # A God sees both teams whole, in every status. First, before the lobby
+        # arm below: that arm asks whether the team is *mine*, and a God has no
+        # team, so falling into it would mask both loadouts from the one viewer
+        # who is meant to see both. Unsilenced too — Silence is an attack on a
+        # Grandmaster's own read-out, not on someone watching from outside it.
+        if god is not None:
+            return team.public(self.players, reveal_codes=True)
         if self.status == "lobby":
             # Everyone sees both rosters and both sets of roles in the lobby —
             # that is how you tell whether the sides are fair. Only the game
@@ -518,15 +602,24 @@ class Match:
             return team.summary(self.players)
         return {"id": team.id, "name": team.name, "finished": team.finished}
 
-    def public(self, player_id: str | None = None) -> dict[str, Any]:
-        """MatchPublic; `me` is filled only for the requesting player."""
-        me = self.players.get(player_id) if player_id is not None else None
+    def public(self, viewer_id: str | None = None) -> dict[str, Any]:
+        """MatchPublic; `me` is filled only for the requesting player.
+
+        `viewer_id` is a player id or a God's observer id — the ids are
+        prefix-namespaced (`p_` / `g_`) and the socket carries either in the
+        same slot. A God gets `me: None` and the `god` key instead.
+        """
+        god = self.observers.get(viewer_id or "")
+        me = self.players.get(viewer_id) if viewer_id is not None else None
+        if god is not None:
+            me = None
         events = self.events[-PUBLIC_EVENT_LIMIT:]
         # A silenced Grandmaster loses the who-cleared feed too, or the masked
         # roster above would be trivially reconstructed from the event log.
         my_team = self.teams.get(me.team_id or "") if me else None
         sees_progress = (
             self.status == "finished"
+            or god is not None
             or (
                 me is not None
                 and me.is_leader
@@ -549,12 +642,17 @@ class Match:
             "winner_team_id": self.winner_team_id,
             "config": dict(self.config_snapshot),
             "teams": {
-                team_id: self._team_view(team, me)
+                team_id: self._team_view(team, me, god)
                 for team_id, team in self.teams.items()
             },
             "unassigned": [player.public() for player in self.unassigned()],
             "events": [event.public() for event in events],
-            "duel": self._duel_view(me),
-            "pending_stake": self._stake_view(me),
+            "duel": self._duel_view(me, god),
+            "pending_stake": self._stake_view(me, god),
             "me": me.private() if me else None,
+            # Null for everyone but a God. Always present rather than appearing
+            # only on the God's own snapshot: a key that comes and goes is the
+            # kind of thing the shape tests exist to catch, and null says
+            # nothing about whether anyone is watching.
+            "god": {"id": god.id, "name": god.name} if god else None,
         }

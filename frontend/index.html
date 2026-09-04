@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/static/join.css">
   <link rel="stylesheet" href="/static/lobby.css">
   <link rel="stylesheet" href="/static/duel.css">
+  <link rel="stylesheet" href="/static/god.css">
 </head>
 <body>
   <header class="topbar">
@@ -698,6 +699,84 @@
       </section>
     </div>
   </section>
+
+  <!-- god mode: the whole table at once, for the person running the session
+       and playing in none of it. Dark like the command board, and built from
+       the same .gm-* components — it is the Grandmaster's vocabulary applied
+       to two teams instead of one. See backend/god.py. -->
+  <section id="view-god" class="view" hidden>
+    <header class="gm-bar god-bar">
+      <span class="gm-mark">
+        <svg viewBox="0 0 24 32" aria-hidden="true" focusable="false">
+          <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
+        </svg>
+        <span>RELAY</span>
+      </span>
+
+      <div class="gm-field">
+        <span class="gm-field__label">Match code</span>
+        <span class="gm-field__value" id="god-match-code"></span>
+      </div>
+
+      <div class="gm-bar__team god-bar__title">
+        <h1>God mode</h1>
+        <span class="gm-level" id="god-status"></span>
+      </div>
+
+      <span class="gm-spacer"></span>
+      <p class="god-note" id="god-blocker"></p>
+    </header>
+
+    <div class="god-grid">
+      <div class="god-teams" id="god-teams"></div>
+
+      <div class="god-side">
+        <section class="gm-panel gm-panel--race">
+          <header class="gm-panel__head">
+            <i class="gm-ic gm-ic--level" aria-hidden="true"></i>
+            <h2>Level race</h2>
+            <span class="gm-spacer"></span>
+            <span class="gm-panel__meta" id="god-race-gap"></span>
+          </header>
+          <div class="gm-panel__body" id="god-race"></div>
+        </section>
+
+        <section class="gm-panel gm-panel--duel" id="god-duel-card" hidden>
+          <header class="gm-panel__head">
+            <i class="gm-ic gm-ic--duel" aria-hidden="true"></i>
+            <h2>Duel</h2>
+            <span class="gm-spacer"></span>
+            <span class="gm-panel__meta" id="god-duel-clock" hidden></span>
+          </header>
+          <div class="gm-panel__body" id="god-duel-mount"></div>
+        </section>
+
+        <section class="gm-panel gm-panel--feed">
+          <header class="gm-panel__head">
+            <i class="gm-ic gm-ic--level" aria-hidden="true"></i>
+            <h2>Everything, unfiltered</h2>
+            <span class="gm-spacer"></span>
+            <span class="gm-panel__meta">Both teams, cleared calls included</span>
+          </header>
+          <div class="gm-scroll">
+            <ul id="god-feed" class="feed"></ul>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- The God's own controls, floating like the host bar so they survive the
+       switch into a Grandmaster's board. -->
+  <div id="god-switch" class="god-switch" hidden>
+    <span class="god-switch__label" id="god-switch-label">Watching</span>
+    <div class="god-switch__row" id="god-watch-buttons"></div>
+    <p class="god-switch__note" id="god-switch-note" hidden></p>
+    <div class="god-switch__row">
+      <button id="god-start" class="btn" type="button" hidden>Start the race</button>
+      <button id="god-end" class="btn danger-btn" type="button" hidden>End session</button>
+    </div>
+  </div>
 
   <div id="host-live" class="host-live" hidden>
     <button id="end-session" class="btn danger-btn">⏹ End session</button>

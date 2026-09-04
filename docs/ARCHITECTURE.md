@@ -37,7 +37,7 @@ this with [GAME_DESIGN.md](GAME_DESIGN.md) (the rules) and
 backend/
   __init__.py
   config.py        # ALL tunables (timers, team size, levels, currency, perks, roles)
-  models.py        # dataclasses: Match, Team, Player, PuzzleInstance, Event
+  models.py        # dataclasses: Match, Team, Player, Observer, PuzzleInstance, Event
   state.py         # InMemoryStateStore
   registry.py      # GameRegistry: the id-indexed game library
   engine.py        # RelayEngine: the pure rules (level loop, economy, perks, win)
@@ -45,6 +45,8 @@ backend/
   protocol.py      # message (de)serialisation helpers + type constants
   main.py          # FastAPI app: REST routes, WebSocket endpoint, ConnectionManager
   preview.py       # dev only: the /preview design gallery (every screen, on demand)
+  god.py           # dev only: the /god seat — run a match without playing in it
+  devgate.py       # the password gate those two dev doors share
   games/
     __init__.py
     base.py        # GameModule Protocol/ABC + PuzzleInstance helpers (from spec)
@@ -105,6 +107,9 @@ Match
   id: str
   status: "lobby" | "active" | "finished"
   teams: { "alpha": Team, "bravo": Team }
+  observers: { "g_...": Observer }   # dev-only God seats; NOT in `players`, which
+                                     #   is what keeps them out of every count,
+                                     #   gate and roster. See docs/GOD_MODE.md
   winner_team_id: str | None
   events: [Event]           # last ~30; green/lost_green entries are Grandmaster-only
   config_snapshot: {...}    # timers/levels/economy/perks frozen at match start
@@ -224,8 +229,10 @@ browser. Approach:
   local countdown animation derived from `timer_deadline`.
 - Views: **lobby** (teams, Grandmaster seats, game assignment), **play** (your own
   game + level, the wait/bonus choice, freeze overlay), the **Grandmaster dashboard**
-  (roster status, currency, perk shop, opponent level chip, handoff), and
-  **result** (win/lose). Snapshots are personalised per viewer — see
+  (roster status, currency, perk shop, opponent level chip, handoff),
+  **result** (win/lose), and the dev-only **God board** (both teams at once, plus
+  a read-only jump into either Grandmaster's dashboard — see
+  [GOD_MODE.md](GOD_MODE.md)). Snapshots are personalised per viewer — see
   [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) §3 "TeamView".
 - The client **never** decides correctness or advancement. It submits
   `submit_answer` and reacts to the snapshot.
