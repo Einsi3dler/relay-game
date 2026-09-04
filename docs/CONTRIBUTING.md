@@ -158,6 +158,24 @@ The key is `RELAY_PREVIEW_KEY`, default `dev`. A wrong key is a 404. Set the
 variable if the server is reachable by anyone but you — the default is in the
 source, and the source is public.
 
+### God mode
+
+The other dev door, and the one you want when you are *running* a session rather
+than looking at a screen. It seats you on a real match without playing in it:
+
+```text
+http://127.0.0.1:8000/god?key=dev
+```
+
+From there you can create a match and hand out the code, hold the host's
+controls, name either team's Grandmaster, and watch both Grandmaster dashboards
+live. You take no roster seat, you block no start, and nobody at the table can
+tell you are there. You cannot play, spend, or touch a board.
+
+Its key is `RELAY_GOD_KEY`, **not** the gallery's — that one only ever exposes
+throwaway dummy matches, this one controls real ones. Same default (`dev`), same
+warning. Full write-up: [GOD_MODE.md](GOD_MODE.md).
+
 For a fuller playtest (V6/V7), follow [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md).
 
 For a shorter run, temporarily set `LEVEL_COUNT = 2` in `backend/config.py` —

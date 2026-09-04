@@ -119,6 +119,25 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   **Provisional:** `DUEL_STAKE_POOL_MULTIPLIER` and the widened perk costs —
   see [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md). · [ALL]
 
+- [x] **V12 God mode (dev only)** — a seat that runs a match without playing in
+  it. Every viewer used to be a `Player`, and a player who never plays blocks
+  the start outright, so the person running a session had nowhere to sit. An
+  `Observer` lives in `match.observers`, outside `match.players` and
+  `team.player_ids` — which is where every rule that counts, seats, gates and
+  advances people looks, and is what keeps the change small. It holds the host's
+  controls without holding the host *seat* (`claim_host` decides whether that is
+  free by looking its holder up in `match.players`, so an observer there would
+  let any player seize it), can name either team's Grandmaster over a seated
+  one, and reads both teams whole in every status — through Silence, with the
+  leader-only events, and both sides of a stake. Watching a Grandmaster's board
+  is `renderLeader` handed a projection of the God's own snapshot, never a
+  borrowed credential. Password: `RELAY_GOD_KEY`, separate from the gallery's.
+  See [GOD_MODE.md](GOD_MODE.md).
+  **AC:** an observer costs no seat and blocks no start; nothing in any player's
+  snapshot or event feed reveals one exists; the God holds host controls without
+  holding the host seat; watching a Grandmaster sends nothing and never touches
+  the WebSocket credential. · [C][F]
+
 ### v2 stretch (only after V5–V7)
 
 - [ ] More games for the library (see `game/RELAY_EXPANSION_GAMES_README.md`) —
@@ -178,7 +197,10 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   REQUIRES ENGINE EXTENSION — V9 built the live-action seam they were waiting
   on (`duel_choice` + server-fired deadlines), so they are no longer blocked.
 - [ ] Mid-match Grandmaster *claim* when the Grandmaster is long-disconnected.
-- [ ] Spectator/dashboard view for non-players.
+- [ ] Spectator/dashboard view for non-players — a *public* one. V12's God board
+  is the developer's version of this and is password-gated on purpose; a
+  spectator seat anyone can take is a different question about what an audience
+  should be allowed to see.
 
 ---
 

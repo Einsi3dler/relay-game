@@ -19,6 +19,9 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
 | `POST` | `/api/matches/{id}/join` | `{ "name": str, "team_id": "alpha"\|"bravo"\|null }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` |
 | `POST` | `/api/matches/{id}/rejoin` | `{ "code": str }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` — trades a rejoin code for the `player_id` that owns the seat |
 | `GET` | `/api/matches/{id}` | — | `{ "match": <MatchPublic> }` (spectate / rejoin lookup) |
+| `GET`/`POST` | `/god` | form `key=<RELAY_GOD_KEY>` | the God console, behind a password ([GOD_MODE.md](GOD_MODE.md)). Dev only |
+| `POST` | `/god/new` | — | 303 to `/play?god=<observer_id>&match=<id>` — a new match with a God running it |
+| `POST` | `/god/watch` | form `match_id=<id>` | 303 to the same, for a match already running |
 
 - `library` is the registered game catalogue that feeds the Grandmaster's
   assignment picker (each entry's `role` is its specialist role id, or `null`).
@@ -59,6 +62,13 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
   the match is evicted: the code stops resolving, so nobody can rejoin a lobby
   that no longer exists.
 - `player_id` is the socket's **only credential** — treat it like a session token.
+- **God observers** (dev only, [GOD_MODE.md](GOD_MODE.md)) connect on this same
+  endpoint and carry their `g_`-prefixed observer id in the same `player_id`
+  slot; the ids are prefix-namespaced and the server asks which it is. Three
+  differences: a God is never marked `connected`, receives **one** snapshot on
+  connect and triggers **no** broadcast, and may send only `lobby_action`,
+  `request_state` and `heartbeat` — anything else is answered with an `error`
+  and changes nothing.
 - **Rejoin codes.** Every player is also given a short, readable `rejoin_code`
   at join (`config.REJOIN_CODE_*`). It buys the `player_id` back over
   `POST /api/matches/{id}/rejoin`, which works at **any** point in a match —
@@ -92,7 +102,7 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 | `answer_stake` | `amount: int` | Grandmaster-only, once per staked duel. Funds their own champion with **any** amount they choose, more or less than was asked; `0` is a legal answer meaning "bid with nothing". The coins leave the purse here and only winnings come back. Capped at what the purse holds. |
 | `request_state` | — | Ask for a fresh `state_snapshot` (e.g. after reconnect). |
 | `heartbeat` | — | Keep-alive; server replies with a `state_snapshot`. |
-| `lobby_action` | `action: str` + action fields | Mostly lobby-only. `set_team {team_id}` (self), `leave` (self; the host seat passes on), `claim_leader` (seat empty or holder disconnected), `release_leader` (lobby-only; the Grandmaster gives the seat back), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `set_max_players {value}` (1..ceiling; pulls `min_players` down with it), `set_level_count {value}` (3..10 rounds to win), `set_duel_seconds {value}` (3..30 seconds a duel round, or `0` to give every duel game its own window back), `set_team_name {team_id, name}`, `start`, `cancel_session`; `claim_host` (only while the host is gone). **Outside the lobby:** `end_session` (host-only, running match) and `claim_host` also work — the host holds the only control that stops a session. |
+| `lobby_action` | `action: str` + action fields | Mostly lobby-only. `set_team {team_id}` (self), `leave` (self; the host seat passes on), `claim_leader` (seat empty or holder disconnected), `release_leader` (lobby-only; the Grandmaster gives the seat back), God-only `god_set_leader {target_id}` (lobby-only; unlike `claim_leader` it overrides a seated, connected Grandmaster), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `set_max_players {value}` (1..ceiling; pulls `min_players` down with it), `set_level_count {value}` (3..10 rounds to win), `set_duel_seconds {value}` (3..30 seconds a duel round, or `0` to give every duel game its own window back), `set_team_name {team_id, name}`, `start`, `cancel_session`; `claim_host` (only while the host is gone). **Outside the lobby:** `end_session` (host-only, running match) and `claim_host` also work — the host holds the only control that stops a session. |
 
 - `puzzle_id` **must** match the player's current puzzle id, or the server replies
   `error` ("Puzzle is no longer active") and ignores it.
@@ -152,7 +162,16 @@ These are exactly what `.public()` returns. **No answers ever appear here.**
   "pending_stake": <PendingStakeView> | null,  // same four seats; a staked duel
                                          //   being funded. Never set at the
                                          //   same time as `duel`.
-  "me": <PlayerPrivate> | null           // only present for the requesting player
+  "me": <PlayerPrivate> | null,          // only present for the requesting player
+  "god": { "id": "g_...", "name": "God" } | null
+                                         // the dev-only God seat (backend/god.py).
+                                         //   Null on every other snapshot, and
+                                         //   always present rather than appearing
+                                         //   only on a God's own — a key that comes
+                                         //   and goes is what §5 exists to catch,
+                                         //   and null says nothing about whether
+                                         //   anyone is watching. A God's `me` is
+                                         //   null: they hold no seat.
 }
 ```
 
@@ -166,6 +185,13 @@ Snapshots are personalised. Which team shape a viewer gets:
 | the team's **Grandmaster**, active match | **TeamFull** | **TeamSummary** (with `green_count`) |
 | a **playing member**, active match | **TeamSummary** (no `green_count`) | `{ "id", "name", "finished" }` only |
 | no viewer (plain REST `GET`) | **TeamSummary** | **TeamSummary** |
+| a **God observer** (dev only, any status) | **TeamFull**, unsilenced, with rejoin codes | **TeamFull**, same |
+
+A God has no team, so neither side is "the opposition" — the row above is the
+one view that is not personalised to a seat. It sees through Silence (an attack
+on a Grandmaster's own read-out, not on someone watching from outside it),
+keeps the leader-only events, and gets both sides of a `pending_stake`. See
+[GOD_MODE.md](GOD_MODE.md).
 
 ```jsonc
 // TeamFull
@@ -385,15 +411,23 @@ nothing for them to relay to their champion mid-round.
 2. A `state_snapshot` fully determines the UI; dropping every other message type
    still yields a correct (if less animated) client.
 3. A playing member's snapshot never reveals opponent progress or own-team
-   per-player cleared states — that data appears only in Grandmaster snapshots.
+   per-player cleared states — that data appears only in Grandmaster snapshots,
+   and in the dev-only God observer's.
 4. `me.current_puzzle` is non-null exactly while `solving` or `bonus`.
 5. `green_count == number of cleared players` wherever both appear.
 6. `duel` and `pending_stake` are never both non-null: a staked duel is being
    funded or it is being fought, never both.
 7. A `pending_stake` never carries the opposing team's `ask` or `granted`, and
    a player who is neither a Duelist nor a Grandmaster is sent `null` for it.
+   The God observer is the one exception: it is sent both sides, under `asks`
+   and `grants`, and no `ask`/`granted` of its own.
 8. A rejoin code appears in exactly two places: your own `me.rejoin_code`, and
-   the roster rows of your own Grandmaster's `TeamView`. Never in the lobby
-   view, an opponent summary, or a finished match.
+   the roster rows of your own Grandmaster's `TeamView` (and of a God's, which
+   is the other seat that can read one back to a stranded player). Never in the
+   lobby view, an opponent summary, or a finished match.
+9. An observer never appears in a roster, in `unassigned`, in the join capacity
+   count, in `host_player_id`, in any event, or in any other viewer's snapshot.
+   Connecting and disconnecting one broadcasts nothing. Nobody at the table can
+   tell a God is watching.
 
 Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [GAME_DESIGN.md](GAME_DESIGN.md) · [GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md)
