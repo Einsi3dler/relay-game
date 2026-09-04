@@ -116,8 +116,8 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   a default); a staked duel is never dealt to teams that cannot fund one; the
   opposing stake never reaches the other side, through the snapshot **or** the
   event feed.
-  **Provisional:** `DUEL_STAKE_LOT_FLOOR_DIVISOR` is inflationary at 1.2 — see
-  [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md). · [ALL]
+  **Provisional:** `DUEL_STAKE_POOL_MULTIPLIER` and the widened perk costs —
+  see [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md). · [ALL]
 
 ### v2 stretch (only after V5–V7)
 

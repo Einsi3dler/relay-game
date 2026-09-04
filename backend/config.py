@@ -110,17 +110,22 @@ DUEL_STAKE_MIN_PURSE = 8
 DUEL_STAKE_REQUEST_SECONDS = 25  # the window a Grandmaster has to answer
 DUEL_STAKE_DEFAULT = 10          # auto-granted when they never do (capped by
                                  # what the purse actually holds, including 0)
-# A lot is worth coins, rolled fresh each time, and its floor is recomputed
-# from what BOTH Duelists still hold — so lots shrink in step with the money
-# left and stay worth contesting to the last auction. Floor = combined purses
-# / DIVISOR, ceiling = floor * SPREAD.
+# The sale is funded by the two stakes and paid out at a multiple of them, so
+# money does enter the game but only in proportion to what was actually risked:
 #
-# PROVISIONAL, and the knob to turn first: at 1.2 a single lot is worth close
-# to every coin on the table, so a staked duel pays a team far more than it
-# costs them. Raise the divisor to deflate it (at 4.0 a lot is worth about a
-# quarter of the table) without changing the shape of the game.
-DUEL_STAKE_LOT_FLOOR_DIVISOR = 1.2
-DUEL_STAKE_LOT_SPREAD = 2.0      # a lot rolls in [floor, floor * SPREAD]
+#     pool = 2 * min(stake_a, stake_b) * DUEL_STAKE_POOL_MULTIPLIER
+#
+# `min`, not the sum, and that is the load-bearing part. Sizing the pool off the
+# combined stake means out-staking your opponent inflates the prize you are
+# bidding for, and staking everything becomes the only correct move — the exact
+# degenerate shape the first version of this had. Off the smaller stake, out-
+# staking only buys bidding power: it cannot grow the pot, so there is a best
+# stake to find and going past it burns coins. Matching your opponent is what
+# makes the sale worth having, which is a decision two Grandmasters make about
+# each other without ever speaking.
+DUEL_STAKE_POOL_MULTIPLIER = 4   # 3-5 is the intended band; higher = more money
+DUEL_STAKE_POOL_FLOOR = 20       # a backstop so two poor teams still have a sale
+DUEL_STAKE_LOTS = 5              # lots the pool is cut into
 
 # The per-round choice window. Each duel module declares its own natural cost
 # (`choice_seconds`: 5s to throw a hand, 10s to read a hand of cards), and the
@@ -141,19 +146,26 @@ DUEL_ROUND_SECONDS_CHOICES = (3, 5, 8, 10, 12, 15, 20, 30)
 #               Every other attack is enforced server-side.
 # An attack that would land on nobody is rejected, not wasted (see
 # RelayEngine._apply_attack), so a perk never costs currency for no effect.
+# Costs run 1..8 rather than the old 1..4. The spread is the point: with
+# everything inside a coin or two of everything else, a Grandmaster could hold
+# the whole shop and never trade one purchase against another. Now the cheap
+# plays stay impulse buys and the two that decide fights — Reflect, which
+# bounces an attack back at its buyer, and Silence, which blinds a Grandmaster
+# outright — cost enough to be worth saving for. PROVISIONAL: see
+# docs/PLAYTEST_GUIDE.md.
 PERKS: dict[str, dict] = {
     # --- attacks: enforced ---
-    "freeze":      {"name": "Freeze",      "kind": "attack",  "cost": 3, "seconds": 10,
+    "freeze":      {"name": "Freeze",      "kind": "attack",  "cost": 4, "seconds": 10,
                     "desc": "A random opponent can't submit for 10s."},
-    "scramble":    {"name": "Scramble",    "kind": "attack",  "cost": 2,
+    "scramble":    {"name": "Scramble",    "kind": "attack",  "cost": 3,
                     "desc": "A random solving opponent gets a fresh board."},
-    "clock_burn":  {"name": "Clock Burn",  "kind": "attack",  "cost": 3, "seconds": 30,
+    "clock_burn":  {"name": "Clock Burn",  "kind": "attack",  "cost": 4, "seconds": 30,
                     "desc": "Burn 30s off a random cleared opponent's wait."},
     # Skim costs more than it takes on purpose: it is attrition that hurts you
     # too (net -1 each), a way to deny a purchase, never a way to farm.
     "skim":        {"name": "Skim",        "kind": "attack",  "cost": 2, "amount": 1,
                     "desc": "Steal 1 from the opponent's pool."},
-    "silence":     {"name": "Silence",     "kind": "attack",  "cost": 3, "seconds": 30,
+    "silence":     {"name": "Silence",     "kind": "attack",  "cost": 7, "seconds": 30,
                     "desc": "Blind the enemy Grandmaster for 30s: roster, "
                             "feed and bomb manual."},
     # --- attacks: screen effects (cosmetic) ---
@@ -170,11 +182,11 @@ PERKS: dict[str, dict] = {
                     "effect": "blackout",
                     "desc": "Black out a random opponent's board for 4s."},
     # --- defense ---
-    "shield":      {"name": "Shield",      "kind": "defense", "cost": 2,
+    "shield":      {"name": "Shield",      "kind": "defense", "cost": 3,
                     "desc": "Blocks the next incoming attack."},
-    "reflect":     {"name": "Reflect",     "kind": "defense", "cost": 4,
+    "reflect":     {"name": "Reflect",     "kind": "defense", "cost": 8,
                     "desc": "Bounces the next attack back at its buyer."},
-    "insurance":   {"name": "Insurance",   "kind": "defense", "cost": 2,
+    "insurance":   {"name": "Insurance",   "kind": "defense", "cost": 3,
                     "desc": "A failed bonus keeps its earnings this level."},
     "extend_wait": {"name": "Extend Wait", "kind": "defense", "cost": 1, "seconds": 60,
                     "desc": "+60s on a chosen cleared teammate's wait."},

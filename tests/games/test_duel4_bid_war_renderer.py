@@ -18,7 +18,7 @@ SNAPSHOT = r"""
 function duel(over) {
   const payload = Object.assign({
     kind: "bid_war", choice_seconds: 10, wins_needed: 1, auctions: 5,
-    auction: 1, prize: 3, next_prize: null, staked: { a: 20, b: 20 },
+    auction: 1, prize: 3, next_prize: 9, staked: { a: 20, b: 20 },
     coins: { a: 20, b: 20 }, won: { a: 0, b: 0 },
     overtime: false, overtime_round: 0, overtime_coins: { a: 5, b: 5 },
     max_bid: 20, log: [], last: null,
@@ -123,7 +123,7 @@ report.log = textsOf(root, "duel-log-winner");
     # One lot is named, and only one. The next has not been rolled — its floor
     # depends on what this auction costs the pair of them — so the card shows a
     # single value and the "next" tile stays out of the page entirely.
-    assert report["prizes"] == ["3 coins", "–"]
+    assert report["prizes"] == ["3 coins", "9 coins"]
     assert "1 VP" not in report["openText"] and "2 VP" not in report["openText"]
 
     assert report["openHands"] == ["7", "🔒"], "theirs is a lock, not a bid"
@@ -142,7 +142,7 @@ renderer.mount(root, duel(), api);
 renderer.update(duel({
   phase: "reveal", choices: { a: "4", b: "4" },
   payload: {
-    prize: 7, next_prize: null, coins: { a: 16, b: 16 },
+    prize: 7, next_prize: 9, coins: { a: 16, b: 16 },
     last: { auction: 1, overtime: false, prize: 2, a: 4, b: 4, winner: null,
             won: { a: 0, b: 0 }, coins: { a: 16, b: 16 } },
   },
@@ -154,8 +154,8 @@ report.prizes = textsOf(root, "duel-prize-value");
     assert report["status"] == [
         "🤝 Tied bid. Nobody is paid and 2 coins roll into the next lot."
     ]
-    # The rolled-up value is on the block; there is still no lot behind it.
-    assert report["prizes"] == ["7 coins", "–"]
+    # The rolled-up value is on the block, and one lot is still shown behind it.
+    assert report["prizes"] == ["7 coins", "9 coins"]
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
@@ -180,7 +180,7 @@ report.allIn = bidValue(root);
 
     assert report["round"] == ["OVERTIME: a fresh, equal purse decides it"]
     assert report["purses"] == ["5 overtime coins", "5 overtime coins"]
-    assert report["nextHidden"] == [True], "the next lot is never shown"
+    assert report["nextHidden"] == [True], "there is no next lot in overtime"
     assert report["allIn"] == "5", "the temporary purse is what can be bid"
 
 

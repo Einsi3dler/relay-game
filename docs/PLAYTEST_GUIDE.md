@@ -188,19 +188,24 @@ Proposed config changes from this data (V7):
 
 - `WAIT_SECONDS`: keep 180 / change to ___ because ___
 - `CURRENCY_BONUS_FIRST` / `_REPEAT`: keep 3 / 1 / change because ___
-- Perk costs — attacks (freeze 3 / scramble 2 / clock_burn 3 / skim 2 /
-  silence 3 / wobble 2 / static 2 / mirror 3 / blackout 3): ___
-- Perk costs — defense (shield 2 / reflect 4 / insurance 2 / extend_wait 1): ___
+- Perk costs — attacks (freeze 4 / scramble 3 / clock_burn 4 / skim 2 /
+  **silence 7** / wobble 2 / static 2 / mirror 3 / blackout 3): ___
+- Perk costs — defense (shield 3 / **reflect 8** / insurance 3 / extend_wait 1): ___
+- **The two dear ones are the experiment.** Costs used to run 1-4, which meant a
+  Grandmaster could hold the whole shop and never trade one purchase against
+  another. Reflect and Silence are now 8 and 7 so there is something worth
+  saving for. Watch whether they ever get bought at all: if they never do they
+  are overpriced, and if they get bought every level they are still too cheap.
 - Screen-effect durations (wobble 12s / static 10s / mirror 10s / blackout 4s): ___
 - Per-game curve tweaks: ___
-- **`DUEL_STAKE_LOT_FLOOR_DIVISOR` (1.2): keep / change to ___** — the knob to
-  look at first. A lot is worth at least the coins both Duelists still hold
-  divided by this, so at 1.2 a single lot is worth close to the whole table and
-  a staked duel pays a team considerably more than it cost them. Raising it
-  deflates the payout without changing how the game plays: at 4.0 a lot is worth
-  about a quarter of the table. Compare "coins won vs coins staked" above; if
-  the winning team came out far ahead of what they put in, raise it.
-- `DUEL_STAKE_LOT_SPREAD` (2.0 — a lot rolls in [floor, floor x spread]): ___
+- **`DUEL_STAKE_POOL_MULTIPLIER` (4): keep / change to ___** — how much money a
+  staked duel puts into the game. The pool is `2 x smaller stake x this`, so at
+  4 two Grandmasters staking 15 each fight over 120 and the two teams are 90 up
+  on the exchange. For scale, puzzles pay a team roughly 7 a level. The intended
+  band is 3 to 5; drop it if duel income is drowning out solving, raise it if
+  staking never feels worth the risk.
+- `DUEL_STAKE_POOL_FLOOR` (20, the sale two broke teams still get): ___
+- `DUEL_STAKE_LOTS` (5): ___
 - `DUEL_STAKE_DEFAULT` (10, auto-granted when a Grandmaster never answers): ___
 - `DUEL_STAKE_MIN_PURSE` (8, below which a free duel is dealt instead): ___
 - `DUEL_STAKE_REQUEST_SECONDS` (25, the window to answer): ___

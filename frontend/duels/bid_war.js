@@ -6,10 +6,10 @@
 // purses, both winnings, and a bid you set exactly. The stepper is the input
 // that matters — a slider alone cannot say "seven" — with quick bids beside it.
 //
-// Two things are deliberately absent from the DOM because they are absent from
-// the payload: the opponent's bid before the reveal, and the next lot. The
-// next lot's floor depends on what this one costs the pair of you, so it has
-// not been rolled yet and there is nothing honest to show.
+// One lot ahead is published and no further, so the rest of the schedule is not
+// in the payload and cannot be read out of the DOM. Neither is the opponent's
+// bid before the reveal: their panel shows a lock until `duel.choices` carries
+// the number.
 (function () {
   "use strict";
 
@@ -39,7 +39,7 @@
     var root = el("div", "duel-seat duel-seat-" + kind);
     var face = el("div", "duel-hand", "…");
     var name = el("div", "duel-name", kind === "you" ? "You" : "Opponent");
-    var score = el("div", "duel-score", "0 VP");
+    var score = el("div", "duel-score", "0 won");
     var coins = el("div", "duel-sub", "");
     root.appendChild(face);
     root.appendChild(name);
@@ -66,7 +66,6 @@
     var next = el("div", "duel-prize duel-prize--next");
     var nextValue = el("div", "duel-prize-value", "–");
     next.appendChild(el("div", "duel-prize-label", "Next"));
-    next.hidden = true;   // never rolled yet — see the header
     next.appendChild(nextValue);
     prizes.appendChild(prize);
     prizes.appendChild(next);
@@ -157,7 +156,7 @@
     dom.stage.appendChild(lock);
     dom.stage.appendChild(el("p", "duel-note",
       "Both bids are spent — the losing one buys nothing. Coins left at the " +
-      "end are worth no points."));
+      "end are worth nothing, and they are not refunded either."));
   }
 
   function renderLog(payload) {
@@ -244,9 +243,11 @@
     });
 
     dom.prizeValue.textContent = (payload.prize || 0) + " coins";
-    // Always hidden: the next lot has not been rolled. Kept in the DOM so the
-    // card keeps one shape across every duel game.
-    dom.next.hidden = true;
+    // One lot ahead, and only one. Hidden on the last lot and in overtime,
+    // where the server sends null because there is nothing behind this one.
+    dom.next.hidden = payload.next_prize === null ||
+      payload.next_prize === undefined;
+    dom.nextValue.textContent = (payload.next_prize || 0) + " coins";
 
     dom.root.className = "duel duel-bid duel-" + duel.phase;
     dom.round.textContent = roundLine(payload);

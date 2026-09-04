@@ -355,7 +355,7 @@ and `wins_needed`. What each adds:
 | **RPS DUEL** (no `kind`) | `moves`, `beats` | — |
 | **CROWN DUEL** `crown_duel` | `phase` (`strategy`/`combat`), `game_round`, `crowns`, `sacrifice_used`, `can_sacrifice`, **your own** `hand`, `cards_left` (counts for both), `beats`, `transform_types`, `log`, `last` | the opponent's hand, or anything about what their Royal Sacrifice did |
 | **NUMBER CLASH** `number_clash` | `points`, `numbers`, `used` (both sides — every one was revealed when its round resolved), your `available`, `log`, `last` | — |
-| **BID WAR** `bid_war` | `staked` (what each side was granted), `coins` (what each still holds), `won` (coins taken, owed back to the team), `auction`, `prize`, `max_bid` (yours), `overtime`, `log`, `last` | a lot that has not been rolled. `next_prize` is **always null**: the next lot's floor depends on what this auction costs the pair of you, so it does not exist yet |
+| **BID WAR** `bid_war` | `staked` (what each side was granted), `coins` (what each still holds), `won` (coins taken, owed back to the team), `auction`, `prize`, `next_prize` (one lot ahead, `null` on the last), `max_bid` (yours), `overtime`, `log`, `last` | the rest of the lot schedule. Seeing all five would settle every bid before the sale opened |
 
 A Grandmaster (`you: null`) gets no hand, no purse and no choices — there is
 nothing for them to relay to their champion mid-round.
