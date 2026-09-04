@@ -572,6 +572,19 @@ body.gm-active .topbar { display: none; }
 }
 .gm-who__role.is-duelist { color: var(--gm-pink); }
 .gm-who__role.is-defuser { color: var(--gm-red); }
+/* This dashboard is the only place a rejoin code is ever sent, and a stranded
+   player is asking for theirs over the noise of a room: set wide enough to
+   read aloud without misreading, dim enough not to compete with the roster. */
+.gm-who__code {
+  margin-top: 2px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--gm-muted);
+}
+/* The one row where it earns its brightness: they are gone, and this is how
+   they get back. */
+.leader-roster li.is-offline .gm-who__code { color: var(--gm-yellow); }
 
 .gm-assign {
   display: flex;

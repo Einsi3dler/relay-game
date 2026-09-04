@@ -1028,6 +1028,92 @@ def test_reconnect_while_bonus_gets_fresh_bonus(engine):
     assert player.current_bonus.game_id == before.game_id
 
 
+# --- rejoin codes ----------------------------------------------------------
+#
+# `on_reconnect` above covers coming back with the id still in hand. These
+# cover getting the id back after the browser holding it is gone.
+
+def test_every_seat_gets_its_own_rejoin_code(engine):
+    match, members, leaders = full_match(engine)
+    everyone = list(match.players.values())
+    codes = [player.rejoin_code for player in everyone]
+    assert all(codes), "a seat with no code cannot be recovered"
+    assert len(set(codes)) == len(codes), "a shared code is an ambiguous seat"
+    assert all(len(code) == config.REJOIN_CODE_LENGTH for code in codes)
+    assert all(set(code) <= set(config.REJOIN_CODE_ALPHABET) for code in codes)
+
+
+def test_rejoin_returns_the_same_seat_mid_match(engine):
+    match, members, _ = full_match(engine)
+    player = members["alpha"][1]
+    engine.on_disconnect(match, player.id)
+    got = engine.rejoin(match, player.rejoin_code)
+    assert got is player  # the seat itself, not a copy and not a new one
+    assert got.id == player.id
+
+
+def test_rejoin_survives_how_a_player_actually_types_it(engine):
+    match, members, _ = full_match(engine)
+    player = members["alpha"][0]
+    typed = " " + player.rejoin_code.lower()[:3] + "-" + player.rejoin_code[3:] + " "
+    assert engine.rejoin(match, typed) is player
+
+
+def test_rejoin_refuses_a_code_no_seat_holds(engine):
+    match, _, _ = full_match(engine)
+    with pytest.raises(ValueError):
+        engine.rejoin(match, "ZZZZZZ")
+    with pytest.raises(ValueError):
+        engine.rejoin(match, "   ")
+
+
+def test_rejoin_changes_nothing_by_itself(engine):
+    """It hands back an identity. `on_reconnect` owns every state change."""
+    match, members, _ = full_match(engine)
+    player = members["alpha"][0]
+    team = match.teams["alpha"]
+    engine.on_disconnect(match, player.id)
+    before = (team.roster_size, list(team.player_ids), player.status,
+              player.connected, player.assigned_game, player.role)
+    engine.rejoin(match, player.rejoin_code)
+    assert (team.roster_size, list(team.player_ids), player.status,
+            player.connected, player.assigned_game, player.role) == before
+
+
+def test_a_rejoined_player_still_counts_toward_the_advance(engine):
+    """The bug this exists for: a lost seat used to freeze its team forever,
+    because roster_size is frozen at the start and nothing could vacate it."""
+    match, members, _ = full_match(engine)
+    player = members["alpha"][0]
+    engine.on_disconnect(match, player.id)
+    same = engine.rejoin(match, player.rejoin_code)
+    engine.on_reconnect(match, same.id)
+    solve(engine, match, same)
+    make_all_cleared_except(engine, match, members["alpha"], same)
+    assert match.teams["alpha"].level == 2
+
+
+def test_a_grandmaster_rejoins_without_claiming_the_seat_again(engine):
+    """Mid-match claim_leader is disabled by design (GAME_DESIGN.md). Coming
+    back on the original id is how a lost Grandmaster returns instead."""
+    match, _, leaders = full_match(engine)
+    leader = leaders["alpha"]
+    engine.on_disconnect(match, leader.id)
+    got = engine.rejoin(match, leader.rejoin_code)
+    engine.on_reconnect(match, got.id)
+    assert got is leader and leader.is_leader is True
+    assert match.teams["alpha"].leader_id == leader.id
+
+
+def test_rejoin_works_while_someone_is_still_apparently_connected(engine):
+    """A half-open socket the server has not noticed must not lock the real
+    owner out; the WS layer supersedes the stale one when the new one opens."""
+    match, members, _ = full_match(engine)
+    player = members["alpha"][0]
+    assert player.connected is True
+    assert engine.rejoin(match, player.rejoin_code) is player
+
+
 # --- per-player coin ledger (Grandmaster leaderboard) ----------------------
 
 def test_a_clear_credits_the_player_who_cleared(engine):

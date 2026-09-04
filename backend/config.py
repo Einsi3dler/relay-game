@@ -229,3 +229,11 @@ def required_roles() -> list[str]:
 # --- Server behaviour ---
 SUBMIT_MIN_INTERVAL_MS = 300     # reject submissions arriving faster than this
 MATCH_TTL_SECONDS = 1800         # evict finished/idle matches after this long
+
+# --- Rejoin codes ---
+# A player who loses their browser recovers their seat by typing this code, so
+# it has to survive being read aloud across a noisy room: no 0/O, 1/I/L, or the
+# lowercase half of the alphabet. Six characters over 31 symbols is ~9x10^8
+# combinations, far past guessing a live match dry before it ends.
+REJOIN_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+REJOIN_CODE_LENGTH = 6

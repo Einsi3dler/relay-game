@@ -281,7 +281,22 @@ function boot(scenario) {
 
   const sockets = [];
   const windowListeners = {};
-  const storage = { relay: JSON.stringify(scenario.session) };
+  // Two independent stores, exactly like a browser has. The shell keeps the
+  // session in localStorage (a seat outlives the tab that claimed it) and only
+  // reads sessionStorage to carry over a tab that was mid-match when that
+  // changed, so a scenario can seed either one.
+  const stores = { local: {}, session: {} };
+  if (scenario.session) stores.local.relay = JSON.stringify(scenario.session);
+  if (scenario.legacySession) {
+    stores.session.relay = JSON.stringify(scenario.legacySession);
+  }
+  function fakeStorage(store) {
+    return {
+      getItem: (key) => (key in store ? store[key] : null),
+      setItem: (key, value) => { store[key] = String(value); },
+      removeItem: (key) => { delete store[key]; },
+    };
+  }
 
   // A thenable that settles immediately: the shell's boot fetches /api/config
   // and then connects, and the two have to happen in that order without an
@@ -338,6 +353,18 @@ function boot(scenario) {
       // (backend/preview.py). Served by *exact URL*, the way the route is: a
       // client that forwarded a query the server would not accept gets the
       // same 404 here, instead of a stub that answers anything.
+      // Trading a rejoin code for the seat that holds it. The shell only ever
+      // learns an id this way, so what it does with the answer — where it
+      // stores it, what it connects to — is only testable through here.
+      if (/\/rejoin$/.test(String(path))) {
+        const seat = scenario.rejoinAnswer;
+        return settled({
+          ok: !!seat,
+          json: () => settled(
+            seat ? { player: seat } : { detail: "no seat matches that code" }
+          ),
+        });
+      }
       if (String(path).indexOf("/api/preview") === 0) {
         const found = (scenario.previews || {})[String(path)];
         return settled({
@@ -346,11 +373,8 @@ function boot(scenario) {
       }
       return settled({ ok: true, json: () => settled({}) });
     },
-    sessionStorage: {
-      getItem: (key) => (key in storage ? storage[key] : null),
-      setItem: (key, value) => { storage[key] = String(value); },
-      removeItem: (key) => { delete storage[key]; },
-    },
+    localStorage: fakeStorage(stores.local),
+    sessionStorage: fakeStorage(stores.session),
     navigator: {},
     document: {
       createElement: element,
@@ -403,7 +427,7 @@ function boot(scenario) {
   context.window.RelayDuels = { fallback: { mount() {}, update() {}, unmount() {} } };
   vm.runInContext(APP_SRC, context);
 
-  return { byId, sockets, windowListeners, mounts, document, api };
+  return { byId, sockets, windowListeners, mounts, document, api, stores };
 }
 
 // --- driving one shell ---------------------------------------------------
@@ -600,6 +624,22 @@ function probe(shell) {
   return {
     view: ["view-join", "view-lobby", "view-play", "view-leader", "view-result"]
       .filter((id) => !$(id).hidden),
+    rejoin: {
+      panel_hidden: $("rejoin-row").hidden,
+      match: $("rejoin-match-input").value,
+      error: $("rejoin-error").textContent,
+      // What a browser would still have after the close: losing this is what
+      // used to lock a player out of their own seat.
+      stored: shell.stores.local.relay || null,
+      legacy: shell.stores.session.relay || null,
+      // The player's own copy, and their Grandmaster's copy of everyone's.
+      badge: descendants($("play-identity"))
+        .filter((n) => n.classes.has("pl-tag--code")).map((n) => n.textContent),
+      leader_hidden: $("leader-rejoin").hidden,
+      leader_code: $("leader-rejoin-code").textContent,
+      leader_roster: descendants($("leader-roster"))
+        .filter((n) => n.classes.has("gm-who__code")).map((n) => n.textContent),
+    },
     blocker: {
       text: $("start-blocker").textContent,
       disabled: $("start-btn").disabled,
@@ -691,7 +731,7 @@ const report = {};
 PLAN.scenarios.forEach((scenario) => {
   const shell = boot(scenario);
   const socket = shell.sockets[0];
-  if (scenario.search || !scenario.session) {
+  if (scenario.search || (!scenario.session && !scenario.legacySession)) {
     // A gallery boot renders one fetched snapshot and stops, and a cold visit
     // has nothing to connect to yet. Either one opening a socket would mean it
     // had joined somebody's match to draw a screen.
@@ -702,9 +742,12 @@ PLAN.scenarios.forEach((scenario) => {
     socket.onopen({});
   }
   const records = {};
+  // The socket the shell is on *now*. Usually the one it opened at boot, but a
+  // recovery flow opens its first one part-way through the run.
+  const live = () => shell.sockets[shell.sockets.length - 1];
   scenario.actions.forEach((action) => {
     if (action.do === "deliver") {
-      socket.onmessage({
+      live().onmessage({
         data: JSON.stringify({
           type: "state_snapshot", state: scenario.snapshots[action.snapshot],
         }),
@@ -712,9 +755,12 @@ PLAN.scenarios.forEach((scenario) => {
     } else if (action.do === "push") {
       // Not every server message is a snapshot: level_advanced and friends
       // arrive on their own and drive the overlay.
-      socket.onmessage({ data: JSON.stringify(action.message) });
+      live().onmessage({ data: JSON.stringify(action.message) });
     } else if (action.do === "click") {
-      fire(byText(shell.byId[action.in], action.text), "click");
+      // By id when the control is one the shell binds by id anyway; by text
+      // when the point is that a human could find it.
+      fire(action.id ? shell.byId[action.id]
+        : byText(shell.byId[action.in], action.text), "click");
     } else if (action.do === "advance") {
       advance(action.ms);
     } else if (action.do === "submit") {
@@ -727,6 +773,13 @@ PLAN.scenarios.forEach((scenario) => {
       const first = shell.byId[action.in].children[0];
       if (!first) throw new Error(scenario.name + ": nothing mounted to stamp");
       first.setAttribute("data-stamp", "1");
+    } else if (action.do === "type") {
+      shell.byId[action.id].value = action.value;
+    } else if (action.do === "close") {
+      // The server hanging up is not something the shell can be clicked into:
+      // the close code is the whole message, and the handling of it is the
+      // difference between an offered rejoin and a forgotten player.
+      live().onclose({ code: action.code });
     } else if (action.do === "record") {
       records[action.as] = probe(shell);
     } else {
@@ -737,6 +790,9 @@ PLAN.scenarios.forEach((scenario) => {
     records: records,
     url: socket ? socket.url : null,     // a gallery boot has no socket
     sent: socket ? socket.sent : [],
+    // Every socket the run opened, in order. A recovery flow opens its first
+    // one part-way through, long after `socket` above was read.
+    sockets: shell.sockets.map((s) => s.url),
   };
 });
 
@@ -1314,6 +1370,84 @@ def shell() -> dict:
             "actions": [{"do": "record", "as": "booted"}],
         })
 
+    # --- losing a seat, and getting it back ---------------------------------
+    # A seat is held for the whole match, so the identity that reclaims it has
+    # to outlive the tab. These cover what a dropped socket leaves behind.
+    engine = _engine()
+    match, seats, leaders = _ready_lobby(engine)
+    assert engine.start_match(match, now=NOW).changed
+    stranded = seats["alpha"][1]
+    stranded_snapshot = match.public(stranded.id)
+    for code, name in ((4404, "gone"), (4403, "kicked"), (4402, "cancelled")):
+        scenarios.append({
+            "name": f"rejoin:{name}",
+            "config": _config_body(engine),
+            "session": {"matchId": match.id, "playerId": stranded.id},
+            "snapshots": [stranded_snapshot],
+            "actions": [
+                {"do": "deliver", "snapshot": 0},
+                {"do": "record", "as": "playing"},
+                {"do": "close", "code": code},
+                {"do": "record", "as": "closed"},
+            ],
+        })
+    expected["rejoin"] = {
+        "match_id": match.id,
+        "player_id": stranded.id,
+        "code": stranded.rejoin_code,
+        "leader_code": leaders["alpha"].rejoin_code,
+        "roster_codes": [player.rejoin_code for player in seats["alpha"]],
+    }
+
+    # Driving the recovery itself: a browser with nothing saved, typing the
+    # match code and the code off their Grandmaster's screen. This is the only
+    # path that proves where a freshly-won session actually gets stored.
+    scenarios.append({
+        "name": "rejoin:recovered",
+        "config": _config_body(engine),
+        "session": None,
+        "rejoinAnswer": {"id": stranded.id, "name": stranded.name},
+        "snapshots": [stranded_snapshot],
+        "actions": [
+            {"do": "click", "id": "rejoin-toggle"},
+            {"do": "record", "as": "offered"},
+            {"do": "type", "id": "rejoin-match-input", "value": match.id},
+            {"do": "type", "id": "rejoin-code-input", "value": stranded.rejoin_code},
+            {"do": "click", "id": "rejoin-go"},
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "back"},
+        ],
+    })
+    scenarios.append({
+        "name": "rejoin:refused",
+        "config": _config_body(engine),
+        "session": None,
+        "rejoinAnswer": None,
+        "snapshots": [],
+        "actions": [
+            {"do": "click", "id": "rejoin-toggle"},
+            {"do": "type", "id": "rejoin-match-input", "value": match.id},
+            {"do": "type", "id": "rejoin-code-input", "value": "ZZZZZZ"},
+            {"do": "click", "id": "rejoin-go"},
+            {"do": "record", "as": "refused"},
+        ],
+    })
+
+    # A tab that was already mid-match when the session moved to localStorage.
+    # Its identity is only in the old place, and dropping it would have logged
+    # every live player out on deploy.
+    scenarios.append({
+        "name": "rejoin:legacy",
+        "config": _config_body(engine),
+        "session": None,
+        "legacySession": {"matchId": match.id, "playerId": stranded.id},
+        "snapshots": [stranded_snapshot],
+        "actions": [
+            {"do": "deliver", "snapshot": 0},
+            {"do": "record", "as": "booted"},
+        ],
+    })
+
     # --- the design gallery, booted the way the browser boots it -------------
     # `/play?preview=<state>` renders one canned snapshot from
     # backend/preview.py and opens no socket. These run the shipped app.js
@@ -1401,6 +1535,101 @@ def test_the_shell_connects_with_the_saved_session(shell):
     url = shell["console"]["url"]
     assert url.startswith("ws://relay.test/ws/matches/")
     assert "player_id=p_" in url
+
+
+# --- losing a seat, and getting it back ----------------------------------
+
+
+def test_a_player_can_read_their_own_rejoin_code_off_the_badge(shell):
+    """Shown rather than stored, because the point of it is to survive the
+    browser that would have stored it."""
+    playing = shell["rejoin:gone"]["records"]["playing"]
+    assert playing["view"] == ["view-play"]
+    assert playing["rejoin"]["badge"] == [shell["_expected"]["rejoin"]["code"]]
+
+
+def test_a_grandmaster_gets_their_own_code_and_the_squads(shell):
+    """Their roster carries everyone else's; nobody could read theirs back to
+    them, so it goes in the command bar."""
+    want = shell["_expected"]["rejoin"]
+    live = shell["dashboard"]["records"]["live"]["rejoin"]
+    assert live["leader_hidden"] is False
+    assert live["leader_code"]
+    # One per playing member, all different, and none of them the leader's own.
+    codes = live["leader_roster"]
+    rows = shell["dashboard"]["records"]["live"]["dashboard"]["roster"]
+    assert len(codes) == len(rows) and len(set(codes)) == len(codes)
+    assert live["leader_code"] not in codes
+
+    board = shell["rejoin:gone"]["records"]["playing"]["rejoin"]
+    assert board["leader_hidden"] is True, "a player has no command bar"
+    assert board["leader_roster"] == []
+    assert want["roster_codes"], "the fixture has codes worth not leaking"
+
+
+def test_a_dropped_seat_is_offered_back_instead_of_forgotten(shell):
+    """4404 means the server does not know this seat, which is not the same as
+    the player not owning it: an evicted match, a restarted server, or a stale
+    id all land here. Wiping the session on it used to lock them out for good.
+    """
+    want = shell["_expected"]["rejoin"]
+    closed = shell["rejoin:gone"]["records"]["closed"]
+    assert closed["view"] == ["view-join"]
+    assert closed["rejoin"]["panel_hidden"] is False, "no way back offered"
+    assert closed["rejoin"]["match"] == want["match_id"], "made them find the code"
+    assert closed["rejoin"]["stored"] is not None, "forgot who they were"
+
+
+def test_a_deliberate_exit_still_clears_the_session(shell):
+    """Being kicked or having the lobby cancelled is not a lost connection.
+    Keeping the seat there would send them back into a match they left."""
+    for name in ("kicked", "cancelled"):
+        closed = shell[f"rejoin:{name}"]["records"]["closed"]
+        assert closed["view"] == ["view-join"], name
+        assert closed["rejoin"]["stored"] is None, name
+        assert closed["rejoin"]["panel_hidden"] is True, name
+
+
+def test_typing_the_code_gets_the_seat_back_and_keeps_it(shell):
+    """The whole recovery, driven through the real controls: nothing saved,
+    ask for the panel, type the two codes, and land back on the board.
+
+    The storage assertion is the point of the test. A session written to
+    sessionStorage would pass every other test in this file and still lose the
+    seat the moment the tab closed, which is the bug this all exists for.
+    """
+    want = shell["_expected"]["rejoin"]
+    run = shell["rejoin:recovered"]
+    offered = run["records"]["offered"]["rejoin"]
+    assert offered["panel_hidden"] is False
+
+    back = run["records"]["back"]
+    assert back["view"] == ["view-play"], "never made it back to the board"
+    assert len(run["sockets"]) == 1, "a cold door must not connect on its own"
+    assert f"player_id={want['player_id']}" in run["sockets"][0]
+    assert f"/ws/matches/{want['match_id']}" in run["sockets"][0]
+    stored = json.loads(back["rejoin"]["stored"])
+    assert stored["playerId"] == want["player_id"]
+    assert stored["matchId"] == want["match_id"]
+    assert back["rejoin"]["legacy"] is None, "wrote to the store that dies"
+
+
+def test_a_code_no_seat_holds_says_so_and_connects_to_nothing(shell):
+    refused = shell["rejoin:refused"]
+    assert refused["sockets"] == []
+    record = refused["records"]["refused"]
+    assert record["view"] == ["view-join"]
+    assert record["rejoin"]["error"] == "no seat matches that code"
+    assert record["rejoin"]["stored"] is None
+
+
+def test_a_tab_open_across_the_storage_move_keeps_its_seat(shell):
+    """The session lived in sessionStorage before it lived in localStorage.
+    Reading only the new place would have logged out every live player."""
+    booted = shell["rejoin:legacy"]
+    assert booted["url"] is not None, "the carried-over session never connected"
+    assert "player_id=p_" in booted["url"]
+    assert booted["records"]["booted"]["view"] == ["view-play"]
 
 
 # --- startBlocker: the client mirror of the engine ------------------------

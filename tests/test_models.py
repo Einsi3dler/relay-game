@@ -29,25 +29,30 @@ def make_match(status: str = "active") -> Match:
     players = {
         "p_lead": Player(
             id="p_lead", name="Lena", team_id="alpha", status="leading",
+            rejoin_code="LEAD11",
             connected=True, is_leader=True,
         ),
         "p_alice": Player(
             id="p_alice", name="Alice", team_id="alpha", status="solving",
+            rejoin_code="ALIC22",
             connected=True, assigned_game="rewire", current_main=make_puzzle("main"),
         ),
         "p_bob": Player(
             id="p_bob", name="Bob", team_id="alpha", status="bonus",
+            rejoin_code="BOBB33",
             connected=True, assigned_game="sweep",
             current_main=None, current_bonus=make_puzzle("main", "sweep"),
             timer_kind="wait", timer_deadline="2026-07-02T12:03:00+00:00",
         ),
         "p_cara": Player(
             id="p_cara", name="Cara", team_id="bravo", status="cleared",
+            rejoin_code="CARA44",
             connected=False, assigned_game="echo", choice_pending=True,
             timer_kind="wait", timer_deadline="2026-07-02T12:03:00+00:00",
         ),
         "p_dave": Player(
             id="p_dave", name="Dave", team_id="bravo", status="solving",
+            rejoin_code="DAVE55",
             connected=True, assigned_game="decant", is_leader=False,
             current_main=make_puzzle("main", "decant"),
             frozen_until="2026-07-02T12:00:10+00:00",
@@ -265,13 +270,83 @@ def test_player_private_adds_puzzle_timer_choice_freeze():
     out = match.public("p_bob")["me"]
     assert set(out) == {"id", "name", "team_id", "status", "green", "connected",
                         "is_leader", "role", "assigned_game", "has_game", "coins_earned",
-                        "current_puzzle",
+                        "rejoin_code", "current_puzzle",
                         "timer_kind", "timer_deadline", "puzzle_deadline",
                         "choice_pending", "frozen_until", "screen_effects"}
     assert out["current_puzzle"]["game_id"] == "sweep"  # the bonus puzzle
     assert out["timer_kind"] == "wait"
     assert match.public("p_cara")["me"]["choice_pending"] is True
     assert match.public("p_dave")["me"]["frozen_until"] is not None
+
+
+# --- rejoin codes ----------------------------------------------------------
+#
+# A rejoin code buys a seat, so it is a credential and not a display field.
+# Exactly two views may carry one: your own `me`, and your own Grandmaster's
+# roster. Every other view in this file is sent to someone who must not have it.
+
+ALL_CODES = {"LEAD11", "ALIC22", "BOBB33", "CARA44", "DAVE55"}
+
+
+def codes_in(node: Any) -> set[str]:
+    """Every rejoin code appearing anywhere in a payload, at any depth."""
+    found: set[str] = set()
+    if isinstance(node, dict):
+        for value in node.values():
+            found |= codes_in(value)
+    elif isinstance(node, list):
+        for value in node:
+            found |= codes_in(value)
+    elif isinstance(node, str) and node in ALL_CODES:
+        found.add(node)
+    return found
+
+
+def test_a_player_is_sent_their_own_rejoin_code_and_nobody_elses():
+    out = make_match().public("p_alice")
+    assert out["me"]["rejoin_code"] == "ALIC22"
+    assert codes_in(out) == {"ALIC22"}
+
+
+def test_a_grandmaster_is_sent_their_own_teams_codes():
+    """The one view that carries other people's: a stranded player asks their
+    Grandmaster, who reads it off the roster."""
+    out = make_match().public("p_lead")
+    own = {p["name"]: p["rejoin_code"] for p in out["teams"]["alpha"]["players"]}
+    assert own == {"Lena": "LEAD11", "Alice": "ALIC22", "Bob": "BOBB33"}
+    # Their own team and no further: the opponent summary has no roster at all.
+    assert codes_in(out) == {"LEAD11", "ALIC22", "BOBB33"}
+
+
+def test_the_lobby_never_carries_a_rejoin_code():
+    """Everyone sees both full rosters in the lobby — which is exactly why the
+    codes cannot ride along on them."""
+    out = make_match("lobby").public("p_alice")
+    assert [p["name"] for p in out["teams"]["alpha"]["players"]]  # rosters are there
+    for team in out["teams"].values():
+        assert all("rejoin_code" not in p for p in team["players"])
+    assert codes_in(out) == {"ALIC22"}  # only their own, from `me`
+
+
+def test_a_finished_match_never_carries_a_rejoin_code():
+    """The result screen drops the fog and shows both rosters to everyone."""
+    out = make_match("finished").public("p_alice")
+    for team in out["teams"].values():
+        assert all("rejoin_code" not in p for p in team["players"])
+    assert codes_in(out) == {"ALIC22"}
+
+
+def test_silence_does_not_take_the_rejoin_codes():
+    """Silence blinds a Grandmaster to progress. Getting a stranded player back
+    to their seat is not progress, and staying dark about it would only strand
+    them further."""
+    match = make_match()
+    match.teams["alpha"].silenced_until = _future()
+    own = match.public("p_lead")["teams"]["alpha"]
+    assert own["green_count"] is None  # still blinded
+    assert [p["rejoin_code"] for p in own["players"]] == \
+        ["LEAD11", "ALIC22", "BOBB33"]
+
 
 
 def test_current_puzzle_follows_status():

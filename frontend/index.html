@@ -72,11 +72,39 @@
           <p id="join-error" class="jn-error" hidden></p>
         </div>
 
+        <!-- The third door, kept quiet so the two above stay the main ones.
+             It is only ever needed by someone who has already been playing. -->
+        <div id="rejoin-row" class="jn-code jn-rejoin" hidden>
+          <div class="jn-code__head">
+            <span>
+              <label class="jn-label" for="rejoin-code-input">Rejoin your seat</label>
+              <span class="jn-code__hint">Your level, role and game are still
+                waiting. Ask your Grandmaster if you lost the code.</span>
+            </span>
+          </div>
+          <span class="jn-field jn-field--code">
+            <span class="jn-field__sigil" aria-hidden="true">#</span>
+            <input id="rejoin-match-input" maxlength="12" placeholder="Match code"
+                   autocomplete="off">
+          </span>
+          <span class="jn-field jn-field--code">
+            <i class="gm-ic gm-ic--key gm-ic--sm" aria-hidden="true"></i>
+            <input id="rejoin-code-input" maxlength="8" placeholder="Rejoin code"
+                   autocomplete="off">
+            <button id="rejoin-go" class="jn-go">Rejoin</button>
+          </span>
+          <p id="rejoin-error" class="jn-error" hidden></p>
+        </div>
+
         <p class="jn-foot">
           <a href="/games" class="jn-link">
             <i class="gm-ic gm-ic--star gm-ic--sm" aria-hidden="true"></i>
             New here? Meet the games
           </a>
+          <button id="rejoin-toggle" class="jn-link jn-link--btn">
+            <i class="gm-ic gm-ic--key gm-ic--sm" aria-hidden="true"></i>
+            Lost your seat? Rejoin
+          </button>
         </p>
       </div>
 
@@ -460,6 +488,13 @@
       <div class="gm-field">
         <span class="gm-field__label">Match code</span>
         <span class="gm-field__value" id="leader-match-code"></span>
+      </div>
+
+      <!-- The Grandmaster's own way back in. Their roster below carries
+           everyone else's; nobody would be able to read theirs out to them. -->
+      <div class="gm-field" id="leader-rejoin" hidden>
+        <span class="gm-field__label">Your rejoin code</span>
+        <span class="gm-field__value" id="leader-rejoin-code"></span>
       </div>
 
       <div class="gm-bar__team" id="leader-team-badge">
