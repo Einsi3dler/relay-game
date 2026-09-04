@@ -388,6 +388,41 @@ def drain_for_state(ws, tries: int = 20) -> dict:
     raise AssertionError("no snapshot arrived")
 
 
+def test_a_grandmaster_can_step_back_down_over_the_websocket(client, fake_games):
+    """`release_leader` has to be in LOBBY_ACTIONS to reach the engine at all.
+
+    The engine method, the dispatcher and the button all existed; the action
+    name was missing from the protocol's whitelist, so every click came back
+    "Unknown lobby action." and the seat was one-way. This drives the whole
+    path, which is the seam that catches a half-wired action.
+    """
+    match_id = create_match(client)
+    host_id = join(client, match_id, "Host", "alpha").json()["player"]["id"]
+    with connect(client, match_id, host_id) as (ws, _):
+        ws.send_json({"type": "lobby_action", "action": "claim_leader"})
+        assert next_state(ws)["me"]["is_leader"] is True
+        ws.send_json({"type": "lobby_action", "action": "release_leader"})
+        state = next_state(ws)
+        assert state["me"]["is_leader"] is False
+        assert state["teams"]["alpha"]["leader_id"] is None
+
+
+def next_state(ws, tries: int = 20) -> dict:
+    """The next snapshot, failing loudly on a refusal.
+
+    `drain_for_state` keeps reading past an error, and a refused action is
+    followed by silence — so a test that expected to be obeyed hangs the suite
+    instead of failing it. Say what went wrong on the first error.
+    """
+    for _ in range(tries):
+        message = ws.receive_json()
+        if message["type"] == "error":
+            raise AssertionError(f"action refused: {message['error']}")
+        if message["type"] == "state_snapshot":
+            return message["state"]
+    raise AssertionError("no snapshot arrived")
+
+
 def test_host_sets_the_duel_round_window_over_the_websocket(client, fake_games):
     """One setting overrides the window every duel game declares for itself."""
     match_id = create_match(client)

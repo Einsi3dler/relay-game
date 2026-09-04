@@ -54,6 +54,7 @@ LOBBY_ACTIONS = (
     "leave",
     "claim_host",
     "claim_leader",
+    "release_leader",
     "assign_role",
     "assign_game",
 )
