@@ -22,6 +22,9 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
 | `GET`/`POST` | `/god` | form `key=<RELAY_GOD_KEY>` | the God console, behind a password ([GOD_MODE.md](GOD_MODE.md)). Dev only |
 | `POST` | `/god/new` | — | 303 to `/play?god=<observer_id>&match=<id>` — a new match with a God running it |
 | `POST` | `/god/watch` | form `match_id=<id>` | 303 to the same, for a match already running |
+| `POST` | `/api/duels` | `{ "duel_game_id": str }` | `{ "room_id", "seat_id", "duel_game_id" }` — a link duel room with you in seat "a" ([DUEL_ROOMS.md](DUEL_ROOMS.md)). 404 on an unknown duel |
+| `POST` | `/api/duels/{room_id}/join` | — | `{ "room_id", "seat_id", "duel_game_id" }`; `seat_id` is **null** when both seats are taken, which is not an error — you watch |
+| `GET` | `/api/duels/{room_id}` | — | `{ "room": <DuelRoomPublic> }` |
 
 - `library` is the registered game catalogue that feeds the Grandmaster's
   assignment picker (each entry's `role` is its specialist role id, or `null`).
@@ -130,6 +133,44 @@ lightweight nudges for animations/toasts; never require them for correctness.
 
 > Minimal client: handle `state_snapshot` (render) and `error` (toast). Everything
 > else is polish.
+
+### Link duel rooms
+
+Connect: `ws(s)://<host>/ws/duels/{room_id}?seat_id={seat_id}`
+
+A room is not a match and speaks its own four-message dialect on its own socket:
+`duel_choice`, `rematch`, `request_state` and `heartbeat`. Everything else is
+answered with an `error`. **`rematch` is deliberately absent from the match's
+`CLIENT_TYPES`**, so it is "Unknown message type." on `/ws/matches/` rather than
+something a match socket quietly accepts.
+
+- Seat ids are `s_`-prefixed and are the socket's only credential, exactly like
+  a `player_id`. An omitted or `w_`-prefixed id is a **watcher**: they receive
+  snapshots, see neither hand before the reveal, and cannot choose or rematch.
+  An `s_` id belonging to some other room is closed `4404`.
+- One socket per seat; a second supersedes the first with `4001`.
+- The duel opens when **both seats have a live socket**, not when the second
+  person claimed one — a five-second round would otherwise be half gone before
+  their socket finished opening.
+- A disconnect marks the seat away and nothing else. The round keeps running and
+  the missing choice loses it; see [DUEL_ROOMS.md](DUEL_ROOMS.md) for why.
+- The server sends `duel_room_state`, never `state_snapshot`: a room is not a
+  `MatchPublic`.
+
+```jsonc
+// DuelRoomPublic
+{
+  "id": "3f81a2bc",                      // the share link
+  "duel_game_id": "rps_duel",
+  "status": "waiting" | "duelling" | "done",
+  "you": "a" | "b" | null,               // null for a watcher
+  "seats_taken": 2,
+  "connected": { "a": true, "b": false },
+  "duels_played": 1,                     // finished duels; a rematch is next
+  "duel": <DuelView> | null              // THE SAME shape §3 documents below,
+                                         //   built by the same code
+}
+```
 
 ## 3. Public state shapes
 
@@ -425,7 +466,10 @@ nothing for them to relay to their champion mid-round.
    the roster rows of your own Grandmaster's `TeamView` (and of a God's, which
    is the other seat that can read one back to a stranded player). Never in the
    lobby view, an opponent summary, or a finished match.
-9. An observer never appears in a roster, in `unassigned`, in the join capacity
+9. A link duel room carries no team, currency, level or perk in any of its
+   states, and never pays a `settlement`. A room is not a match, and the moment
+   it can be mistaken for one the engine's guards stop meaning one thing.
+10. An observer never appears in a roster, in `unassigned`, in the join capacity
    count, in `host_player_id`, in any event, or in any other viewer's snapshot.
    Connecting and disconnecting one broadcasts nothing. Nobody at the table can
    tell a God is watching.

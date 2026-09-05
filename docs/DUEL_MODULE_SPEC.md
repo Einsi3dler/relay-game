@@ -297,3 +297,30 @@ that refused to open would strand both teams.
 The negotiation itself is engine-side and no module sees it: `PendingStake` on
 the `Match`, the `request_stake` / `answer_stake` client messages, and a
 `duel_stake` timer whose lapse auto-grants `config.DUEL_STAKE_DEFAULT`.
+
+## 10. A duel outside a match
+
+Duel modules are portable, and nothing here changes when one is played outside
+a race. `backend/duelroom.py` runs the four duels between two people who
+followed a link (see [DUEL_ROOMS.md](DUEL_ROOMS.md)), through the same
+`normalize_choice` / `resolve_round` / `public` you already implement, with
+`side` passed the same way and the reveal rule enforced by the same
+`base_public`.
+
+Three things a module author should know:
+
+* **§5's lifecycle is match-specific.** Currency, the duel penalty, the
+  once-or-twice-per-level series and `_advance_check` are a race's business. A
+  room deals a duel, plays it, shows the result, and offers a rematch.
+* **`settlement` is never called in a room.** There are no purses to pay into.
+  A staked module still has to declare it for matches; it simply is not used
+  here.
+* **Stakes are equal in a room** (`config.DUEL_ROOM_STAKE` to each side). A
+  match's are unequal because a Grandmaster chooses how much to back their
+  champion; nobody makes that choice in a room. Write `new_duel` so it does not
+  assume asymmetry, which BID WAR already does.
+
+What is genuinely shared is the scoring, in `backend/duelloop.py`: commit a
+move, score the round, open the next one. That extraction exists precisely so a
+self-scoring module that rides the tie path (§4.2) behaves identically in both
+places.
