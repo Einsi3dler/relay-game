@@ -36,6 +36,10 @@
   // board is on screen, or null for the God's own board — and it is also the
   // read-only latch: send() refuses while it is set.
   var watching = null;
+  // Link duels (docs/DUEL_ROOMS.md): the room id and this browser's seat in
+  // it. A room is not a match, so it keeps none of the match session.
+  var room = null;         // { roomId, seatId }
+  var lastRoom = null;     // the last duel_room_state, for the rematch button
 
   // --- session persistence (a closed tab restores the match) ---
   //
@@ -94,6 +98,9 @@
     document.body.classList.toggle("join-active", viewId === "view-join");
     document.body.classList.toggle("lobby-active", viewId === "view-lobby");
     document.body.classList.toggle("god-active", viewId === "view-god");
+    // A room sets this back on straight after; clearing it here means no other
+    // view can inherit a room's furniture.
+    document.body.classList.remove("duel-room");
   }
 
   function toast(text) {
@@ -141,6 +148,18 @@
 
   function previewParam() {
     return new URLSearchParams(window.location.search).get("preview");
+  }
+
+  function roomParam() {
+    try {
+      return new URLSearchParams(window.location.search).get("duel") || "";
+    } catch (e) { return ""; }
+  }
+
+  function seatParam() {
+    try {
+      return new URLSearchParams(window.location.search).get("seat") || "";
+    } catch (e) { return ""; }
   }
 
   function godParam() {
@@ -434,7 +453,8 @@
   }
 
   function handle(message) {
-    if (message.type === "state_snapshot") render(message.state);
+    if (message.type === "duel_room_state") renderDuelRoom(message.state);
+    else if (message.type === "state_snapshot") render(message.state);
     else if (message.type === "error") toast(message.error);
     else if (message.type === "level_advanced") levelOverlay(message);
     else if (message.type === "perk_used") perkToast(message);
@@ -1021,6 +1041,17 @@
     }
   });
 
+  // The room's own copy button. Same guard: the clipboard API is absent in
+  // plenty of contexts, and a share button that throws is worse than a prompt.
+  $("room-copy") && $("room-copy").addEventListener("click", function () {
+    var link = $("room-link").value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(function () { toast("Link copied!"); });
+    } else {
+      window.prompt("Copy the invite link:", link);
+    }
+  });
+
   // --- play view (players: just your game and your level) ---
 
   function renderPlay(state) {
@@ -1281,6 +1312,136 @@
     }
     // Only the choice window is a race; the reveal beat needs no pressure bar.
     startDuelCountdown(duel.phase === "choosing" ? duel.deadline : null, duel);
+  }
+
+  // --- link duels (docs/DUEL_ROOMS.md) ---------------------------------
+  //
+  // Two people, one link, one duel, outside any match. The room borrows the
+  // play view: the same `#duel-card`, the same countdown, the same four
+  // renderers. `renderDuel` and `startDuelCountdown` are untouched — they read
+  // `state.duel` and a room snapshot has one, which is the whole reason
+  // `DuelSession` was reused on the server rather than reinvented.
+
+  function renderDuelRoom(state) {
+    lastRoom = state;
+    show("view-play");
+    document.body.classList.add("duel-room");
+    $("match-chip").hidden = true;
+
+    // The race furniture has nothing to report in a room.
+    ["puzzle-card", "stake-card", "cleared-card"].forEach(function (id) {
+      $(id).hidden = true;
+    });
+    $("room-card").hidden = false;
+
+    var waiting = state.status === "waiting";
+    var done = state.status === "done";
+    $("room-waiting").hidden = !waiting;
+    $("room-result").hidden = !done;
+    // A watcher does not restart somebody else's duel.
+    $("room-again").hidden = !state.you;
+
+    if (waiting) {
+      // The share link carries the room and NOT this browser's seat. A seat id
+      // is the socket's only credential: paste your own address bar to a
+      // friend and they take your chair.
+      $("room-link").value = window.location.origin + "/play?duel=" + state.id;
+    }
+
+    if (done && state.duel) {
+      var won = state.you && state.duel.winner_side === state.you;
+      var outcome = $("room-outcome");
+      outcome.textContent = state.you
+        ? (won ? "You won." : "You lost.")
+        : "Side " + (state.duel.winner_side || "?").toUpperCase() + " won.";
+      outcome.className = "rm-outcome" + (state.you ? (won ? " is-win" : " is-loss") : "");
+      var again = $("room-again");
+      again.onclick = function () { send({ type: "rematch" }); };
+    }
+
+    // A seat that has gone quiet is worth saying out loud, because the round
+    // keeps running against them rather than pausing.
+    var note = $("room-note");
+    var away = null;
+    ["a", "b"].forEach(function (side) {
+      if (side !== state.you && state.connected && state.connected[side] === false) {
+        away = side;
+      }
+    });
+    // Only while a duel is actually running: "the round is still running" is
+    // a lie on a finished one, and a rematch is refused until they are back.
+    var tellThem = !!away && state.status === "duelling";
+    note.hidden = !tellThem && !(away && done);
+    if (tellThem) {
+      note.textContent = "The other player dropped. The round is still running.";
+    } else if (away && done) {
+      note.textContent = "The other player has gone. A rematch needs them back.";
+    }
+
+    renderDuel(state, "duel-card", "duel-mount");
+  }
+
+  function connectRoom() {
+    var scheme = window.location.protocol === "https:" ? "wss" : "ws";
+    socket = new WebSocket(
+      scheme + "://" + window.location.host +
+      "/ws/duels/" + room.roomId + "?seat_id=" + room.seatId
+    );
+    socket.onopen = function () { reconnectDelay = 500; startHeartbeat(); };
+    socket.onmessage = function (message) { handle(JSON.parse(message.data)); };
+    socket.onclose = function (event) {
+      clearInterval(heartbeatHandle);
+      if (event.code === 4001) return;  // another tab took this seat
+      if (event.code === 4404) {
+        // Rooms age out once nobody is looking at them, so a stale link lands
+        // here. There is no rejoin code to offer: a room is not a seat you own.
+        document.body.classList.remove("duel-room");
+        show("view-join");
+        showJoinError("That duel room is gone. Start another from Explore.");
+        return;
+      }
+      setTimeout(connectRoom, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 2, 5000);
+    };
+  }
+
+  function startDuelRoom() {
+    var roomId = roomParam();
+    var seatId = seatParam();
+    if (seatId) {
+      // The creator's own link carries their seat. Keep it, so a refresh does
+      // not turn them into a watcher of their own duel.
+      saveRoomSeat(roomId, seatId);
+      room = { roomId: roomId, seatId: seatId };
+      connectRoom();
+      return;
+    }
+    var held = loadRoomSeat(roomId);
+    if (held) { room = { roomId: roomId, seatId: held }; connectRoom(); return; }
+    // A bare link: take the free seat, or be told there is none and watch.
+    fetch("/api/duels/" + encodeURIComponent(roomId) + "/join", { method: "POST" })
+      .then(function (response) {
+        if (!response.ok) throw new Error("That duel room is gone.");
+        return response.json();
+      })
+      .then(function (body) {
+        if (body.seat_id) saveRoomSeat(roomId, body.seat_id);
+        room = { roomId: roomId, seatId: body.seat_id || "" };
+        connectRoom();
+      })
+      .catch(function (error) {
+        show("view-join");
+        showJoinError(error.message);
+      });
+  }
+
+  // Per room, and never the player's own key: somebody can be mid-match in one
+  // tab and mid-duel in another.
+  function saveRoomSeat(roomId, seatId) {
+    try { localStorage.setItem("relay_duel_" + roomId, seatId); } catch (e) {}
+  }
+  function loadRoomSeat(roomId) {
+    try { return localStorage.getItem("relay_duel_" + roomId); } catch (e) { return null; }
   }
 
   function unmountDuel() {
@@ -2906,7 +3067,12 @@
     connect();
   }
 
-  if (godParam()) {
+  if (roomParam()) {
+    // A link duel (docs/DUEL_ROOMS.md): /play?duel=<room>[&seat=<seat>]. The
+    // seat is only on the creator's own URL; the link they share carries the
+    // room alone, and whoever opens it claims the other chair.
+    configLoaded.then(startDuelRoom);
+  } else if (godParam()) {
     // God mode (backend/god.py): /play?god=<observer_id>&match=<code>. The
     // query string stays in the address bar rather than being tidied away by
     // history.replaceState the way a join is — it is the God's bookmark back

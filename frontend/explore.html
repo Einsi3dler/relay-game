@@ -56,6 +56,21 @@
   <main class="rl-page-body">
   <section class="view rl-lift">
     <div class="card">
+      <!-- Link duels (docs/DUEL_ROOMS.md). `data-duel`, not `data-game`: the
+           solo picker below hands out practice boards, and a duel is never
+           one. Creating a room sends you to /play, which is already where
+           "you are in a live thing with other people" lives. -->
+      <div class="rl-duels">
+        <span class="label">Duels (two players):</span>
+        <div class="rl-tabs" id="duel-tabs">
+          <button data-duel="rps_duel">RPS Duel</button>
+          <button data-duel="crown_duel">Crown Duel</button>
+          <button data-duel="number_clash">Number Clash</button>
+          <button data-duel="bid_war">Bid War</button>
+        </div>
+      </div>
+
+      <span class="label rl-solo-label">Solo boards:</span>
       <div class="rl-tabs" id="game-tabs">
         <button data-game="rewire">Rewire</button>
         <button data-game="sweep">Sweep</button>
@@ -100,10 +115,10 @@
       boards are on a hard timer. <a href="/games">Read the full rules</a>
       or <a href="/play">host a match</a>.</p>
 
-    <p class="rl-note">The four <strong>duels</strong> (RPS Duel, Crown Duel, Number Clash and
-      Bid War) aren't here, and can't be: a duel needs a live opponent on the other side of the
-      table, and half of each one is not knowing what they just did.
-      <a href="/games#duels">Read how duels work</a>, then bring someone.</p>
+    <p class="rl-note">A <strong>duel</strong> still can't be a solo board: half of each one is
+      not knowing what the other person just did. So pick one below and you get a link to send
+      them. The duel starts the moment they open it.
+      <a href="/games#duels">Read how duels work</a> first if you like.</p>
   </section>
   </main>
 
@@ -266,6 +281,34 @@
           })
           .catch(function (error) { toast(error.message); });
       }
+
+      // A duel is not a practice board: it makes a room and sends you to it.
+      $("duel-tabs").addEventListener("click", function (e) {
+        var duel = e.target.getAttribute && e.target.getAttribute("data-duel");
+        if (!duel) return;
+        var button = e.target;
+        if (button.disabled) return;
+        button.disabled = true;
+        fetch("/api/duels", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ duel_game_id: duel }),
+        })
+          .then(function (r) {
+            if (!r.ok) throw new Error("Could not open that duel.");
+            return r.json();
+          })
+          .then(function (body) {
+            // The seat rides along on the creator's own URL; the link they
+            // share carries the room alone.
+            window.location = "/play?duel=" + body.room_id +
+              "&seat=" + body.seat_id;
+          })
+          .catch(function (error) {
+            button.disabled = false;
+            toast(error.message);
+          });
+      });
 
       $("game-tabs").addEventListener("click", function (e) {
         var game = e.target.getAttribute && e.target.getAttribute("data-game");

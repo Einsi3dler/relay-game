@@ -30,7 +30,7 @@ from pathlib import Path
 
 import pytest
 
-from backend import config, preview
+from backend import config, duelroom, preview
 from backend.engine import EngineResult, RelayEngine
 from backend.games.duel1_rps import RockPaperScissorsDuel
 from backend.games.duel4_bid_war import BidWar
@@ -293,6 +293,11 @@ function boot(scenario) {
   }
   if (scenario.godSession) {
     stores.local.relay_god = JSON.stringify(scenario.godSession);
+  }
+  if (scenario.roomSeat) {
+    // A link duel keeps its seat per room, never on the player's own key.
+    stores.local["relay_duel_" + scenario.roomSeat.roomId] =
+      scenario.roomSeat.seatId;
   }
   function fakeStorage(store) {
     return {
@@ -657,6 +662,30 @@ function probe(shell) {
     view: ["view-join", "view-lobby", "view-play", "view-leader", "view-result",
            "view-god"]
       .filter((id) => !$(id).hidden),
+    room: {
+      card_hidden: $("room-card").hidden,
+      waiting_hidden: $("room-waiting").hidden,
+      result_hidden: $("room-result").hidden,
+      link: $("room-link").value,
+      outcome: $("room-outcome").textContent,
+      outcome_class: $("room-outcome").className,
+      again_hidden: $("room-again").hidden,
+      note_hidden: $("room-note").hidden,
+      note: $("room-note").textContent,
+      body_class: (descendants(shell.document)
+        .find((n) => n.tagName === "body") || { className: "" }).className,
+      // The race furniture a room has nothing to say about.
+      puzzle_hidden: $("puzzle-card").hidden,
+      cleared_hidden: $("cleared-card").hidden,
+      duel_hidden: $("duel-card").hidden,
+      duel_mount: $("duel-mount").children.length,
+      timer_hidden: $("duel-timer-bar").hidden,
+      clock: $("duel-clock").textContent,
+      urls: shell.sockets.map((s) => s.url),
+      sent: shell.sockets.length
+        ? shell.sockets[shell.sockets.length - 1].sent.slice()
+        : [],
+    },
     god: {
       switch_hidden: $("god-switch").hidden,
       label: $("god-switch-label").textContent,
@@ -800,7 +829,7 @@ PLAN.scenarios.forEach((scenario) => {
   const shell = boot(scenario);
   const socket = shell.sockets[0];
   const wantsSocket = !!(scenario.session || scenario.legacySession ||
-                         scenario.godSession);
+                         scenario.godSession || scenario.roomSeat);
   if (!wantsSocket) {
     // A gallery boot renders one fetched snapshot and stops, and a cold visit
     // has nothing to connect to yet. Either one opening a socket would mean it
@@ -1691,6 +1720,63 @@ def shell() -> dict:
         "names": god_names,
         "teams": god_team_names,
         "silenced": True,
+    }
+
+    # --- link duels (docs/DUEL_ROOMS.md) ---------------------------------
+    #
+    # A room borrows the play view and hands `renderDuel` a snapshot with a
+    # `duel` key, so the whole point is that the shipped renderer, the shipped
+    # countdown and the shipped duel card all work with nothing changed.
+    room = duelroom.create_room("rps_duel")
+    duelroom.claim_seat(room)
+    room_seat_a = room.seats["a"].id
+    room_waiting = room.public(room_seat_a)
+    for seat in room.seats.values():
+        seat.connected = True
+    duelroom.open_duel(room, _engine().registry.duel_by_id("rps_duel"), now=NOW)
+    room_live = room.public(room_seat_a)
+    # ...and the same room once it is decided, from the winner's chair.
+    duelroom.choose(room, room_seat_a, room.duel.id, 1, "rock", now=NOW)
+    duelroom.choose(room, room.seats["b"].id, room.duel.id, 1, "scissors", now=NOW)
+    duelroom.on_timer(room, duelroom.ROUND_SCOPE, "duel_reveal", now=NOW)
+    duelroom.choose(room, room_seat_a, room.duel.id, 2, "rock", now=NOW)
+    duelroom.choose(room, room.seats["b"].id, room.duel.id, 2, "scissors", now=NOW)
+    assert room.status() == "done", "the fixture duel should be decided"
+    room_done = room.public(room_seat_a)
+    # And one where the opponent has dropped mid-duel.
+    room.seats["b"].connected = False
+    room_away = room.public(room_seat_a)
+
+    scenarios.append({
+        "name": "duel_room",
+        "config": _config_body(_engine()),
+        "search": f"?duel={room.id}&seat={room_seat_a}",
+        "roomSeat": {"roomId": room.id, "seatId": room_seat_a},
+        "snapshots": [],
+        "actions": [
+            {"do": "push", "message": {
+                "type": "duel_room_state", "state": room_waiting}},
+            {"do": "record", "as": "waiting"},
+            {"do": "push", "message": {
+                "type": "duel_room_state", "state": room_live}},
+            {"do": "record", "as": "live"},
+            {"do": "push", "message": {
+                "type": "duel_room_state", "state": room_away}},
+            {"do": "record", "as": "away"},
+            {"do": "push", "message": {
+                "type": "duel_room_state", "state": room_done}},
+            {"do": "record", "as": "done"},
+            {"do": "click", "id": "room-again"},
+            {"do": "record", "as": "again"},
+            {"do": "click", "id": "room-copy"},
+            {"do": "record", "as": "copied"},
+        ],
+    })
+    expected["duel_room"] = {
+        "id": room.id,
+        "seat": room_seat_a,
+        "winner": room_done["duel"]["winner_side"],
+        "round_seconds": room_live["duel"]["round_seconds"],
     }
 
     plan = {"now_ms": NOW_MS, "scenarios": scenarios}
@@ -2777,3 +2863,95 @@ def test_a_god_can_crown_a_grandmaster_from_the_lobby(shell):
         "type": "lobby_action", "action": "god_set_leader",
         "target_id": shell["_expected"]["god_lobby"]["first_alpha_seat"],
     }]
+
+
+# --- link duels ----------------------------------------------------------
+#
+# The room borrows the play view and hands `renderDuel` a snapshot with a
+# `duel` key. The point of these is that the shipped duel card, the shipped
+# countdown and the shipped renderer lookup all work with nothing changed —
+# so what is asserted here is the shell around the duel, not the duel itself
+# (the renderers have their own harness in tests/games/).
+
+
+def _room(shell, phase):
+    return shell["duel_room"]["records"][phase]["room"]
+
+
+def test_a_room_borrows_the_play_view_without_its_race(shell):
+    live = _room(shell, "live")
+    assert "duel-room" in live["body_class"]
+    assert "play-active" in live["body_class"]
+    # Nothing in a room has a level, a team or a board to report on.
+    assert live["puzzle_hidden"] is True
+    assert live["cleared_hidden"] is True
+    assert live["card_hidden"] is False
+
+
+def test_a_waiting_room_offers_a_link_and_no_duel(shell):
+    waiting = _room(shell, "waiting")
+    assert waiting["waiting_hidden"] is False
+    assert waiting["result_hidden"] is True
+    assert waiting["duel_hidden"] is True  # there is no duel yet to draw
+
+
+def test_the_share_link_never_carries_your_own_seat(shell):
+    """A seat id is the socket's only credential. Paste your address bar to a
+    friend and they take your chair, so the box you are invited to copy holds
+    the room and nothing else."""
+    want = shell["_expected"]["duel_room"]
+    link = _room(shell, "waiting")["link"]
+    assert link == f"http://relay.test/play?duel={want['id']}"
+    assert "seat=" not in link
+    assert want["seat"] not in link
+
+
+def test_a_live_room_draws_the_duel_card_and_runs_the_shell_clock(shell):
+    """`renderDuel` and `startDuelCountdown` are the match's, unmodified: the
+    countdown reads `duel.round_seconds` off a room snapshot exactly as it
+    reads it off a match one."""
+    live = _room(shell, "live")
+    assert live["duel_hidden"] is False
+    assert live["timer_hidden"] is False
+    assert live["clock"] == f"{shell['_expected']['duel_room']['round_seconds']}s"
+    assert live["waiting_hidden"] is True
+
+
+def test_a_finished_room_names_the_outcome_from_your_own_chair(shell):
+    done = _room(shell, "done")
+    want = shell["_expected"]["duel_room"]
+    assert want["winner"] == "a"  # the fixture plays seat a to the win
+    assert done["result_hidden"] is False
+    assert done["outcome"] == "You won."
+    assert "is-win" in done["outcome_class"]
+    assert done["again_hidden"] is False
+    assert done["timer_hidden"] is True  # nothing left to count down
+
+
+def test_a_dropped_opponent_is_said_out_loud(shell):
+    """A disconnect forfeits rather than pausing, so the person still there
+    has to be told why they are playing against nobody."""
+    away = _room(shell, "away")
+    assert away["note_hidden"] is False
+    assert "gone" in away["note"] or "dropped" in away["note"]
+
+
+def test_play_again_asks_the_room_for_another(shell):
+    assert _room(shell, "again")["sent"] == [{"type": "rematch"}]
+
+
+def test_a_room_opens_one_socket_and_it_carries_the_seat(shell):
+    want = shell["_expected"]["duel_room"]
+    for phase in ("waiting", "live", "done", "again"):
+        urls = _room(shell, phase)["urls"]
+        assert len(urls) == 1, phase
+        assert urls[0] == (
+            f"ws://relay.test/ws/duels/{want['id']}?seat_id={want['seat']}"
+        ), phase
+
+
+def test_the_copy_button_survives_a_browser_with_no_clipboard(shell):
+    """The harness's navigator is bare, which is a real context: an unguarded
+    `navigator.clipboard.writeText` throws and takes the render with it."""
+    copied = _room(shell, "copied")
+    assert copied["link"]  # still there, so nothing threw on the way

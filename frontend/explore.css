@@ -67,3 +67,29 @@ body.explore-dark select {
   background: var(--gm-bg);
   color: var(--gm-text);
 }
+
+/* --- link duels (docs/DUEL_ROOMS.md) ------------------------------------
+ *
+ * A duel is not a practice board, so its picker does not look like one: it
+ * sits above the solo tabs, in the duel palette, and clicking it leaves the
+ * page rather than loading a board into it.
+ */
+
+.rl-duels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--gm-line-soft, rgba(255, 255, 255, 0.08));
+}
+
+.rl-solo-label { display: inline-block; margin: 0 0 8px; }
+
+#duel-tabs button {
+  border-color: rgba(138, 77, 255, 0.5);
+  background: rgba(138, 77, 255, 0.14);
+}
+#duel-tabs button:hover:not(:disabled) { background: rgba(138, 77, 255, 0.3); }
+#duel-tabs button:disabled { opacity: 0.5; cursor: progress; }

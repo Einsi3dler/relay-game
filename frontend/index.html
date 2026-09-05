@@ -447,6 +447,31 @@
           <p id="stake-clock" class="stk__clock"></p>
         </div>
 
+        <!-- Link duels (docs/DUEL_ROOMS.md): the waiting room and the result,
+             wrapped around the duel card below.
+
+             A room borrows this view rather than declaring its own. `#duel-card`
+             is an id and duel.css hangs forty selectors off it, so a second
+             duel card in this document would be invalid markup and
+             getElementById would quietly hand the room the play view's node
+             anyway. Borrowing is the honest version of what would happen. -->
+        <div id="room-card" hidden>
+          <div id="room-waiting" hidden>
+            <h2 class="rm-title">Waiting for your opponent</h2>
+            <p class="rm-blurb">Send them this link. The duel starts the moment
+              they open it.</p>
+            <div class="rm-share">
+              <input id="room-link" class="rm-link" readonly aria-label="Invite link">
+              <button id="room-copy" class="btn" type="button">Copy</button>
+            </div>
+          </div>
+          <div id="room-result" hidden>
+            <div id="room-outcome" class="rm-outcome"></div>
+            <button id="room-again" class="btn" type="button">Play again</button>
+          </div>
+          <p id="room-note" class="rm-note" hidden></p>
+        </div>
+
         <!-- Left on the old look on purpose: the Duelist screen has its own
              design coming. See the note in docs/CONTRIBUTING.md. -->
         <div id="duel-card" hidden>
