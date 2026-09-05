@@ -138,7 +138,16 @@ def test_a_watcher_cannot_play_or_restart(registry):
 
 # --- playing --------------------------------------------------------------
 
-@pytest.mark.parametrize("duel_id", ["rps_duel", "number_clash", "bid_war"])
+def test_the_playable_sweep_covers_the_whole_catalogue(registry):
+    """The sweep below is parametrised by hand, so a fifth duel would ship
+    without anyone ever playing it in a room. Fail here instead."""
+    assert {entry["id"] for entry in registry.duel_library()} == set(PLAYABLE)
+
+
+PLAYABLE = ["rps_duel", "crown_duel", "number_clash", "bid_war"]
+
+
+@pytest.mark.parametrize("duel_id", PLAYABLE)
 def test_every_duel_plays_to_a_winner_in_a_room(registry, duel_id):
     room = play(registry, seated(registry, duel_id), _asymmetric)
     assert room.duel.winner_side in SIDES
@@ -158,6 +167,18 @@ def _asymmetric(duel, side):
         return str(avail[-1] if side == "a" else avail[0])
     if module.id == "bid_war":
         return str(min(payload["max_bid"], 3 if side == "a" else 2))
+    if module.id == "crown_duel":
+        # Two phases per crown round: the secret rewrite, then the card. Play
+        # straight, and take the hand from opposite ends so the two seats never
+        # field the same character — identical cards draw, and two seats that
+        # always draw never finish.
+        if payload.get("phase") == "strategy":
+            return "normal"
+        held = [c["type"] for c in payload.get("hand", [])
+                if c["status"] == "available"]
+        if not held:
+            return "normal"
+        return held[0] if side == "a" else held[-1]
     raise AssertionError(module.id)
 
 
