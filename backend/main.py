@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import random
+import secrets
 import time
 from pathlib import Path
 from urllib.parse import parse_qs
@@ -23,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from backend import config, god, preview, protocol
+from backend import config, duelroom, god, preview, protocol
 from backend.engine import EngineResult, RelayEngine
 from backend.models import LEADER_ONLY_EVENT_KINDS, Match
 from backend.registry import REGISTERED_MODULES, GameRegistry
@@ -103,6 +104,17 @@ async def _timer_fired(match_id: str, scope_id: str, kind: str) -> None:
             await apply_and_broadcast(match, result)
 
 
+async def _room_timer_fired(room_id: str, scope_id: str, kind: str) -> None:
+    room = await room_store.get(room_id)
+    if room is None:
+        return
+    async with room_locks.for_match(room_id):
+        touch_room(room_id)
+        result = duelroom.on_timer(room, scope_id, kind)
+        if result.changed:
+            await room_apply_and_broadcast(room, result)
+
+
 store = InMemoryStateStore()
 locks = MatchLocks()
 engine = RelayEngine(GameRegistry())
@@ -111,9 +123,36 @@ timers = TimerService(_timer_fired)
 last_activity: dict[str, float] = {}
 _last_submit: dict[tuple[str, str], float] = {}
 
+# Link duels (backend/duelroom.py) get their own five, never the match's.
+# Room ids and match ids are both 8 hex, so a shared TimerService would make
+# `cancel_match(room_id)` a silent cross-kill of somebody's race.
+room_store = duelroom.DuelRoomStore()
+room_locks = MatchLocks()
+room_manager = ConnectionManager()
+room_timers = TimerService(_room_timer_fired)
+room_activity: dict[str, float] = {}
+
 
 def touch(match_id: str) -> None:
     last_activity[match_id] = time.monotonic()
+
+
+def touch_room(room_id: str) -> None:
+    room_activity[room_id] = time.monotonic()
+
+
+async def broadcast_room(room: duelroom.DuelRoom) -> None:
+    """One personalised room snapshot per socket. A watcher gets `you: null`
+    and, through the module's own `public`, neither choice before the reveal."""
+    for seat_id, socket in room_manager.match_sockets(room.id):
+        await room_manager.send(socket, protocol.duel_room_state(room, seat_id))
+
+
+async def room_apply_and_broadcast(
+    room: duelroom.DuelRoom, result: EngineResult
+) -> None:
+    room_timers.apply_result(room.id, result)
+    await broadcast_room(room)
 
 
 async def apply_and_broadcast(match: Match, result: EngineResult) -> None:
@@ -172,10 +211,33 @@ async def evict_stale(now: float | None = None) -> list[str]:
     return evicted
 
 
+async def evict_stale_rooms(now: float | None = None) -> list[str]:
+    """The same sweep for link duel rooms, over their own collaborators.
+
+    A room nobody has open dies DUEL_ROOM_TTL_SECONDS after the last activity,
+    which is really "how long a link is good for once everyone stops looking at
+    it" — a tab left open keeps touching the room and it lives on.
+    """
+    now = time.monotonic() if now is None else now
+    evicted = []
+    for room in await room_store.all():
+        if now - room_activity.get(room.id, now) > config.DUEL_ROOM_TTL_SECONDS:
+            room_timers.cancel_match(room.id)
+            for socket in room_manager.drop_match(room.id):
+                with contextlib.suppress(Exception):
+                    await socket.close(code=protocol.CLOSE_UNKNOWN)
+            await room_store.remove(room.id)
+            room_locks.discard(room.id)
+            room_activity.pop(room.id, None)
+            evicted.append(room.id)
+    return evicted
+
+
 async def _eviction_loop() -> None:
     while True:
         await asyncio.sleep(EVICTION_SWEEP_SECONDS)
         await evict_stale()
+        await evict_stale_rooms()
 
 
 @contextlib.asynccontextmanager
@@ -499,6 +561,62 @@ async def practice_check(game_id: str, body: PracticeCheckBody) -> dict:
     return {"correct": module.check(puzzle, body.answer)}
 
 
+# --- link duels (backend/duelroom.py) -------------------------------------
+# Two people, one link, one duel, outside any match. The room is created from
+# /explore, the link is the room id, and the play surface is /play — which is
+# already where "you are in a live thing with other people" lives.
+
+
+class DuelRoomBody(BaseModel):
+    duel_game_id: str
+
+
+def _room_seat(room: duelroom.DuelRoom, seat_id: str) -> dict:
+    return {
+        "room_id": room.id,
+        "seat_id": seat_id,
+        "duel_game_id": room.duel_game_id,
+    }
+
+
+@app.post("/api/duels")
+async def create_duel_room(body: DuelRoomBody) -> dict:
+    """A room with its creator in seat "a" and a link to send someone."""
+    if not engine.registry.has_duel(body.duel_game_id):
+        raise HTTPException(status_code=404, detail="No such duel.")
+    room = duelroom.create_room(body.duel_game_id)
+    await room_store.add(room)
+    touch_room(room.id)
+    return _room_seat(room, room.seats["a"].id)
+
+
+@app.post("/api/duels/{room_id}/join")
+async def join_duel_room(room_id: str) -> dict:
+    """Take the free seat, or be told there is none and watch instead.
+
+    A full room is not an error: `seat_id` comes back null and the client
+    connects as a watcher, which the duel modules already understand.
+    """
+    room = await room_store.get(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="No such duel room.")
+    async with room_locks.for_match(room_id):
+        touch_room(room_id)
+        seat = duelroom.claim_seat(room)
+    if seat is None:
+        return {"room_id": room.id, "seat_id": None,
+                "duel_game_id": room.duel_game_id}
+    return _room_seat(room, seat.id)
+
+
+@app.get("/api/duels/{room_id}")
+async def get_duel_room(room_id: str) -> dict:
+    room = await room_store.get(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="No such duel room.")
+    return {"room": room.public()}
+
+
 @app.post("/api/matches")
 async def create_match() -> dict:
     match = engine.create_match()
@@ -622,6 +740,102 @@ def _too_fast(match_id: str, player_id: str) -> bool:
         return True
     _last_submit[(match_id, player_id)] = now
     return False
+
+
+@app.websocket("/ws/duels/{room_id}")
+async def duel_room_endpoint(socket: WebSocket, room_id: str, seat_id: str = ""):
+    """A link duel. Four message types, two seats, and anyone else watching.
+
+    Its own endpoint rather than a branch on the match one: that endpoint opens
+    by looking up a match, carries a God branch, a submit rate limiter and
+    about fifteen message branches, and a room has none of them.
+    """
+    await socket.accept()
+    room = await room_store.get(room_id)
+    if room is None:
+        await socket.close(code=protocol.CLOSE_UNKNOWN)
+        return
+    # A seat id must be one of this room's, or you are a watcher. An id from
+    # some *other* room is not a watcher, it is a mistake worth naming.
+    is_seat = room.side_of(seat_id) is not None
+    if seat_id and not is_seat and not seat_id.startswith("w_"):
+        await socket.close(code=protocol.CLOSE_UNKNOWN)
+        return
+    viewer_id = seat_id or f"w_{secrets.token_hex(6)}"
+
+    old = room_manager.get(room_id, viewer_id)
+    if old is not None:
+        with contextlib.suppress(Exception):
+            await old.close(code=protocol.CLOSE_SUPERSEDED)
+    room_manager.register(room_id, viewer_id, socket)
+
+    try:
+        async with room_locks.for_match(room_id):
+            touch_room(room_id)
+            if is_seat:
+                duelroom.on_connect(room, viewer_id)
+                # The duel opens the moment both seats have a live socket, not
+                # when the second person claimed one: a five-second round would
+                # be half gone before their socket finished opening.
+                module = engine.registry.duel_by_id(room.duel_game_id)
+                result = duelroom.open_duel(room, module)
+                if result.changed:
+                    await room_apply_and_broadcast(room, result)
+                else:
+                    await broadcast_room(room)
+            else:
+                await room_manager.send(
+                    socket, protocol.duel_room_state(room, viewer_id)
+                )
+
+        while True:
+            raw = await socket.receive_json()
+            parsed = protocol.parse_room_message(raw)
+            if isinstance(parsed, str):
+                await room_manager.send(socket, protocol.error_message(parsed))
+                continue
+            msg_type, fields = parsed
+
+            if msg_type == protocol.DUEL_CHOICE:
+                async with room_locks.for_match(room_id):
+                    touch_room(room_id)
+                    result = duelroom.choose(
+                        room, viewer_id, fields["duel_id"],
+                        fields["round"], fields["choice"],
+                    )
+                    if not result.ok:
+                        await room_manager.send(
+                            socket, protocol.error_message(result.error or "Rejected.")
+                        )
+                        continue
+                    await room_apply_and_broadcast(room, result)
+            elif msg_type == protocol.REMATCH:
+                async with room_locks.for_match(room_id):
+                    touch_room(room_id)
+                    result = duelroom.rematch(room, viewer_id)
+                    if not result.ok:
+                        await room_manager.send(
+                            socket, protocol.error_message(result.error or "Rejected.")
+                        )
+                        continue
+                    await room_apply_and_broadcast(room, result)
+            else:  # request_state / heartbeat
+                async with room_locks.for_match(room_id):
+                    touch_room(room_id)
+                    await room_manager.send(
+                        socket, protocol.duel_room_state(room, viewer_id)
+                    )
+    except WebSocketDisconnect:
+        pass
+    finally:
+        if room_manager.unregister(room_id, viewer_id, socket) and is_seat:
+            if await room_store.get(room_id) is not None:
+                async with room_locks.for_match(room_id):
+                    # Marked away, not removed: the duel carries on without
+                    # them and their missing choice loses the round. Pausing
+                    # would let whoever is losing freeze it by pulling the plug.
+                    duelroom.on_disconnect(room, viewer_id)
+                    await broadcast_room(room)
 
 
 @app.websocket("/ws/matches/{match_id}")

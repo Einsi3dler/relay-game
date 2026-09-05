@@ -67,6 +67,13 @@ LOBBY_ACTIONS = (
 # that only holds by accident is one refactor from not holding.
 GOD_MESSAGE_TYPES = (LOBBY_ACTION, REQUEST_STATE, HEARTBEAT)
 
+# Link duels (backend/duelroom.py). `REMATCH` is deliberately NOT in
+# CLIENT_TYPES: a room speaks its own small dialect on its own socket, and
+# adding it to the match's vocabulary would make `rematch` a legal message on a
+# match socket that quietly returned a snapshot.
+REMATCH = "rematch"
+ROOM_MESSAGE_TYPES = (DUEL_CHOICE, REMATCH, REQUEST_STATE, HEARTBEAT)
+
 # Server → client
 STATE_SNAPSHOT = "state_snapshot"
 ERROR = "error"
@@ -75,6 +82,9 @@ LEVEL_ADVANCED = "level_advanced"
 PERK_USED = "perk_used"
 DUEL_RESULT = "duel_result"
 MATCH_WON = "match_won"
+# A room's snapshot is its own message, not a `state_snapshot`: the client's
+# match renderer reads a MatchPublic and a room is not one.
+DUEL_ROOM_STATE = "duel_room_state"
 
 # Close codes
 CLOSE_UNKNOWN = 4404  # unknown match or player
@@ -86,6 +96,11 @@ CLOSE_CANCELLED = 4402  # the host cancelled the lobby before it ever started
 def state_snapshot(match: Match, viewer_id: str | None = None) -> dict[str, Any]:
     """A snapshot for one viewer: a player id, or a God's observer id."""
     return {"type": STATE_SNAPSHOT, "state": match.public(viewer_id)}
+
+
+def duel_room_state(room: Any, seat_id: str | None = None) -> dict[str, Any]:
+    """A link duel room, as one seat (or a watcher) sees it."""
+    return {"type": DUEL_ROOM_STATE, "state": room.public(seat_id)}
 
 
 def error_message(text: str) -> dict[str, Any]:
@@ -112,6 +127,32 @@ def duel_result(payload: dict[str, Any]) -> dict[str, Any]:
 
 def match_won(team_id: str) -> dict[str, Any]:
     return {"type": MATCH_WON, "team_id": team_id}
+
+
+def parse_room_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
+    """Validate a message on a duel-room socket.
+
+    Its own parser rather than a flag on `parse_client_message`: a room accepts
+    four message types and a match accepts eleven, and the cheapest way to keep
+    the match's set closed is for the room never to touch it.
+    """
+    if not isinstance(raw, dict):
+        return "Malformed message."
+    msg_type = raw.get("type")
+    if msg_type not in ROOM_MESSAGE_TYPES:
+        return "Unknown message type."
+    if msg_type == DUEL_CHOICE:
+        duel_id = raw.get("duel_id")
+        round_index = raw.get("round")
+        choice = raw.get("choice")
+        if not isinstance(duel_id, str) or not isinstance(choice, str):
+            return "Malformed message."
+        if not isinstance(round_index, int) or isinstance(round_index, bool):
+            return "Malformed message."
+        return msg_type, {
+            "duel_id": duel_id, "round": round_index, "choice": choice,
+        }
+    return msg_type, {}  # rematch / request_state / heartbeat
 
 
 def parse_client_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
