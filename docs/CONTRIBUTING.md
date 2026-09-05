@@ -176,6 +176,14 @@ Its key is `RELAY_GOD_KEY`, **not** the gallery's — that one only ever exposes
 throwaway dummy matches, this one controls real ones. Same default (`dev`), same
 warning. Full write-up: [GOD_MODE.md](GOD_MODE.md).
 
+### Trying a duel
+
+Practice mode cannot hand you a duel on your own, but `/explore` can hand you a
+room and a link. Pick one of the four duels above the solo tabs, send the link
+to somebody (or open it in a second browser), and you play a real one — same
+modules, same clock, same reveal rule as a match. See
+[DUEL_ROOMS.md](DUEL_ROOMS.md).
+
 For a fuller playtest (V6/V7), follow [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md).
 
 For a shorter run, temporarily set `LEVEL_COUNT = 2` in `backend/config.py` —

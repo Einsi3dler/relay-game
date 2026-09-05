@@ -517,3 +517,80 @@ body.play-active .topbar { display: none; }
   font-size: 0.85rem;
   color: var(--gm-yellow);
 }
+
+/* --- link duels (docs/DUEL_ROOMS.md) ------------------------------------
+ *
+ * A room borrows this view: same duel card, same clock, none of the race
+ * around it. There is no level, no team and no rail, so the things that
+ * report on them go, and what is left is centred on the duel itself.
+ */
+
+body.duel-room .pl-bar,
+body.duel-room .pl-rail { display: none; }
+
+body.duel-room .pl-deck { grid-template-columns: minmax(0, 1fr); }
+
+body.duel-room .pl-stage {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+#room-card {
+  margin: 0 0 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-lg);
+  background: var(--gm-panel);
+  color: var(--gm-text);
+  text-align: center;
+}
+
+.rm-title {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.rm-blurb {
+  margin: 0 0 14px;
+  color: var(--gm-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.rm-share {
+  display: flex;
+  gap: 8px;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.rm-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--gm-line);
+  border-radius: 10px;
+  background: rgba(7, 9, 31, 0.6);
+  color: var(--gm-text);
+  font: inherit;
+  font-size: 0.86rem;
+}
+
+.rm-share .btn { flex: 0 0 auto; min-height: 44px; }
+
+.rm-outcome {
+  margin: 0 0 12px;
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+.rm-outcome.is-win { color: var(--gm-yellow); }
+.rm-outcome.is-loss { color: var(--gm-muted); }
+
+.rm-note {
+  margin: 12px 0 0;
+  color: var(--gm-yellow);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}

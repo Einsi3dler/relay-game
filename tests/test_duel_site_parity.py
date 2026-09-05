@@ -93,13 +93,21 @@ def test_the_library_count_matches_the_catalogue():
     assert int(count.group(2)) == len(REGISTERED_DUELS)
 
 
-def test_practice_mode_says_why_the_duels_are_missing():
-    """A duel needs a live opponent, so it can never be a solo board. The page
-    has to say so rather than leave a hole where four games should be."""
+def test_practice_mode_offers_every_duel_as_a_room():
+    """A duel still cannot be a solo board, but /explore can hand you a room
+    and a link to send. Every registered duel has to be on that picker, or a
+    fifth one ships invisible — which is what this whole file exists to stop."""
+    picker = EXPLORE_HTML.split('id="duel-tabs"')[1].split("</div>")[0]
     for duel in REGISTERED_DUELS:
-        assert label(duel) in EXPLORE_HTML, duel.name
+        assert f'data-duel="{duel.id}"' in picker, duel.id
+        assert label(duel) in picker, duel.name
     assert 'href="/games#duels"' in EXPLORE_HTML
-    # ...and never offers one as a practice board.
+
+
+def test_practice_mode_never_offers_a_duel_as_a_solo_board():
+    """The older half of the rule, still true. `data-game` is the solo picker,
+    and half of a duel is not knowing what the other person just did. A room is
+    two people; it is not practice."""
     for duel in REGISTERED_DUELS:
         assert f'data-game="{duel.id}"' not in EXPLORE_HTML, duel.id
 

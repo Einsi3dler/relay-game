@@ -136,6 +136,27 @@ DUEL_ROUND_SECONDS_MAX = 30
 # What the host's picker offers, inside those bounds.
 DUEL_ROUND_SECONDS_CHOICES = (3, 5, 8, 10, 12, 15, 20, 30)
 
+# --- Link duels (/explore rooms; backend/duelroom.py) --------------------
+# Two people, one link, one duel, outside any match. A room has no teams, no
+# purses and no levels, so the two numbers a duel would normally read off a
+# match have to come from somewhere: here.
+#
+# BID WAR is the only staked duel, and a room's grant is EQUAL to both sides —
+# unlike a match's, which is unequal by design because a Grandmaster chooses
+# how much to back their champion and that choice is the game. Nobody makes
+# that choice in a room, so an unequal grant would not be a decision, only an
+# unfair sale. Through `pool_for`, 20 a side buys a 160-coin sale in
+# DUEL_STAKE_LOTS pieces, which is roughly the shape a well-funded match duel
+# has. Deliberately not derived from DUEL_STAKE_DEFAULT: the auto-grant a
+# silent Grandmaster gets and the fixed grant a room hands out are answers to
+# different questions, and tying them together would hide that.
+DUEL_ROOM_STAKE = 20
+DUEL_ROOM_REVEAL_SECONDS = 3     # the beat before the next round, as in a match
+# A room with nobody in it aged out. Its link stops resolving at that point, so
+# this is really "how long a link is good for once everyone has stopped
+# looking at it" — a tab left open keeps touching the room and it lives on.
+DUEL_ROOM_TTL_SECONDS = 1800
+
 # Perk catalogue: leader-only purchases from the team currency pool.
 #   "seconds" — the effect duration/extension where the perk has one.
 #   "amount"  — currency moved, for the perks that move currency.

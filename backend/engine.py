@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from backend import config
+from backend import config, duelloop
 from backend.games.duel_base import SIDES, DuelModule, other_side
 from backend.models import (
     DuelSession, Event, Match, Observer, PendingStake, Player, Team, green,
@@ -2082,51 +2082,29 @@ class RelayEngine:
         """
         if match.status != "active":
             return EngineResult.rejected("match is not active")
-        duel = match.duel
-        if duel is None or duel.id != duel_id:
-            return EngineResult.rejected("no duel to answer")
-        if duel.phase != "choosing":
-            return EngineResult.rejected("the round is closed")
-        if round_index != duel.state.round_index:
-            return EngineResult.rejected("that round is over")
-        side = duel.side_of(player_id)
-        if side is None:
-            return EngineResult.rejected("you aren't in this duel")
-        if duel.state.locked(side):
-            return EngineResult.rejected("you already chose this round")
-        move = duel.module.normalize_choice(duel.state, choice, side)
-        if move is None:
-            return EngineResult.rejected("not a legal move")
-
-        duel.state.choices[side] = move
+        both_locked, error = duelloop.apply_choice(
+            match.duel, player_id, duel_id, round_index, choice
+        )
+        if error is not None:
+            return EngineResult.rejected(error)
         result = EngineResult(changed=True)
-        if duel.state.both_locked():
+        if both_locked:
             self._resolve_round(match, result, now)
         return result
 
     def _resolve_round(
         self, match: Match, result: EngineResult, now: datetime | None
     ) -> None:
-        """Score the open round and either move on or end the duel."""
+        """Score the open round and either move on or end the duel.
+
+        The scoring is `duelloop`'s, shared with the link duels in
+        `backend/duelroom.py`. What stays here is what a match adds: paying the
+        duel out, and the clock, which reads this match's frozen config.
+        """
         duel = match.duel
-        state = duel.state
-        winner = duel.module.resolve_round(state)
-        entry = {
-            "round": state.round_index,
-            "a": state.choices.get("a"),
-            "b": state.choices.get("b"),
-            "winner": winner,
-        }
-        state.history.append(entry)
-        duel.last_round = entry
-        if winner is not None:
-            state.wins[winner] += 1
-            if state.wins[winner] >= duel.module.wins_needed:
-                duel.winner_side = winner
-                self._finish_duel(match, result, now)
-                return
-        # Choices stay on the state through the reveal beat, then clear.
-        duel.phase = "reveal"
+        if duelloop.score_round(duel):
+            self._finish_duel(match, result, now)
+            return
         duel.deadline = self._start_scope_timer(
             match, DUEL_SCOPE, "duel_reveal", result, now
         )
@@ -2135,10 +2113,7 @@ class RelayEngine:
         self, match: Match, result: EngineResult, now: datetime | None
     ) -> None:
         duel = match.duel
-        duel.state.choices.clear()
-        duel.state.round_index += 1
-        duel.last_round = None
-        duel.phase = "choosing"
+        duelloop.open_next_round(duel)
         duel.deadline = self._start_scope_timer(
             match, DUEL_SCOPE, "duel_round", result, now,
             seconds=self._duel_round_seconds(match, duel.module),

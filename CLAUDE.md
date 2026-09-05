@@ -51,6 +51,9 @@ Contributors each own a slice (see [docs/TASK_LIST.md](docs/TASK_LIST.md)):
   LANE SHIFT, SHADOW CAST, THREADLINE, BOMB DEFUSE, …) — one owner per game.
 - **Duel modules** (RPS DUEL, …) — games for the Duelist role, a different
   interface from the rest (see [docs/DUEL_MODULE_SPEC.md](docs/DUEL_MODULE_SPEC.md)).
+- **Duel rooms** — `backend/duelroom.py`, `backend/duelloop.py`, the `/explore`
+  picker (see [docs/DUEL_ROOMS.md](docs/DUEL_ROOMS.md)). `duelloop.py` is shared
+  with the engine lane, so one active editor on it matters more than most.
 - **Frontend** — the browser client (play view + leader dashboard).
 
 A person (or agent) can hold **more than one** slice — lanes exist to stop two

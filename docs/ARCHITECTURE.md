@@ -47,6 +47,8 @@ backend/
   preview.py       # dev only: the /preview design gallery (every screen, on demand)
   god.py           # dev only: the /god seat — run a match without playing in it
   devgate.py       # the password gate those two dev doors share
+  duelloop.py      # the duel round loop, shared by the engine and duel rooms
+  duelroom.py      # link duels: two people, one link, one duel, outside a match
   games/
     __init__.py
     base.py        # GameModule Protocol/ABC + PuzzleInstance helpers (from spec)
@@ -227,12 +229,20 @@ browser. Approach:
 - Flow: fetch `/api/config` → join via REST → open WebSocket → render every
   `state_snapshot`. The client is a **pure function of the latest snapshot** plus
   local countdown animation derived from `timer_deadline`.
+- **Two keyspaces, never shared.** Link duel rooms
+  ([DUEL_ROOMS.md](DUEL_ROOMS.md)) get their own store, locks, connection
+  manager, `TimerService` and activity clock. Room ids and match ids are both
+  8 hex, so a shared `TimerService` would make `cancel_match(room_id)` a silent
+  cross-kill of somebody's race. One sweeper task makes two passes.
 - Views: **lobby** (teams, Grandmaster seats, game assignment), **play** (your own
   game + level, the wait/bonus choice, freeze overlay), the **Grandmaster dashboard**
   (roster status, currency, perk shop, opponent level chip, handoff),
   **result** (win/lose), and the dev-only **God board** (both teams at once, plus
   a read-only jump into either Grandmaster's dashboard — see
-  [GOD_MODE.md](GOD_MODE.md)). Snapshots are personalised per viewer — see
+  [GOD_MODE.md](GOD_MODE.md)). `/play` has a fourth boot mode, `?duel=`, which
+  is a link duel borrowing the play view — `#duel-card` is an id with forty
+  stylesheet selectors on it, so a room reuses that card rather than declaring a
+  second one. Snapshots are personalised per viewer — see
   [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) §3 "TeamView".
 - The client **never** decides correctness or advancement. It submits
   `submit_answer` and reacts to the snapshot.

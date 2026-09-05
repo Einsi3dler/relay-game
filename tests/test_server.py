@@ -953,6 +953,203 @@ def test_duel_renderers_are_served(client, duel_id):
     assert f'/static/duels/{duel_id}.js' in client.get("/play").text
 
 
+# --- link duels over the wire (backend/duelroom.py) -----------------------
+#
+# The room rules are pinned in tests/test_duel_rooms.py. These are the things
+# only the socket can show: that two strangers actually pair up over it, that a
+# room speaks a different dialect from a match, and that the two keyspaces
+# cannot reach each other.
+
+
+def a_room(client, duel_game_id: str = "rps_duel") -> tuple[str, str, str]:
+    """A room with both seats claimed. Returns (room_id, seat_a, seat_b)."""
+    made = client.post("/api/duels", json={"duel_game_id": duel_game_id}).json()
+    joined = client.post(f"/api/duels/{made['room_id']}/join").json()
+    return made["room_id"], made["seat_id"], joined["seat_id"]
+
+
+def room_state(ws, ready=None, tries: int = 20) -> dict:
+    for _ in range(tries):
+        message = ws.receive_json()
+        if message["type"] == "error":
+            raise AssertionError(f"refused: {message['error']}")
+        if message["type"] == "duel_room_state":
+            if ready is None or ready(message["state"]):
+                return message["state"]
+    raise AssertionError("no room snapshot matched")
+
+
+def test_a_room_is_created_and_the_link_seats_one_more(client):
+    room_id, seat_a, seat_b = a_room(client)
+    assert seat_a and seat_b and seat_a != seat_b
+    # A third arrival gets no seat, which is not an error: they may watch.
+    assert client.post(f"/api/duels/{room_id}/join").json()["seat_id"] is None
+    assert client.get(f"/api/duels/{room_id}").json()["room"]["seats_taken"] == 2
+
+
+def test_an_unknown_duel_or_room_is_a_404(client):
+    assert client.post("/api/duels", json={"duel_game_id": "nope"}).status_code == 404
+    assert client.get("/api/duels/deadbeef").status_code == 404
+    assert client.post("/api/duels/deadbeef/join").status_code == 404
+
+
+def test_the_duel_starts_when_the_second_socket_opens(client):
+    """Not when the seat was claimed: a five-second round would be half gone
+    before the second person's socket finished opening."""
+    room_id, seat_a, seat_b = a_room(client)
+    with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_a}") as wa:
+        alone = room_state(wa)
+        assert alone["status"] == "waiting" and alone["duel"] is None
+        assert alone["you"] == "a"
+        with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_b}") as wb:
+            live = room_state(wb, lambda s: s["duel"] is not None)
+            assert live["status"] == "duelling"
+            assert live["you"] == "b"
+            assert live["duel"]["round"] == 1
+            # The window is the module's own: a room has no host to override it.
+            assert live["duel"]["round_seconds"] == 5
+
+
+def test_two_people_actually_duel_over_the_socket(client):
+    """One round, end to end: both commit, the round resolves, and the reveal
+    shows what the other person did — which is the half of a duel that cannot
+    exist on a practice board."""
+    room_id, seat_a, seat_b = a_room(client)
+    with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_a}") as wa:
+        room_state(wa)
+        with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_b}") as wb:
+            live = room_state(wb, lambda s: s["duel"] is not None)
+            duel = live["duel"]
+
+            # Before their opponent answers, a seat sees only its own hand.
+            wa.send_json({"type": "duel_choice", "duel_id": duel["id"],
+                          "round": duel["round"], "choice": "rock"})
+            mine = room_state(wa, lambda s: s["duel"]["locked"]["a"])
+            assert mine["duel"]["choices"] == {"a": "rock"}
+            assert mine["duel"]["locked"] == {"a": True, "b": False}
+
+            wb.send_json({"type": "duel_choice", "duel_id": duel["id"],
+                          "round": duel["round"], "choice": "scissors"})
+            after = room_state(wa, lambda s: s["duel"]["phase"] != "choosing")
+
+    assert after["duel"]["wins"] == {"a": 1, "b": 0}
+    # The reveal is where both hands become visible, and not one beat earlier.
+    assert after["duel"]["choices"] == {"a": "rock", "b": "scissors"}
+    assert after["duel"]["last_round"]["winner"] == "a"
+
+
+def test_a_rematch_is_refused_while_the_duel_is_running(client):
+    room_id, seat_a, seat_b = a_room(client)
+    with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_a}") as wa:
+        room_state(wa)
+        with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_b}") as wb:
+            room_state(wb, lambda s: s["duel"] is not None)
+            wa.send_json({"type": "rematch"})
+            assert "still running" in _room_error(wa)
+
+
+def _room_error(ws, tries: int = 12) -> str:
+    for _ in range(tries):
+        message = ws.receive_json()
+        if message["type"] == "error":
+            return message["error"]
+    raise AssertionError("no error arrived")
+
+
+def test_a_watcher_is_served_but_never_served_a_move(client):
+    room_id, seat_a, seat_b = a_room(client)
+    with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_a}") as wa:
+        room_state(wa)
+        with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_b}") as wb:
+            room_state(wb, lambda s: s["duel"] is not None)
+            with client.websocket_connect(f"/ws/duels/{room_id}") as watcher:
+                seen = room_state(watcher)
+                assert seen["you"] is None
+                assert seen["duel"]["choices"] == {}
+                duel = seen["duel"]
+                watcher.send_json({"type": "duel_choice", "duel_id": duel["id"],
+                                   "round": duel["round"], "choice": "rock"})
+                assert "aren't in this duel" in _room_error(watcher)
+                watcher.send_json({"type": "rematch"})
+                assert _room_error(watcher)
+
+
+def test_an_unknown_room_or_seat_is_turned_away(client):
+    with pytest.raises(WebSocketDisconnect) as caught:
+        with client.websocket_connect("/ws/duels/deadbeef?seat_id=s_x") as ws:
+            ws.receive_json()
+    assert caught.value.code == protocol.CLOSE_UNKNOWN
+
+    room_id, _, _ = a_room(client)
+    with pytest.raises(WebSocketDisconnect) as caught:
+        with client.websocket_connect(f"/ws/duels/{room_id}?seat_id=s_nobody") as ws:
+            ws.receive_json()
+    assert caught.value.code == protocol.CLOSE_UNKNOWN
+
+
+def test_a_second_socket_on_one_seat_supersedes_the_first(client):
+    room_id, seat_a, _ = a_room(client)
+    with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_a}") as first:
+        room_state(first)
+        with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_a}") as second:
+            room_state(second)
+            with pytest.raises(WebSocketDisconnect) as caught:
+                for _ in range(5):
+                    first.receive_json()
+            assert caught.value.code == protocol.CLOSE_SUPERSEDED
+
+
+def test_a_room_speaks_a_different_dialect_from_a_match(client, fake_games):
+    """`rematch` is deliberately not in the match's vocabulary, and a match's
+    moves are not in a room's. Neither socket has to guard against the other."""
+    assert protocol.parse_client_message({"type": "rematch"}) == "Unknown message type."
+
+    room_id, seat_a, _ = a_room(client)
+    with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_a}") as ws:
+        room_state(ws)
+        for message in ({"type": "buy_perk", "perk_id": "shield"},
+                        {"type": "submit_answer", "puzzle_id": "x", "answer": "y"},
+                        {"type": "lobby_action", "action": "start"}):
+            ws.send_json(message)
+            assert _room_error(ws) == "Unknown message type."
+
+
+def test_the_two_keyspaces_cannot_evict_each_other(client, fake_games):
+    """Room ids and match ids are both 8 hex. Sharing a store, a lock table or
+    a TimerService would make one sweep quietly reach into the other, and the
+    symptom would be somebody's race ending for no reason."""
+    match_id = create_match(client)
+    join(client, match_id, "Host", "alpha")
+    stale_room, _, _ = a_room(client)
+    fresh_room, _, _ = a_room(client)
+
+    async def sweep_rooms():
+        server.room_timers.schedule(
+            stale_room, "duel", "duel_round", "2099-01-01T00:00:00+00:00"
+        )
+        server.room_activity[stale_room] = (
+            time.monotonic() - config.DUEL_ROOM_TTL_SECONDS - 1
+        )
+        return await server.evict_stale_rooms()
+
+    evicted = asyncio.run(sweep_rooms())
+    assert stale_room in evicted and fresh_room not in evicted
+    assert client.get(f"/api/duels/{stale_room}").status_code == 404
+    assert server.room_timers.pending(stale_room) == set()
+    # The match sweep never ran, and the match is untouched.
+    assert client.get(f"/api/matches/{match_id}").status_code == 200
+
+    async def sweep_matches():
+        server.last_activity[match_id] = (
+            time.monotonic() - config.MATCH_TTL_SECONDS - 1
+        )
+        return await server.evict_stale()
+
+    assert match_id in asyncio.run(sweep_matches())
+    # ...and the surviving room did not go with it.
+    assert client.get(f"/api/duels/{fresh_room}").status_code == 200
+
+
 # --- the ways out, over the socket ---------------------------------------
 #
 # `release_leader` was wired in the engine, the dispatcher and the button, and

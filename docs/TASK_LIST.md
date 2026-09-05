@@ -138,6 +138,24 @@ Built per [REDESIGN_PLAN.md](REDESIGN_PLAN.md); it holds the full task detail.
   holding the host seat; watching a Grandmaster sends nothing and never touches
   the WebSocket credential. · [C][F]
 
+- [x] **V13 Link duels (/explore rooms)** — the four duels were the only games
+  nobody could try: half of a duel is not knowing what the other person just
+  did, so it can never be a solo board, and the only way to play one was to
+  assemble two full teams and start a match. Now `/explore` hands you a room and
+  a link. A `DuelRoom` is deliberately not a `Match` (the God-mode lesson:
+  `match.status` is read in 34 places, and a room faking one would give every
+  guard a second meaning), and it reuses `DuelSession` verbatim so all four
+  renderers work unchanged. The scoring moved to `backend/duelloop.py` so a duel
+  behaves identically in a room and in a race. BID WAR is fought on an equal
+  grant from config and pays no settlement. See
+  [DUEL_ROOMS.md](DUEL_ROOMS.md).
+  **AC:** a room carries no team, currency, level or perk in any state; a
+  shared link never contains the sharer's seat id; a disconnect forfeits the
+  round rather than pausing it; the two keyspaces cannot evict each other; and
+  the match duel path is untouched — its whole suite passes unchanged.
+  **Provisional:** `DUEL_ROOM_STAKE` — see
+  [PLAYTEST_GUIDE.md](PLAYTEST_GUIDE.md). · [ALL]
+
 ### v2 stretch (only after V5–V7)
 
 - [ ] More games for the library (see `game/RELAY_EXPANSION_GAMES_README.md`) —
