@@ -374,6 +374,9 @@ function boot(scenario) {
           ),
         });
       }
+      if (/\/api\/duels\/[^/]+\/join$/.test(String(path))) {
+        return settled({ ok: true, json: () => settled({ seat_id: scenario.joinSeat || null }) });
+      }
       if (String(path).indexOf("/api/preview") === 0) {
         const found = (scenario.previews || {})[String(path)];
         return settled({
@@ -1608,6 +1611,34 @@ def shell() -> dict:
         ],
     })
 
+    scenarios.append({
+        "name": "rejoin:tab_identity",
+        "config": _config_body(engine),
+        "session": {"matchId": match.id, "playerId": "another-tab"},
+        "legacySession": {"matchId": match.id, "playerId": stranded.id},
+        "snapshots": [stranded_snapshot],
+        "actions": [
+            {"do": "deliver", "snapshot": 0},
+            {"do": "close", "code": 4403},
+            {"do": "record", "as": "closed"},
+        ],
+    })
+    scenarios.append({
+        "name": "rejoin:retry_cancelled",
+        "config": _config_body(engine),
+        "session": {"matchId": match.id, "playerId": stranded.id},
+        "rejoinAnswer": {"id": stranded.id, "name": stranded.name},
+        "snapshots": [],
+        "actions": [
+            {"do": "close", "code": 1006},
+            {"do": "type", "id": "rejoin-match-input", "value": match.id},
+            {"do": "type", "id": "rejoin-code-input", "value": stranded.rejoin_code},
+            {"do": "click", "id": "rejoin-go"},
+            {"do": "advance", "ms": 6000},
+            {"do": "record", "as": "back"},
+        ],
+    })
+
     # --- the design gallery, booted the way the browser boots it -------------
     # `/play?preview=<state>` renders one canned snapshot from
     # backend/preview.py and opens no socket. These run the shipped app.js
@@ -1733,6 +1764,7 @@ def shell() -> dict:
     room_waiting = room.public(room_seat_a)
     for seat in room.seats.values():
         seat.connected = True
+    room.ready.update(("a", "b"))
     duelroom.open_duel(room, _engine().registry.duel_by_id("rps_duel"), now=NOW)
     room_live = room.public(room_seat_a)
     # ...and the same room once it is decided, from the winner's chair.
@@ -1778,6 +1810,14 @@ def shell() -> dict:
         "winner": room_done["duel"]["winner_side"],
         "round_seconds": room_live["duel"]["round_seconds"],
     }
+    scenarios.append({
+        "name": "duel_room:invite",
+        "config": _config_body(_engine()),
+        "search": f"?duel={room.id}",
+        "roomSeat": {"roomId": room.id, "seatId": room_seat_a},
+        "joinSeat": room.seats["b"].id,
+        "actions": [{"do": "record", "as": "joined"}],
+    })
 
     plan = {"now_ms": NOW_MS, "scenarios": scenarios}
     with tempfile.TemporaryDirectory() as tmp:
@@ -1965,7 +2005,7 @@ def test_typing_the_code_gets_the_seat_back_and_keeps_it(shell):
     stored = json.loads(back["rejoin"]["stored"])
     assert stored["playerId"] == want["player_id"]
     assert stored["matchId"] == want["match_id"]
-    assert back["rejoin"]["legacy"] is None, "wrote to the store that dies"
+    assert json.loads(back["rejoin"]["legacy"]) == stored, "this tab must retain its own seat"
 
 
 def test_a_code_no_seat_holds_says_so_and_connects_to_nothing(shell):
@@ -2885,7 +2925,7 @@ def test_a_room_borrows_the_play_view_without_its_race(shell):
     # Nothing in a room has a level, a team or a board to report on.
     assert live["puzzle_hidden"] is True
     assert live["cleared_hidden"] is True
-    assert live["card_hidden"] is False
+    assert live["card_hidden"] is True  # no empty waiting panel above a live duel
 
 
 def test_a_waiting_room_offers_a_link_and_no_duel(shell):
@@ -2955,3 +2995,22 @@ def test_the_copy_button_survives_a_browser_with_no_clipboard(shell):
     `navigator.clipboard.writeText` throws and takes the render with it."""
     copied = _room(shell, "copied")
     assert copied["link"]  # still there, so nothing threw on the way
+
+
+def test_refresh_prefers_this_tabs_seat_and_exit_preserves_other_tabs(shell):
+    run = shell['rejoin:tab_identity']
+    assert run['url'].endswith('player_id=' + shell['_expected']['rejoin']['player_id'])
+    stored = json.loads(run['records']['closed']['rejoin']['stored'])
+    assert stored['playerId'] == 'another-tab'
+    assert run['records']['closed']['rejoin']['legacy'] is None
+
+
+def test_rejoining_cancels_a_pending_transport_retry(shell):
+    assert len(shell['rejoin:retry_cancelled']['sockets']) == 2
+
+
+def test_a_bare_duel_invite_does_not_take_another_tabs_seat(shell):
+    urls = shell['duel_room:invite']['sockets']
+    assert len(urls) == 1
+    assert 'seat_id=' in urls[0]
+    assert not urls[0].endswith(shell['_expected']['duel_room']['seat'])

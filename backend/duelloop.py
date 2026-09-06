@@ -8,7 +8,8 @@ all. What is identical in both is the *scoring*, and this is it.
 Kept apart from the scheduling on purpose. The clock is where the two callers
 genuinely differ — a match reads its frozen `config_snapshot` and the host's
 round-window override, a room has neither — so each caller keeps its own timer
-calls and this file never sees a deadline.
+calls. This file checks the supplied deadline when accepting a move, so a
+delayed callback cannot extend either caller's choice window.
 
 Why extract rather than let the room keep its own copy: three of the four duel
 modules score themselves and ride the engine's *tie* path to carry a game
@@ -22,6 +23,7 @@ Nothing here knows about Match, teams, currency, or a player's status.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from backend.models import DuelSession
@@ -33,6 +35,7 @@ def apply_choice(
     duel_id: str,
     round_index: int,
     choice: str,
+    now: datetime | None = None,
 ) -> tuple[bool, str | None]:
     """Record a seat's move for the open round.
 
@@ -55,6 +58,12 @@ def apply_choice(
         return False, "you aren't in this duel"
     if duel.state.locked(side):
         return False, "you already chose this round"
+    # A busy event loop may run the timer callback late. The deadline still
+    # closes the round before any more choices can be accepted.
+    if duel.deadline and datetime.fromisoformat(duel.deadline) <= (
+        now or datetime.now(timezone.utc)
+    ):
+        return False, "the round is closed"
     move = duel.module.normalize_choice(duel.state, choice, side)
     if move is None:
         return False, "not a legal move"

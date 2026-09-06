@@ -10,11 +10,11 @@
       <stop offset="1" stop-color="#8a6a24"/>
     </linearGradient>
     <radialGradient id="pp-aura" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#ffd21c" stop-opacity="0.6"/>
+      <stop offset="0" stop-color="#ffd21c" stop-opacity="0.2"/>
       <stop offset="1" stop-color="#ffd21c" stop-opacity="0"/>
     </radialGradient>
     <filter id="pp-glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feGaussianBlur stdDeviation="1" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
@@ -38,6 +38,10 @@
   <rect x="42" y="34" width="116" height="7" rx="3.5" fill="#e6c87e" opacity="0.6"/>
   <circle cx="42" cy="43" r="9" fill="#8a6a24"/>
   <circle cx="158" cy="43" r="9" fill="#8a6a24"/>
+
+  <!-- Etched margins keep the parchment legible at card size. -->
+  <path d="M63 55v75m74-75v75" stroke="#b29455" stroke-width="1" opacity=".6"/>
+  <path d="M74 137h52" stroke="#b29455" stroke-width="1.5"/>
 
   <!-- sparks lifting off -->
   <g fill="#ffd21c">

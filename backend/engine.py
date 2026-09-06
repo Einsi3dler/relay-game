@@ -2083,7 +2083,7 @@ class RelayEngine:
         if match.status != "active":
             return EngineResult.rejected("match is not active")
         both_locked, error = duelloop.apply_choice(
-            match.duel, player_id, duel_id, round_index, choice
+            match.duel, player_id, duel_id, round_index, choice, now=now
         )
         if error is not None:
             return EngineResult.rejected(error)

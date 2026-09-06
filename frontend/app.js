@@ -23,6 +23,7 @@
   var toastHandle = null;
   var overlayHandle = null;
   var reconnectDelay = 500;
+  var reconnectHandle = null;
   var heartbeatHandle = null;
   // The server evicts a match after MATCH_TTL_SECONDS with no client message.
   // A lobby waiting on the last player, or a team thinking hard, sends nothing
@@ -43,7 +44,8 @@
 
   // --- session persistence (a closed tab restores the match) ---
   //
-  // localStorage, not sessionStorage: a seat is held for the whole match, so
+  // localStorage keeps recovery across browser restarts; sessionStorage pins
+  // each tab to its own player. A seat is held for the whole match, so
   // the identity that reclaims it has to outlive the tab. Closing the browser,
   // a crash, or a phone reaping the tab all used to lose the seat for good.
   // Only a deliberate exit (kicked, cancelled, played again) clears it; see the
@@ -51,12 +53,13 @@
 
   function saveSession() {
     try { localStorage.setItem("relay", JSON.stringify(session)); } catch (e) {}
+    try { sessionStorage.setItem("relay", JSON.stringify(session)); } catch (e) {}
   }
   function loadSession() {
     try {
-      var saved = localStorage.getItem("relay");
-      // One-time carry-over for a tab that was mid-match when this shipped.
-      if (saved === null) saved = sessionStorage.getItem("relay");
+      // This tab's seat wins over the last seat used in another tab.
+      var saved = sessionStorage.getItem("relay");
+      if (saved === null) saved = localStorage.getItem("relay");
       return JSON.parse(saved);
     } catch (e) { return null; }
   }
@@ -66,7 +69,11 @@
     // of the thing — and a God being kicked out of a cancelled lobby must not
     // log the player out of a live match.
     var key = isGod() ? "relay_god" : "relay";
-    try { localStorage.removeItem(key); } catch (e) {}
+    try {
+      var saved = JSON.parse(localStorage.getItem(key));
+      if (saved && session && saved.playerId === session.playerId &&
+          saved.matchId === session.matchId) localStorage.removeItem(key);
+    } catch (e) {}
     try { sessionStorage.removeItem(key); } catch (e) {}
     session = null;
   }
@@ -386,17 +393,37 @@
   // --- websocket lifecycle ---
 
   function connect() {
+    if (!session) return;
+    clearTimeout(reconnectHandle);
+    if (socket) { socket.onclose = null; socket.close(); }
+    unmountDuel(); // discard unacknowledged local choices after a disconnect
     var scheme = window.location.protocol === "https:" ? "wss" : "ws";
     socket = new WebSocket(
       scheme + "://" + window.location.host +
       "/ws/matches/" + session.matchId + "?player_id=" + session.playerId
     );
-    socket.onopen = function () { reconnectDelay = 500; startHeartbeat(); };
-    socket.onmessage = function (message) { handle(JSON.parse(message.data)); };
+    var activeSocket = socket;
+    socket.onopen = function () {
+      if (socket !== activeSocket) return;
+      reconnectDelay = 500; startHeartbeat();
+    };
+    socket.onmessage = function (message) {
+      if (socket === activeSocket) handle(JSON.parse(message.data));
+    };
     socket.onclose = function (event) {
+      if (socket !== activeSocket) return;
       clearInterval(heartbeatHandle);
       if (finished) return;
-      if (event.code === 4001) return; // superseded by another tab — stand down
+      if (event.code === 4001) {
+        if (isGod()) {
+          show("view-join");
+          showJoinError("This observer seat is open in another tab. Refresh to return here.");
+          return;
+        }
+        offerRejoin(session && session.matchId,
+          "This seat is now open in another tab. Rejoin here to take it back.");
+        return;
+      }
       if (isGod()) {
         // A God has no rejoin code and no seat to be kicked from, so none of
         // the recovery flows below mean anything here. Every close but a
@@ -411,7 +438,7 @@
             : "The session ended.");
           return;
         }
-        setTimeout(connect, reconnectDelay);
+        reconnectHandle = setTimeout(connect, reconnectDelay);
         reconnectDelay = Math.min(reconnectDelay * 2, 5000);
         return;
       }
@@ -437,10 +464,10 @@
         // code worth prefilling) and offer the rejoin code as the way back,
         // rather than silently forgetting who they were.
         offerRejoin(session && session.matchId,
-          "That seat could not be resumed. Your rejoin code will get it back.");
+          "That seat could not be resumed. If the match is still running, use your rejoin code. A restarted server cannot restore an old match.");
         return;
       }
-      setTimeout(connect, reconnectDelay);
+      reconnectHandle = setTimeout(connect, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, 5000);
     };
   }
@@ -455,7 +482,15 @@
   function handle(message) {
     if (message.type === "duel_room_state") renderDuelRoom(message.state);
     else if (message.type === "state_snapshot") render(message.state);
-    else if (message.type === "error") toast(message.error);
+    else if (message.type === "error") {
+      toast(message.error);
+      // A rejected move must release the renderer's optimistic lock. Ask for
+      // authoritative state before offering another move.
+      if (mountedDuel) {
+        unmountDuel();
+        send({ type: "request_state" });
+      }
+    }
     else if (message.type === "level_advanced") levelOverlay(message);
     else if (message.type === "perk_used") perkToast(message);
     else if (message.type === "duel_result") duelToast(message);
@@ -1303,8 +1338,17 @@
     var round = $("duel-round");
     if (round) {
       var target = (duel.payload && duel.payload.wins_needed) || 0;
-      round.textContent = "Round " + duel.round +
-        (target ? " \u00b7 first to " + target : "");
+      var payload = duel.payload || {};
+      var gameRound = payload.game_round || duel.round;
+      if (duel.phase !== "choosing" && payload.last) gameRound = payload.last.round;
+      if (payload.auction) {
+        var lot = duel.phase !== "choosing" && payload.last
+          ? payload.last.auction : payload.auction;
+        round.textContent = "Lot " + lot + (payload.overtime ? " · overtime" : " of " + payload.auctions);
+      } else {
+        round.textContent = "Round " + gameRound +
+          (target ? " \u00b7 first to " + target : "");
+      }
     }
     if (cardId === "leader-duel-card") {
       $("leader-duel-title").textContent =
@@ -1346,6 +1390,21 @@
       // is the socket's only credential: paste your own address bar to a
       // friend and they take your chair.
       $("room-link").value = window.location.origin + "/play?duel=" + state.id;
+      var rules = {
+        rps_duel: "Rock beats scissors. Scissors beat paper. Paper beats rock. First to two wins; choose within five seconds each round.",
+        crown_duel: "First to two crowns, or the lead after three rounds. Choose a strategy, then a card. King beats the fighters; Peasant beats King; Guard beats Knight, Knight beats Assassin, Assassin beats Guard. Each fighter beats Peasant.",
+        number_clash: "Play a number from 1 to 9. Higher wins a point; both numbers are spent, even on a tie. First to four points wins. Eight seconds per move.",
+        bid_war: "Bid for five lots with an equal practice purse. Higher bid takes the lot; both bids are spent. Most prize coins wins. Tied lots carry forward."
+      };
+      $("room-title").textContent = gameNames[state.duel_game_id] || "Prepare for your duel";
+      $("room-rules").textContent = rules[state.duel_game_id] || "Both players must be ready before the clock starts.";
+      var ready = !!(state.you && state.ready && state.ready[state.you]);
+      $("room-ready").hidden = !state.you;
+      $("room-ready").disabled = ready;
+      $("room-ready").textContent = ready ? "Ready" : "Ready to duel";
+      $("room-ready").onclick = function () { send({ type: "ready" }); };
+      $("room-ready-note").textContent = !state.you ? "Watching — waiting for both players."
+        : ready ? "Waiting for your opponent to be ready." : "Read the rules, then ready up.";
     }
 
     if (done && state.duel) {
@@ -1356,6 +1415,9 @@
         : "Side " + (state.duel.winner_side || "?").toUpperCase() + " won.";
       outcome.className = "rm-outcome" + (state.you ? (won ? " is-win" : " is-loss") : "");
       var again = $("room-again");
+      var requested = !!(state.you && state.ready && state.ready[state.you]);
+      again.disabled = requested;
+      again.textContent = requested ? "Waiting for opponent…" : "Play again";
       again.onclick = function () { send({ type: "rematch" }); };
     }
 
@@ -1377,21 +1439,38 @@
     } else if (away && done) {
       note.textContent = "The other player has gone. A rematch needs them back.";
     }
+    $("room-card").hidden = !waiting && !done && !tellThem;
 
     renderDuel(state, "duel-card", "duel-mount");
   }
 
   function connectRoom() {
+    if (!room) return;
+    clearTimeout(reconnectHandle);
+    if (socket) { socket.onclose = null; socket.close(); }
+    unmountDuel();
     var scheme = window.location.protocol === "https:" ? "wss" : "ws";
     socket = new WebSocket(
       scheme + "://" + window.location.host +
       "/ws/duels/" + room.roomId + "?seat_id=" + room.seatId
     );
-    socket.onopen = function () { reconnectDelay = 500; startHeartbeat(); };
-    socket.onmessage = function (message) { handle(JSON.parse(message.data)); };
+    var activeSocket = socket;
+    socket.onopen = function () {
+      if (socket !== activeSocket) return;
+      reconnectDelay = 500; startHeartbeat();
+    };
+    socket.onmessage = function (message) {
+      if (socket === activeSocket) handle(JSON.parse(message.data));
+    };
     socket.onclose = function (event) {
+      if (socket !== activeSocket) return;
       clearInterval(heartbeatHandle);
-      if (event.code === 4001) return;  // another tab took this seat
+      if (event.code === 4001) {
+        unmountDuel();
+        show("view-join");
+        showJoinError("This duel seat is open in another tab. Refresh this page to return here.");
+        return;
+      }
       if (event.code === 4404) {
         // Rooms age out once nobody is looking at them, so a stale link lands
         // here. There is no rejoin code to offer: a room is not a seat you own.
@@ -1400,7 +1479,7 @@
         showJoinError("That duel room is gone. Start another from Explore.");
         return;
       }
-      setTimeout(connectRoom, reconnectDelay);
+      reconnectHandle = setTimeout(connectRoom, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, 5000);
     };
   }
@@ -1411,13 +1490,10 @@
     if (seatId) {
       // The creator's own link carries their seat. Keep it, so a refresh does
       // not turn them into a watcher of their own duel.
-      saveRoomSeat(roomId, seatId);
       room = { roomId: roomId, seatId: seatId };
       connectRoom();
       return;
     }
-    var held = loadRoomSeat(roomId);
-    if (held) { room = { roomId: roomId, seatId: held }; connectRoom(); return; }
     // A bare link: take the free seat, or be told there is none and watch.
     fetch("/api/duels/" + encodeURIComponent(roomId) + "/join", { method: "POST" })
       .then(function (response) {
@@ -1425,23 +1501,19 @@
         return response.json();
       })
       .then(function (body) {
-        if (body.seat_id) saveRoomSeat(roomId, body.seat_id);
         room = { roomId: roomId, seatId: body.seat_id || "" };
+        // Pin each player's credential to their own page. A bare invite must
+        // never borrow another tab's seat from shared browser storage.
+        if (body.seat_id) {
+          window.history.replaceState(null, "", "/play?duel=" +
+            encodeURIComponent(roomId) + "&seat=" + encodeURIComponent(body.seat_id));
+        }
         connectRoom();
       })
       .catch(function (error) {
         show("view-join");
         showJoinError(error.message);
       });
-  }
-
-  // Per room, and never the player's own key: somebody can be mid-match in one
-  // tab and mid-duel in another.
-  function saveRoomSeat(roomId, seatId) {
-    try { localStorage.setItem("relay_duel_" + roomId, seatId); } catch (e) {}
-  }
-  function loadRoomSeat(roomId) {
-    try { return localStorage.getItem("relay_duel_" + roomId); } catch (e) { return null; }
   }
 
   function unmountDuel() {
@@ -3096,7 +3168,8 @@
     if (saved && saved.matchId && saved.playerId &&
         (!invited || invited === saved.matchId)) {
       session = saved;
-      connect(); // snapshot on connect restores the right view
+      try { sessionStorage.setItem("relay", JSON.stringify(session)); } catch (e) {}
+      configLoaded.then(connect); // render only after the catalogue is available
     } else if (!saved && !invited && savedGod && savedGod.matchId) {
       // A bare /play with no player seat, but a God seat remembered. The God
       // link keeps its query string, so this only matters when someone has

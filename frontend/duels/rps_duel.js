@@ -136,6 +136,8 @@
       var card = el("button", "dl-card dl-card--" + move);
       card.type = "button";
       card.disabled = !open || alreadyChose;
+      var picked = mine && duel.choices && duel.choices[mine];
+      if (picked) card.classList.add(picked === move ? "is-chosen" : "is-spent");
 
       var art = document.createElement("img");
       art.src = ART + move + ".svg";
@@ -201,7 +203,7 @@
 
     [[dom.you, here], [dom.them, there]].forEach(function (pair) {
       var box = pair[0], side = pair[1];
-      var who = names[side] || (side === here && mine ? "You" : "Opponent");
+      var who = names[side] || (mine ? (side === here ? "You" : "Opponent") : side.toUpperCase());
       box.name.textContent = who;
       box.mark.textContent = initials(who);
       box.hand.innerHTML = "";

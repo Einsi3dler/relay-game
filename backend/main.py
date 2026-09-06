@@ -744,7 +744,7 @@ def _too_fast(match_id: str, player_id: str) -> bool:
 
 @app.websocket("/ws/duels/{room_id}")
 async def duel_room_endpoint(socket: WebSocket, room_id: str, seat_id: str = ""):
-    """A link duel. Four message types, two seats, and anyone else watching.
+    """A link duel. Readiness, moves, rematches, and anyone else watching.
 
     Its own endpoint rather than a branch on the match one: that endpoint opens
     by looking up a match, carries a God branch, a submit rate limiter and
@@ -764,19 +764,20 @@ async def duel_room_endpoint(socket: WebSocket, room_id: str, seat_id: str = "")
     viewer_id = seat_id or f"w_{secrets.token_hex(6)}"
 
     old = room_manager.get(room_id, viewer_id)
+    # Publish the replacement before closing: the old handler's finally block
+    # must not mark this seat disconnected or withdraw its readiness.
+    room_manager.register(room_id, viewer_id, socket)
     if old is not None:
         with contextlib.suppress(Exception):
             await old.close(code=protocol.CLOSE_SUPERSEDED)
-    room_manager.register(room_id, viewer_id, socket)
 
     try:
         async with room_locks.for_match(room_id):
             touch_room(room_id)
             if is_seat:
                 duelroom.on_connect(room, viewer_id)
-                # The duel opens the moment both seats have a live socket, not
-                # when the second person claimed one: a five-second round would
-                # be half gone before their socket finished opening.
+                # Connecting shows the room. The first round opens only when
+                # both players are connected and have explicitly readied up.
                 module = engine.registry.duel_by_id(room.duel_game_id)
                 result = duelroom.open_duel(room, module)
                 if result.changed:
@@ -809,10 +810,15 @@ async def duel_room_endpoint(socket: WebSocket, room_id: str, seat_id: str = "")
                         )
                         continue
                     await room_apply_and_broadcast(room, result)
-            elif msg_type == protocol.REMATCH:
+            elif msg_type in (protocol.READY, protocol.REMATCH):
                 async with room_locks.for_match(room_id):
                     touch_room(room_id)
-                    result = duelroom.rematch(room, viewer_id)
+                    if msg_type == protocol.READY:
+                        result = duelroom.mark_ready(
+                            room, viewer_id, engine.registry.duel_by_id(room.duel_game_id)
+                        )
+                    else:
+                        result = duelroom.rematch(room, viewer_id)
                     if not result.ok:
                         await room_manager.send(
                             socket, protocol.error_message(result.error or "Rejected.")
@@ -854,10 +860,12 @@ async def websocket_endpoint(socket: WebSocket, match_id: str, player_id: str = 
 
     # One socket per player: the new connection supersedes the old.
     old = manager.get(match_id, player_id)
+    # The old handler may finish during close(); its cleanup must see the
+    # replacement and leave the player's connection state alone.
+    manager.register(match_id, player_id, socket)
     if old is not None:
         with contextlib.suppress(Exception):
             await old.close(code=protocol.CLOSE_SUPERSEDED)
-    manager.register(match_id, player_id, socket)
 
     async with locks.for_match(match_id):
         touch(match_id)

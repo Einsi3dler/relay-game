@@ -438,7 +438,10 @@
     return "Choose your card.";
   }
 
-  function roundLine(payload) {
+  function roundLine(payload, duel) {
+    if (duel.phase !== "choosing" && payload.last) {
+      return "Round " + payload.last.round + " · " + (duel.phase === "done" ? "final result" : "result");
+    }
     if (payload.sudden_death) return "SUDDEN DEATH — the first Crown takes it";
     return "Round " + payload.game_round + " of " + payload.normal_rounds +
       (payload.phase === "strategy" ? " · strategy" : " · cards");
@@ -494,7 +497,7 @@
 
     dom.root.className = "cd cd--" + duel.phase +
       (payload.phase ? " cd--" + payload.phase : "");
-    dom.round.textContent = roundLine(payload);
+    dom.round.textContent = roundLine(payload, duel);
     dom.status.textContent = statusLine(duel);
     renderRules(payload);
     renderStage(duel);
@@ -504,7 +507,7 @@
   window.RelayDuels.crown_duel = {
     mount: function (container, duel, api) {
       state = {
-        container: container, api: api, dom: build(container),
+        container: container, api: api, dom: build(container), round: duel.round,
         sacrifice: null, sending: false, stageSignature: null, pick: null,
       };
       render(duel);

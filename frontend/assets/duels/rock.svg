@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
   <defs>
     <radialGradient id="rk-heat" cx="0.5" cy="0.62" r="0.55">
-      <stop offset="0" stop-color="#ff7a18" stop-opacity="0.85"/>
+      <stop offset="0" stop-color="#ff7a18" stop-opacity="0.3"/>
       <stop offset="1" stop-color="#ff7a18" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="rk-stone" x1="0" y1="0" x2="0.4" y2="1">
@@ -14,7 +14,7 @@
       <stop offset="1" stop-color="#474a60"/>
     </linearGradient>
     <filter id="rk-glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feGaussianBlur stdDeviation="1.6" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>

@@ -531,6 +531,7 @@ body.duel-room .pl-rail { display: none; }
 body.duel-room .pl-deck { grid-template-columns: minmax(0, 1fr); }
 
 body.duel-room .pl-stage {
+  width: 100%;
   max-width: 780px;
   margin: 0 auto;
 }

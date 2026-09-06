@@ -457,13 +457,15 @@
              anyway. Borrowing is the honest version of what would happen. -->
         <div id="room-card" hidden>
           <div id="room-waiting" hidden>
-            <h2 class="rm-title">Waiting for your opponent</h2>
-            <p class="rm-blurb">Send them this link. The duel starts the moment
-              they open it.</p>
+            <h2 class="rm-title" id="room-title">Prepare for your duel</h2>
+            <p class="rm-blurb" id="room-rules"></p>
+            <p class="rm-blurb">Share this link. The clock starts when you both press Ready.</p>
             <div class="rm-share">
               <input id="room-link" class="rm-link" readonly aria-label="Invite link">
               <button id="room-copy" class="btn" type="button">Copy</button>
             </div>
+            <button id="room-ready" class="btn" type="button">Ready to duel</button>
+            <p id="room-ready-note" class="rm-blurb" role="status"></p>
           </div>
           <div id="room-result" hidden>
             <div id="room-outcome" class="rm-outcome"></div>
@@ -472,8 +474,7 @@
           <p id="room-note" class="rm-note" hidden></p>
         </div>
 
-        <!-- Left on the old look on purpose: the Duelist screen has its own
-             design coming. See the note in docs/CONTRIBUTING.md. -->
+        <!-- Shared duel surface for matches and link rooms. -->
         <div id="duel-card" hidden>
           <header class="dl-bar">
             <span class="dl-bar__game">

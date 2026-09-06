@@ -14,7 +14,7 @@
       <stop offset="1" stop-color="#3b82ff" stop-opacity="0"/>
     </radialGradient>
     <filter id="sc-glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feGaussianBlur stdDeviation="1.5" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
@@ -32,6 +32,9 @@
     <path d="M62 24 l-14 10 L114 128" stroke="#b98cff" stroke-width="2.5" fill="none"
           stroke-linejoin="round"/>
   </g>
+
+  <!-- Handles connect to the pivot instead of floating below the blades. -->
+  <path d="M91 123l-12 18m30-18 12 18" stroke="url(#sc-steel)" stroke-width="10" stroke-linecap="round"/>
 
   <!-- the pivot -->
   <circle cx="100" cy="122" r="12" fill="#7d8db0"/>

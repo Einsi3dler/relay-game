@@ -13,14 +13,16 @@ A room is the small version.
 ## Getting in
 
 Go to `/explore`, pick one of the four duels above the solo tabs, and you land
-on `/play?duel=<room>&seat=<seat>` with a link to send someone. The duel starts
-the moment they open it.
+on `/play?duel=<room>&seat=<seat>` with a link to send someone. Both players see the rules and press **Ready to duel** before the first
+round clock starts.
 
 **The link you share carries the room and not your seat.** A seat id is the
 socket's only credential, so pasting your own address bar to a friend would hand
 them your chair. The box on the waiting screen holds the shareable form; copy
 that one. Your own URL keeps your seat, which is how a refresh puts you back in
-your own chair rather than making you a spectator of your own duel.
+your own chair rather than making you a spectator of your own duel. The joining
+player also gets a seat URL. A bare invite always joins the free seat or watches;
+it never takes another tab's seat from shared browser storage.
 
 Anyone opening the link after both seats are taken watches instead. A watcher
 sees the room and the result but neither hand until the reveal, which is the
@@ -49,7 +51,9 @@ shown a string a stranger typed.
 mid-round, the clock keeps running and their missing choice loses that round.
 Pausing would let whoever is losing freeze the duel by pulling the plug. The
 person still there is told what happened. A rematch is the one exception: it
-needs both people present, because it opens a round rather than continuing one.
+needs both people present **and both to press Play again**. One player's request
+leaves the result visible until the other agrees. Disconnecting withdraws that
+player's readiness.
 
 **A link is good for thirty minutes of silence.** A room with nobody looking at
 it is swept `DUEL_ROOM_TTL_SECONDS` after its last activity and its link stops
@@ -85,3 +89,7 @@ view's node anyway.
 
 Related: [DUEL_MODULE_SPEC.md](DUEL_MODULE_SPEC.md) §10 ·
 [WEBSOCKET_PROTOCOL.md](WEBSOCKET_PROTOCOL.md) · [GOD_MODE.md](GOD_MODE.md)
+
+Room sockets accept `ready`, `rematch`, `duel_choice`, `request_state`, and
+`heartbeat`. Snapshots include `ready: {"a": bool, "b": bool}`. Readiness is
+cleared when a duel starts. Match sockets do not accept `ready` or `rematch`.
