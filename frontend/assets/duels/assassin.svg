@@ -1,45 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" fill="none">
+  <title>Assassin</title>
   <defs>
-    <radialGradient id="assassin-aura" cx="0.5" cy="0.38" r="0.62">
-      <stop offset="0" stop-color="#a970ff" stop-opacity="0.62"/>
-      <stop offset="1" stop-color="#a970ff" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="assassin-cloth" x1="0" y1="0" x2="0.7" y2="1">
-      <stop offset="0" stop-color="#2a1440"/>
-      <stop offset="1" stop-color="#0d1024"/>
-    </linearGradient>
-    <linearGradient id="assassin-rim" x1="0" y1="0" x2="1" y2="0.4">
-      <stop offset="0" stop-color="#a970ff"/>
-      <stop offset="0.55" stop-color="#a970ff" stop-opacity="0"/>
-    </linearGradient>
-    <filter id="assassin-glow" x="-45%" y="-45%" width="190%" height="190%">
-      <feGaussianBlur stdDeviation="3.5" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
+    <linearGradient id="metal" x1="35" y1="40" x2="120" y2="155" gradientUnits="userSpaceOnUse"><stop stop-color="#bda7ed"/><stop offset="1" stop-color="#73599a"/></linearGradient>
+    <linearGradient id="skin" x1="55" y1="65" x2="100" y2="125" gradientUnits="userSpaceOnUse"><stop stop-color="#d9b297"/><stop offset="1" stop-color="#ad7e66"/></linearGradient>
   </defs>
-  <ellipse cx="80" cy="80" rx="74" ry="76" fill="url(#assassin-aura)"/>
-  <!-- shoulders -->
-  <path d="M18 200 q6 -52 62 -60 q56 8 62 60 z" fill="url(#assassin-cloth)"/>
-  <path d="M18 200 q6 -52 62 -60" stroke="url(#assassin-rim)" stroke-width="3" fill="none"/>
-  <!-- head -->
-  <path d="M80 46 q24 0 24 30 q0 30 -24 42 q-24 -12 -24 -42 q0 -30 24 -30 z"
-        fill="#1a1f3a"/>
-  <path d="M80 46 q-24 0 -24 30 q0 30 24 42" stroke="url(#assassin-rim)"
-        stroke-width="2.5" fill="none"/>
-  <!-- eyes: the one lit thing on every face, so a bust reads as a fighter -->
-  <g filter="url(#assassin-glow)" fill="#a970ff">
-    <ellipse cx="71" cy="78" rx="4.5" ry="3"/>
-    <ellipse cx="89" cy="78" rx="4.5" ry="3"/>
-  </g>
-  
-  <path d="M46 74 q6 -48 34 -52 q28 4 34 52 q-12 -14 -34 -14 q-22 0 -34 14 z"
-        fill="#231a3d"/>
-  <path d="M46 74 q6 -48 34 -52" stroke="#c9a3f5" stroke-width="3" fill="none"/>
-  <path d="M50 78 q30 22 60 0 q-8 44 -30 56 q-22 -12 -30 -56 z" fill="#141026"/>
-  <g filter="url(#assassin-glow)">
-    <path d="M124 176 L150 118 l6 4 l-24 60 z" fill="#d9c2ff"/>
-    <path d="M150 118 l6 4" stroke="#a970ff" stroke-width="3"/>
-  </g>
-  <rect x="118" y="172" width="18" height="7" rx="3" fill="#5b3f8a"
-        transform="rotate(-24 127 175)"/>
+  <path d="M21 187V78a59 59 0 01118 0v109" stroke="#bda7ed" stroke-opacity=".22" stroke-width="1.5"/>
+  <path d="M29 126V78a51 51 0 01102 0v48" stroke="#bda7ed" stroke-opacity=".12"/>
+  <ellipse cx="80" cy="190" rx="57" ry="5" fill="#080c19" opacity=".5"/>
+
+  <path d="M27 189l9-42 24-19h40l24 19 9 42" fill="#352947" stroke="#bda7ed" stroke-width="2"/>
+  <path d="M45 146l35 23 35-23-14 43H59z" fill="#1e2031"/>
+  <path d="M54 138l40 51m12-51-40 51" stroke="#6a587d" stroke-width="6"/>
+  <path d="M43 94q-4-45 37-68 41 23 37 68l-18 38H61z" fill="url(#metal)" stroke="#d5c7f5" stroke-width="2"/>
+  <path d="M80 41L56 82l5 35 19 17 19-17 5-35z" fill="#171927"/>
+  <path d="M62 85l12 3m12 0 12-3" stroke="#d5c7f5" stroke-width="3"/>
+  <path d="M58 99l22 7 22-7-7 20-15 14-15-14z" fill="#564465"/>
+  <path d="M62 105l34 9m-31 0 23 9" stroke="#806b91" stroke-width="2"/>
+  <path d="M119 171l16-45-1 35-9 16z" fill="#d2d7ec" stroke="#bda7ed" stroke-width="2"/>
+  <path d="M115 171l16 6m-10-4-5 14" stroke="#bda7ed" stroke-width="4"/>
 </svg>

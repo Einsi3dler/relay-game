@@ -130,7 +130,7 @@ report.log = textsOf(root, "duel-log-winner");
     assert report["revealHands"] == ["7", "4"], "both bids are public now"
     assert report["scores"] == ["3 won", "0 won"]
     assert report["purses"] == ["13 coins", "16 coins"]
-    assert report["status"] == ["💰 Sold to you: +3 coins for your team."]
+    assert report["status"] == ["💰 Sold to you: +3 coins won."]
     assert report["log"] == ["+3 to you"]
 
 
@@ -154,8 +154,8 @@ report.prizes = textsOf(root, "duel-prize-value");
     assert report["status"] == [
         "🤝 Tied bid. Nobody is paid and 2 coins roll into the next lot."
     ]
-    # The rolled-up value is on the block, and one lot is still shown behind it.
-    assert report["prizes"] == ["7 coins", "9 coins"]
+    # The reveal keeps the tied lot on the block, with the rolled-up lot next.
+    assert report["prizes"] == ["2 coins", "7 coins"]
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
@@ -202,3 +202,18 @@ report.doubleUnmountOk = true;
     assert "Lot 1 under the hammer" in report["leaderText"]
     assert report["afterUnmount"] == 0
     assert report["doubleUnmountOk"] is True
+
+
+@pytest.mark.skipif(shutil.which('node') is None, reason='node not installed')
+def test_reveal_labels_the_lot_just_sold_even_when_the_next_lot_is_prepared():
+    report = run('bid_war', SNAPSHOT + r'''
+const root = element('div');
+renderer.mount(root, duel({phase: 'reveal', payload: {
+  auction: 2, prize: 19, next_prize: 11,
+  last: {auction: 1, prize: 7, winner: 'a'}
+}}), api);
+report.prizes = textsOf(root, 'duel-prize-value');
+report.round = textsOf(root, 'duel-round');
+''')
+    assert report['prizes'] == ['7 coins', '19 coins']
+    assert report['round'] == ['Lot 1 · result']

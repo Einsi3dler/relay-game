@@ -197,15 +197,18 @@
       }
       if (!duel.you) return "Lot " + last.auction + " sold.";
       return last.winner === duel.you
-        ? "💰 Sold to you: +" + last.prize + " coins for your team."
-        : "❌ Sold to them: +" + last.prize + " coins to theirs.";
+        ? "💰 Sold to you: +" + last.prize + " coins won."
+        : "❌ Sold to them: +" + last.prize + " coins won.";
     }
     if (!duel.you) return "Lot " + payload.auction + " under the hammer.";
     if (state.locked) return "Bid locked — waiting…";
     return "Place your bid.";
   }
 
-  function roundLine(payload) {
+  function roundLine(payload, duel) {
+    if (duel.phase !== "choosing" && payload.last) {
+      return "Lot " + payload.last.auction + " · " + (duel.phase === "done" ? "final result" : "result");
+    }
     if (payload.overtime) return "OVERTIME: a fresh, equal purse decides it";
     return "Lot " + payload.auction + " of " + payload.auctions;
   }
@@ -242,15 +245,16 @@
         (payload.overtime ? " overtime coins" : " coins");
     });
 
-    dom.prizeValue.textContent = (payload.prize || 0) + " coins";
+    var showingResult = duel.phase !== "choosing" && payload.last;
+    dom.prizeValue.textContent = (showingResult ? payload.last.prize : (payload.prize || 0)) + " coins";
     // One lot ahead, and only one. Hidden on the last lot and in overtime,
     // where the server sends null because there is nothing behind this one.
-    dom.next.hidden = payload.next_prize === null ||
-      payload.next_prize === undefined;
-    dom.nextValue.textContent = (payload.next_prize || 0) + " coins";
+    var nextPrize = showingResult ? (duel.phase === "done" ? null : payload.prize) : payload.next_prize;
+    dom.next.hidden = nextPrize === null || nextPrize === undefined;
+    dom.nextValue.textContent = (nextPrize || 0) + " coins";
 
     dom.root.className = "duel duel-bid duel-" + duel.phase;
-    dom.round.textContent = roundLine(payload);
+    dom.round.textContent = roundLine(payload, duel);
     dom.status.textContent = statusLine(duel);
     renderStage(duel);
     renderLog(payload);
@@ -260,7 +264,7 @@
   window.RelayDuels.bid_war = {
     mount: function (container, duel, api) {
       state = {
-        container: container, api: api, dom: build(container),
+        container: container, api: api, dom: build(container), round: duel.round,
         bid: 0, sending: false, stageSignature: null, logSignature: null,
       };
       render(duel);

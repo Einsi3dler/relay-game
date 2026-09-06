@@ -163,4 +163,18 @@ def test_the_loop_knows_nothing_about_matches():
     assert imported <= {
         "__future__", "__future__.annotations", "typing", "typing.Any",
         "backend.models", "backend.models.DuelSession",
+        "datetime", "datetime.datetime", "datetime.timezone",
     }, imported
+
+
+@pytest.mark.parametrize('offset, accepted', [(-0.001, True), (0, False), (0.001, False)])
+def test_deadline_closes_choices_even_before_the_timer_callback(offset, accepted):
+    from datetime import datetime, timedelta, timezone
+    deadline = datetime(2026, 9, 6, tzinfo=timezone.utc)
+    duel = a_duel()
+    duel.deadline = deadline.isoformat()
+    _, error = duelloop.apply_choice(
+        duel, 's_alice', 'd1', 1, 'rock', now=deadline + timedelta(seconds=offset)
+    )
+    assert (error is None) is accepted
+    assert ('a' in duel.state.choices) is accepted

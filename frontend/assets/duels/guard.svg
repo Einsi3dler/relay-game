@@ -1,44 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" fill="none">
+  <title>Guard</title>
   <defs>
-    <radialGradient id="guard-aura" cx="0.5" cy="0.38" r="0.62">
-      <stop offset="0" stop-color="#42db83" stop-opacity="0.62"/>
-      <stop offset="1" stop-color="#42db83" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="guard-cloth" x1="0" y1="0" x2="0.7" y2="1">
-      <stop offset="0" stop-color="#0f2e1f"/>
-      <stop offset="1" stop-color="#0d1024"/>
-    </linearGradient>
-    <linearGradient id="guard-rim" x1="0" y1="0" x2="1" y2="0.4">
-      <stop offset="0" stop-color="#42db83"/>
-      <stop offset="0.55" stop-color="#42db83" stop-opacity="0"/>
-    </linearGradient>
-    <filter id="guard-glow" x="-45%" y="-45%" width="190%" height="190%">
-      <feGaussianBlur stdDeviation="3.5" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
+    <linearGradient id="metal" x1="35" y1="40" x2="120" y2="155" gradientUnits="userSpaceOnUse"><stop stop-color="#86d4b0"/><stop offset="1" stop-color="#3b866e"/></linearGradient>
+    <linearGradient id="skin" x1="55" y1="65" x2="100" y2="125" gradientUnits="userSpaceOnUse"><stop stop-color="#d9b297"/><stop offset="1" stop-color="#ad7e66"/></linearGradient>
   </defs>
-  <ellipse cx="80" cy="80" rx="74" ry="76" fill="url(#guard-aura)"/>
-  <!-- shoulders -->
-  <path d="M18 200 q6 -52 62 -60 q56 8 62 60 z" fill="url(#guard-cloth)"/>
-  <path d="M18 200 q6 -52 62 -60" stroke="url(#guard-rim)" stroke-width="3" fill="none"/>
-  <!-- head -->
-  <path d="M80 46 q24 0 24 30 q0 30 -24 42 q-24 -12 -24 -42 q0 -30 24 -30 z"
-        fill="#1a1f3a"/>
-  <path d="M80 46 q-24 0 -24 30 q0 30 24 42" stroke="url(#guard-rim)"
-        stroke-width="2.5" fill="none"/>
-  <!-- eyes: the one lit thing on every face, so a bust reads as a fighter -->
-  <g filter="url(#guard-glow)" fill="#42db83">
-    <ellipse cx="71" cy="78" rx="4.5" ry="3"/>
-    <ellipse cx="89" cy="78" rx="4.5" ry="3"/>
-  </g>
-  
-  <g filter="url(#guard-glow)">
-    <path d="M104 118 h34 v42 q0 26 -17 34 q-17 -8 -17 -34 z" fill="#123d2a"
-          stroke="#42db83" stroke-width="3"/>
-    <path d="M121 130 v42 M110 148 h22" stroke="#42db83" stroke-width="3"/>
-  </g>
-  <path d="M30 196 L54 40" stroke="#7de8ab" stroke-width="5" stroke-linecap="round"/>
-  <path d="M54 40 l-9 14 l18 0 z" fill="#42db83"/>
-  <path d="M58 54 q22 -10 44 0" stroke="#42db83" stroke-width="3" fill="none"
-        opacity="0.7"/>
+  <path d="M21 187V78a59 59 0 01118 0v109" stroke="#86d4b0" stroke-opacity=".22" stroke-width="1.5"/>
+  <path d="M29 126V78a51 51 0 01102 0v48" stroke="#86d4b0" stroke-opacity=".12"/>
+  <ellipse cx="80" cy="190" rx="57" ry="5" fill="#080c19" opacity=".5"/>
+
+  <path d="M31 189l7-45 29-18h25l26 17 9 46" fill="#254f47" stroke="#86d4b0" stroke-width="2"/>
+  <path d="M57 132l22 14 22-14-8 57H63z" fill="url(#metal)"/>
+  <path d="M55 65q1-27 25-28 24 1 25 28v44l-25 24-25-24z" fill="url(#metal)" stroke="#c3eddb" stroke-width="2"/>
+  <path d="M56 76h48v17H56z" fill="#172e2e"/>
+  <path d="M62 83h12m12 0h12" stroke="#c3eddb" stroke-width="3"/>
+  <path d="M80 39v75m-11-8v13m22-13v13" stroke="#3b866e" stroke-width="4"/>
+  <path d="M26 48v138" stroke="#9e845c" stroke-width="5"/>
+  <path d="M26 23l-9 25 9-5 9 5z" fill="url(#metal)" stroke="#c3eddb" stroke-width="2"/>
+  <path d="M91 126l42-3v36q-3 19-23 29-20-13-23-28z" fill="#192f34" stroke="#86d4b0" stroke-width="3"/>
+  <path d="M96 133l29-2v27q-2 13-15 21-12-9-15-22z" fill="#315e53" stroke="#5f9f89"/>
+  <path d="M110 139v29m-10-19h20" stroke="#c3eddb" stroke-width="4"/>
 </svg>

@@ -84,12 +84,15 @@
       var node = el("button", "duel-number" + (spent ? " spent" : ""));
       node.type = "button";
       node.textContent = String(number);
+      var picked = (duel.choices && duel.choices[duel.you]) || state.pendingChoice;
+      if (picked === String(number)) node.classList.add("chosen");
       node.disabled = spent || state.locked || !state.open;
       node.addEventListener("click", function () {
         if (node.disabled) return;
         node.disabled = true;                    // never a second press
         node.classList.add("chosen");
         state.sending = true;
+        state.pendingChoice = String(number);
         state.api.choose(String(number), duel.id, duel.round);
         render(state.duel);
       });
@@ -137,7 +140,10 @@
     return "Pick a number. Spending big to win small is how duels are lost.";
   }
 
-  function roundLine(payload) {
+  function roundLine(payload, duel) {
+    if (duel.phase !== "choosing" && payload.last) {
+      return "Round " + payload.last.round + " · " + (duel.phase === "done" ? "final result" : "result");
+    }
     if (payload.sudden_death) return "SUDDEN DEATH — still first to " +
       payload.points_needed;
     return "Round " + payload.game_round + " of " + payload.normal_rounds +
@@ -173,7 +179,7 @@
     });
 
     dom.root.className = "duel duel-clash duel-" + duel.phase;
-    dom.round.textContent = roundLine(payload);
+    dom.round.textContent = roundLine(payload, duel);
     dom.status.textContent = statusLine(duel);
     renderGrid(duel);
     renderLog(payload);
@@ -183,7 +189,7 @@
   window.RelayDuels.number_clash = {
     mount: function (container, duel, api) {
       state = {
-        container: container, api: api, dom: build(container),
+        container: container, api: api, dom: build(container), round: duel.round,
         sending: false, gridSignature: null, logSignature: null,
       };
       render(duel);
@@ -193,6 +199,7 @@
       if (state.round !== duel.round) {
         state.round = duel.round;
         state.sending = false;
+        state.pendingChoice = null;
       }
       render(duel);
     },

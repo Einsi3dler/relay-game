@@ -167,3 +167,10 @@ vendored. Nothing is stored on the player model, nothing is derived from the
 player's name, and the roster renders identically offline.
 
 See `avatarSvg` in `frontend/app.js`.
+
+## Duel card refresh
+
+The five Crown Duel portraits in `duels/` are original, hand-authored SVG
+illustrations: distinct crowns, armour, hoods, shields, and farm tools. The RPS
+art retains its original geometry with reduced glow and connected scissor
+handles. No external images, fonts, or generated bitmap assets were used.

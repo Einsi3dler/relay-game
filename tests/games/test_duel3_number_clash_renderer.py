@@ -127,3 +127,17 @@ report.doubleUnmountOk = true;
     assert report["suddenDeath"] == ["SUDDEN DEATH — still first to 4"]
     assert report["afterUnmount"] == 0
     assert report["doubleUnmountOk"] is True
+
+
+@pytest.mark.skipif(shutil.which('node') is None, reason='node not installed')
+def test_an_unrelated_snapshot_cannot_unlock_an_unacknowledged_first_move():
+    report = run('number_clash', SNAPSHOT + r'''
+const root = element('div');
+renderer.mount(root, duel(), api);
+labelled(root, '7').click();
+renderer.update(duel({locked: {a: false, b: true}}));
+report.locked = buttons(root).every((b) => b.disabled);
+report.sent = sent.slice();
+''')
+    assert report['locked'] is True
+    assert report['sent'] == [['7', 'd1', 1]]

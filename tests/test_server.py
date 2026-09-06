@@ -993,7 +993,7 @@ def test_an_unknown_duel_or_room_is_a_404(client):
     assert client.post("/api/duels/deadbeef/join").status_code == 404
 
 
-def test_the_duel_starts_when_the_second_socket_opens(client):
+def test_the_duel_waits_for_both_players_to_be_ready(client):
     """Not when the seat was claimed: a five-second round would be half gone
     before the second person's socket finished opening."""
     room_id, seat_a, seat_b = a_room(client)
@@ -1002,6 +1002,10 @@ def test_the_duel_starts_when_the_second_socket_opens(client):
         assert alone["status"] == "waiting" and alone["duel"] is None
         assert alone["you"] == "a"
         with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_b}") as wb:
+            assert room_state(wb)["status"] == "waiting"
+            wa.send_json({"type": "ready"})
+            assert room_state(wa, lambda s: s["ready"]["a"])["duel"] is None
+            wb.send_json({"type": "ready"})
             live = room_state(wb, lambda s: s["duel"] is not None)
             assert live["status"] == "duelling"
             assert live["you"] == "b"
@@ -1018,13 +1022,17 @@ def test_two_people_actually_duel_over_the_socket(client):
     with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_a}") as wa:
         room_state(wa)
         with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_b}") as wb:
+            assert room_state(wb)["status"] == "waiting"
+            wa.send_json({"type": "ready"})
+            assert room_state(wa, lambda s: s["ready"]["a"])["duel"] is None
+            wb.send_json({"type": "ready"})
             live = room_state(wb, lambda s: s["duel"] is not None)
             duel = live["duel"]
 
             # Before their opponent answers, a seat sees only its own hand.
             wa.send_json({"type": "duel_choice", "duel_id": duel["id"],
                           "round": duel["round"], "choice": "rock"})
-            mine = room_state(wa, lambda s: s["duel"]["locked"]["a"])
+            mine = room_state(wa, lambda s: s["duel"] and s["duel"]["locked"]["a"])
             assert mine["duel"]["choices"] == {"a": "rock"}
             assert mine["duel"]["locked"] == {"a": True, "b": False}
 
@@ -1043,6 +1051,10 @@ def test_a_rematch_is_refused_while_the_duel_is_running(client):
     with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_a}") as wa:
         room_state(wa)
         with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_b}") as wb:
+            assert room_state(wb)["status"] == "waiting"
+            wa.send_json({"type": "ready"})
+            assert room_state(wa, lambda s: s["ready"]["a"])["duel"] is None
+            wb.send_json({"type": "ready"})
             room_state(wb, lambda s: s["duel"] is not None)
             wa.send_json({"type": "rematch"})
             assert "still running" in _room_error(wa)
@@ -1061,6 +1073,10 @@ def test_a_watcher_is_served_but_never_served_a_move(client):
     with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_a}") as wa:
         room_state(wa)
         with client.websocket_connect(f"/ws/duels/{room_id}?seat_id={seat_b}") as wb:
+            assert room_state(wb)["status"] == "waiting"
+            wa.send_json({"type": "ready"})
+            assert room_state(wa, lambda s: s["ready"]["a"])["duel"] is None
+            wb.send_json({"type": "ready"})
             room_state(wb, lambda s: s["duel"] is not None)
             with client.websocket_connect(f"/ws/duels/{room_id}") as watcher:
                 seen = room_state(watcher)

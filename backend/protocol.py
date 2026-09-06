@@ -72,7 +72,8 @@ GOD_MESSAGE_TYPES = (LOBBY_ACTION, REQUEST_STATE, HEARTBEAT)
 # adding it to the match's vocabulary would make `rematch` a legal message on a
 # match socket that quietly returned a snapshot.
 REMATCH = "rematch"
-ROOM_MESSAGE_TYPES = (DUEL_CHOICE, REMATCH, REQUEST_STATE, HEARTBEAT)
+READY = "ready"
+ROOM_MESSAGE_TYPES = (DUEL_CHOICE, READY, REMATCH, REQUEST_STATE, HEARTBEAT)
 
 # Server → client
 STATE_SNAPSHOT = "state_snapshot"
@@ -133,7 +134,7 @@ def parse_room_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
     """Validate a message on a duel-room socket.
 
     Its own parser rather than a flag on `parse_client_message`: a room accepts
-    four message types and a match accepts eleven, and the cheapest way to keep
+    five message types and a match accepts eleven, and the cheapest way to keep
     the match's set closed is for the room never to touch it.
     """
     if not isinstance(raw, dict):

@@ -98,6 +98,7 @@ class DuelRoom:
     seats: dict[str, Player] = field(default_factory=dict)
     duel: DuelSession | None = None  # None until both seats are here
     duels_played: int = 0  # finished duels; a rematch is the next one
+    ready: set[str] = field(default_factory=set)  # sides ready for the next duel
     created_at: str = field(default_factory=utc_now)
 
     # --- who is who ------------------------------------------------------
@@ -122,9 +123,8 @@ class DuelRoom:
         return len(self.seats) >= len(SIDES)
 
     def both_here(self) -> bool:
-        """Both seats claimed *and* connected. A duel opens on this, not on the
-        join: a five-second round would be half gone before the second socket
-        finished opening."""
+        """Both seats claimed *and* connected. Both must also ready up before the first
+        round can open."""
         return self.full() and all(seat.connected for seat in self.seats.values())
 
     def status(self) -> str:
@@ -153,6 +153,7 @@ class DuelRoom:
                 side: seat.connected for side, seat in self.seats.items()
             },
             "duels_played": self.duels_played,
+            "ready": {side: side in self.ready for side in SIDES},
             "duel": (
                 self.duel.public(self.seat(seat_id), self.players())
                 if self.duel is not None
@@ -217,10 +218,24 @@ def claim_seat(room: DuelRoom) -> Player | None:
 def open_duel(
     room: DuelRoom, module: DuelModule, now: datetime | None = None
 ) -> EngineResult:
-    """Deal the first round, once both seats are actually here."""
-    if room.duel is not None or not room.both_here():
+    """Deal the first round, once both connected players are ready."""
+    if room.duel is not None or not room.both_here() or room.ready != set(SIDES):
         return EngineResult(changed=False)
     return _deal(room, module, now)
+
+
+def mark_ready(
+    room: DuelRoom, seat_id: str, module: DuelModule, now: datetime | None = None
+) -> EngineResult:
+    side = room.side_of(seat_id)
+    if side is None:
+        return EngineResult.rejected("only the two players can ready up")
+    if room.duel is not None:
+        return EngineResult.rejected("the duel has already started")
+    room.ready.add(side)
+    result = open_duel(room, module, now)
+    result.changed = True
+    return result
 
 
 def _deal(
@@ -235,6 +250,7 @@ def _deal(
         phase="choosing",
     )
     room.duel = duel
+    room.ready.clear()
     result = EngineResult(changed=True)
     duel.deadline = _start_clock(
         room, "duel_round", module.choice_seconds, result, now
@@ -270,7 +286,7 @@ def choose(
     if room.duel is None:
         return EngineResult.rejected("no duel to answer")
     both_locked, error = duelloop.apply_choice(
-        room.duel, seat_id, duel_id, round_index, choice
+        room.duel, seat_id, duel_id, round_index, choice, now=now
     )
     if error is not None:
         return EngineResult.rejected(error)
@@ -337,6 +353,9 @@ def rematch(
         return EngineResult.rejected("only the two players can start another")
     if not room.both_here():
         return EngineResult.rejected("waiting for the other player")
+    room.ready.add(room.side_of(seat_id))
+    if room.ready != set(SIDES):
+        return EngineResult(changed=True)
     module = room.duel.module
     room.duels_played += 1
     return _deal(room, module, now)
@@ -353,3 +372,4 @@ def on_disconnect(room: DuelRoom, seat_id: str) -> None:
     seat = room.seat(seat_id)
     if seat is not None:
         seat.connected = False
+        room.ready.discard(room.side_of(seat_id))

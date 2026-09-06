@@ -31,6 +31,7 @@ def seated(registry, duel_id: str = "rps_duel") -> duelroom.DuelRoom:
     duelroom.claim_seat(room)
     for seat in room.seats.values():
         seat.connected = True
+    room.ready.update(SIDES)
     duelroom.open_duel(room, registry.duel_by_id(duel_id), now=NOW)
     return room
 
@@ -86,6 +87,10 @@ def test_the_duel_waits_for_both_sockets_not_both_seats(registry):
     room.seats["a"].connected = True
     assert duelroom.open_duel(room, module, now=NOW).changed is False
     room.seats["b"].connected = True
+    assert duelroom.open_duel(room, module, now=NOW).changed is False
+    assert duelroom.mark_ready(room, room.seats["a"].id, module, now=NOW).ok
+    assert room.duel is None
+    room.ready.add("b")
     assert duelroom.open_duel(room, module, now=NOW).changed is True
     assert room.status() == "duelling"
 
@@ -206,6 +211,11 @@ def test_a_rematch_is_a_new_duel_between_the_same_two_people(registry):
     seats = {side: seat.id for side, seat in room.seats.items()}
 
     assert duelroom.rematch(room, seats["a"], now=NOW).ok
+    assert room.duel.id == before
+    assert room.public(seats["a"])["ready"] == {"a": True, "b": False}
+    assert duelroom.rematch(room, seats["a"], now=NOW).ok
+    assert room.duel.id == before, "one player cannot force a rematch"
+    assert duelroom.rematch(room, seats["b"], now=NOW).ok
     assert room.duel.id != before, "a reused id hands the new duel to the old renderer"
     assert room.duel.state.round_index == 1
     assert room.duel.winner_side is None
@@ -213,6 +223,18 @@ def test_a_rematch_is_a_new_duel_between_the_same_two_people(registry):
     assert room.duels_played == 1
     # The links keep working, which is the point of doing this in the same room.
     assert {side: seat.id for side, seat in room.seats.items()} == seats
+
+
+def test_disconnect_withdraws_readiness(registry):
+    room = duelroom.create_room("rps_duel")
+    module = registry.duel_by_id("rps_duel")
+    seat = room.seats["a"].id
+    duelroom.on_connect(room, seat)
+    assert duelroom.mark_ready(room, seat, module, now=NOW).ok
+    assert room.ready == {"a"}
+    duelroom.on_disconnect(room, seat)
+    assert not room.ready
+    assert not duelroom.mark_ready(room, "watcher", module, now=NOW).ok
 
 
 def test_a_rematch_waits_for_a_running_duel_and_an_absent_player(registry):
