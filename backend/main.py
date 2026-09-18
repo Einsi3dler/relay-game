@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from backend import config, duelroom, god, preview, protocol
+from backend import accounts, auth, config, duelroom, god, mailer, preview, protocol
 from backend.engine import EngineResult, RelayEngine
 from backend.models import LEADER_ONLY_EVENT_KINDS, Match
 from backend.registry import REGISTERED_MODULES, GameRegistry
@@ -242,12 +242,27 @@ async def _eviction_loop() -> None:
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Fail the deploy rather than the player. If mail is configured to go
+    # somewhere real but the links would point at localhost, this raises and
+    # the server does not come up — deploy.sh health-checks the restart and can
+    # roll back, so the mistake is caught in front of somebody who can fix it.
+    # With no mail backend configured (the default) this does nothing at all.
+    mailer.verify_deployment()
+    # Accounts are the one thing here that outlives the process, so the
+    # database is opened before the first request rather than lazily on the
+    # first login (backend/accounts.py). Matches stay in memory as they were.
+    accounts.connect()
     sweeper = asyncio.create_task(_eviction_loop())
     yield
     sweeper.cancel()
 
 
 app = FastAPI(title="The Relay", lifespan=lifespan)
+
+# Sign up / sign in / sign out, email verification, reset and magic links.
+# Optional by design: guest join is untouched and the engine never asks who
+# you are. See backend/auth.py and docs/ACCOUNTS.md.
+app.include_router(auth.router)
 
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
@@ -289,6 +304,51 @@ async def explore_page():
 @app.get("/games", response_model=None)
 async def games_page():
     return _serve_page("games.html")
+
+
+# --- the account pages (backend/auth.py) ----------------------------------
+# One HTML file behind six paths. They are all the same small card on the same
+# background, differing only in which form is on it, and the page picks that
+# from the URL it was opened at. Six near-identical files would be six places
+# to fix a change to the header.
+#
+# /verify, /reset and /magic are where the emailed links land. They deliberately
+# do NOT spend the token on the way in: the page loads, and its script posts
+# the token to the API. A GET that consumed the link would be burnt by any mail
+# scanner that follows links before the human clicks it.
+@app.get("/signup", response_model=None)
+async def signup_page():
+    return _serve_page("auth.html")
+
+
+@app.get("/login", response_model=None)
+async def login_page():
+    return _serve_page("auth.html")
+
+
+@app.get("/forgot", response_model=None)
+async def forgot_page():
+    return _serve_page("auth.html")
+
+
+@app.get("/reset", response_model=None)
+async def reset_page():
+    return _serve_page("auth.html")
+
+
+@app.get("/verify", response_model=None)
+async def verify_page():
+    return _serve_page("auth.html")
+
+
+@app.get("/magic", response_model=None)
+async def magic_page():
+    return _serve_page("auth.html")
+
+
+@app.get("/account", response_model=None)
+async def account_page():
+    return _serve_page("auth.html")
 
 
 # --- the design gallery (backend/preview.py) ------------------------------

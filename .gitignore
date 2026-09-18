@@ -27,3 +27,7 @@ htmlcov/
 # Local env
 .env
 .env.local
+
+# Accounts database (backend/accounts.py) — local data, never committed
+var/
+*.db

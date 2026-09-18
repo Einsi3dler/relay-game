@@ -294,3 +294,62 @@ MATCH_TTL_SECONDS = 1800         # evict finished/idle matches after this long
 # combinations, far past guessing a live match dry before it ends.
 REJOIN_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
 REJOIN_CODE_LENGTH = 6
+
+# --- Accounts (backend/accounts.py, backend/auth.py) ----------------------
+# Accounts are OPTIONAL: guest join is still the fast path into a match, and
+# nothing in the engine knows an account exists. What an account buys is a
+# durable identity — a seat you can reclaim from a new device, or after the
+# browser storage that holds a rejoin code is gone.
+#
+# Unlike everything else in this file, accounts DO touch disk. They have to:
+# an in-memory account is deleted by the next deploy, which is strictly worse
+# than the rejoin code it replaces. This is the one exception to the
+# in-memory-only rule in CLAUDE.md, and it is confined to accounts — match
+# state stays in memory exactly as it was.
+ACCOUNTS_DB_PATH = "var/relay.db"   # relative to the repo root; override with
+                                    # RELAY_DB_PATH
+
+# Field limits. Deliberately generous: a name field that rejects real names is
+# a bug, not a security control.
+NAME_MAX = 60                # first name / last name, each
+EMAIL_MAX = 254              # the RFC 5321 ceiling on an address
+USERNAME_MIN = 3
+USERNAME_MAX = 24
+USERNAME_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789_-"
+PASSWORD_MIN = 8             # length is the only rule; see accounts.py on why
+PASSWORD_MAX = 200           # scrypt cost is paid on the server, so cap input
+
+# scrypt work factors (hashlib.scrypt). n=2**15 lands around 100ms on a modest
+# box: slow enough to make an offline guess expensive, fast enough that a login
+# does not stall the event loop. Raise `SCRYPT_N` as hardware improves; stored
+# hashes carry their own parameters, so old ones keep verifying.
+SCRYPT_N = 2 ** 15
+SCRYPT_R = 8
+SCRYPT_P = 1
+SCRYPT_SALT_BYTES = 16
+SCRYPT_KEY_BYTES = 32
+# scrypt needs 128*n*r bytes (~33.5MB at these settings) and OpenSSL refuses to
+# allocate more than 32MB unless asked, so the limit has to be stated or every
+# hash raises. Headroom is deliberate: it is a ceiling, not an allocation, and
+# it lets SCRYPT_N be raised here without tripping over a second knob.
+SCRYPT_MAXMEM = 128 * 1024 * 1024
+
+# Session cookie. A session is a random opaque token in the database, not a
+# signed blob: logging out has to actually revoke it, and a signed cookie
+# cannot be revoked without a server-side list anyway.
+SESSION_COOKIE = "relay_session"
+SESSION_TTL_SECONDS = 60 * 60 * 24 * 30   # 30 days; a league runs for weeks
+
+# One-time email tokens. Short lives, because every one of them is a way into
+# an account that skips the password.
+VERIFY_TTL_SECONDS = 60 * 60 * 24    # 24h — a verification mail can wait a day
+RESET_TTL_SECONDS = 60 * 60          # 1h — a password reset should not
+MAGIC_TTL_SECONDS = 15 * 60          # 15m — a login link is used immediately
+TOKEN_BYTES = 32                     # 256 bits of url-safe randomness
+
+# Throttling. Crude on purpose: one in-memory counter per address, which is all
+# a single-worker MVP can honestly offer. It exists to stop a loop hammering
+# somebody's inbox, not to defeat a botnet.
+EMAIL_SEND_MIN_INTERVAL_SECONDS = 60   # per address, per kind of mail
+LOGIN_MAX_ATTEMPTS = 10                # failures before an address is paused
+LOGIN_LOCKOUT_SECONDS = 15 * 60
