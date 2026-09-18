@@ -161,3 +161,45 @@ def test_everything_present(answers, capsys):
     assert mailcheck.check_dns("relay.example.com", None) == 0
     out = capsys.readouterr().out
     assert out.count("PASS") == 3
+
+
+# --- SPF at the envelope domain -------------------------------------------
+
+def test_spf_found_on_the_envelope_subdomain(answers, capsys):
+    """Regression: SPF is evaluated against the envelope sender (Return-Path),
+    not the From header. Resend, Postmark and SES-backed senders bounce through
+    send.<domain> and publish SPF there, so checking only the From domain
+    reports a correct setup as broken. This is a real case, caught against a
+    live domain."""
+    answers[("send.relay.example.com", 16)] = ["v=spf1 ip4:52.3.252.119 ~all"]
+    assert mailcheck._check_spf("relay.example.com") == 0
+    out = capsys.readouterr().out
+    assert "PASS" in out
+    # It has to say WHERE, or the next person goes looking at the wrong name.
+    assert "send.relay.example.com" in out
+
+
+def test_spf_at_the_from_domain_is_not_labelled_as_an_envelope(answers, capsys):
+    answers[("relay.example.com", 16)] = ["v=spf1 include:_spf.example.com ~all"]
+    assert mailcheck._check_spf("relay.example.com") == 0
+    assert "envelope domain" not in capsys.readouterr().out
+
+
+def test_the_from_domain_wins_over_an_envelope_subdomain(answers, capsys):
+    """Both present: report the one receivers check first for a same-domain
+    envelope, rather than whichever the loop happened to reach."""
+    answers[("relay.example.com", 16)] = ["v=spf1 include:primary.example.com ~all"]
+    answers[("send.relay.example.com", 16)] = ["v=spf1 ip4:1.2.3.4 ~all"]
+    mailcheck._check_spf("relay.example.com")
+    assert "primary.example.com" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("prefix", ["send", "mail", "bounce", "em"])
+def test_common_envelope_prefixes_are_searched(answers, prefix):
+    answers[(f"{prefix}.relay.example.com", 16)] = ["v=spf1 ip4:1.2.3.4 ~all"]
+    assert mailcheck._check_spf("relay.example.com") == 0
+
+
+def test_spf_missing_everywhere_names_both_places(answers, capsys):
+    assert mailcheck._check_spf("relay.example.com") == 1
+    assert "envelope subdomains" in capsys.readouterr().out

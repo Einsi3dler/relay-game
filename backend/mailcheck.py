@@ -203,17 +203,7 @@ def check_dns(domain: str, selector: str | None) -> int:
     print(f"\nDNS for {domain}")
     failures = 0
 
-    spf = [txt for txt in query(domain) if txt.lower().startswith("v=spf1")]
-    if not spf:
-        failures += 1
-        bad(f"no SPF record at {domain}",
-            'Add a TXT record: "v=spf1 include:<your provider> ~all"')
-    elif len(spf) > 1:
-        failures += 1
-        bad(f"{len(spf)} SPF records — a domain may have exactly one",
-            "Merge them into a single record; two is treated as none.")
-    else:
-        ok(f"SPF: {spf[0][:70]}")
+    failures += _check_spf(domain)
 
     # DKIM. Resolved as its own step rather than inline, so that finding (or
     # not finding) a key never short-circuits the DMARC check below it.
@@ -227,6 +217,37 @@ def check_dns(domain: str, selector: str | None) -> int:
     else:
         ok(f"DMARC: {dmarc[0][:70]}")
     return failures
+
+
+# Where an envelope sender commonly lives when it is not the From domain
+# itself. A provider that bounces through its own infrastructure puts the
+# return path on a subdomain and publishes SPF there.
+ENVELOPE_PREFIXES = ("send", "mail", "bounce", "em", "pm-bounces")
+
+
+def _check_spf(domain: str) -> int:
+    """SPF for the domain mail is sent from.
+
+    Checked at the From domain AND at the usual envelope subdomains, because
+    SPF is evaluated against the ENVELOPE sender (the Return-Path), not the
+    From header a reader sees. Resend, Postmark and SES-backed senders all
+    route bounces through `send.<domain>` or similar and publish SPF there, so
+    looking only at the From domain reports a working setup as broken.
+    """
+    for candidate in (domain, *(f"{prefix}.{domain}" for prefix in ENVELOPE_PREFIXES)):
+        records = [txt for txt in query(candidate) if txt.lower().startswith("v=spf1")]
+        if len(records) > 1:
+            bad(f"{len(records)} SPF records at {candidate} — a domain may have exactly one",
+                "Merge them into a single record; two is treated by receivers as none.")
+            return 1
+        if records:
+            where = "" if candidate == domain else f" (envelope domain {candidate})"
+            ok(f"SPF{where}: {records[0][:66]}")
+            return 0
+    bad(f"no SPF record at {domain} or its usual envelope subdomains",
+        'Add a TXT record: "v=spf1 include:<your provider> ~all". If your '
+        "provider bounces through a subdomain, it belongs there instead.")
+    return 1
 
 
 def _check_dkim(domain: str, selector: str | None) -> int:
