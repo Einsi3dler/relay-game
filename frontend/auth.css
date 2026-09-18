@@ -1,0 +1,280 @@
+/* The account pages: one card on the landing page's dark band.
+   Loaded after landing.css and leans on it for the tokens, the nav and the
+   .rbtn family. Everything here is the card and the forms inside it.
+
+   The page is deliberately plain. It stands between someone and a match that
+   has probably already started, so the only jobs are: read the labels, fill
+   the fields, leave. */
+
+.auth-page {
+  margin: 0;
+  background: var(--relay-night);
+  font-family: var(--relay-body);
+}
+
+/* The band normally runs behind a hero and stops. Here it is the whole page,
+   so it has to reach the bottom of the viewport however short the form is. */
+.auth-band {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(900px 520px at 78% -8%, var(--relay-night-3), transparent 62%),
+    radial-gradient(700px 460px at 8% 4%, var(--relay-night-2), transparent 58%),
+    var(--relay-night);
+}
+
+.auth-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px var(--relay-gutter) 64px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--relay-white);
+  border-radius: var(--relay-radius-lg);
+  padding: 34px 32px 30px;
+  box-shadow: 0 24px 60px rgba(8, 2, 28, 0.42);
+}
+
+.auth-card--centred { text-align: center; }
+
+.auth-title {
+  font-family: var(--relay-display);
+  font-size: 1.7rem;
+  line-height: 1.15;
+  color: var(--relay-ink);
+  margin: 0 0 8px;
+}
+
+.auth-lede {
+  color: var(--relay-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0 0 22px;
+}
+
+/* --- fields --- */
+
+.auth-card label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--relay-ink);
+  margin: 0 0 6px;
+}
+
+.auth-card input[type="text"],
+.auth-card input[type="email"],
+.auth-card input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 12px 14px;
+  margin: 0 0 16px;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--relay-ink);
+  background: var(--relay-paper);
+  border: 2px solid var(--relay-line-light);
+  border-radius: var(--relay-radius-sm);
+}
+
+.auth-card input::placeholder { color: #a8a4bb; }
+
+.auth-card input:focus {
+  border-color: var(--relay-violet);
+  outline: none;
+  background: var(--relay-white);
+}
+
+.auth-card input:focus-visible {
+  outline: 3px solid var(--relay-violet);
+  outline-offset: 2px;
+}
+
+/* First and last name sit together: two halves of one answer, and splitting
+   them across two full rows makes the form look twice as long as it is. */
+.auth-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+
+.auth-hint {
+  margin: -10px 0 16px;
+  font-size: 0.83rem;
+  color: var(--relay-muted);
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 1.02rem;
+}
+
+/* --- the reset-or-link choice on /forgot --- */
+
+.auth-choice {
+  border: 0;
+  padding: 0;
+  margin: 4px 0 20px;
+}
+
+.auth-choice legend {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--relay-ink);
+  padding: 0;
+  margin-bottom: 10px;
+}
+
+/* The whole block is the hit target, not just the 16px dot beside it. */
+.auth-option {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 13px 14px;
+  margin-bottom: 10px;
+  border: 2px solid var(--relay-line-light);
+  border-radius: var(--relay-radius-sm);
+  background: var(--relay-paper);
+  cursor: pointer;
+  font-weight: 400;
+}
+
+.auth-option:hover { border-color: #d6cfe8; }
+
+.auth-option input { margin: 3px 0 0; flex: none; accent-color: var(--relay-violet); }
+
+/* `font-weight` is stated, not inherited: .auth-card label sets 700 and beats
+   .auth-option on specificity, so without this the descriptions come out as
+   bold as the headings they sit under and the contrast between them is lost. */
+.auth-option span {
+  display: block;
+  font-weight: 400;
+  font-size: 0.88rem;
+  color: var(--relay-muted);
+  line-height: 1.45;
+}
+.auth-option strong {
+  display: block;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--relay-ink);
+  margin-bottom: 2px;
+}
+
+.auth-option:has(input:checked) {
+  border-color: var(--relay-violet);
+  background: #f7f3ff;
+}
+
+.auth-option:has(input:focus-visible) {
+  outline: 3px solid var(--relay-violet);
+  outline-offset: 2px;
+}
+
+/* --- signed-in card --- */
+
+.auth-facts {
+  margin: 0 0 22px;
+  padding: 16px 18px;
+  background: var(--relay-paper);
+  border-radius: var(--relay-radius-sm);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  font-size: 0.9rem;
+}
+
+.auth-facts dt { color: var(--relay-muted); }
+.auth-facts dd { margin: 0; color: var(--relay-ink); font-weight: 600; word-break: break-word; }
+
+/* Unverified email. Amber, not red: nothing is broken and nothing is blocked,
+   there is just something worth doing before you need it. */
+.auth-banner {
+  border: 2px solid #ffd9a1;
+  background: #fff8ec;
+  border-radius: var(--relay-radius-sm);
+  padding: 14px 16px;
+  margin: 0 0 20px;
+}
+
+.auth-banner p { margin: 0 0 12px; font-size: 0.88rem; line-height: 1.5; color: #6b4a12; }
+.auth-banner strong { color: #4a3208; }
+
+.auth-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.auth-actions .rbtn { flex: 1 1 auto; justify-content: center; }
+
+/* --- footers, dividers, status --- */
+
+.auth-foot {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--relay-muted);
+}
+
+.auth-foot a { color: var(--relay-violet); font-weight: 600; }
+.auth-foot span { margin: 0 8px; color: var(--relay-line-light); }
+
+.auth-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 14px;
+  color: var(--relay-muted);
+  font-size: 0.84rem;
+}
+
+.auth-or::before,
+.auth-or::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: var(--relay-line-light);
+}
+
+/* One status line for both outcomes, because at any moment there is only ever
+   one thing to say. `role="status"` is on the element, so a screen reader
+   hears it whichever way it went. */
+.auth-note {
+  width: 100%;
+  max-width: 460px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 13px 16px;
+  border-radius: var(--relay-radius-sm);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.auth-note--bad {
+  background: rgba(255, 71, 126, 0.16);
+  border-color: rgba(255, 71, 126, 0.55);
+}
+
+.auth-note--good {
+  background: rgba(56, 215, 121, 0.14);
+  border-color: rgba(56, 215, 121, 0.5);
+}
+
+.rbtn[disabled] { opacity: 0.55; pointer-events: none; }
+
+@media (max-width: 520px) {
+  .auth-card { padding: 26px 20px 24px; border-radius: var(--relay-radius-md); }
+  .auth-title { font-size: 1.45rem; }
+  /* Two name fields side by side stop being readable well before this. */
+  .auth-row { grid-template-columns: 1fr; }
+  .auth-actions .rbtn { flex: 1 1 100%; }
+}
