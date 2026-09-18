@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from backend import accounts, auth, config, duelroom, god, preview, protocol
+from backend import accounts, auth, config, duelroom, god, mailer, preview, protocol
 from backend.engine import EngineResult, RelayEngine
 from backend.models import LEADER_ONLY_EVENT_KINDS, Match
 from backend.registry import REGISTERED_MODULES, GameRegistry
@@ -242,6 +242,12 @@ async def _eviction_loop() -> None:
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Fail the deploy rather than the player. If mail is configured to go
+    # somewhere real but the links would point at localhost, this raises and
+    # the server does not come up — deploy.sh health-checks the restart and can
+    # roll back, so the mistake is caught in front of somebody who can fix it.
+    # With no mail backend configured (the default) this does nothing at all.
+    mailer.verify_deployment()
     # Accounts are the one thing here that outlives the process, so the
     # database is opened before the first request rather than lazily on the
     # first login (backend/accounts.py). Matches stay in memory as they were.

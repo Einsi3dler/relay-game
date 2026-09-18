@@ -468,3 +468,57 @@ def test_guest_join_still_works_without_an_account(client):
     assert response.status_code == 200
     assert response.json()["player"]["name"] == "Guest"
     assert client.get("/api/auth/me").json()["user"] is None
+
+
+# --- the deployment guard, at the app level -------------------------------
+
+def test_server_refuses_to_start_when_links_would_point_at_localhost(monkeypatch):
+    """The whole point of `mailer.verify_deployment`, proved through the app.
+
+    A deploy that configures real mail but forgets RELAY_BASE_URL would send
+    every player a verification link to their own machine. The server does not
+    come up, so deploy.sh's health check fails and can roll back.
+    """
+    monkeypatch.setenv("RELAY_MAIL_BACKEND", "smtp")
+    monkeypatch.setenv("RELAY_SMTP_HOST", "smtp.example.com")
+    monkeypatch.delenv("RELAY_BASE_URL", raising=False)
+    with pytest.raises(RuntimeError, match="will not work as deployed"):
+        with TestClient(server.app):
+            pass
+
+
+def test_server_starts_with_a_sound_production_config(monkeypatch):
+    monkeypatch.setenv("RELAY_MAIL_BACKEND", "smtp")
+    monkeypatch.setenv("RELAY_SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("RELAY_BASE_URL", "https://relay.example.com")
+    with TestClient(server.app) as configured:
+        assert configured.get("/api/auth/me").json() == {"user": None}
+
+
+def test_the_default_dev_setup_starts_untouched(client):
+    """No mail configuration at all stays the zero-friction default."""
+    assert client.get("/api/auth/me").status_code == 200
+
+
+def test_session_cookie_is_secure_when_the_site_is_https(monkeypatch):
+    """Production hardening that rides on the same setting: RELAY_BASE_URL is
+    now required to be https for real deployments, so the cookie gets Secure
+    without a second knob to forget."""
+    monkeypatch.setenv("RELAY_BASE_URL", "https://relay.example.com")
+    accounts.close()
+    accounts.connect(":memory:")
+    with TestClient(server.app) as secure_client:
+        response = signup(secure_client)
+        header = response.headers["set-cookie"]
+        assert "Secure" in header
+        assert "HttpOnly" in header
+        assert "SameSite=lax" in header
+    accounts.close()
+
+
+def test_session_cookie_is_not_secure_on_a_local_http_dev_server(client):
+    """Hard-coding Secure would silently break every http://127.0.0.1 login,
+    which is where all the testing happens."""
+    header = signup(client).headers["set-cookie"]
+    assert "Secure" not in header
+    assert "HttpOnly" in header

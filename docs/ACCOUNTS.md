@@ -125,15 +125,43 @@ copied it.
 
 ## Configuration
 
-Nothing is required to run locally. Defaults work out of the box.
+Nothing is required to run locally. Every default works out of the box and mail
+prints to the terminal. `.env.example` is the annotated copy of all of this.
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `RELAY_DB_PATH` | `var/relay.db` | Account database. Point it at a volume that survives a redeploy. |
-| `RELAY_BASE_URL` | `http://127.0.0.1:8000` | The origin in emailed links. **Set this in production** or every link points at localhost. |
+| `RELAY_DB_PATH` | `var/relay.db` | Account database. In production point it at storage that survives a redeploy. If the file sits inside the checkout, a fresh clone deletes every account. |
+| `RELAY_BASE_URL` | `http://127.0.0.1:8000` (dev only) | The origin in every emailed link, and what decides whether the session cookie is marked `Secure`. **Required for real mail**, see the guard below. |
 | `RELAY_MAIL_BACKEND` | `console` | `console` or `smtp`. |
-| `RELAY_MAIL_FROM` | `The Relay <no-reply@relay.local>` | The From header. |
+| `RELAY_MAIL_FROM` | `The Relay <no-reply@relay.local>` | The From header. Its domain is the one that needs SPF and DKIM. |
 | `RELAY_SMTP_HOST` / `_PORT` / `_USER` / `_PASSWORD` | unset / 587 | Only read when the backend is `smtp`. |
+| `RELAY_SMTP_SECURITY` | follows the port | `starttls`, `ssl` or `none`. See below. |
+
+### The guard: the server refuses to start rather than mail localhost links
+
+`mailer.verify_deployment()` runs from the app lifespan. If a real mail backend
+is configured but the links it would send are unusable, the server does not come
+up. `deploy.sh` health-checks the restart and can roll back, so the mistake
+surfaces at deploy time in front of somebody who can fix it — rather than days
+later, in the inbox of a player who cannot.
+
+It refuses to start when the mail backend is not `console` and:
+
+- `RELAY_BASE_URL` is unset, so links would point at `127.0.0.1`.
+- `RELAY_BASE_URL` points at this machine: `localhost`, a loopback address, a
+  private LAN range, or a `.local` / `.internal` name.
+- `RELAY_BASE_URL` has no scheme, or is `http` rather than `https`.
+- `RELAY_MAIL_BACKEND=smtp` with no `RELAY_SMTP_HOST`.
+- `RELAY_SMTP_SECURITY=none` with a password set, which would put credentials
+  on the wire in clear text.
+
+The console backend is exempt from every one of these. Nothing it produces
+leaves the machine, so a localhost link in a developer's terminal is correct
+rather than broken, and the dev experience is unchanged.
+
+`deploy.sh` runs the same check as a preflight, in the environment systemd
+would actually give the service, **before** restarting anything. A bad config
+therefore fails while the old server is still serving.
 
 ### Mail in development
 
@@ -147,14 +175,57 @@ uvicorn configures only the `uvicorn.*` loggers and the root logger defaults to
 WARNING, so without it the mail is silently dropped and the console backend is
 useless. That bug was real and was caught in a smoke test, not by the suite.
 
-### Turning on real mail
+### Connection modes
 
-Set the SMTP variables above, or add an API backend (Resend, Postmark,
-SendGrid) as a third branch in `send` — one function taking the same three
-arguments. Nothing in `backend/auth.py` needs to move.
+`RELAY_SMTP_SECURITY` picks how the SMTP connection is encrypted. Left unset it
+follows the port, which is right for almost everyone:
 
-Whichever you pick, you need a sending domain with SPF and DKIM, or password
-resets land in spam and people conclude the site is broken.
+| Port | Mode | Used by |
+| --- | --- | --- |
+| 587 | `starttls` | Submission. Gmail, SendGrid, Mailgun, most providers. |
+| 465 | `ssl` | Implicit TLS, encrypted from the first byte. |
+| any | `none` | A local catcher (Mailpit, MailHog). Never inferred; ask for it by name. |
+
+Getting 587 and 465 the wrong way round is the most common reason a correct set
+of credentials refuses to send, because the symptom is a hang rather than an
+error. `none` refuses to run with a password set.
+
+Certificates are verified. A self-signed or expired certificate fails the send
+rather than being quietly accepted, and that is worth keeping.
+
+### Turning on real mail, and why credentials are not enough
+
+Set `RELAY_MAIL_BACKEND=smtp` and the SMTP variables. An API provider (Resend,
+Postmark, SendGrid) would be a third backend beside `_send_smtp` — one function
+taking the same three arguments, with nothing in `backend/auth.py` moving.
+
+**Credentials alone do not get mail delivered.** Sending straight from an
+application server was tried against Gmail and refused outright:
+
+```
+550 5.7.26 Gmail requires all senders to authenticate with either SPF or DKIM
+           DKIM = did not pass
+           SPF [relay.local] = did not pass
+```
+
+So the domain in `RELAY_MAIL_FROM` needs, in its DNS:
+
+- **SPF** — a TXT record naming whoever sends on your behalf.
+- **DKIM** — the signing key the provider gives you.
+- **DMARC** — a TXT record at `_dmarc.<domain>`, even just `v=DMARC1; p=none`.
+
+The quickest route is a transactional provider: make an account, verify the
+domain by pasting in the DNS records they hand you, and use their SMTP
+credentials. Sending direct from the app server will not work — a residential
+or cloud IP with no PTR record is refused or filed as spam whatever the headers
+say.
+
+One earlier failure is worth knowing about, because it is fixed and must stay
+fixed: `EmailMessage` does not add a `Message-ID`, and neither does
+`smtplib.send_message`. Gmail rejects a message without one outright
+(`550 5.7.1 Messages missing a valid Message-ID header are not accepted`).
+`_build_message` sets `Date` and `Message-ID`, and
+`test_message_has_date_and_message_id` keeps it that way.
 
 ## Gotchas
 
