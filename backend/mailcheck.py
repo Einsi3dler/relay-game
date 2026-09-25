@@ -184,10 +184,12 @@ def warn(message: str, fix: str = "") -> None:
 def check_config() -> int:
     print("\nConfiguration")
     backend = os.environ.get("RELAY_MAIL_BACKEND", "console")
-    if backend == "console":
+    problems = mailer.configuration_problems()
+    # Only a development console backend is worth a note rather than an error;
+    # on a public base URL it lands in `problems` below as a refusal.
+    if backend == "console" and not problems:
         warn("RELAY_MAIL_BACKEND is 'console' — mail prints to the log, nothing is sent.",
              "That is correct for development. Set it to 'smtp' to send for real.")
-    problems = mailer.configuration_problems()
     for problem in problems:
         bad(problem)
     if not problems:
