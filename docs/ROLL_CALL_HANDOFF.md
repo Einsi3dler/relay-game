@@ -59,11 +59,14 @@ sentence, under a category label, and their voice is a legitimate part of the
 puzzle. One answer contains a newline; two contain an em dash or an emoji. Treat
 the text as opaque UTF-8 and escape it at the DOM boundary, never by editing it.
 
-**Every answer is used, including the weak ones.** Two of them name nobody:
-"Hmmm everything so is remarkable", and a vision answer that is a confession of
-not having one. Each will be a round the whole room misses. That is the
-decision: it costs everyone the same and it is over in twenty seconds. Do not
-add a filter for them later without saying so.
+**Every answer is used, including the weak ones.** Two of the thirty identify
+nobody: one career answer that declines to pick anything, and one vision answer
+that is a confession of not having one. Each will be a round the whole room
+misses. That is the decision: it costs everyone the same and it is over in
+twenty seconds. Do not add a filter for them later without saying so.
+
+They are described rather than quoted, here and everywhere else, because the
+rule at the top of this document applies to this document.
 
 ## 2. Identity: three doors, and nothing else
 
@@ -231,10 +234,37 @@ Client to server: `quiz_answer {choice}` (the sentinel for a subject),
 `start | reveal | next | finish | close`. Server to client: `quiz_room_state`,
 `error`.
 
-Validate `name` on register: 2 to `QUIZ_NAME_MAX` characters after trimming,
-unique case-insensitively across the roster, rejected otherwise. Validate
-`avatar` through the same path `accounts.set_avatar` uses, so an unreadable code
-falls back to a seeded face rather than reaching a renderer.
+### The registration page
+
+`/rollcall/{token}` captures **two things and no more**: a display name and a
+face. Confirmed, so do not grow this form. Everything else about a participant
+was collected by the form that produced `roster.json` and is never typed again.
+
+Name and face are **one object**, not two settings. Together they are the card
+the room taps, they appear as a pair on the projector, in the locked-in roster,
+in the got-it and missed-it lists, in the standings and on the awards. Store
+them together, render them together, and never draw one without the other.
+
+Validate `name`: 2 to `QUIZ_NAME_MAX` characters after trimming, unique
+case-insensitively across the roster, rejected otherwise. Validate `avatar`
+through the same path `accounts.set_avatar` uses, so an unreadable code falls
+back to a seeded face rather than reaching a renderer.
+
+Two details that are not decoration:
+
+- **Prefill the name from the local part of their address** (`ada.nwosu` →
+  "Ada Nwosu"), editable. A name is only useful here if the room can place it:
+  a handle nobody recognises makes that person unguessable and quietly ruins the
+  three rounds they are the answer to. A sensible default is cheaper than a
+  validation rule that cannot tell a nickname from a name.
+- **Show them their own three answers on the page, read-only.** It is their own
+  data, it makes the page read as honest rather than as a form harvesting a
+  name, and it reminds them what they wrote so they do not give themselves away
+  on the night. Read-only on purpose: two people wrote non-answers, and once
+  they see the game is real the temptation is to polish, which quietly edits
+  data you have already built questions from.
+
+Never show a participant anyone else's answers on this page.
 
 ## 8. The invitation
 
