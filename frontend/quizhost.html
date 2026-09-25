@@ -63,8 +63,10 @@
           <strong id="lock-tally">0 of 0</strong>
         </div>
         <div class="lockmeter__bar"><div class="lockmeter__fill" id="lock-fill"></div></div>
-        <div class="lockmeter__faces" id="lock-faces"></div>
       </div>
+
+      <!-- Named, not thumbnails: the room needs to see who it is waiting on. -->
+      <ul class="lockroster" id="lock-roster"></ul>
 
       <p style="margin-top: 32px;">
         <button class="qbtn qbtn--go" id="reveal-answer">Reveal the answer</button>
@@ -98,6 +100,9 @@
       <h1 class="qprompt" style="text-align: center;">Final standings</h1>
 
       <div class="podium" id="final-podium"></div>
+
+      <ul class="awards" id="final-awards"></ul>
+
       <ol class="board" id="final-board"></ol>
 
       <p style="margin-top: 30px; text-align: center;">

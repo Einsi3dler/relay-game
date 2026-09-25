@@ -17,9 +17,9 @@
   ["bar-meta", "end-session", "stage-lobby", "stage-question", "stage-reveal",
    "stage-final", "stage-closed", "join-url", "join-code", "lobby-count",
    "lobby-roster", "start-quiz", "start-hint", "q-counter", "q-prompt",
-   "lock-tally", "lock-fill", "lock-faces", "reveal-answer", "reveal-face",
+   "lock-tally", "lock-fill", "lock-roster", "reveal-answer", "reveal-face",
    "reveal-name", "reveal-prompt", "reveal-right", "reveal-wrong",
-   "reveal-board", "next-question", "final-podium", "final-board",
+   "reveal-board", "next-question", "final-podium", "final-awards", "final-board",
    "close-session", "new-session", "dev-fill", "dev-answer", "dev-reset"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
@@ -120,11 +120,26 @@
     el["lock-tally"].textContent = locked + " of " + pool.length;
     el["lock-fill"].style.width = pool.length ? (locked / pool.length * 100) + "%" : "0%";
 
-    clear(el["lock-faces"]);
+    clear(el["lock-roster"]);
     pool.forEach(function (p) {
-      var face = Room.faceNode(p);
-      if (p.answer) face.classList.add("is-in");
-      el["lock-faces"].appendChild(face);
+      var li = document.createElement("li");
+      li.className = "lockseat" + (p.answer ? " lockseat--in" : "");
+      li.appendChild(Room.faceNode(p));
+
+      var name = document.createElement("span");
+      name.className = "lockseat__name";
+      name.textContent = p.name;
+      li.appendChild(name);
+
+      /* A drawn glyph, not an emoji: it has to read at projector size and in
+         one colour. */
+      var tick = document.createElement("span");
+      tick.className = "lockseat__tick";
+      tick.textContent = "\u2713";
+      tick.setAttribute("aria-hidden", "true");
+      li.appendChild(tick);
+
+      el["lock-roster"].appendChild(li);
     });
 
     el["reveal-answer"].textContent = Room.allAnswered(room)
@@ -187,6 +202,7 @@
       el["final-podium"].appendChild(spot);
     });
 
+    Room.renderAwards(el["final-awards"], room);
     renderBoard(el["final-board"], room, false);
   }
 
