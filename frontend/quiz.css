@@ -486,6 +486,150 @@
 .callout--wrong { border-color: var(--gm-red); background: rgba(255, 81, 101, 0.12); color: var(--gm-red); }
 .callout--idle { border-color: var(--gm-line); background: var(--gm-panel); color: var(--gm-muted); }
 
+/* ------------------------------------------------- the reveal, animated -- */
+
+/* The reveal is the moment the whole room is waiting for, so it is staged
+   rather than swapped in: the face rolls through the room like a slot machine,
+   lands, and only then do the two groups arrive underneath it.
+   
+   Every animation here is decoration over a DOM that is already correct. If
+   the keyframes never run (reduced motion, an old browser, a re-render
+   mid-roll) the screen still reads properly, just instantly. Nothing waits on
+   an animation to put the right content on the page. */
+
+.verdict__face.is-rolling {
+  box-shadow: 0 0 0 3px var(--gm-line), 0 0 30px rgba(122, 140, 255, 0.28);
+  animation: quiz-shake 0.28s linear infinite;
+}
+@keyframes quiz-shake {
+  0%, 100% { transform: translateY(0) rotate(-1.2deg); }
+  50%      { transform: translateY(-4px) rotate(1.2deg); }
+}
+
+.verdict__face.is-landed { animation: quiz-land 0.52s cubic-bezier(0.18, 1.5, 0.4, 1); }
+@keyframes quiz-land {
+  0%   { transform: scale(0.72); }
+  55%  { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+/* The ring that goes out when it lands. A pseudo-element so it costs no
+   markup and cannot be left behind in the DOM. */
+.verdict__face.is-landed::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 28px;
+  border: 3px solid var(--gm-green);
+  animation: quiz-burst 0.72s ease-out forwards;
+  pointer-events: none;
+}
+.verdict__face { position: relative; }
+@keyframes quiz-burst {
+  0%   { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.75); }
+}
+
+.verdict__name.is-landed,
+.callout.is-landed { animation: quiz-rise 0.4s ease-out both; }
+/* Held, not removed: keeping the box in the layout stops the page jumping
+   when the punchline arrives. */
+.callout.is-held { visibility: hidden; }
+@keyframes quiz-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* --------------------------------------------------------- pass and fail -- */
+
+.groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: start;   /* or a one-name column stretches to match a full one */
+  gap: 16px;
+  margin: 30px 0 0;
+}
+.quiz--player .groups { grid-template-columns: 1fr; gap: 12px; }
+
+.group {
+  border: 1px solid var(--gm-line);
+  border-radius: var(--gm-radius-lg);
+  background: var(--gm-panel);
+  padding: 16px 18px 18px;
+}
+.group--right { border-color: rgba(66, 219, 131, 0.45); }
+.group--wrong { border-color: rgba(255, 81, 101, 0.38); }
+
+.group__head {
+  margin: 0 0 12px;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.group--right .group__head { color: var(--gm-green); }
+.group--wrong .group__head { color: var(--gm-red); }
+.group__count {
+  font-size: 1rem;
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: rgba(122, 140, 255, 0.14);
+  color: var(--gm-text);
+  letter-spacing: 0;
+}
+
+.group__list { list-style: none; margin: 0; padding: 0; }
+.group__list:empty::after {
+  content: "Nobody.";
+  color: var(--gm-muted);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.gperson {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 0;
+  font-weight: 800;
+  /* Staggered by an inline --i from the renderer, so a long list arrives as a
+     cascade instead of a block. */
+  animation: quiz-slide 0.34s ease-out both;
+  animation-delay: calc(var(--i, 0) * 55ms + 120ms);
+}
+.gperson + .gperson { border-top: 1px solid var(--gm-line-soft); }
+.gperson .face { width: 38px; height: 38px; }
+.gperson__name { overflow-wrap: anywhere; }
+.gperson__said {
+  margin-left: auto;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--gm-muted);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.gperson__gain { margin-left: auto; font-weight: 900; color: var(--gm-green); }
+
+@keyframes quiz-slide {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Someone somewhere is getting a headache from all this. Give them the same
+   screen with none of the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .verdict__face.is-rolling,
+  .verdict__face.is-landed,
+  .verdict__name.is-landed,
+  .callout.is-landed,
+  .gperson,
+  .stage { animation: none; }
+  .verdict__face.is-landed::after { display: none; }
+}
+
 /* ------------------------------------------------------------ scoreboard -- */
 
 .board { list-style: none; margin: 0; padding: 0; }

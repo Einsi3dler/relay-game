@@ -28,6 +28,7 @@
    "field-face", "shuffle-face", "join-error", "wait-face", "wait-name",
    "wait-roster", "p-counter", "p-prompt", "p-note", "p-cards", "p-callout",
    "p-callout-big", "p-callout-small", "p-answer-face", "p-answer-name",
+   "p-right", "p-wrong", "p-right-list", "p-wrong-list",
    "p-board", "p-awards", "p-final-rank", "p-final-score", "p-final-board", "lockbar",
    "lock-in"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
@@ -44,6 +45,14 @@
   /* Selected but not yet locked. Deliberately not in the room: a half-made
      choice is this phone's business and nobody else's. */
   var selection = null;
+
+  /* Same guard as the host: animate once per question, not once per render. */
+  var revealKey = null;
+  var rollHandle = null;
+
+  function stopRoll() {
+    if (rollHandle) { clearInterval(rollHandle); rollHandle = null; }
+  }
   var faceCode = window.RelayAvatar.encode(window.RelayAvatar.random());
 
   function myId() {
@@ -235,8 +244,8 @@
     var sat = me.id === q.subject;
     var right = !sat && me.answer === q.subject;
 
-    el["p-callout"].className = "callout " +
-      (sat ? "callout--idle" : right ? "callout--right" : "callout--wrong");
+    var tone = sat ? "callout--idle" : right ? "callout--right" : "callout--wrong";
+    el["p-callout"].className = "callout " + tone;
     el["p-callout-big"].textContent = sat ? "That was you"
       : right ? "+" + me.gain : "Not this time";
     el["p-callout-small"].textContent = sat
@@ -248,8 +257,27 @@
         ? "You said " + (Room.playerById(room, me.answer) || { name: "nobody" }).name + "."
         : "You did not lock one in.");
 
-    el["p-answer-face"].innerHTML = Room.faceSvg(subject);
-    el["p-answer-name"].textContent = subject.name;
+    var key = room.index + ":" + q.id;
+    if (key !== revealKey) {
+      revealKey = key;
+      stopRoll();
+      /* Hold the punchline until the face has landed, or the callout spoils
+         its own reveal before the roll has finished spinning. */
+      el["p-callout"].className = "callout " + tone + " is-held";
+      rollHandle = Room.rollReveal(
+        el["p-answer-face"], el["p-answer-name"], room, subject,
+        function () {
+          rollHandle = null;
+          el["p-callout"].className = "callout " + tone + " is-landed";
+        }
+      );
+      Room.renderGroups({
+        rightList: el["p-right-list"],
+        wrongList: el["p-wrong-list"],
+        rightCount: el["p-right"],
+        wrongCount: el["p-wrong"]
+      }, room, me.id);
+    }
 
     renderBoard(el["p-board"], room, me.id);
   }
@@ -268,6 +296,8 @@
   /* ------------------------------------------------------------------ draw -- */
 
   function render(room) {
+    if (!room || room.phase !== "reveal") { revealKey = null; stopRoll(); }
+
     if (!room) {
       showStage("join");
       el["lockbar"].hidden = true;
@@ -290,8 +320,9 @@
       return;
     }
 
-    el["me-meta"].textContent = me.name + " · " + me.score +
-      (me.score === 1 ? " pt" : " pts");
+    /* No unit: "Yusuf · 150 pts" does not fit beside the wordmark on a phone
+       and was being cut to "150 P...". The number alone is unambiguous. */
+    el["me-meta"].textContent = me.name + " · " + me.score;
 
     if (room.phase === "lobby") {
       showStage("waiting");

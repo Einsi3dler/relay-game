@@ -80,10 +80,17 @@
         <span class="face verdict__face" id="reveal-face"></span>
         <h1 class="verdict__name" id="reveal-name"></h1>
         <p class="quiz-sub" id="reveal-prompt"></p>
-        <div class="verdict__split">
-          <div class="verdict__right"><span>Got it</span><strong id="reveal-right">0</strong></div>
-          <div class="verdict__wrong"><span>Missed it</span><strong id="reveal-wrong">0</strong></div>
-        </div>
+      </div>
+
+      <div class="groups">
+        <section class="group group--right">
+          <h3 class="group__head">Got it <span class="group__count" id="reveal-right">0</span></h3>
+          <ul class="group__list" id="reveal-right-list"></ul>
+        </section>
+        <section class="group group--wrong">
+          <h3 class="group__head">Missed it <span class="group__count" id="reveal-wrong">0</span></h3>
+          <ul class="group__list" id="reveal-wrong-list"></ul>
+        </section>
       </div>
 
       <h2 class="quiz-eyebrow" style="margin-top: 34px;">Standings</h2>
