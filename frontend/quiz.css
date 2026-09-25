@@ -1,0 +1,539 @@
+/* ROLL CALL — the room-wide quiz, host screen and player screen.
+ *
+ * One stylesheet for both pages: they are two halves of the same event and
+ * every shared piece (a face card, the scoreboard, a stage) has to read the
+ * same on the projector and on the phone in your hand. Splitting them was the
+ * first draft and the two drifted within an hour.
+ *
+ * Ground is the dark Relay palette from style.css (--gm-*), so a quiz looks
+ * like it belongs to the same evening as a match. The type is bigger than
+ * anywhere else in the app on purpose: the host screen is read from the back
+ * of a room, not from a desk.
+ *
+ * No build step (see CLAUDE.md), so this is plain CSS with custom properties.
+ */
+
+.quiz {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 600px at 12% -8%, rgba(138, 77, 255, 0.34), transparent 62%),
+    radial-gradient(900px 520px at 92% 4%, rgba(32, 212, 231, 0.20), transparent 58%),
+    var(--gm-bg);
+  color: var(--gm-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------------------------------------------------------------- chrome -- */
+
+.quizbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--gm-line-soft);
+  background: rgba(7, 9, 31, 0.6);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.quizbar__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  font-size: 0.95rem;
+  color: var(--gm-text);
+  text-decoration: none;
+}
+.quizbar__bolt { width: 15px; height: 20px; color: var(--gm-yellow); }
+.quizbar__tag {
+  font-weight: 900;
+  letter-spacing: 2.4px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--gm-bg);
+  background: var(--gm-yellow);
+  border-radius: 999px;
+  padding: 4px 11px;
+  white-space: nowrap;   /* or it stacks into two lines on a narrow phone */
+}
+.quizbar__mark { flex: none; }
+.quizbar__spacer { flex: 1; }
+.quizbar__meta {
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quiz__body {
+  flex: 1;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 26px 20px 56px;
+}
+.quiz--player .quiz__body { max-width: 620px; padding-bottom: 120px; }
+
+.stage { animation: quiz-in 0.22s ease-out; }
+@keyframes quiz-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.quiz-eyebrow {
+  margin: 0 0 8px;
+  font-weight: 900;
+  letter-spacing: 2.6px;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: var(--gm-cyan);
+}
+.quiz-sub { color: var(--gm-muted); margin: 6px 0 0; }
+
+/* ----------------------------------------------------------------- panel -- */
+
+.qpanel {
+  border: 1px solid var(--gm-line);
+  background: var(--gm-panel);
+  border-radius: var(--gm-radius-lg);
+  padding: 22px;
+}
+
+/* --------------------------------------------------------------- buttons -- */
+
+.qbtn {
+  font: inherit;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  border-radius: 999px;
+  border: 1px solid var(--gm-line);
+  background: rgba(122, 140, 255, 0.12);
+  color: var(--gm-text);
+  padding: 11px 20px;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.qbtn:hover:not(:disabled) { background: rgba(122, 140, 255, 0.24); transform: translateY(-1px); }
+.qbtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.qbtn--go {
+  background: var(--gm-yellow);
+  border-color: var(--gm-yellow);
+  color: #1a1400;
+  font-size: 1.05rem;
+  padding: 15px 34px;
+}
+.qbtn--go:hover:not(:disabled) { background: #ffdf55; border-color: #ffdf55; }
+
+.qbtn--big { font-size: 1.2rem; padding: 18px 42px; width: 100%; }
+
+.qbtn--danger { border-color: rgba(255, 81, 101, 0.5); color: var(--gm-red); background: rgba(255, 81, 101, 0.1); }
+.qbtn--danger:hover:not(:disabled) { background: rgba(255, 81, 101, 0.2); }
+
+.qbtn--ghost { background: transparent; }
+
+/* ------------------------------------------------------------ join code -- */
+
+.joincode {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: center;
+}
+.joincode__url {
+  font-weight: 800;
+  color: var(--gm-muted);
+  letter-spacing: 1px;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+.joincode__value {
+  font-size: clamp(3rem, 11vw, 6.5rem);
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  margin: 0;
+  color: var(--gm-yellow);
+  text-shadow: 0 0 34px rgba(255, 210, 28, 0.35);
+}
+.joincode__count {
+  text-align: center;
+  border-left: 1px solid var(--gm-line-soft);
+  padding-left: 24px;
+}
+.joincode__count strong { display: block; font-size: 3.4rem; font-weight: 900; line-height: 1; }
+.joincode__count span {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+}
+
+/* ------------------------------------------------------------- roster ---- */
+
+.roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.roster:empty::after {
+  content: "Nobody has joined yet.";
+  color: var(--gm-muted);
+  font-weight: 700;
+}
+.roster__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 15px 7px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--gm-line);
+  background: var(--gm-panel-2);
+  font-weight: 800;
+  animation: quiz-pop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.roster__chip .face { width: 30px; height: 30px; }
+.roster__chip--out { opacity: 0.4; }
+
+@keyframes quiz-pop {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------------------------------------------------------------- faces -- */
+
+.face {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--gm-panel-2);
+  flex: none;
+}
+.face svg { display: block; width: 100%; height: 100%; }
+
+/* ------------------------------------------------------------- question -- */
+
+.qprompt {
+  font-size: clamp(1.6rem, 4.4vw, 3.4rem);
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0;
+  text-wrap: balance;
+}
+.quiz--player .qprompt { font-size: clamp(1.35rem, 6vw, 1.9rem); }
+
+.qcounter {
+  display: inline-block;
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  color: var(--gm-bg);
+  background: var(--gm-cyan);
+  border-radius: 999px;
+  padding: 5px 13px;
+  margin-bottom: 14px;
+}
+
+/* ------------------------------------------------------------ card grid -- */
+
+.cardgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.quiz--player .cardgrid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+/* The <li> is the grid item and the button is its child, so without this the
+   button sizes to its own text and a row of cards comes out ragged. */
+.cardgrid > li { display: flex; }
+.cardgrid > li > .pcard { width: 100%; }
+
+.pcard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 10px 14px;
+  border-radius: var(--gm-radius-md);
+  border: 2px solid var(--gm-line);
+  background: var(--gm-panel);
+  color: var(--gm-text);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+.pcard:hover:not(:disabled) { transform: translateY(-3px); border-color: var(--gm-cyan); }
+.pcard .face { width: 74px; height: 74px; border-radius: 14px; }
+.pcard__name {
+  font-size: 0.98rem;
+  letter-spacing: 0.4px;
+  overflow-wrap: anywhere;
+}
+
+/* Outweighs the hover rule above on purpose: a card you have picked must not
+   repaint as merely hovered when the pointer is still sitting on it. */
+.pcard[aria-pressed="true"],
+.pcard[aria-pressed="true"]:hover:not(:disabled) {
+  border-color: var(--gm-yellow);
+  background: rgba(255, 210, 28, 0.18);
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 4px rgba(255, 210, 28, 0.14);
+}
+.pcard:disabled { cursor: default; }
+.pcard--dim { opacity: 0.38; }
+
+/* The subject sits out their own question: the card is still drawn, so the
+   room's shape does not change from round to round, but it cannot be picked. */
+.pcard--self { border-style: dashed; opacity: 0.55; cursor: not-allowed; }
+.pcard--self::after {
+  content: "You";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.6rem;
+  letter-spacing: 1.4px;
+  color: var(--gm-muted);
+}
+
+.pcard--right { border-color: var(--gm-green); background: rgba(66, 219, 131, 0.16); }
+.pcard--wrong { border-color: var(--gm-red); background: rgba(255, 81, 101, 0.12); }
+
+/* ----------------------------------------------------------- lock meter -- */
+
+.lockmeter { margin: 30px 0 0; }
+.lockmeter__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  font-size: 0.76rem;
+  color: var(--gm-muted);
+  margin-bottom: 10px;
+}
+.lockmeter__head strong { color: var(--gm-text); font-size: 1.05rem; }
+.lockmeter__bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--gm-panel-2);
+  overflow: hidden;
+  border: 1px solid var(--gm-line-soft);
+}
+.lockmeter__fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--gm-cyan), var(--gm-green));
+  transition: width 0.35s ease;
+}
+.lockmeter__faces { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.lockmeter__faces .face { width: 34px; height: 34px; opacity: 0.28; transition: opacity 0.2s ease; }
+.lockmeter__faces .face.is-in { opacity: 1; box-shadow: 0 0 0 2px var(--gm-green); }
+
+/* ---------------------------------------------------------------- verdict */
+
+.verdict { text-align: center; padding: 8px 0 4px; }
+.verdict__label {
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: var(--gm-muted);
+  margin: 0 0 14px;
+}
+.verdict__face {
+  width: 128px;
+  height: 128px;
+  margin: 0 auto 14px;
+  border-radius: 24px;
+  box-shadow: 0 0 0 3px var(--gm-green), 0 0 46px rgba(66, 219, 131, 0.4);
+}
+.verdict__name {
+  font-size: clamp(2.2rem, 7vw, 4rem);
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: 1px;
+  color: var(--gm-green);
+}
+.verdict__split {
+  display: flex;
+  justify-content: center;
+  gap: 34px;
+  margin-top: 18px;
+  font-weight: 900;
+}
+.verdict__split span { font-size: 0.74rem; letter-spacing: 1.8px; text-transform: uppercase; color: var(--gm-muted); display: block; }
+.verdict__right strong { color: var(--gm-green); font-size: 2rem; }
+.verdict__wrong strong { color: var(--gm-red); font-size: 2rem; }
+
+/* The player's own answer, called before the room's tally. */
+.callout {
+  border-radius: var(--gm-radius-lg);
+  padding: 26px 20px;
+  text-align: center;
+  font-weight: 900;
+  border: 2px solid;
+}
+.callout__big { font-size: 2.2rem; letter-spacing: 1px; display: block; margin-bottom: 4px; }
+.callout--right { border-color: var(--gm-green); background: rgba(66, 219, 131, 0.14); color: var(--gm-green); }
+.callout--wrong { border-color: var(--gm-red); background: rgba(255, 81, 101, 0.12); color: var(--gm-red); }
+.callout--idle { border-color: var(--gm-line); background: var(--gm-panel); color: var(--gm-muted); }
+
+/* ------------------------------------------------------------ scoreboard -- */
+
+.board { list-style: none; margin: 0; padding: 0; }
+.board__row {
+  display: grid;
+  grid-template-columns: 34px 42px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--gm-radius-md);
+  border: 1px solid transparent;
+  font-weight: 800;
+}
+.board__row + .board__row { margin-top: 6px; }
+.board__row:nth-child(odd) { background: rgba(122, 140, 255, 0.06); }
+.board__row--you { border-color: var(--gm-yellow); background: rgba(255, 210, 28, 0.12); }
+.board__rank { font-weight: 900; color: var(--gm-muted); text-align: right; }
+.board__row:nth-child(1) .board__rank { color: var(--gm-yellow); }
+.board__score { font-weight: 900; font-size: 1.2rem; }
+.board__gain { color: var(--gm-green); font-weight: 900; font-size: 0.82rem; margin-left: 6px; }
+.board .face { width: 42px; height: 42px; }
+
+/* --------------------------------------------------------------- podium -- */
+
+.podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 18px;
+  margin: 30px 0 34px;
+}
+.podium__spot { text-align: center; width: 172px; }
+.podium__spot .face { width: 84px; height: 84px; margin: 0 auto 10px; border-radius: 18px; }
+.podium__plinth {
+  border-radius: 16px 16px 0 0;
+  background: var(--gm-panel-2);
+  border: 1px solid var(--gm-line);
+  border-bottom: none;
+  padding: 12px 8px;
+  font-weight: 900;
+}
+.podium__spot--1 .podium__plinth {
+  height: 148px;
+  border-color: var(--gm-yellow);
+  background: linear-gradient(180deg, #ffd21c, #e0a800);
+  color: #241a00;
+  box-shadow: 0 -8px 40px rgba(255, 210, 28, 0.3);
+}
+.podium__spot--1 .podium__medal { color: #241a00; }
+.podium__spot--1 .podium__score { color: rgba(36, 26, 0, 0.72); }
+.podium__spot--2 .podium__plinth { height: 112px; }
+.podium__spot--3 .podium__plinth { height: 86px; }
+.podium__medal { display: block; font-size: 1.9rem; font-weight: 900; color: var(--gm-yellow); }
+.podium__name { overflow-wrap: anywhere; }
+.podium__score { color: var(--gm-muted); font-size: 0.82rem; }
+
+/* ----------------------------------------------------------- join form --- */
+
+.jform { display: grid; gap: 16px; }
+.jfield { display: grid; gap: 7px; }
+.jfield > span {
+  font-weight: 900;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: var(--gm-muted);
+}
+.jinput {
+  font: inherit;
+  font-weight: 800;
+  padding: 14px 16px;
+  border-radius: var(--gm-radius-md);
+  border: 1px solid var(--gm-line);
+  background: var(--gm-panel-2);
+  color: var(--gm-text);
+}
+.jinput:focus { outline: 2px solid var(--gm-cyan); outline-offset: 1px; }
+.jinput--code { letter-spacing: 0.5em; text-transform: uppercase; font-size: 1.5rem; text-align: center; font-weight: 900; }
+
+.facepick { display: flex; align-items: center; gap: 16px; }
+.facepick .face { width: 84px; height: 84px; border-radius: 18px; box-shadow: 0 0 0 2px var(--gm-line); }
+
+.jerror { color: var(--gm-red); font-weight: 800; min-height: 1.2em; margin: 0; }
+
+/* ------------------------------------------------------------- sticky --- */
+
+.stickybar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(7, 9, 31, 0), var(--gm-bg) 34%);
+  z-index: 6;
+}
+.stickybar__inner { max-width: 620px; margin: 0 auto; }
+
+/* --------------------------------------------------------------- closed -- */
+
+.closed { text-align: center; padding: 60px 20px; }
+.closed h1 { font-size: clamp(1.8rem, 6vw, 3rem); margin: 0 0 10px; }
+
+/* ------------------------------------------------------------ dev strip -- */
+
+/* Prototype only. This strip stands in for the six phones that a real room
+   brings, so the host screen can be reviewed without opening six tabs. It
+   goes when the room is wired to the server. */
+.devstrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+  max-width: 1180px;
+  margin: 48px auto 32px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 166, 43, 0.5);
+  background: rgba(7, 9, 31, 0.92);
+  z-index: 9;
+}
+.devstrip__label {
+  margin-right: auto;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gm-amber);
+}
+.devstrip .qbtn { padding: 6px 12px; font-size: 0.74rem; }
+
+@media (max-width: 720px) {
+  .joincode { grid-template-columns: 1fr; gap: 14px; }
+  .joincode__count { border-left: none; border-top: 1px solid var(--gm-line-soft); padding: 14px 0 0; text-align: left; }
+  .podium { gap: 8px; }
+  .podium__spot { width: 104px; }
+}
