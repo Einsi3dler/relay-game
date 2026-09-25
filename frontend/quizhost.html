@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07091f">
+  <title>Roll Call: host screen</title>
+  <!-- style.css first: it owns the --gm-* palette that quiz.css dresses the
+       room in. The quiz borrows the ground, not the chrome. -->
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/quiz.css">
+</head>
+<body class="quiz quiz--host">
+
+  <header class="quizbar">
+    <a class="quizbar__mark" href="/" aria-label="The Relay home">
+      <svg class="quizbar__bolt" viewBox="0 0 24 32" aria-hidden="true" focusable="false">
+        <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
+      </svg>
+      <span>RELAY</span>
+    </a>
+    <span class="quizbar__tag">Roll Call</span>
+    <span class="quizbar__spacer"></span>
+    <span class="quizbar__meta" id="bar-meta"></span>
+    <button class="qbtn qbtn--danger qbtn--ghost" id="end-session" hidden>End session</button>
+  </header>
+
+  <main class="quiz__body">
+
+    <!-- ------------------------------------------------------------ lobby -->
+    <section class="stage" id="stage-lobby">
+      <p class="quiz-eyebrow">Waiting room</p>
+      <h1 class="qprompt">Get everyone in.</h1>
+      <p class="quiz-sub">Players open the link on their phone and type the code. No app, no timer.</p>
+
+      <div class="qpanel joincode" style="margin-top: 24px;">
+        <div>
+          <p class="joincode__url" id="join-url">relay.local/quiz</p>
+          <p class="joincode__value" id="join-code">----</p>
+        </div>
+        <div class="joincode__count">
+          <strong id="lobby-count">0</strong>
+          <span>in the room</span>
+        </div>
+      </div>
+
+      <ul class="roster" id="lobby-roster"></ul>
+
+      <p style="margin-top: 28px;">
+        <button class="qbtn qbtn--go" id="start-quiz" disabled>Start the quiz</button>
+        <span class="quiz-sub" id="start-hint" style="margin-left: 12px;">Two players minimum.</span>
+      </p>
+    </section>
+
+    <!-- --------------------------------------------------------- question -->
+    <section class="stage" id="stage-question" hidden>
+      <span class="qcounter" id="q-counter">Question 1</span>
+      <h1 class="qprompt" id="q-prompt"></h1>
+
+      <div class="lockmeter">
+        <div class="lockmeter__head">
+          <span>Locked in</span>
+          <strong id="lock-tally">0 of 0</strong>
+        </div>
+        <div class="lockmeter__bar"><div class="lockmeter__fill" id="lock-fill"></div></div>
+        <div class="lockmeter__faces" id="lock-faces"></div>
+      </div>
+
+      <p style="margin-top: 32px;">
+        <button class="qbtn qbtn--go" id="reveal-answer">Reveal the answer</button>
+      </p>
+    </section>
+
+    <!-- ----------------------------------------------------------- reveal -->
+    <section class="stage" id="stage-reveal" hidden>
+      <div class="verdict">
+        <p class="verdict__label">The answer was</p>
+        <span class="face verdict__face" id="reveal-face"></span>
+        <h1 class="verdict__name" id="reveal-name"></h1>
+        <p class="quiz-sub" id="reveal-prompt"></p>
+        <div class="verdict__split">
+          <div class="verdict__right"><span>Got it</span><strong id="reveal-right">0</strong></div>
+          <div class="verdict__wrong"><span>Missed it</span><strong id="reveal-wrong">0</strong></div>
+        </div>
+      </div>
+
+      <h2 class="quiz-eyebrow" style="margin-top: 34px;">Standings</h2>
+      <ol class="board" id="reveal-board"></ol>
+
+      <p style="margin-top: 26px; text-align: center;">
+        <button class="qbtn qbtn--go" id="next-question">Next question</button>
+      </p>
+    </section>
+
+    <!-- ------------------------------------------------------------ final -->
+    <section class="stage" id="stage-final" hidden>
+      <p class="quiz-eyebrow" style="text-align: center;">That is the lot</p>
+      <h1 class="qprompt" style="text-align: center;">Final standings</h1>
+
+      <div class="podium" id="final-podium"></div>
+      <ol class="board" id="final-board"></ol>
+
+      <p style="margin-top: 30px; text-align: center;">
+        <button class="qbtn qbtn--danger" id="close-session">Close the session</button>
+      </p>
+    </section>
+
+    <!-- ----------------------------------------------------------- closed -->
+    <section class="stage closed" id="stage-closed" hidden>
+      <h1>Session closed.</h1>
+      <p class="quiz-sub">Everyone's screen has been let go. Nothing was kept.</p>
+      <p style="margin-top: 24px;">
+        <button class="qbtn qbtn--go" id="new-session">Start a new one</button>
+      </p>
+    </section>
+
+  </main>
+
+  <!-- Prototype controls. These stand in for the phones in the room so the
+       host screen can be reviewed by one person; they go when the room is
+       wired to the server. -->
+  <div class="devstrip" id="devstrip">
+    <span class="devstrip__label">Prototype controls</span>
+    <button class="qbtn" id="dev-fill">Add 6 players</button>
+    <button class="qbtn" id="dev-answer">Everyone answers</button>
+    <button class="qbtn" id="dev-reset">Reset room</button>
+  </div>
+
+  <script src="/static/avatar.js"></script>
+  <script src="/static/quiz.js"></script>
+  <script src="/static/quizhost.js"></script>
+</body>
+</html>

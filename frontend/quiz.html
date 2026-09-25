@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07091f">
+  <title>Roll Call</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/quiz.css">
+</head>
+<body class="quiz quiz--player">
+
+  <header class="quizbar">
+    <a class="quizbar__mark" href="/" aria-label="The Relay home">
+      <svg class="quizbar__bolt" viewBox="0 0 24 32" aria-hidden="true" focusable="false">
+        <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
+      </svg>
+      <span>RELAY</span>
+    </a>
+    <span class="quizbar__tag">Roll Call</span>
+    <span class="quizbar__spacer"></span>
+    <span class="quizbar__meta" id="me-meta"></span>
+  </header>
+
+  <main class="quiz__body">
+
+    <!-- ------------------------------------------------------------- join -->
+    <section class="stage" id="stage-join">
+      <p class="quiz-eyebrow">Join the room</p>
+      <h1 class="qprompt">Who is who?</h1>
+      <p class="quiz-sub">A prompt lands, you tap the face you think it belongs to. No clock, no pressure.</p>
+
+      <form class="jform qpanel" id="join-form" style="margin-top: 22px;" novalidate>
+        <label class="jfield">
+          <span>Room code</span>
+          <input class="jinput jinput--code" id="field-code" maxlength="4" autocomplete="off"
+                 autocapitalize="characters" spellcheck="false" placeholder="ABCD">
+        </label>
+
+        <label class="jfield">
+          <span>Your name</span>
+          <input class="jinput" id="field-name" maxlength="18" autocomplete="off" placeholder="What the room calls you">
+        </label>
+
+        <div class="jfield">
+          <span>Your face</span>
+          <div class="facepick">
+            <span class="face" id="field-face"></span>
+            <button type="button" class="qbtn" id="shuffle-face">Try another</button>
+          </div>
+        </div>
+
+        <p class="jerror" id="join-error"></p>
+        <button class="qbtn qbtn--go qbtn--big" type="submit">Join</button>
+      </form>
+    </section>
+
+    <!-- ---------------------------------------------------------- waiting -->
+    <section class="stage" id="stage-waiting" hidden>
+      <div class="qpanel" style="text-align: center;">
+        <span class="face" id="wait-face" style="width: 96px; height: 96px; margin: 0 auto 14px; border-radius: 20px;"></span>
+        <h1 class="qprompt" id="wait-name"></h1>
+        <p class="quiz-sub">You are in. The host starts it when the room is full.</p>
+      </div>
+      <h2 class="quiz-eyebrow" style="margin-top: 26px;">In the room</h2>
+      <ul class="roster" id="wait-roster"></ul>
+    </section>
+
+    <!-- --------------------------------------------------------- question -->
+    <section class="stage" id="stage-question" hidden>
+      <span class="qcounter" id="p-counter">Question 1</span>
+      <h1 class="qprompt" id="p-prompt"></h1>
+      <p class="quiz-sub" id="p-note"></p>
+      <ul class="cardgrid" id="p-cards"></ul>
+    </section>
+
+    <!-- ----------------------------------------------------------- reveal -->
+    <section class="stage" id="stage-reveal" hidden>
+      <div class="callout" id="p-callout">
+        <span class="callout__big" id="p-callout-big"></span>
+        <span id="p-callout-small"></span>
+      </div>
+
+      <div class="verdict" style="margin-top: 22px;">
+        <p class="verdict__label">It was</p>
+        <span class="face verdict__face" id="p-answer-face" style="width: 96px; height: 96px;"></span>
+        <h2 class="verdict__name" id="p-answer-name" style="font-size: 2rem;"></h2>
+      </div>
+
+      <h2 class="quiz-eyebrow" style="margin-top: 28px;">Standings</h2>
+      <ol class="board" id="p-board"></ol>
+      <p class="quiz-sub" style="text-align: center; margin-top: 20px;">Waiting for the host.</p>
+    </section>
+
+    <!-- ------------------------------------------------------------ final -->
+    <section class="stage" id="stage-final" hidden>
+      <div class="qpanel" style="text-align: center;">
+        <p class="quiz-eyebrow">You finished</p>
+        <h1 class="qprompt" id="p-final-rank"></h1>
+        <p class="quiz-sub" id="p-final-score"></p>
+      </div>
+      <h2 class="quiz-eyebrow" style="margin-top: 26px;">Final standings</h2>
+      <ol class="board" id="p-final-board"></ol>
+    </section>
+
+    <!-- ----------------------------------------------------------- closed -->
+    <section class="stage closed" id="stage-closed" hidden>
+      <h1>The host closed the session.</h1>
+      <p class="quiz-sub">Thanks for playing. Nothing was kept.</p>
+    </section>
+
+  </main>
+
+  <!-- The lock button lives under the thumb, not at the end of a scroll. -->
+  <div class="stickybar" id="lockbar" hidden>
+    <div class="stickybar__inner">
+      <button class="qbtn qbtn--go qbtn--big" id="lock-in" disabled>Pick a face</button>
+    </div>
+  </div>
+
+  <script src="/static/avatar.js"></script>
+  <script src="/static/quiz.js"></script>
+  <script src="/static/quizplay.js"></script>
+</body>
+</html>

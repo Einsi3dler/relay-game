@@ -307,6 +307,24 @@ async def games_page():
     return _serve_page("games.html")
 
 
+# --- ROLL CALL, the room quiz (docs/QUIZ_ROLL_CALL.md) ---------------------
+# Two pages, one event: /quizhost is the projector the room reads, /quiz is the
+# phone in each player's hand. Kept apart from the match pages on purpose —
+# a quiz has no teams, no levels and no Grandmaster, and it is not a Match, for
+# the same reasons a duel room is not one (see backend/duelroom.py).
+#
+# Both are static for now: the room lives in the browser while the screens are
+# being designed. The server side lands with the question data.
+@app.get("/quiz", response_model=None)
+async def quiz_player_page():
+    return _serve_page("quiz.html")
+
+
+@app.get("/quizhost", response_model=None)
+async def quiz_host_page():
+    return _serve_page("quizhost.html")
+
+
 # --- the account pages (backend/auth.py) ----------------------------------
 # One HTML file behind six paths. They are all the same small card on the same
 # background, differing only in which form is on it, and the page picks that
