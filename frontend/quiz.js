@@ -80,6 +80,17 @@
     return Math.round(SPEED_MAX * Math.pow(SPEED_DECAY, rank));
   }
 
+  /* What the subject of a question locks in instead of a guess.
+     
+     They have to lock something. The projector shows who the room is still
+     waiting on, and if the one person who cannot answer were left out of that
+     list, or simply never lit up, the room would read the answer straight off
+     the missing name. So the subject confirms in the same beat as everybody
+     else, their tile behaves identically, and the tally reaches everyone. It
+     is a sentinel rather than an empty string because every "have they
+     answered" test in here is a truthiness test. */
+  var SAT_OUT = "__sat_out";
+
   /* Six stand-ins so the host screen can be reviewed without six phones. */
   var DEMO_NAMES = ["Amara", "Daniel", "Priya", "Tom", "Sade", "Luis"];
 
@@ -242,20 +253,24 @@
     return null;
   }
 
-  /* Whoever the question is about sits the round out, so "answered" is never
-     waiting on a person who cannot answer. */
-  function eligible(room) {
+  /* Who can actually score this round: everyone but the subject. This is a
+     scoring question only. Nothing on a screen may be drawn from it, because
+     the difference between this list and the room is the answer. */
+  function scorable(room) {
     var q = currentQuestion(room);
     return room.players.filter(function (p) { return !q || p.id !== q.subject; });
   }
 
+  /* What the projector counts, and it is everybody. The subject locks a
+     SAT_OUT like everyone else locks a guess. */
   function answeredCount(room) {
-    return eligible(room).filter(function (p) { return !!p.answer; }).length;
+    return room.players.filter(function (p) { return !!p.answer; }).length;
   }
 
   function allAnswered(room) {
-    var pool = eligible(room);
-    return pool.length > 0 && pool.every(function (p) { return !!p.answer; });
+    return room.players.length > 0 && room.players.every(function (p) {
+      return !!p.answer;
+    });
   }
 
   /* Mean ms to lock, counting only the rounds a player got right. Counting
@@ -352,8 +367,11 @@
       var me = playerById(room, fields.playerId);
       var q = currentQuestion(room);
       if (!me || !q) return room;
-      if (me.id === q.subject) return room;      // the subject sits it out
       if (me.answer) return room;                // a lock is final
+      /* The subject confirms rather than guesses, and a real guess from them
+         is refused: the one thing they must not be able to do is score. */
+      if (me.id === q.subject && fields.choice !== SAT_OUT) return room;
+      if (me.id !== q.subject && fields.choice === SAT_OUT) return room;
       me.answer = fields.choice;
       me.answeredAt = Math.max(0, nowStamp() - (room.askedAt || nowStamp()));
       return room;
@@ -442,8 +460,10 @@
       var q = currentQuestion(room);
       var ids = room.players.map(function (p) { return p.id; });
       room.players.forEach(function (p) {
-        if (p.answer || (q && p.id === q.subject)) return;
-        p.answer = ids[Math.floor(Math.random() * ids.length)];
+        if (p.answer) return;
+        p.answer = (q && p.id === q.subject)
+          ? SAT_OUT
+          : ids[Math.floor(Math.random() * ids.length)];
         p.answeredAt = 700 + Math.floor(Math.random() * 11000);
       });
       return room;
@@ -496,9 +516,10 @@
       fn(read());
     },
 
+    SAT_OUT: SAT_OUT,
     currentQuestion: currentQuestion,
     playerById: playerById,
-    eligible: eligible,
+    scorable: scorable,
     answeredCount: answeredCount,
     allAnswered: allAnswered,
     standings: standings,

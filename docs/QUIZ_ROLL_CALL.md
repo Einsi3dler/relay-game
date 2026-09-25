@@ -45,10 +45,21 @@ shows the prompt and a grid of every face in the room. A tap selects, a second
 deliberate press on **Lock it in** commits. There is no timer, so there is no
 reason to punish a fat thumb with an instant lock.
 
-**The subject sits out.** The person a question is about cannot answer it, and
-is not counted in the "locked in" tally. Their card is still drawn on everyone
-else's phone (the room's shape should not shift round to round) and their own
-phone says so plainly. They score nothing for that round.
+**The subject confirms, but cannot answer.** The person a question is about
+cannot guess it and scores nothing for that round. They do still **lock in**:
+their phone shows a single confirm button instead of the grid, and on the
+projector their tile behaves exactly like everybody else's.
+
+That last part is not cosmetic, and getting it wrong was a real bug. The first
+build left the subject out of the locked-in roster entirely, so a seven-person
+room saw six names on the projector and could read the answer straight off the
+one that was missing. Leaving them in but never lighting them up has the same
+problem one beat later. The only version that holds is the subject locking a
+sentinel (`SAT_OUT`) in the same beat as everyone else, so the tally reaches
+the whole room and no tile is ever distinguishable.
+
+The server enforces both halves: a subject sending a real guess is refused, and
+a non-subject sending `SAT_OUT` is refused.
 
 **You are never the answer to your own question.** From where you are sitting
 the subject is always somebody else, so your own card is drawn but not
@@ -131,9 +142,10 @@ so one person can review the whole flow. It goes when the room is wired up.
 
 ## 5. Decisions taken in review
 
-1. **The projector during a question** draws every seat it is waiting on, named
-   and large, filling in as people lock. Names, not thumbnails: the room's
-   first question is always "who are we waiting for".
+1. **The projector during a question** draws **every** seat, named and large,
+   filling in as people lock. Names, not thumbnails: the room's first question
+   is always "who are we waiting for". Every seat, because any roster that
+   omits or singles out the subject names them.
 2. **Late joiners are allowed**, at any point, starting on zero. The room is
    never locked.
 3. **Every prompt is true of exactly one person.** The data guarantees it, so
