@@ -15,7 +15,7 @@ Decisions are settled; nothing below is a question.
 ## 0. The two rules that must not be broken
 
 **1. The roster never enters this repository.** `github.com/Einsi3dler/relay-game`
-is **public**. The roster is nine real people's email addresses and personal
+is **public**. The roster is ten real people's email addresses and personal
 statements about themselves. It lives at `var/rollcall/roster.json`, which
 `.gitignore` covers via `var/`. Do not commit it, do not paste it into a test
 fixture, do not put a real answer in a docstring. Tests use invented people.
@@ -24,7 +24,7 @@ fixture, do not put a real answer in a docstring. Tests use invented people.
 game modules live under ([GAME_MODULE_SPEC.md](GAME_MODULE_SPEC.md) §2.3): the
 payload may carry the state needed to render, never the solution. Today the
 prototype fails it completely, and a player with devtools can print all
-twenty-seven questions **and** their subjects before question one is asked. §6
+thirty questions **and** their subjects before question one is asked. §6
 is the contract that fixes it, and §11 is the test that proves it.
 
 ---
@@ -45,7 +45,13 @@ is the contract that fixes it, and §11 is the test that proves it.
 }
 ```
 
-Nine participants, twenty-seven answers, emails unique, no empty answers.
+Ten participants, thirty answers, emails unique, no empty answers, every one
+carrying all three categories.
+
+The count is whatever the file holds, not a constant: responses were still
+arriving while this was written, and the later ones carry a leading timestamp
+column the first batch did not. Read the file, do not hard-code ten anywhere.
+Re-run the verification after every import.
 
 **Answers are quoted verbatim.** Do not fix spelling, capitalisation, spacing or
 emoji, and do not rewrite first person into a question. The prompt *is* their
@@ -53,9 +59,11 @@ sentence, under a category label, and their voice is a legitimate part of the
 puzzle. One answer contains a newline; two contain an em dash or an emoji. Treat
 the text as opaque UTF-8 and escape it at the DOM boundary, never by editing it.
 
-**Every answer is used, including the weak ones.** "Hmmm everything so is
-remarkable" names nobody and will be a round the whole room misses. That is the
-decision: it costs everyone the same and it is over in twenty seconds.
+**Every answer is used, including the weak ones.** Two of them name nobody:
+"Hmmm everything so is remarkable", and a vision answer that is a confession of
+not having one. Each will be a round the whole room misses. That is the
+decision: it costs everyone the same and it is over in twenty seconds. Do not
+add a filter for them later without saying so.
 
 ## 2. Identity: three doors, and nothing else
 
@@ -66,7 +74,7 @@ decision: it costs everyone the same and it is over in twenty seconds.
 | **Everybody else** | Nothing | Nothing. No public join code exists in this mode. |
 
 The room is **roster-only and closed**. Drop the four-character join code from
-the host screen; it has nothing to open. The lobby shows `7 of 9 here` and names
+the host screen; it has nothing to open. The lobby shows `8 of 10 here` and names
 who has not arrived instead, which is the thing the Grandmaster actually needs.
 
 The token **is** the credential: whoever holds the link is that person. That is
@@ -139,7 +147,7 @@ questions = shuffle([
 ])
 ```
 
-Twenty-seven questions, **all three categories shuffled together**, category
+Thirty questions, **all three categories shuffled together**, category
 shown as a small label above the quote. Shuffle with `secrets`-seeded RNG on the
 server; the order must not be derivable by a client.
 
@@ -233,7 +241,7 @@ falls back to a seeded face rather than reaching a renderer.
 Plain text through `mailer.send(to, subject, body, kind="rollcall")`. It never
 raises; check `.delivered`. `mailer.throttled(to, kind)` blocks a repeat to the
 same address within `EMAIL_SEND_MIN_INTERVAL_SECONDS` (60), which will not
-affect a batch of nine distinct addresses but will bite a re-send, so check it
+affect a batch of ten distinct addresses but will bite a re-send, so check it
 before minting anything.
 
 ```
@@ -257,7 +265,7 @@ If you were not expecting this, ignore it and nothing happens.
 ```
 
 **Send with `dry_run: true` first.** It renders every message and returns them
-without calling `send`, so the copy and the nine links can be read before
+without calling `send`, so the copy and the ten links can be read before
 anything leaves the building. `RELAY_MAIL_BACKEND=smtp` and `delivers_mail()` is
 already `True` on this deployment: a live run reaches real inboxes and cannot be
 taken back.
@@ -277,7 +285,7 @@ and should need no logic changes. Beyond that:
   "Who taught themselves an instrument?" and the longest vision here is about
   fifty words with a line break in it. Scale the size by length and render the
   body as a blockquote under its category label.
-- **The lobby** shows `7 of 9 here` and who is missing, not a join code.
+- **The lobby** shows `8 of 10 here` and who is missing, not a join code.
 
 ## 10. Runbook
 
