@@ -4,6 +4,11 @@
 the browser, and nothing has reached the server yet. This doc is the design to
 argue with before any of it is wired up.
 
+**Building the server?** [ROLL_CALL_HANDOFF.md](ROLL_CALL_HANDOFF.md) is the
+implementation handoff: the real roster, the invitations, the Grandmaster's
+host key, the snapshot contract that stops the answers leaking, and the runbook
+for the night.
+
 A prompt lands on a shared screen. Everyone in the room decides which *person
 in the room* it belongs to and taps their face. There is no clock. The host
 paces it and closes the session when the room is done.
