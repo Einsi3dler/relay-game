@@ -131,7 +131,7 @@ def test_public_view_leaks_nothing(db):
     view = make_user().public()
     assert set(view) == {
         "id", "email", "username", "first_name", "last_name",
-        "display_name", "verified", "created_at",
+        "display_name", "verified", "created_at", "avatar",
     }
     assert "correct horse battery" not in repr(view)
 

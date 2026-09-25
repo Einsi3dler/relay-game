@@ -94,6 +94,11 @@ class Player:
     status: str = "lobby"
     connected: bool = False
     is_leader: bool = False
+    # config.AVATAR_SLOTS code for the face this player picked, or None to let
+    # the client draw the one seeded from their id. Validated on the way in
+    # (`config.avatar_normalise`), never trusted from the wire as-is: it is
+    # broadcast to every client and drawn into SVG at the other end.
+    avatar: str | None = None
     role: str | None = None  # config.ROLES id given by the Grandmaster
     assigned_game: str | None = None  # game id chosen by the team leader
     attempt: int = 0  # main-puzzle instances served this level
@@ -154,6 +159,7 @@ class Player:
         return {
             "id": self.id,
             "name": self.name,
+            "avatar": self.avatar,
             "team_id": self.team_id,
             "status": self.status,
             "green": green(self),

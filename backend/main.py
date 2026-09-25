@@ -273,6 +273,7 @@ if FRONTEND_DIR.exists():
 class JoinBody(BaseModel):
     name: str
     team_id: str | None = None
+    avatar: str | None = None
 
 
 class RejoinBody(BaseModel):
@@ -552,6 +553,11 @@ async def get_config() -> dict:
             }
             for role_id, role in config.ROLES.items()
         },
+        # How many variants the picker may offer per feature. The drawings are
+        # the client's, the bounds are the server's — the same numbers it
+        # validates a submitted code against, so a picker cannot build a face
+        # that `set_avatar` would then refuse.
+        "avatar_slots": dict(config.AVATAR_SLOTS),
         "library": engine.registry.library(),
         # The duel catalogue, for the host's round-timer note: the Grandmaster
         # never picks a duel, but the host is setting the clock for all of them.
@@ -698,7 +704,9 @@ async def join_match(match_id: str, body: JoinBody) -> dict:
     async with locks.for_match(match_id):
         touch(match_id)
         try:
-            player, result = engine.join_match(match, body.name, body.team_id)
+            player, result = engine.join_match(
+                match, body.name, body.team_id, avatar=body.avatar
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         await apply_and_broadcast(match, result)
@@ -733,6 +741,8 @@ async def get_match(match_id: str) -> dict:
 
 def _run_lobby_action(match: Match, player_id: str, fields: dict) -> EngineResult:
     action = fields["action"]
+    if action == "set_avatar":
+        return engine.set_avatar(match, player_id, fields.get("avatar"))
     if action == "set_team":
         return engine.set_team(match, player_id, fields.get("team_id", ""))
     if action == "move":

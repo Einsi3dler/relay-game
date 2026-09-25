@@ -210,6 +210,41 @@
 .auth-banner p { margin: 0 0 12px; font-size: 0.88rem; line-height: 1.5; color: #6b4a12; }
 .auth-banner strong { color: #4a3208; }
 
+/* The face picker. Same twelve-and-shuffle as the join screen, in this page's
+   lighter palette: picking a face is the same job in both places, so it should
+   not be two different controls to learn. */
+.auth-faces { margin: 0 0 22px; }
+.auth-faces__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.auth-faces__label { font-size: 0.9rem; font-weight: 700; color: var(--relay-ink); }
+.auth-faces__hint { margin: 4px 0 12px; font-size: 0.82rem; color: var(--relay-muted); }
+.auth-faces__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  gap: 8px;
+}
+.auth-face {
+  aspect-ratio: 1;
+  padding: 0;
+  border: 2px solid var(--relay-line-light);
+  border-radius: 12px;
+  background: none;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.08s ease;
+}
+.auth-face svg { width: 100%; height: 100%; display: block; }
+.auth-face:hover { transform: translateY(-2px); }
+.auth-face[aria-checked="true"] {
+  border-color: var(--relay-ink);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
+}
+.auth-face:focus-visible { outline: 2px solid var(--relay-ink); outline-offset: 2px; }
+
 .auth-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .auth-actions .rbtn { flex: 1 1 auto; justify-content: center; }
 

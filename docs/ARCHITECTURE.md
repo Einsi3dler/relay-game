@@ -263,6 +263,7 @@ browser. Approach:
 frontend/
   index.html
   app.js            # shell: state, WS, mount/unmount active renderer, countdowns
+  avatar.js         # window.RelayAvatar: draws a face from a code (config.AVATAR_SLOTS)
   styles.css
   games/
     registry.js     # optional helper; renderers self-register on window.RelayGames

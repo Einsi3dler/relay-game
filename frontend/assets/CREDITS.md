@@ -160,13 +160,20 @@ with a wrong path paints nothing at all, with no console error to notice.
 
 ## Roster avatars — generated locally, no third party
 
-Roster avatars are drawn in the browser from a deterministic seed (match id
-plus player id): eyes and a mouth on a seeded ground, in the spirit of
+Roster avatars are drawn in the browser as 16x16 pixel faces, in the spirit of
 DiceBear's `pixel-art-neutral` but with no network request and nothing
-vendored. Nothing is stored on the player model, nothing is derived from the
-player's name, and the roster renders identically offline.
+vendored. Every feature — eyes, mouths, eyebrows, hats and the rest — is an
+original hand-authored rectangle list, and the roster renders identically
+offline.
 
-See `avatarSvg` in `frontend/app.js`.
+Players pick a face at the join screen or on their account page, and the pick
+travels as a short code (`AVATAR_SLOTS` in `backend/config.py`). A player who
+never picks is drawn from a deterministic seed (match id plus player id)
+instead, so every seat has a face. Nothing is derived from the player's name,
+and the skin and ground palettes are the same neutral ones they have always
+been: the comedy is in the hats, not in anybody's colouring.
+
+See `frontend/avatar.js`.
 
 ## Duel card refresh
 

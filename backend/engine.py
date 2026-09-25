@@ -203,9 +203,14 @@ class RelayEngine:
         name: str,
         team_id: str | None = None,
         now: datetime | None = None,
+        avatar: str | None = None,
     ) -> tuple[Player, EngineResult]:
         """Add a player to the lobby — unassigned unless a team is given
-        explicitly. The first joiner becomes host; the host starts the match."""
+        explicitly. The first joiner becomes host; the host starts the match.
+
+        A bad `avatar` is dropped rather than refused: the face is cosmetic, and
+        failing a join over it would turn a client-side typo into "you cannot
+        play". The player gets their seeded face instead."""
         if match.status != "lobby":
             raise ValueError("match already started")
         team_capacity = match.max_players + 1  # playing members + a leader
@@ -223,6 +228,7 @@ class RelayEngine:
             id=f"p_{secrets.token_hex(8)}",  # long + random — the WS credential
             name=name,
             rejoin_code=_new_rejoin_code(match),
+            avatar=config.avatar_normalise(avatar),
             team_id=team.id if team else None,
             status="lobby",
             connected=True,
@@ -286,6 +292,30 @@ class RelayEngine:
         if player is None:
             return EngineResult.rejected("unknown player")
         return self._assign_team(match, player, team_id)
+
+    def set_avatar(
+        self, match: Match, player_id: str, avatar: str | None
+    ) -> EngineResult:
+        """A player changes their own face. Cosmetic, so it is allowed at any
+        point in a match rather than only in the lobby: nothing about the race
+        depends on it, and a player who hates the face they picked should not
+        have to sit behind it for ten levels.
+
+        An empty code means "go back to the seeded face", which is the only way
+        to undo a pick.
+        """
+        player = match.players.get(player_id)
+        if player is None:
+            return EngineResult.rejected("unknown player")
+        chosen = config.avatar_normalise(avatar) if avatar else None
+        if avatar and chosen is None:
+            return EngineResult.rejected("unknown avatar")
+        if player.avatar == chosen:
+            return EngineResult(changed=False)
+        player.avatar = chosen
+        # No event in the feed: a cosmetic change is not race news, and during a
+        # live match the feed is something the Grandmaster reads under pressure.
+        return EngineResult(changed=True)
 
     def host_move(
         self, match: Match, host_id: str, target_id: str, team_id: str

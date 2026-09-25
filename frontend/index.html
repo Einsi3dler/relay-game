@@ -46,6 +46,20 @@
           <input id="name-input" maxlength="16" placeholder="Ada" autocomplete="off">
         </span>
 
+        <!-- Pick a face. Optional: a player who ignores this still gets one,
+             drawn from their player id (see `avatarSeeded` in app.js). -->
+        <div class="jn-faces">
+          <div class="jn-faces__head">
+            <span class="jn-label" id="face-label">Your face</span>
+            <button id="face-shuffle" class="jn-faces__shuffle" type="button">
+              <i class="gm-ic gm-ic--level gm-ic--sm" aria-hidden="true"></i>
+              Shuffle
+            </button>
+          </div>
+          <div class="jn-faces__grid" id="face-grid" role="radiogroup"
+               aria-labelledby="face-label"></div>
+        </div>
+
         <div class="jn-choice">
           <button id="host-btn" class="jn-btn jn-btn--host">
             <i class="gm-ic gm-ic--level gm-ic--sm" aria-hidden="true"></i>
@@ -920,6 +934,7 @@
   <script src="/static/duels/crown_duel.js" defer></script>
   <script src="/static/duels/number_clash.js" defer></script>
   <script src="/static/duels/bid_war.js" defer></script>
+  <script src="/static/avatar.js" defer></script>
   <script src="/static/app.js?v=3" defer></script>
 </body>
 </html>

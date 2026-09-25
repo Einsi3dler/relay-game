@@ -16,7 +16,7 @@ Pair with [ARCHITECTURE.md](ARCHITECTURE.md) and [GAME_DESIGN.md](GAME_DESIGN.md
 | `GET` | `/` | — | landing page (`/play` serves the app) |
 | `GET` | `/api/config` | — | `{ "teams": ["alpha","bravo"], "players_per_team": 12, "max_players_ceiling": 12, "min_players_default": 4, "min_level_count": 3, "max_level_count": 10, "team_name_max": 20, "level_count": 10, "wait_seconds": 180, "duel_round_seconds_min": 3, "duel_round_seconds_max": 30, "duel_round_seconds_choices": [3,5,8,10,12,15,20,30], "perks": { ... }, "roles": { "<role_id>": {"name": str, "games": [<game_id>, ...] \| null}, ... }, "library": [ {"id","name","role"}, ... ], "duels": [ {"id","name","choice_seconds"}, ... ] }` |
 | `POST` | `/api/matches` | `{}` | `{ "match": <MatchPublic> }` — creates a match, returns its id |
-| `POST` | `/api/matches/{id}/join` | `{ "name": str, "team_id": "alpha"\|"bravo"\|null }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` |
+| `POST` | `/api/matches/{id}/join` | `{ "name": str, "team_id": "alpha"\|"bravo"\|null, "avatar": str\|null }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` |
 | `POST` | `/api/matches/{id}/rejoin` | `{ "code": str }` | `{ "player": <PlayerPublic>, "match": <MatchPublic> }` — trades a rejoin code for the `player_id` that owns the seat |
 | `GET` | `/api/matches/{id}` | — | `{ "match": <MatchPublic> }` (spectate / rejoin lookup) |
 | `GET`/`POST` | `/god` | form `key=<RELAY_GOD_KEY>` | the God console, behind a password ([GOD_MODE.md](GOD_MODE.md)). Dev only |
@@ -105,7 +105,7 @@ Connect: `ws(s)://<host>/ws/matches/{match_id}?player_id={player_id}`
 | `answer_stake` | `amount: int` | Grandmaster-only, once per staked duel. Funds their own champion with **any** amount they choose, more or less than was asked; `0` is a legal answer meaning "bid with nothing". The coins leave the purse here and only winnings come back. Capped at what the purse holds. |
 | `request_state` | — | Ask for a fresh `state_snapshot` (e.g. after reconnect). |
 | `heartbeat` | — | Keep-alive; server replies with a `state_snapshot`. |
-| `lobby_action` | `action: str` + action fields | Mostly lobby-only. `set_team {team_id}` (self), `leave` (self; the host seat passes on), `claim_leader` (seat empty or holder disconnected), `release_leader` (lobby-only; the Grandmaster gives the seat back), God-only `god_set_leader {target_id}` (lobby-only; unlike `claim_leader` it overrides a seated, connected Grandmaster), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `set_max_players {value}` (1..ceiling; pulls `min_players` down with it), `set_level_count {value}` (3..10 rounds to win), `set_duel_seconds {value}` (3..30 seconds a duel round, or `0` to give every duel game its own window back), `set_team_name {team_id, name}`, `start`, `cancel_session`; `claim_host` (only while the host is gone). **Outside the lobby:** `end_session` (host-only, running match) and `claim_host` also work — the host holds the only control that stops a session. |
+| `lobby_action` | `action: str` + action fields | Mostly lobby-only. `set_team {team_id}` (self), `set_avatar {avatar}` (self; cosmetic, so it is allowed at any point in a match, not only in the lobby — `""` goes back to the seeded face, and a code outside `config.AVATAR_SLOTS` is refused), `leave` (self; the host seat passes on), `claim_leader` (seat empty or holder disconnected), `release_leader` (lobby-only; the Grandmaster gives the seat back), God-only `god_set_leader {target_id}` (lobby-only; unlike `claim_leader` it overrides a seated, connected Grandmaster), Grandmaster-only `assign_role {target_id, role_id}` and `assign_game {target_id, game_id}` (a game must fit the target's role); host-only: `move {target_id, team_id}`, `kick {target_id}`, `set_min_players {value}`, `set_max_players {value}` (1..ceiling; pulls `min_players` down with it), `set_level_count {value}` (3..10 rounds to win), `set_duel_seconds {value}` (3..30 seconds a duel round, or `0` to give every duel game its own window back), `set_team_name {team_id, name}`, `start`, `cancel_session`; `claim_host` (only while the host is gone). **Outside the lobby:** `end_session` (host-only, running match) and `claim_host` also work — the host holds the only control that stops a session. |
 
 - `puzzle_id` **must** match the player's current puzzle id, or the server replies
   `error` ("Puzzle is no longer active") and ignores it.
@@ -275,6 +275,11 @@ keeps the leader-only events, and gets both sides of a `pending_stake`. See
 {
   "id": "p_9f3c2e7b81aa04d6",           // long + unguessable — it's the credential (§2)
   "name": "Ada",
+  "avatar": "3601240",                   // config.AVATAR_SLOTS code, or null to let
+                                         //   the client draw the face seeded from
+                                         //   `id`. One base-36 digit per feature,
+                                         //   bounds-checked server-side — it is
+                                         //   drawn into SVG at the far end
   "team_id": "alpha",                    // null while unassigned in the lobby
   "status": "lobby | solving | cleared | bonus | leading | finished",
   "green": true,                         // derived: status == "cleared"
