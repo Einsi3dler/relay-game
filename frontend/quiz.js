@@ -191,6 +191,114 @@
     }
   }
 
+  /* ------------------------------------------------- the reveal, staged -- */
+
+  /* Who was right and who was not, for the two lists under the answer. The
+     subject is in neither: they are the answer, shown above it.
+     
+     The right-hand list is ordered fastest first, which is the order the speed
+     bonus was handed out in, so the list and the numbers beside it tell the
+     same story. */
+  function splitRound(room) {
+    var q = currentQuestion(room);
+    var right = [];
+    var wrong = [];
+    scorable(room).forEach(function (p) {
+      if (q && p.answer === q.subject) right.push(p);
+      else wrong.push(p);
+    });
+    right.sort(function (a, b) { return (a.answeredAt || 0) - (b.answeredAt || 0); });
+    wrong.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    return { right: right, wrong: wrong };
+  }
+
+  function personRow(player, trailing, index, viewerId) {
+    var li = document.createElement("li");
+    li.className = "gperson";
+    li.style.setProperty("--i", index);
+    li.appendChild(faceNode(player));
+
+    var name = document.createElement("span");
+    name.className = "gperson__name";
+    name.textContent = player.id === viewerId
+      ? player.name + " (you)"
+      : player.name;
+    li.appendChild(name);
+
+    if (trailing) li.appendChild(trailing);
+    return li;
+  }
+
+  /* Fills the got-it / missed-it lists. `viewerId` is only used to say "you",
+     so the same code serves the projector (no viewer) and a phone. */
+  function renderGroups(nodes, room, viewerId) {
+    var split = splitRound(room);
+    clearNode(nodes.rightList);
+    clearNode(nodes.wrongList);
+    nodes.rightCount.textContent = split.right.length;
+    nodes.wrongCount.textContent = split.wrong.length;
+
+    split.right.forEach(function (p, i) {
+      var gain = document.createElement("span");
+      gain.className = "gperson__gain";
+      gain.textContent = "+" + p.gain;
+      nodes.rightList.appendChild(personRow(p, gain, i, viewerId));
+    });
+
+    split.wrong.forEach(function (p, i) {
+      var said = document.createElement("span");
+      said.className = "gperson__said";
+      var picked = p.answer ? playerById(room, p.answer) : null;
+      said.textContent = picked ? "said " + picked.name : "no answer";
+      nodes.wrongList.appendChild(personRow(p, said, i, viewerId));
+    });
+  }
+
+  /* The slot machine. Rolls through the room, lands on the subject, calls
+     back.
+     
+     Decoration only: `land` writes the correct face and name whether or not a
+     single frame ran, and the caller gets the handle so it can cut the roll
+     short if the host moves on mid-spin. Reduced motion skips straight to the
+     landing. */
+  var ROLL_TICK_MS = 80;
+  var ROLL_TICKS = 14;
+
+  function rollReveal(faceBox, nameEl, room, subject, done) {
+    function land() {
+      faceBox.classList.remove("is-rolling");
+      faceBox.innerHTML = faceSvg(subject);
+      nameEl.textContent = subject.name;
+      void faceBox.offsetWidth;          // restart the keyframes
+      faceBox.classList.add("is-landed");
+      nameEl.classList.add("is-landed");
+      if (done) done();
+    }
+
+    faceBox.classList.remove("is-landed", "is-rolling");
+    nameEl.classList.remove("is-landed");
+
+    var still = global.matchMedia &&
+      global.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (still || room.players.length < 2) { land(); return null; }
+
+    faceBox.classList.add("is-rolling");
+    nameEl.textContent = "\u00b7\u00b7\u00b7";
+
+    var pool = room.players;
+    var at = Math.floor(Math.random() * pool.length);
+    var ticks = 0;
+    var handle = global.setInterval(function () {
+      at = (at + 1) % pool.length;
+      faceBox.innerHTML = faceSvg(pool[at]);
+      if (++ticks >= ROLL_TICKS) {
+        global.clearInterval(handle);
+        land();
+      }
+    }, ROLL_TICK_MS);
+    return handle;
+  }
+
   /* ----------------------------------------------------------------- room -- */
 
   function blankRoom() {
@@ -461,9 +569,15 @@
       var ids = room.players.map(function (p) { return p.id; });
       room.players.forEach(function (p) {
         if (p.answer) return;
-        p.answer = (q && p.id === q.subject)
-          ? SAT_OUT
-          : ids[Math.floor(Math.random() * ids.length)];
+        if (q && p.id === q.subject) {
+          p.answer = SAT_OUT;
+        } else {
+          /* Never themselves: the real grid does not offer you your own card,
+             so a stand-in that picks itself produces a "said Amara" against
+             Amara's own name and makes the reveal look broken. */
+          var pick = ids.filter(function (id) { return id !== p.id; });
+          p.answer = pick[Math.floor(Math.random() * pick.length)];
+        }
         p.answeredAt = 700 + Math.floor(Math.random() * 11000);
       });
       return room;
@@ -528,6 +642,9 @@
     BASE_POINTS: BASE_POINTS,
     faceSvg: faceSvg,
     faceNode: faceNode,
-    renderAwards: renderAwards
+    renderAwards: renderAwards,
+    splitRound: splitRound,
+    renderGroups: renderGroups,
+    rollReveal: rollReveal
   };
 })(window);

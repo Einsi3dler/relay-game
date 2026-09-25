@@ -19,6 +19,7 @@
    "lobby-roster", "start-quiz", "start-hint", "q-counter", "q-prompt",
    "lock-tally", "lock-fill", "lock-roster", "reveal-answer", "reveal-face",
    "reveal-name", "reveal-prompt", "reveal-right", "reveal-wrong",
+   "reveal-right-list", "reveal-wrong-list",
    "reveal-board", "next-question", "final-podium", "final-awards", "final-board",
    "close-session", "new-session", "dev-fill", "dev-answer", "dev-reset"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
@@ -30,6 +31,17 @@
     final: el["stage-final"],
     closed: el["stage-closed"]
   };
+
+  /* The reveal animates once per question, not once per render. State
+     arrives on every storage event (somebody joining late, a phone
+     reconnecting) and re-running the roll on each of those would leave the
+     room watching a face machine-gun forever. */
+  var revealKey = null;
+  var rollHandle = null;
+
+  function stopRoll() {
+    if (rollHandle) { clearInterval(rollHandle); rollHandle = null; }
+  }
 
   function showStage(phase) {
     Object.keys(STAGES).forEach(function (key) {
@@ -153,14 +165,27 @@
     var subject = Room.playerById(room, q && q.subject);
     if (!q || !subject) return;
 
-    el["reveal-face"].innerHTML = Room.faceSvg(subject);
-    el["reveal-name"].textContent = subject.name;
     el["reveal-prompt"].textContent = q.prompt;
 
-    var pool = Room.scorable(room);
-    var right = pool.filter(function (p) { return p.answer === q.subject; }).length;
-    el["reveal-right"].textContent = right;
-    el["reveal-wrong"].textContent = pool.length - right;
+    var key = room.index + ":" + q.id;
+    if (key !== revealKey) {
+      revealKey = key;
+      stopRoll();
+      rollHandle = Room.rollReveal(
+        el["reveal-face"], el["reveal-name"], room, subject,
+        function () { rollHandle = null; }
+      );
+      /* The groups are the round's result, which is settled the moment the
+         host pressed reveal, so they are built once and left alone. Rebuilding
+         them on every render would restart the cascade under the room's
+         nose. */
+      Room.renderGroups({
+        rightList: el["reveal-right-list"],
+        wrongList: el["reveal-wrong-list"],
+        rightCount: el["reveal-right"],
+        wrongCount: el["reveal-wrong"]
+      }, room, null);
+    }
 
     renderBoard(el["reveal-board"], room, true);
 
@@ -221,6 +246,7 @@
 
     if (room.phase === "lobby") renderLobby(room);
     if (room.phase === "question") renderQuestion(room);
+    if (room.phase !== "reveal") { revealKey = null; stopRoll(); }
     if (room.phase === "reveal") renderReveal(room);
     if (room.phase === "final") renderFinal(room);
   }

@@ -68,8 +68,28 @@ one, for free, every round.
 
 **Reveal.** Nothing is revealed until the host presses **Reveal the answer**,
 which works whether or not everybody has locked in (a room always has one
-person still typing). The correct face goes up big, the got-it/missed-it split
-shows, and the running standings appear.
+person still typing). Then it is staged rather than swapped in, because this is
+the moment the whole room is waiting for:
+
+1. The face rolls through the room like a slot machine, about 1.1 seconds.
+2. It lands on the subject, with a pop and a ring going out, and the name
+   rises in under it.
+3. **Got it** and **Missed it** arrive underneath, each a list of faces and
+   names that cascades in. The right-hand column is ordered fastest first,
+   which is the order the speed bonus was paid in, so the list and the numbers
+   beside it tell the same story. Each miss shows what that person actually
+   said ("said Tom"), or "no answer" if they never locked one in.
+4. The running standings update, with each gain called out beside the score.
+
+On a phone the same sequence runs, and the player's own verdict is **held back
+until the face lands**, so the callout does not spoil the roll it is sitting
+above.
+
+Every animation is decoration over a DOM that is already correct: if no
+keyframe ever runs the screen still reads properly, just instantly.
+`prefers-reduced-motion` skips straight to the landing. The sequence is keyed
+to the question, not to the render, so a late joiner arriving mid-reveal does
+not restart the roll under the room's nose.
 
 **Score.** A correct guess is worth **100**. Everyone who got it right is then
 ranked by how quickly they locked, and a bonus decays down that order: **50, 40,
