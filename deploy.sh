@@ -184,6 +184,64 @@ if ! git_in "$SRV_DIR" "$SRV_USER" diff --quiet "$srv_before" "$srv_after" -- py
   runuser -u "$SRV_USER" -- "$SRV_DIR/.venv/bin/python3" -m pip install -q -e "$SRV_DIR"
 fi
 
+# --- 4.5 check the mail configuration before touching the running server ----
+# The app refuses to start if mail is pointed somewhere real but the links it
+# would send point at localhost (backend/mailer.py: verify_deployment). Better
+# to learn that here, with the old server still serving, than from a failed
+# health check after the restart has already taken it down.
+#
+# Runs against the freshly-updated checkout, in the environment systemd would
+# actually give the service — Environment= entries and any EnvironmentFile.
+# With no mail backend configured this passes silently, which is the state
+# every deploy before this one was in.
+step "Checking mail configuration"
+mail_problems=""
+if ! mail_problems="$(cd "$SRV_DIR" && "$SRV_DIR/.venv/bin/python3" - "$SERVICE" <<'PYCHECK'
+import os, shlex, subprocess, sys
+
+service = sys.argv[1]
+
+def prop(name: str) -> str:
+    done = subprocess.run(["systemctl", "show", service, "-p", name, "--value"],
+                          capture_output=True, text=True)
+    return done.stdout.strip()
+
+env = {}
+# Environment= on the unit. shlex, not split(), so a quoted value with spaces
+# (RELAY_MAIL_FROM="The Relay <x@y>") survives intact.
+for item in shlex.split(prop("Environment")):
+    if "=" in item:
+        key, value = item.split("=", 1)
+        env[key] = value
+# EnvironmentFile= entries, printed as "/path (ignore_errors=no)".
+for line in prop("EnvironmentFiles").splitlines():
+    path = line.split(" (")[0].strip()
+    if not path or not os.path.isfile(path):
+        continue
+    with open(path) as handle:
+        for raw in handle:
+            raw = raw.strip()
+            if raw and not raw.startswith("#") and "=" in raw:
+                key, value = raw.split("=", 1)
+                env[key.strip()] = value.strip().strip('"').strip("'")
+
+os.environ.update(env)
+sys.path.insert(0, os.getcwd())
+from backend import mailer
+
+problems = mailer.configuration_problems()
+for problem in problems:
+    print(problem)
+sys.exit(1 if problems else 0)
+PYCHECK
+)"; then
+  printf '%s\n' "$mail_problems" | while IFS= read -r line; do
+    [[ -n "$line" ]] && warn "$line"
+  done
+  die "the service would refuse to start with this mail configuration — fix the unit's environment (see .env.example) or unset RELAY_MAIL_BACKEND"
+fi
+info "mail configuration is consistent"
+
 # --- 5. restart and prove it came back --------------------------------------
 step "Restarting $SERVICE"
 systemctl restart "$SERVICE"
