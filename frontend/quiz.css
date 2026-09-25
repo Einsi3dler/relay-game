@@ -350,6 +350,93 @@
 .lockmeter__faces .face { width: 34px; height: 34px; opacity: 0.28; transition: opacity 0.2s ease; }
 .lockmeter__faces .face.is-in { opacity: 1; box-shadow: 0 0 0 2px var(--gm-green); }
 
+/* ------------------------------------------------- who has locked in ----- */
+
+/* The projector's biggest job during a question is telling the room who it is
+   still waiting on, so the seats are named and legible from the back rather
+   than being a row of thumbnails. The subject is not drawn here at all: they
+   are the answer, and a gap in the row is as much of a tell as a name. */
+.lockroster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lockseat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--gm-radius-md);
+  border: 1px solid var(--gm-line-soft);
+  background: var(--gm-panel);
+  font-weight: 800;
+  font-size: 1.1rem;
+  opacity: 0.4;
+  transition: opacity 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+}
+.lockseat .face { width: 42px; height: 42px; }
+.lockseat__name { overflow-wrap: anywhere; }
+.lockseat__tick {
+  margin-left: auto;
+  color: var(--gm-green);
+  font-weight: 900;
+  font-size: 1.3rem;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+.lockseat--in {
+  opacity: 1;
+  border-color: var(--gm-green);
+  background: rgba(66, 219, 131, 0.1);
+}
+.lockseat--in .lockseat__tick { opacity: 1; }
+
+/* ---------------------------------------------------------------- awards -- */
+
+.awards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin: 0 0 30px;
+  padding: 0;
+  list-style: none;
+}
+.award {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 16px 18px;
+  border-radius: var(--gm-radius-lg);
+  border: 1px solid var(--gm-line);
+  background: var(--gm-panel);
+  text-align: left;
+}
+.award .face { width: 64px; height: 64px; border-radius: 15px; }
+.award__label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: var(--gm-muted);
+  margin-bottom: 3px;
+}
+.award__name {
+  display: block;
+  font-size: 1.55rem;
+  font-weight: 900;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.award__value { font-weight: 800; color: var(--gm-muted); font-size: 0.9rem; }
+.award--score { border-color: var(--gm-yellow); }
+.award--score .award__label { color: var(--gm-yellow); }
+.award--fast { border-color: var(--gm-cyan); }
+.award--fast .award__label { color: var(--gm-cyan); }
+
 /* ---------------------------------------------------------------- verdict */
 
 .verdict { text-align: center; padding: 8px 0 4px; }

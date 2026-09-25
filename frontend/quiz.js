@@ -44,8 +44,41 @@
     "Who taught themselves an instrument during lockdown?",
     "Who has a tattoo nobody here has seen?",
     "Who was in a band that played exactly one gig?",
-    "Who has met someone genuinely famous and played it cool?"
+    "Who has met someone genuinely famous and played it cool?",
+    "Who has read the same book more than five times?",
+    "Who once got a standing ovation?",
+    "Who can solve a Rubik's cube without looking it up?",
+    "Who has slept through an entire flight, take-off included?",
+    "Who used to have a paper round?",
+    "Who has been stung by a jellyfish?",
+    "Who can still recite something they learned aged seven?",
+    "Who has cooked for more than twenty people at once?",
+    "Who owns a musical instrument they cannot play?",
+    "Who has driven across a border?",
+    "Who once queued overnight for something?",
+    "Who has a middle name they never use?",
+    "Who has run a race longer than ten kilometres?",
+    "Who has been quoted in a newspaper?",
+    "Who learned to swim as an adult?",
+    "Who has kept a plant alive for over five years?",
+    "Who once won something in a raffle?",
+    "Who has a scar with a good story behind it?"
   ];
+
+  /* Scoring. A correct guess is worth BASE; being early is worth a little on
+     top of it, decaying down the order of correct answers. The ceiling is
+     half the base on purpose: knowing the room should beat having quick
+     thumbs, and the bonus only ever breaks a tie between people who were both
+     right. Rank, not wall-clock, because there is no clock to measure against
+     -- a room with nothing at stake will happily take a minute over a
+     question, and an absolute decay curve would zero everybody out. */
+  var BASE_POINTS = 100;
+  var SPEED_MAX = 50;
+  var SPEED_DECAY = 0.8;
+
+  function speedBonus(rank) {
+    return Math.round(SPEED_MAX * Math.pow(SPEED_DECAY, rank));
+  }
 
   /* Six stand-ins so the host screen can be reviewed without six phones. */
   var DEMO_NAMES = ["Amara", "Daniel", "Priya", "Tom", "Sade", "Luis"];
@@ -103,6 +136,50 @@
     return box;
   }
 
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  function awardCard(kind, label, player, value) {
+    var li = document.createElement("li");
+    li.className = "award award--" + kind;
+    li.appendChild(faceNode(player));
+
+    var text = document.createElement("div");
+
+    var lab = document.createElement("span");
+    lab.className = "award__label";
+    lab.textContent = label;
+    text.appendChild(lab);
+
+    var name = document.createElement("span");
+    name.className = "award__name";
+    name.textContent = player.name;
+    text.appendChild(name);
+
+    var val = document.createElement("span");
+    val.className = "award__value";
+    val.textContent = value;
+    text.appendChild(val);
+
+    li.appendChild(text);
+    return li;
+  }
+
+  function renderAwards(node, room) {
+    var prizes = awards(room);
+    clearNode(node);
+    if (prizes.winner) {
+      node.appendChild(awardCard("score", "Highest score", prizes.winner,
+        prizes.winner.score + " points from " + prizes.winner.correct +
+        (prizes.winner.correct === 1 ? " right answer" : " right answers")));
+    }
+    if (prizes.fastest) {
+      node.appendChild(awardCard("fast", "Fastest finger", prizes.fastest,
+        (prizes.fastestMean / 1000).toFixed(1) + "s average on the ones they got right"));
+    }
+  }
+
   /* ----------------------------------------------------------------- room -- */
 
   function blankRoom() {
@@ -112,6 +189,7 @@
       players: [],             // { id, name, avatar, score, answer, gain }
       questions: [],           // { id, prompt, subject }  subject = player id
       index: -1,               // which question is live
+      askedAt: 0,              // when the live question went up, for the speed bonus
       updated: nowStamp()
     };
   }
@@ -180,11 +258,46 @@
     return pool.length > 0 && pool.every(function (p) { return !!p.answer; });
   }
 
+  /* Mean ms to lock, counting only the rounds a player got right. Counting
+     wrong answers too would hand "fastest finger" to whoever tapped a face at
+     random the instant the prompt appeared, which is the opposite of the
+     thing the award is for. A seat with nothing correct has no time. */
+  function meanLock(player) {
+    if (!player || !player.fastCount) return null;
+    return player.fastSum / player.fastCount;
+  }
+
   function standings(room) {
     return room.players.slice().sort(function (a, b) {
       if (b.score !== a.score) return b.score - a.score;
+      if (b.correct !== a.correct) return b.correct - a.correct;
+      var fa = meanLock(a), fb = meanLock(b);
+      if (fa !== null && fb !== null && fa !== fb) return fa - fb;
+      if (fa === null) return 1;
+      if (fb === null) return -1;
       return a.name.localeCompare(b.name);
     });
+  }
+
+  /* The two things called out at the end. They are separate on purpose: the
+     winner is whoever knew the room best, and fastest finger is a second way
+     to leave with something, which usually goes to a different person. */
+  function awards(room) {
+    var ranked = standings(room);
+    var winner = ranked.length && ranked[0].score > 0 ? ranked[0] : null;
+
+    var fastest = null;
+    room.players.forEach(function (p) {
+      var mean = meanLock(p);
+      if (mean === null) return;
+      if (!fastest || mean < meanLock(fastest)) fastest = p;
+    });
+
+    return {
+      winner: winner,
+      fastest: fastest,
+      fastestMean: meanLock(fastest)
+    };
   }
 
   /* --------------------------------------------------------------- actions -- */
@@ -204,7 +317,12 @@
         avatar: fields.avatar || null,
         score: 0,
         answer: null,
-        gain: 0
+        answeredAt: null,   // ms from askedAt to the lock, this round
+        gain: 0,
+        bonus: 0,
+        correct: 0,         // rounds got right, over the whole quiz
+        fastSum: 0,         // total ms to lock, counting correct rounds only
+        fastCount: 0
       };
       room.players.push(player);
       return room;
@@ -221,7 +339,11 @@
       });
       room.index = 0;
       room.phase = "question";
-      room.players.forEach(function (p) { p.score = 0; p.answer = null; p.gain = 0; });
+      room.askedAt = nowStamp();
+      room.players.forEach(function (p) {
+        p.score = 0; p.answer = null; p.answeredAt = null;
+        p.gain = 0; p.bonus = 0; p.correct = 0; p.fastSum = 0; p.fastCount = 0;
+      });
       return room;
     },
 
@@ -231,31 +353,53 @@
       var q = currentQuestion(room);
       if (!me || !q) return room;
       if (me.id === q.subject) return room;      // the subject sits it out
+      if (me.answer) return room;                // a lock is final
       me.answer = fields.choice;
+      me.answeredAt = Math.max(0, nowStamp() - (room.askedAt || nowStamp()));
       return room;
     },
 
+    /* Everyone who got it right is ranked by how quickly they locked, and the
+       bonus decays down that order. Ties in time are broken by name so the
+       same room always scores the same way twice. */
     reveal: function (room) {
       if (room.phase !== "question") return room;
       var q = currentQuestion(room);
-      room.players.forEach(function (p) {
-        var right = !!q && p.id !== q.subject && p.answer === q.subject;
-        p.gain = right ? 1 : 0;
-        p.score += p.gain;
+
+      room.players.forEach(function (p) { p.gain = 0; p.bonus = 0; });
+
+      var right = room.players.filter(function (p) {
+        return !!q && p.id !== q.subject && p.answer === q.subject;
+      }).sort(function (a, b) {
+        if (a.answeredAt !== b.answeredAt) return a.answeredAt - b.answeredAt;
+        return a.name.localeCompare(b.name);
       });
+
+      right.forEach(function (p, rank) {
+        p.bonus = speedBonus(rank);
+        p.gain = BASE_POINTS + p.bonus;
+        p.score += p.gain;
+        p.correct += 1;
+        p.fastSum += p.answeredAt || 0;
+        p.fastCount += 1;
+      });
+
       room.phase = "reveal";
       return room;
     },
 
     next: function (room) {
       if (room.phase !== "reveal") return room;
-      room.players.forEach(function (p) { p.answer = null; p.gain = 0; });
+      room.players.forEach(function (p) {
+        p.answer = null; p.answeredAt = null; p.gain = 0; p.bonus = 0;
+      });
       if (room.index + 1 >= room.questions.length) {
         room.phase = "final";
         return room;
       }
       room.index += 1;
       room.phase = "question";
+      room.askedAt = nowStamp();
       return room;
     },
 
@@ -282,7 +426,12 @@
           avatar: global.RelayAvatar.encode(global.RelayAvatar.seeded(global.RelayAvatar.hashSeed(name))),
           score: 0,
           answer: null,
-          gain: 0
+          answeredAt: null,
+          gain: 0,
+          bonus: 0,
+          correct: 0,
+          fastSum: 0,
+          fastCount: 0
         });
       });
       return room;
@@ -295,6 +444,7 @@
       room.players.forEach(function (p) {
         if (p.answer || (q && p.id === q.subject)) return;
         p.answer = ids[Math.floor(Math.random() * ids.length)];
+        p.answeredAt = 700 + Math.floor(Math.random() * 11000);
       });
       return room;
     }
@@ -352,7 +502,11 @@
     answeredCount: answeredCount,
     allAnswered: allAnswered,
     standings: standings,
+    awards: awards,
+    meanLock: meanLock,
+    BASE_POINTS: BASE_POINTS,
     faceSvg: faceSvg,
-    faceNode: faceNode
+    faceNode: faceNode,
+    renderAwards: renderAwards
   };
 })(window);

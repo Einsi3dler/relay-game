@@ -28,7 +28,7 @@
    "field-face", "shuffle-face", "join-error", "wait-face", "wait-name",
    "wait-roster", "p-counter", "p-prompt", "p-note", "p-cards", "p-callout",
    "p-callout-big", "p-callout-small", "p-answer-face", "p-answer-name",
-   "p-board", "p-final-rank", "p-final-score", "p-final-board", "lockbar",
+   "p-board", "p-awards", "p-final-rank", "p-final-score", "p-final-board", "lockbar",
    "lock-in"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
@@ -228,10 +228,14 @@
 
     el["p-callout"].className = "callout " +
       (sat ? "callout--idle" : right ? "callout--right" : "callout--wrong");
-    el["p-callout-big"].textContent = sat ? "That was you" : right ? "Got it" : "Not this time";
+    el["p-callout-big"].textContent = sat ? "That was you"
+      : right ? "+" + me.gain : "Not this time";
     el["p-callout-small"].textContent = sat
-      ? "No point for this one, for obvious reasons."
-      : right ? "One point to you." : (me.answer
+      ? "No points for this one, for obvious reasons."
+      : right ? (me.bonus > 0
+          ? Room.BASE_POINTS + " for the answer, " + me.bonus + " for being early."
+          : Room.BASE_POINTS + " for the answer.")
+      : (me.answer
         ? "You said " + (Room.playerById(room, me.answer) || { name: "nobody" }).name + "."
         : "You did not lock one in.");
 
@@ -245,8 +249,10 @@
     var ranked = Room.standings(room);
     var place = ranked.findIndex(function (p) { return p.id === me.id; }) + 1;
     el["p-final-rank"].textContent = place > 0 ? ordinal(place) + " place" : "Thanks for playing";
-    el["p-final-score"].textContent = me.score + (me.score === 1 ? " point" : " points") +
+    el["p-final-score"].textContent = me.score + " points, from " + me.correct +
+      (me.correct === 1 ? " right answer" : " right answers") +
       " out of " + room.questions.length + ".";
+    Room.renderAwards(el["p-awards"], room);
     renderBoard(el["p-final-board"], room, me.id);
   }
 

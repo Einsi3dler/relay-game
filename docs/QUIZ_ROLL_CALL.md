@@ -60,13 +60,32 @@ which works whether or not everybody has locked in (a room always has one
 person still typing). The correct face goes up big, the got-it/missed-it split
 shows, and the running standings appear.
 
-**Score.** One point for a correct guess, nothing otherwise. Flat, not
-speed-weighted: with no clock there is no speed to weigh, and a flat point is
-the thing a room can verify at a glance. Ties are honest and stay unbroken.
+**Score.** A correct guess is worth **100**. Everyone who got it right is then
+ranked by how quickly they locked, and a bonus decays down that order: **50, 40,
+32, 26, 20 …** (`SPEED_MAX * 0.8^rank`). The ceiling is half the base on purpose.
+Knowing the room should beat having quick thumbs, and the bonus mostly serves to
+separate people who were both right.
+
+The ranking is by **order, not wall-clock**. There is no clock to measure
+against: a room with nothing at stake will happily take a minute over a
+question, and an absolute decay curve would zero everybody out. Order always
+produces a meaningful spread whatever pace the room sets.
 
 **Ending.** **End session** drops the room to the final standings, so a quiz cut
-short still has an ending. **Close the session** on that screen releases every
-player's screen. Two steps on purpose.
+short still has an ending. Two awards are given there:
+
+- **Highest score.** The winner, with their points and how many they got right.
+- **Fastest finger.** Lowest mean time-to-lock, counting **only the rounds they
+  got right**. Counting wrong answers too would hand it to whoever tapped a face
+  at random the instant the prompt appeared, which is the opposite of the thing
+  the award is for.
+
+They are separate on purpose, and usually go to different people: a second way
+to leave with something. **Close the session** then releases every player's
+screen. Two steps.
+
+**Ties** are broken by score, then by how many were right, then by mean lock
+time, then by name. With a speed bonus in play they are now rare.
 
 ## 3. What is mocked, and where the seam is
 
@@ -96,10 +115,10 @@ so one person can review the whole flow. It goes when the room is wired up.
 
 - **The server side.** A `quizroom.py` in the shape of `duelroom.py`, the
   WebSocket messages, and the host's authority over the phase.
-- **The question bank.** `PROMPTS` in `quiz.js` is twelve placeholders, and a
+- **The question bank.** `PROMPTS` in `quiz.js` is thirty placeholders, and a
   subject is drawn from whoever is in the room. The real version pairs a prompt
-  with the person it is actually about, from data the host supplies. The
-  shuffle is the part that stays.
+  with the person it is actually about, from data the host supplies, and each
+  prompt is true of **exactly one** person. The shuffle is the part that stays.
 - **Matching people to seats.** The open question, and the one that decides the
   data model: when the question bank knows the prompt is about a specific real
   person, how does that person get connected to the seat they joined on? See
@@ -110,16 +129,26 @@ so one person can review the whole flow. It goes when the room is wired up.
   The room state machine lands with `quizroom.py` and gets a suite then, per
   [CLAUDE.md](../CLAUDE.md).
 
-## 5. Open questions for the design review
+## 5. Decisions taken in review
 
-1. **Dead space on the projector.** During a question the host screen is a
-   prompt and a meter, and the bottom two thirds are empty. Options: draw the
-   room's faces large and grey them in as they lock, or keep it sparse so the
-   prompt is the only thing being read aloud.
-2. **Late joiners.** Right now anyone can join mid-quiz and starts on zero.
-   Should the room lock at the start instead?
-3. **Prompts with more than one true answer.** "Who speaks three languages" may
-   fit four people in the room. Either the data guarantees one subject per
-   prompt, or a prompt carries a set of correct people and any of them scores.
-4. **Ties.** Unbroken today. A room with twelve questions and eight players
-   will produce them constantly at one point a question.
+1. **The projector during a question** draws every seat it is waiting on, named
+   and large, filling in as people lock. Names, not thumbnails: the room's
+   first question is always "who are we waiting for".
+2. **Late joiners are allowed**, at any point, starting on zero. The room is
+   never locked.
+3. **Every prompt is true of exactly one person.** The data guarantees it, so
+   there is no set-of-correct-answers case to handle.
+4. **Speed counts, a little.** See §2. This also all but removes the tie problem
+   that a flat one-point score had.
+
+## 6. Still open
+
+- **Is 100 + up to 50 the right weighting?** It is one constant pair
+  (`BASE_POINTS`, `SPEED_MAX`) at the top of `quiz.js`, so it is cheap to
+  retune once a real room has played it.
+- **How long is a quiz?** The bank is thirty placeholders and the real length
+  comes from the data. Nothing caps it, and the host can end early.
+- **Matching people to seats.** The question that decides the data model: when
+  a prompt is about a specific real person, how does that person get connected
+  to the seat they joined on? Name matching is the obvious answer and the
+  fragile one.
