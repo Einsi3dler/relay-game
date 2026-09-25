@@ -212,6 +212,26 @@ def test_resend_verification(client):
                        ).status_code == 200
 
 
+def test_resend_does_not_claim_to_have_sent_a_console_mail(client, monkeypatch):
+    """The console backend writes the link to the server log. Telling the
+    player it is in their inbox leaves them refreshing one that never gets it."""
+    signup(client)
+    mailer._last_send.clear()
+    monkeypatch.delenv("RELAY_MAIL_BACKEND", raising=False)   # console
+    message = client.post("/api/auth/verify/resend").json()["message"]
+    assert "no mail set up" in message
+    assert "Check " not in message
+
+
+def test_resend_says_sent_when_mail_really_sends(client, monkeypatch):
+    signup(client)
+    mailer._last_send.clear()
+    monkeypatch.setenv("RELAY_MAIL_BACKEND", "smtp")
+    monkeypatch.setattr(mailer, "_send_smtp", lambda mail: None)
+    message = client.post("/api/auth/verify/resend").json()["message"]
+    assert message.startswith("Sent.")
+
+
 def test_resend_is_throttled(client):
     signup(client)
     assert client.post("/api/auth/verify/resend").status_code == 429
@@ -505,6 +525,12 @@ def test_session_cookie_is_secure_when_the_site_is_https(monkeypatch):
     now required to be https for real deployments, so the cookie gets Secure
     without a second knob to forget."""
     monkeypatch.setenv("RELAY_BASE_URL", "https://relay.example.com")
+    # A public base URL now has to come with mail that actually sends, so this
+    # is a whole deployment rather than half of one. _send_smtp is stubbed
+    # because the point here is the cookie, not the socket.
+    monkeypatch.setenv("RELAY_MAIL_BACKEND", "smtp")
+    monkeypatch.setenv("RELAY_SMTP_HOST", "smtp.example.com")
+    monkeypatch.setattr(mailer, "_send_smtp", lambda mail: None)
     accounts.close()
     accounts.connect(":memory:")
     with TestClient(server.app) as secure_client:

@@ -109,9 +109,10 @@ def test_public_urls_are_not_local(url):
 
 # --- the deployment guard -------------------------------------------------
 
-def test_console_backend_is_never_blocked(env):
+def test_a_local_console_backend_is_never_blocked(env):
     """The developer default. Nothing it produces leaves the machine, so a
-    localhost link in a terminal is correct rather than broken."""
+    localhost link in a terminal is correct rather than broken. A console
+    backend on a *public* base URL is a different animal — see below."""
     configure(env, RELAY_BASE_URL="http://127.0.0.1:8000")
     assert mailer.configuration_problems() == []
     mailer.verify_deployment()
@@ -238,3 +239,50 @@ def test_outbox_is_capped(env):
     for index in range(mailer.OUTBOX_LIMIT + 25):
         mailer.send(f"user{index}@example.com", "s", "b")
     assert len(mailer.outbox) == mailer.OUTBOX_LIMIT
+
+
+# --- the refusal: deployed, but still mailing the log ----------------------
+#
+# The gap this closes: the console exemption used to be unconditional, which is
+# right on a laptop and wrong on a deployed box. A server whose base URL is a
+# public address is not developing — it is telling players their verification
+# link is on its way while writing it to a log file.
+
+def test_console_on_a_public_base_url_is_refused(env):
+    configure(env, RELAY_BASE_URL="https://relay.example.com")
+    problems = mailer.configuration_problems()
+    assert problems, "console backend on a public origin should be refused"
+    assert "never sent" in problems[0]
+    with pytest.raises(RuntimeError, match="will not work as deployed"):
+        mailer.verify_deployment()
+
+
+@pytest.mark.parametrize("url", [
+    "http://127.0.0.1:8000", "http://localhost:8000", "http://relay.local",
+    "http://192.168.1.50:8000",
+])
+def test_console_on_a_local_base_url_still_passes(env, url):
+    """The developer default is untouched. Nothing is promised to anyone."""
+    configure(env, RELAY_BASE_URL=url)
+    assert mailer.configuration_problems() == []
+    mailer.verify_deployment()
+
+
+def test_console_with_no_base_url_still_passes(env):
+    """Unset means development too — no public address to contradict."""
+    assert mailer.configuration_problems() == []
+    mailer.verify_deployment()
+
+
+def test_the_console_refusal_names_the_way_out(env):
+    """A refusal that does not say what to set is a worse outage."""
+    configure(env, RELAY_BASE_URL="https://relay.example.com")
+    message = mailer.configuration_problems()[0]
+    assert "RELAY_MAIL_BACKEND=smtp" in message
+    assert "unset RELAY_BASE_URL" in message
+
+
+def test_delivers_mail_tracks_the_backend(env):
+    assert mailer.delivers_mail() is False
+    configure(env, **PRODUCTION)
+    assert mailer.delivers_mail() is True

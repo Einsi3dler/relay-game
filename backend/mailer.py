@@ -176,6 +176,17 @@ def is_local_url(url: str) -> bool:
     return host.startswith(("10.", "192.168.", "172.16.", "172.17.", "172.18."))
 
 
+def delivers_mail() -> bool:
+    """True when a send actually leaves this machine.
+
+    The console backend "sends" by writing to the log. That is the right
+    default for development, but it means anything that tells a player their
+    mail is on its way is telling them something untrue, so the callers that
+    say so ask this first.
+    """
+    return _backend() != "console"
+
+
 def configuration_problems() -> list[str]:
     """Everything wrong with the current mail configuration, worst first.
 
@@ -187,10 +198,26 @@ def configuration_problems() -> list[str]:
     rather than broken.
     """
     problems: list[str] = []
+    configured = os.environ.get("RELAY_BASE_URL", "").strip()
+
     if _backend() == "console":
+        # Exempt on a developer's machine: nothing leaves it, and a localhost
+        # link in a terminal is correct rather than broken. Not exempt on a box
+        # with a public base URL. Nothing local needs one, so a server that has
+        # one is serving real people — and it is handing them a "check your
+        # email" it cannot honour, with no way to confirm an address or recover
+        # an account. That is worth refusing to start over.
+        if configured and not is_local_url(configured.rstrip("/")):
+            problems.append(
+                f"RELAY_MAIL_BACKEND is unset, so mail only goes to this log, "
+                f"but RELAY_BASE_URL is {configured} — a public address. "
+                "Verification and reset links would be written here and never "
+                "sent. Set RELAY_MAIL_BACKEND=smtp with the RELAY_SMTP_* "
+                "variables and check it with `python -m backend.mailcheck`, or "
+                "unset RELAY_BASE_URL if this is not a deployment."
+            )
         return problems
 
-    configured = os.environ.get("RELAY_BASE_URL", "").strip()
     if not configured:
         problems.append(
             "RELAY_BASE_URL is not set, so every emailed link would point at "
@@ -243,7 +270,8 @@ def verify_deployment() -> None:
         "Mail configuration will not work as deployed:\n  - "
         + "\n  - ".join(problems)
         + "\n\nSee .env.example and docs/ACCOUNTS.md. To run without sending "
-          "mail, unset RELAY_MAIL_BACKEND and links will print to this log."
+          "mail at all, leave RELAY_MAIL_BACKEND unset AND drop RELAY_BASE_URL: "
+          "links then print to this log, which is the development default."
     )
 
 

@@ -339,4 +339,13 @@ async def resend_verification(
             status_code=429,
             detail="A link went out in the last minute. Check your inbox and spam folder.",
         )
+    if not mailer.delivers_mail():
+        # The console backend wrote the link to the server log. Saying "sent"
+        # here would leave someone refreshing an inbox that will never get it.
+        return {
+            "ok": True,
+            "message": "This server has no mail set up yet, so the link went to "
+                       "its log instead of your inbox. Ask whoever runs it — "
+                       "your account works either way.",
+        }
     return {"ok": True, "message": f"Sent. Check {user.email}."}

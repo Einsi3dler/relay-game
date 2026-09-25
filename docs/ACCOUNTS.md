@@ -155,13 +155,41 @@ It refuses to start when the mail backend is not `console` and:
 - `RELAY_SMTP_SECURITY=none` with a password set, which would put credentials
   on the wire in clear text.
 
-The console backend is exempt from every one of these. Nothing it produces
-leaves the machine, so a localhost link in a developer's terminal is correct
-rather than broken, and the dev experience is unchanged.
+The console backend is exempt from every one of these *while it is local*.
+Nothing it produces leaves the machine, so a localhost link in a developer's
+terminal is correct rather than broken, and the dev experience is unchanged.
+The exemption ends where `RELAY_BASE_URL` becomes public — see below.
 
 `deploy.sh` runs the same check as a preflight, in the environment systemd
 would actually give the service, **before** restarting anything. A bad config
 therefore fails while the old server is still serving.
+
+### The second refusal: deployed, but still mailing the log
+
+The exemption above is right on a laptop and wrong on a server. `RELAY_BASE_URL`
+set to a public address is the tell: nothing local needs one, so a box that has
+one is serving real people. With the console backend still in place, those
+people are told a verification link is on its way while it is written to a log
+file — and nobody can confirm an address or recover an account.
+
+So that combination is refused like any other broken mail config: the server
+does not start. It is a real outage, and deliberately so. A site that cannot
+send a password reset is already broken for anyone locked out of an account;
+this makes it break where an operator sees it, instead of silently, in the
+inbox of a player who cannot do anything about it.
+
+The `deploy.sh` preflight catches it **before** the restart, in the environment
+systemd would actually give the service — so a deploy refuses and the old
+server keeps serving. The outage only happens on a restart that goes around the
+script, or on a reboot.
+
+The way out is in the message: set `RELAY_MAIL_BACKEND=smtp` with the
+`RELAY_SMTP_*` variables, or unset `RELAY_BASE_URL` if the box is not a
+deployment.
+
+The matching half is that nothing claims a delivery it did not make. While the
+backend is `console`, `POST /api/auth/verify/resend` says the link went to the
+server log rather than `Sent. Check <address>.`
 
 ### Mail in development
 
