@@ -218,6 +218,76 @@ PERKS: dict[str, dict] = {
 # no renderer will ever pick up.
 SCREEN_EFFECTS = ("wobble", "static", "mirror", "blackout")
 
+# Avatar catalogue. A player picks a face at the join screen; a signed-in
+# player's pick is remembered on their account (`accounts.set_avatar`).
+#
+# An avatar is *not* stored as markup — it is a code, one base-36 digit per
+# slot below, in this order, and the client draws the face from it. That split
+# matters for two reasons:
+#
+# * A code travels in `Player.public()`, so it reaches every other client over
+#   the WebSocket. The client draws SVG with `innerHTML`, so anything that got
+#   into this field and then into that markup would be script injection. A
+#   fixed-length string of digits, bounds-checked here, cannot be.
+# * The drawings live in the client (`AVATAR_VARIANTS` in frontend/app.js) and
+#   this dict is what they are allowed to vary. `tests/test_avatars.py` asserts
+#   the two agree, so adding a hat means editing both on purpose.
+#
+# A slot whose variant 0 means "nothing" (hat, extra) is why plain faces are
+# still reachable: code "0000000" is a bare face, not an error.
+AVATAR_SLOTS: dict[str, int] = {
+    "back":  8,   # ground colour behind the head
+    "skin":  8,   # head fill
+    "eyes":  8,   # googly, squint, spiral, winking, ...
+    "mouth": 8,   # grin, gawp, squiggle, tongue, ...
+    "brow":  5,   # 0 = none, then angry/surprised/unibrow/...
+    "hat":   8,   # 0 = none, then tophat/cap/antenna/crown/...
+    "extra": 7,   # 0 = none, then glasses/moustache/eyepatch/...
+}
+
+# One base-36 digit per slot, lower case. Fixed length, so a code is either the
+# right shape or it is rejected outright.
+AVATAR_CODE_LENGTH = len(AVATAR_SLOTS)
+_AVATAR_DIGITS = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+
+def avatar_digit(value: int) -> str:
+    """The base-36 digit for a variant index."""
+    return _AVATAR_DIGITS[value]
+
+
+def avatar_decode(code: str) -> list[int] | None:
+    """A code as one variant index per slot, or None if it is not a valid code.
+
+    Rejects rather than clamps: a code the client did not mean is a bug worth
+    seeing, and the caller already has a good fallback (the seeded face).
+    """
+    if not isinstance(code, str) or len(code) != AVATAR_CODE_LENGTH:
+        return None
+    out: list[int] = []
+    for digit, count in zip(code.lower(), AVATAR_SLOTS.values()):
+        at = _AVATAR_DIGITS.find(digit)
+        if at < 0 or at >= count:
+            return None
+        out.append(at)
+    return out
+
+
+def avatar_normalise(code: str | None) -> str | None:
+    """A valid code in canonical (lower-case) form, or None.
+
+    None is the answer for both "nothing was picked" and "that was not a code",
+    because both mean the same thing downstream: fall back to the face seeded
+    from the player's id.
+    """
+    if code is None:
+        return None
+    decoded = avatar_decode(code)
+    if decoded is None:
+        return None
+    return "".join(avatar_digit(value) for value in decoded)
+
+
 # Role catalogue (docs/TASK_LIST.md V8): the Grandmaster (team leader) assigns
 # each player a role in the lobby; the game picker then only offers that
 # role's games.

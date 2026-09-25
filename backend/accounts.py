@@ -66,7 +66,8 @@ CREATE TABLE IF NOT EXISTS users (
     last_name     TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     verified      INTEGER NOT NULL DEFAULT 0,
-    created_at    INTEGER NOT NULL
+    created_at    INTEGER NOT NULL,
+    avatar        TEXT
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -116,8 +117,25 @@ def connect(path: str | None = None) -> sqlite3.Connection:
         _conn.row_factory = sqlite3.Row
         _conn.execute("PRAGMA foreign_keys = ON")
         _conn.executescript(SCHEMA)
+        _migrate(_conn)
         _conn.commit()
         return _conn
+
+
+# Columns added after the first release. `CREATE TABLE IF NOT EXISTS` does
+# nothing to a table that already exists, and this is the one database that
+# outlives a deploy — so a new column has to be added explicitly or every
+# existing account breaks on the next query.
+_MIGRATIONS: tuple[tuple[str, str, str], ...] = (
+    ("users", "avatar", "ALTER TABLE users ADD COLUMN avatar TEXT"),
+)
+
+
+def _migrate(db: sqlite3.Connection) -> None:
+    for table, column, statement in _MIGRATIONS:
+        have = {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}
+        if column not in have:
+            db.execute(statement)
 
 
 def close() -> None:
@@ -250,6 +268,10 @@ class User:
     last_name: str
     verified: bool
     created_at: int
+    # config.AVATAR_SLOTS code, or None for the face seeded from the player id.
+    # Remembered here only so the join screen can pre-fill it; the match still
+    # carries its own copy, because most players never sign in at all.
+    avatar: str | None = None
 
     @property
     def display_name(self) -> str:
@@ -266,6 +288,7 @@ class User:
             "first_name": self.first_name,
             "last_name": self.last_name,
             "display_name": self.display_name,
+            "avatar": self.avatar,
             "verified": self.verified,
             "created_at": _iso(self.created_at),
         }
@@ -278,6 +301,7 @@ def _user(row: sqlite3.Row | None) -> User | None:
         id=row["id"], email=row["email"], username=row["username"],
         first_name=row["first_name"], last_name=row["last_name"],
         verified=bool(row["verified"]), created_at=row["created_at"],
+        avatar=row["avatar"],
     )
 
 
@@ -369,6 +393,20 @@ def set_password(user_id: str, password: str, confirm: str) -> None:
                    (hash_password(password), user_id))
         db.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
         db.commit()
+
+
+def set_avatar(user_id: str, avatar: str | None) -> str | None:
+    """Remember this account's face. Returns the code as stored.
+
+    An invalid code is stored as NULL rather than refused — same reasoning as
+    `engine.set_avatar`: it is cosmetic, and the fallback face is always there.
+    """
+    code = config.avatar_normalise(avatar) if avatar else None
+    db = _db()
+    with _lock:
+        db.execute("UPDATE users SET avatar = ? WHERE id = ?", (code, user_id))
+        db.commit()
+    return code
 
 
 def mark_verified(user_id: str) -> None:

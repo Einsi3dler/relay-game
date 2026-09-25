@@ -40,6 +40,22 @@
 
         <dl class="auth-facts" id="account-facts"></dl>
 
+        <!-- The face this account carries into a match. Saved as it is picked,
+             so there is no separate save button to forget to press. -->
+        <div class="auth-faces">
+          <div class="auth-faces__head">
+            <span class="auth-faces__label" id="face-label">Your face</span>
+            <button class="rbtn rbtn--outline rbtn--sm" id="face-shuffle" type="button">
+              Shuffle
+            </button>
+          </div>
+          <p class="auth-faces__hint" id="face-hint">
+            Pick the face other players see on the roster.
+          </p>
+          <div class="auth-faces__grid" id="face-grid" role="radiogroup"
+               aria-labelledby="face-label"></div>
+        </div>
+
         <div class="auth-actions">
           <a class="rbtn rbtn--primary" href="/play">Go to the game</a>
           <button class="rbtn rbtn--outline" id="logout" type="button">Sign out</button>
@@ -193,6 +209,7 @@
     </main>
   </div>
 
+  <script src="/static/avatar.js"></script>
   <script src="/static/auth.js"></script>
 </body>
 </html>

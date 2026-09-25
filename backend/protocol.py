@@ -40,6 +40,7 @@ CLIENT_TYPES = (
 
 # lobby_action.action values (host-controlled lobby + leader seat/assignments)
 LOBBY_ACTIONS = (
+    "set_avatar",
     "set_team",
     "move",
     "kick",
@@ -209,7 +210,8 @@ def parse_client_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
         if action not in LOBBY_ACTIONS:
             return "Unknown lobby action."
         fields = {"action": action}
-        for key in ("target_id", "team_id", "game_id", "role_id", "name"):
+        for key in ("target_id", "team_id", "game_id", "role_id", "name",
+                    "avatar"):
             if key in raw:
                 if not isinstance(raw[key], str):
                     return "Malformed message."

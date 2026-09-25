@@ -93,6 +93,66 @@
 
   // --- panels --------------------------------------------------------------
 
+  // --- the face picker -----------------------------------------------------
+  //
+  // The same twelve-and-shuffle the join screen uses, drawing through the
+  // shared /static/avatar.js. Each pick saves immediately: there is one field
+  // here, and a save button for one field is a button people forget to press.
+
+  var FACE_OPTIONS = 12;
+  var faceChoice = null;
+  var faceOffered = [];
+
+  function dealFaces() {
+    // The current pick keeps slot 0, so shuffling can never lose it.
+    faceOffered = faceChoice ? [faceChoice] : [];
+    while (faceOffered.length < FACE_OPTIONS) {
+      var code = RelayAvatar.encode(RelayAvatar.random());
+      if (faceOffered.indexOf(code) < 0) faceOffered.push(code);
+    }
+  }
+
+  function renderFaces() {
+    var grid = $("face-grid");
+    grid.innerHTML = "";
+    faceOffered.forEach(function (code) {
+      var parts = RelayAvatar.decode(code);
+      var cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "auth-face";
+      cell.innerHTML = RelayAvatar.svg(parts);
+      cell.setAttribute("role", "radio");
+      var mine = code === faceChoice;
+      cell.setAttribute("aria-checked", mine ? "true" : "false");
+      cell.setAttribute("aria-label", RelayAvatar.label(parts));
+      // One tab stop for the group. With nothing picked yet there is no
+      // selected cell to land on, so the first one takes it.
+      cell.tabIndex = mine || (!faceChoice && faceOffered[0] === code) ? 0 : -1;
+      cell.addEventListener("click", function () { chooseFace(code); });
+      grid.appendChild(cell);
+    });
+  }
+
+  function chooseFace(code) {
+    faceChoice = code;
+    renderFaces();
+    // Keep this browser's join screen in step with the account.
+    try { localStorage.setItem("relay_face", code); } catch (e) {}
+    post("/api/auth/avatar", { avatar: code })
+      .then(function () { $("face-hint").textContent = "Saved."; })
+      .catch(function (error) { $("face-hint").textContent = error.message; });
+  }
+
+  function initFaces(user) {
+    // Nothing is preselected for an account that has never picked: a face
+    // shown as chosen but not actually saved would be a lie the next device
+    // finds out about.
+    faceChoice = RelayAvatar.decode(user.avatar) ? user.avatar : null;
+    dealFaces();
+    renderFaces();
+    $("face-shuffle").onclick = function () { dealFaces(); renderFaces(); };
+  }
+
   function renderAccount(user) {
     show("view-account");
     $("account-who").textContent =
@@ -110,6 +170,7 @@
       $("account-facts").appendChild(dd);
     });
     $("verify-banner").hidden = !!user.verified;
+    initFaces(user);
   }
 
   function tokenResult(title, lede, tone) {

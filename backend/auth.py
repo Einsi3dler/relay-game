@@ -72,6 +72,11 @@ class ForgotBody(BaseModel):
     mode: str = "reset"
 
 
+class AvatarBody(BaseModel):
+    # None or "" both mean "go back to the seeded face".
+    avatar: str | None = None
+
+
 class TokenBody(BaseModel):
     token: str = ""
 
@@ -156,6 +161,22 @@ async def me(relay_session: str | None = Cookie(default=None, alias=config.SESSI
     on a site where accounts are optional, and the client asks on every load."""
     user = current_user(relay_session)
     return {"user": user.public() if user else None}
+
+
+@router.post("/avatar")
+async def set_avatar(
+    body: AvatarBody,
+    relay_session: str | None = Cookie(default=None, alias=config.SESSION_COOKIE),
+):
+    """Remember the signed-in account's face, so the join screen can pre-fill it.
+
+    This 401s where `/me` does not: `/me` answers a question anyone may ask,
+    while this one writes to an account, so there has to be one.
+    """
+    user = current_user(relay_session)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Sign in first.")
+    return {"avatar": accounts.set_avatar(user.id, body.avatar)}
 
 
 @router.post("/signup")

@@ -267,7 +267,7 @@ def test_player_public_shape_and_green_derivation():
     out = match.players["p_cara"].public()
     assert set(out) == {"id", "name", "team_id", "status", "green", "connected",
                         "is_leader", "role", "assigned_game", "has_game",
-                        "coins_earned"}
+                        "coins_earned", "avatar"}
     assert out["green"] is True and out["connected"] is False
     assert match.players["p_alice"].public()["green"] is False
     assert match.players["p_bob"].public()["green"] is False  # bonus isn't green
@@ -280,7 +280,7 @@ def test_player_private_adds_puzzle_timer_choice_freeze():
     out = match.public("p_bob")["me"]
     assert set(out) == {"id", "name", "team_id", "status", "green", "connected",
                         "is_leader", "role", "assigned_game", "has_game", "coins_earned",
-                        "rejoin_code", "current_puzzle",
+                        "avatar", "rejoin_code", "current_puzzle",
                         "timer_kind", "timer_deadline", "puzzle_deadline",
                         "choice_pending", "frozen_until", "screen_effects"}
     assert out["current_puzzle"]["game_id"] == "sweep"  # the bonus puzzle

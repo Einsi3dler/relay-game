@@ -313,6 +313,118 @@
       $("match-input").value = invited;
       $("name-input").focus();
     }
+
+    initFaces();
+  }
+
+  // --- the face picker (join screen) ---------------------------------------
+
+  var FACE_OPTIONS = 12;
+  var faceChoice = null;    // the code this player will join with
+  var faceOffered = [];     // the codes currently on the grid, faceChoice first
+  var facePicked = false;   // whether the player has actually chosen one here
+
+  // Remembered per browser, so a player who plays three matches an evening
+  // picks a face once.
+  function loadFace() {
+    try { return localStorage.getItem("relay_face"); } catch (e) { return null; }
+  }
+  function rememberFace(code) {
+    try { localStorage.setItem("relay_face", code); } catch (e) {}
+  }
+
+  // Pushing a pick to the account is what makes it follow the player to another
+  // device. Only an *explicit* pick is pushed — the random face this page opens
+  // with must not overwrite the one their account already holds.
+  //
+  // Fire and forget: a 401 here just means nobody is signed in, which is the
+  // normal case and not something to interrupt the join for.
+  function publishFace(code) {
+    fetch("/api/auth/avatar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ avatar: code }),
+    }).catch(function () {});
+  }
+
+  function dealFaces() {
+    faceOffered = [faceChoice];
+    while (faceOffered.length < FACE_OPTIONS) {
+      var code = avatarEncode(avatarRandom());
+      if (faceOffered.indexOf(code) < 0) faceOffered.push(code);
+    }
+  }
+
+  function renderFaces() {
+    var grid = $("face-grid");
+    if (!grid) return;
+    grid.innerHTML = "";
+    faceOffered.forEach(function (code) {
+      var parts = avatarDecode(code);
+      var cell = el("button", "jn-face");
+      cell.type = "button";
+      cell.innerHTML = avatarSvg(parts);
+      cell.setAttribute("role", "radio");
+      cell.setAttribute("aria-checked", code === faceChoice ? "true" : "false");
+      cell.setAttribute("aria-label", avatarLabel(parts));
+      // Only the selected face is in the tab order: a radiogroup is one stop,
+      // and arrow keys move within it.
+      cell.tabIndex = code === faceChoice ? 0 : -1;
+      cell.addEventListener("click", function () { chooseFace(code); });
+      cell.addEventListener("keydown", function (event) {
+        var step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1
+                 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+        if (!step) return;
+        event.preventDefault();
+        var at = faceOffered.indexOf(code) + step;
+        chooseFace(faceOffered[(at + faceOffered.length) % faceOffered.length], true);
+      });
+      grid.appendChild(cell);
+    });
+  }
+
+  function chooseFace(code, focus) {
+    if (!code) return;
+    faceChoice = code;
+    facePicked = true;
+    rememberFace(code);
+    publishFace(code);
+    renderFaces();
+    if (focus) {
+      var at = faceOffered.indexOf(code);
+      var cell = $("face-grid").children[at];
+      if (cell) cell.focus();
+    }
+  }
+
+  function initFaces() {
+    if (!$("face-grid")) return;
+    // Always open on a definite face, so joining without touching the picker
+    // still carries one. Remembered locally but not published: see publishFace.
+    var remembered = loadFace();
+    faceChoice = avatarDecode(remembered) ? remembered : avatarEncode(avatarRandom());
+    rememberFace(faceChoice);
+    dealFaces();
+    renderFaces();
+    $("face-shuffle").addEventListener("click", function () {
+      dealFaces();      // keeps faceChoice in slot 0
+      renderFaces();
+    });
+    // If they are signed in and their account already carries a face, that one
+    // wins over whatever this browser remembered — it is the copy that follows
+    // them between devices. It must not win over a pick they have already made
+    // here, though: this reply can land after a fast click.
+    fetch("/api/auth/me")
+      .then(function (response) { return response.json(); })
+      .then(function (body) {
+        var saved = body.user && body.user.avatar;
+        if (facePicked || !saved || !avatarDecode(saved) || saved === faceChoice) return;
+        faceChoice = saved;
+        rememberFace(saved);
+        dealFaces();
+        renderFaces();
+      })
+      .catch(function () {});
   }
 
   function stakeAmount(id) {
@@ -330,7 +442,7 @@
     fetch("/api/matches/" + encodeURIComponent(matchId) + "/join", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name }),
+      body: JSON.stringify({ name: name, avatar: faceChoice }),
     })
       .then(function (response) {
         return response.json().then(function (body) {
@@ -2130,72 +2242,29 @@
     return (first + second).toUpperCase();
   }
 
-  // Deterministic avatars without an avatar field on the player model and
-  // without a network round trip. The seed is the match id plus the player id,
-  // so a player keeps one face for a whole match, every client draws the same
-  // one, and a blocked or offline box still shows it.
-  function hashSeed(text) {
-    var hash = 2166136261;
-    for (var i = 0; i < text.length; i++) {
-      hash ^= text.charCodeAt(i);
-      hash = (hash * 16777619) >>> 0;
-    }
-    return hash;
-  }
+  // --- avatars ---------------------------------------------------------------
+  //
+  // The drawing lives in /static/avatar.js, because the account page draws the
+  // same faces and neither page has a build step to share code any other way.
+  var Avatar = window.RelayAvatar;
+  var avatarDecode = Avatar.decode;
+  var avatarEncode = Avatar.encode;
+  var avatarRandom = Avatar.random;
+  var avatarSvg = Avatar.svg;
+  var avatarLabel = Avatar.label;
+  var hashSeed = Avatar.hashSeed;   // also seeds the team logos below
 
-  // A tiny deterministic stream, so each feature of a face draws from its own
-  // part of the seed instead of every avatar keying off the same low bits.
-  function seedStream(seed) {
-    var state = seed || 1;
-    return function (n) {
-      state ^= state << 13; state >>>= 0;
-      state ^= state >> 17;
-      state ^= state << 5; state >>>= 0;
-      return state % n;
-    };
-  }
-
-  var AVATAR_SKINS = ["#ffd9a8", "#f2b98c", "#d69a6a", "#a9713f", "#7a4f2b",
-                      "#f7e2c8", "#c98c5a", "#8d5a34"];
-  var AVATAR_BACKS = ["#2b3a7a", "#1f5b6b", "#5b2f7a", "#7a2f4d", "#2f6b45",
-                      "#6b5a1f", "#3a3a6b", "#6b3a2f"];
-
-  // Eyes and a mouth on a coloured ground: no hair, no body, nothing that
-  // reads as a gender cue, and nothing derived from the player's name.
-  function avatarSvg(seed) {
-    var pick = seedStream(seed);
-    var back = AVATAR_BACKS[pick(AVATAR_BACKS.length)];
-    var skin = AVATAR_SKINS[pick(AVATAR_SKINS.length)];
-    var eyeY = 7 + pick(2);
-    var eyeW = 1 + pick(2);
-    var browed = pick(3) === 0;
-    var mouth = pick(4);
-    var parts = [
-      '<rect width="16" height="16" fill="' + back + '"/>',
-      '<rect x="3" y="3" width="10" height="11" fill="' + skin + '"/>'
-    ];
-    if (browed) {
-      parts.push('<rect x="4" y="' + (eyeY - 2) + '" width="3" height="1" fill="#2b2233"/>');
-      parts.push('<rect x="9" y="' + (eyeY - 2) + '" width="3" height="1" fill="#2b2233"/>');
-    }
-    parts.push('<rect x="5" y="' + eyeY + '" width="' + eyeW + '" height="2" fill="#2b2233"/>');
-    parts.push('<rect x="' + (11 - eyeW) + '" y="' + eyeY + '" width="' + eyeW +
-      '" height="2" fill="#2b2233"/>');
-    if (mouth === 0) parts.push('<rect x="6" y="11" width="4" height="1" fill="#2b2233"/>');
-    else if (mouth === 1) parts.push('<rect x="6" y="11" width="4" height="2" fill="#2b2233"/>');
-    else if (mouth === 2) {
-      parts.push('<rect x="6" y="11" width="1" height="1" fill="#2b2233"/>');
-      parts.push('<rect x="7" y="12" width="2" height="1" fill="#2b2233"/>');
-      parts.push('<rect x="9" y="11" width="1" height="1" fill="#2b2233"/>');
-    } else parts.push('<rect x="7" y="11" width="2" height="2" fill="#2b2233"/>');
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" ' +
-      'shape-rendering="crispEdges" width="40" height="40">' + parts.join("") + "</svg>";
+  // The parts to draw for a player: their pick when they made one, the face
+  // seeded from their id when they did not.
+  function avatarParts(state, player) {
+    return avatarDecode(player.avatar) ||
+      Avatar.seeded(Avatar.hashSeed(state.id + ":" + player.id));
   }
 
   function avatarNode(state, player, teamId) {
     var wrap = el("span", "gm-avatar");
     wrap.style.setProperty("--team-color", teamColor(teamId));
-    wrap.innerHTML = avatarSvg(hashSeed(state.id + ":" + player.id));
+    wrap.innerHTML = avatarSvg(avatarParts(state, player));
     wrap.setAttribute("role", "img");
     wrap.setAttribute("aria-label", "");
     return wrap;
@@ -2748,7 +2817,7 @@
       });
       if (!pick) return;
       face.style.setProperty("--team-color", teamColor(team.id));
-      face.innerHTML = avatarSvg(hashSeed(state.id + ":" + pick.id));
+      face.innerHTML = avatarSvg(avatarParts(state, pick));
     };
     select.onchange = paintFace;
     paintFace();

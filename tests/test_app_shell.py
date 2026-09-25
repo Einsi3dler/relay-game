@@ -40,6 +40,7 @@ ROOT = Path(__file__).parents[1]
 FRONTEND = ROOT / "frontend"
 INDEX = FRONTEND / "index.html"
 APP = FRONTEND / "app.js"
+AVATAR = FRONTEND / "avatar.js"
 MANUAL = FRONTEND / "games" / "bomb_manual.js"
 
 NOW = datetime(2026, 8, 28, 12, 0, 0, tzinfo=timezone.utc)
@@ -57,8 +58,9 @@ const vm = require("vm");
 
 const INDEX_HTML = fs.readFileSync(process.argv[2], "utf8");
 const APP_SRC = fs.readFileSync(process.argv[3], "utf8");
-const MANUAL_SRC = fs.readFileSync(process.argv[4], "utf8");
-const PLAN = JSON.parse(fs.readFileSync(process.argv[5], "utf8"));
+const AVATAR_SRC = fs.readFileSync(process.argv[4], "utf8");
+const MANUAL_SRC = fs.readFileSync(process.argv[5], "utf8");
+const PLAN = JSON.parse(fs.readFileSync(process.argv[6], "utf8"));
 
 // --- fake DOM ------------------------------------------------------------
 //
@@ -422,6 +424,9 @@ function boot(scenario) {
   };
   vm.createContext(context);
   vm.runInContext(MANUAL_SRC, context);          // the console draws the real manual
+  // index.html loads avatar.js ahead of app.js, and app.js reads
+  // window.RelayAvatar as it evaluates — so the order matters here too.
+  vm.runInContext(AVATAR_SRC, context);
   // A stub game renderer: the shell only needs *a* renderer to mount, and the
   // real ones have their own harnesses.
   const mounts = [];
@@ -786,6 +791,17 @@ function probe(shell) {
       join_hidden: $("join-btn").hidden,
       error_hidden: $("join-error").hidden,
       error: $("join-error").textContent,
+      // The face picker, as the door actually renders it.
+      faces: $("face-grid").children.length,
+      faces_checked: $("face-grid").children.filter(function (cell) {
+        return cell.getAttribute("aria-checked") === "true";
+      }).length,
+      faces_drawn: $("face-grid").children.filter(function (cell) {
+        return /^<svg /.test(cell.innerHTML);
+      }).length,
+      faces_labelled: $("face-grid").children.filter(function (cell) {
+        return (cell.getAttribute("aria-label") || "").length > 0;
+      }).length,
     },
     play: {
       identity: allText($("play-identity")),
@@ -1826,8 +1842,8 @@ def shell() -> dict:
         plan_file = Path(tmp) / "plan.json"
         plan_file.write_text(json.dumps(plan))
         finished = subprocess.run(
-            ["node", str(harness), str(INDEX), str(APP), str(MANUAL),
-             str(plan_file)],
+            ["node", str(harness), str(INDEX), str(APP), str(AVATAR),
+             str(MANUAL), str(plan_file)],
             capture_output=True, text=True, timeout=90,
         )
     assert finished.returncode == 0, finished.stderr
@@ -1872,6 +1888,18 @@ def test_a_cold_visit_opens_the_door_and_nothing_else(shell):
     assert door["code_hidden"] is True
     assert door["host_hidden"] is False and door["join_hidden"] is False
     assert door["error_hidden"] is True
+
+
+def test_the_door_offers_a_dozen_faces_with_one_picked(shell):
+    """The picker is built by the shell, not by the markup, so an empty grid
+    here is what a player would see: a labelled heading over nothing."""
+    door = _join(shell, "join")
+    assert door["faces"] == 12
+    assert door["faces_drawn"] == 12, "a cell rendered no SVG"
+    # Exactly one selected, so joining always carries a definite face.
+    assert door["faces_checked"] == 1
+    # Twelve identically-labelled buttons would be useless to a screen reader.
+    assert door["faces_labelled"] == 12
 
 
 def test_an_invite_link_skips_the_choice_and_fills_the_code(shell):
