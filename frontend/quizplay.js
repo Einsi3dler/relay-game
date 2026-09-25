@@ -169,7 +169,9 @@
     var locked = !!me.answer;
 
     el["p-note"].textContent = isSubject
-      ? "This one is about you. Sit this round out and keep a straight face."
+      ? (locked
+          ? "Locked in. Keep a straight face."
+          : "This one is about you. You cannot answer it, but confirm below so the room is not left staring at the one name that never lights up.")
       : locked ? "Locked in. Waiting for the rest of the room." : "";
 
     clear(el["p-cards"]);
@@ -208,7 +210,14 @@
       el["p-cards"].appendChild(li);
     });
 
-    el["lockbar"].hidden = isSubject || locked;
+    el["lockbar"].hidden = locked;
+    if (isSubject) {
+      /* The subject locks too. Their tile on the projector has to behave like
+         everyone else's or the missing one names them. */
+      el["lock-in"].disabled = false;
+      el["lock-in"].textContent = "Ready, my lips are sealed";
+      return;
+    }
     el["lock-in"].disabled = !selection;
     if (selection) {
       var pick = Room.playerById(room, selection);
@@ -306,8 +315,16 @@
   }
 
   el["lock-in"].addEventListener("click", function () {
+    var room = Room.read();
+    var q = room && Room.currentQuestion(room);
+    var mine = Room.playerById(room, myId());
+    if (!q || !mine) return;
+    if (mine.id === q.subject) {
+      Room.apply("pick", { playerId: mine.id, choice: Room.SAT_OUT });
+      return;
+    }
     if (!selection) return;
-    Room.apply("pick", { playerId: myId(), choice: selection });
+    Room.apply("pick", { playerId: mine.id, choice: selection });
     selection = null;
   });
 

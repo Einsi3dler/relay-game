@@ -112,10 +112,11 @@
     el["q-counter"].textContent = "Question " + (room.index + 1) + " of " + room.questions.length;
     el["q-prompt"].textContent = q.prompt;
 
-    /* The subject is the answer, so nothing about them reaches this screen:
-       not the name, not the face, not a gap in the row of faces below. Their
-       seat is simply not among the ones being waited on. */
-    var pool = Room.eligible(room);
+    /* Every seat is drawn, the subject's included. Leaving them out was the
+       bug: a room that can see six names on a seven-person roster has been
+       handed the answer. The subject locks a SAT_OUT in the same beat as
+       everybody else, so from here their tile is indistinguishable. */
+    var pool = room.players;
     var locked = Room.answeredCount(room);
     el["lock-tally"].textContent = locked + " of " + pool.length;
     el["lock-fill"].style.width = pool.length ? (locked / pool.length * 100) + "%" : "0%";
@@ -156,7 +157,7 @@
     el["reveal-name"].textContent = subject.name;
     el["reveal-prompt"].textContent = q.prompt;
 
-    var pool = Room.eligible(room);
+    var pool = Room.scorable(room);
     var right = pool.filter(function (p) { return p.answer === q.subject; }).length;
     el["reveal-right"].textContent = right;
     el["reveal-wrong"].textContent = pool.length - right;
