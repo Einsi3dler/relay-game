@@ -4,6 +4,10 @@
 the browser, and nothing has reached the server yet. This doc is the design to
 argue with before any of it is wired up.
 
+**Running a session?** [ROLL_CALL_DEPLOY.md](ROLL_CALL_DEPLOY.md) is the
+deployment runbook, and [ROLL_CALL_DO_NOT_SEND.md](ROLL_CALL_DO_NOT_SEND.md) is
+the standing order that nothing mails the roster yet.
+
 **Building the server?** [ROLL_CALL_HANDOFF.md](ROLL_CALL_HANDOFF.md) is the
 implementation handoff: the real roster, the invitations, the Grandmaster's
 host key, the snapshot contract that stops the answers leaking, and the runbook

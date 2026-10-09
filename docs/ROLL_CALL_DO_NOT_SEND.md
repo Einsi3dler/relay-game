@@ -55,6 +55,7 @@ Do not quietly delete the test. Do this instead, in the open:
 
 ## Related
 
+- [ROLL_CALL_DEPLOY.md](ROLL_CALL_DEPLOY.md) — the deployment runbook
 - [ROLL_CALL_HANDOFF.md](ROLL_CALL_HANDOFF.md) — the implementation spec
 - [QUIZ_ROLL_CALL.md](QUIZ_ROLL_CALL.md) — the game design
 - `tests/test_roster_privacy.py` — keeps the roster out of this public repo
