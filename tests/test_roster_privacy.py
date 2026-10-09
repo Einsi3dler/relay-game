@@ -23,6 +23,12 @@ cries wolf is worse than no check, because it teaches you to skip the output.
 
 Skips when the roster is absent, which is the normal state for CI and for every
 contributor who is not running the session.
+
+Note for anyone editing this file: it scans itself, like every other tracked
+file, so no illustrative example in here may be taken from the real data. The
+first version of it used a real local part in a comment and shipped green,
+because `git ls-files` did not list the file while it was still untracked. It
+went red the moment it was committed.
 """
 
 from __future__ import annotations
@@ -38,7 +44,7 @@ REPO = Path(__file__).resolve().parent.parent
 ROSTER = REPO / "var" / "rollcall" / "roster.json"
 
 PHRASE_LEN = 5
-MIN_LOCAL_PART = 6      # "caroline" is worth checking, "bob" is not
+MIN_LOCAL_PART = 6      # an eight-letter local part is worth checking, "bob" is not
 
 
 def _words(text: str) -> list[str]:
