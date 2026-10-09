@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07091f">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Roll Call</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/quiz.css">
+</head>
+<body class="quiz quiz--player">
+
+  <header class="quizbar">
+    <span class="quizbar__mark">
+      <svg class="quizbar__bolt" viewBox="0 0 24 32" aria-hidden="true" focusable="false">
+        <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
+      </svg>
+      <span>RELAY</span>
+    </span>
+    <span class="quizbar__tag">Roll Call</span>
+  </header>
+
+  <main class="quiz__body">
+
+    <section class="stage" id="stage-loading">
+      <p class="quiz-sub">Opening your invitation…</p>
+    </section>
+
+    <section class="stage" id="stage-bad" hidden>
+      <h1 class="qprompt">That link does not work.</h1>
+      <p class="quiz-sub">It may have been replaced by a newer one. Ask whoever
+        invited you for a fresh link.</p>
+    </section>
+
+    <section class="stage" id="stage-form" hidden>
+      <p class="quiz-eyebrow">You are invited</p>
+      <h1 class="qprompt">Who should the room call you?</h1>
+      <p class="quiz-sub">You wrote three things about yourself. They are about to
+        become a quiz, and everyone else has to work out which answers are yours.</p>
+
+      <form class="jform qpanel" id="register-form" style="margin-top: 22px;" novalidate>
+        <label class="jfield">
+          <span>Your name</span>
+          <input class="jinput" id="field-name" maxlength="18" autocomplete="name">
+        </label>
+
+        <div class="jfield">
+          <span>Your face</span>
+          <div class="facepick">
+            <span class="face" id="field-face"></span>
+            <button type="button" class="qbtn" id="shuffle-face">Try another</button>
+          </div>
+        </div>
+
+        <p class="quiz-sub" style="margin: 0;">Pick the name people in the room
+          already know you by. A nickname nobody recognises makes you impossible
+          to guess.</p>
+
+        <p class="jerror" id="form-error"></p>
+        <button class="qbtn qbtn--go qbtn--big" type="submit" id="submit-btn">Save and join</button>
+      </form>
+
+      <h2 class="quiz-eyebrow" style="margin-top: 30px;">What you wrote</h2>
+      <p class="quiz-sub" style="margin-top: 0;">Only you can see this. It cannot be
+        edited, so you know exactly what the room will be shown.</p>
+      <ul class="answers" id="my-answers"></ul>
+    </section>
+
+    <section class="stage" id="stage-done" hidden>
+      <div class="qpanel" style="text-align: center;">
+        <span class="face" id="done-face" style="width: 96px; height: 96px; margin: 0 auto 14px; border-radius: 20px;"></span>
+        <h1 class="qprompt" id="done-name"></h1>
+        <p class="quiz-sub">You are on the roster. Keep this link: it is also how
+          you join on the night.</p>
+        <p style="margin-top: 20px;">
+          <a class="qbtn qbtn--go" id="to-room" href="#">Go to the room</a>
+        </p>
+        <p class="quiz-sub" style="margin-top: 14px;">
+          <button class="qbtn qbtn--ghost" id="edit-again" type="button">Change my name or face</button>
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/avatar.js"></script>
+  <script src="/static/rollcall.js"></script>
+</body>
+</html>

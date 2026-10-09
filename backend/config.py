@@ -423,3 +423,16 @@ TOKEN_BYTES = 32                     # 256 bits of url-safe randomness
 EMAIL_SEND_MIN_INTERVAL_SECONDS = 60   # per address, per kind of mail
 LOGIN_MAX_ATTEMPTS = 10                # failures before an address is paused
 LOGIN_LOCKOUT_SECONDS = 15 * 60
+
+# --- ROLL CALL, the room quiz (docs/QUIZ_ROLL_CALL.md) --------------------
+# A quiz has no levels, no currency and no clock, so none of the above applies
+# to it. What it does have is a score, and the shape of that score is the only
+# tuning this game takes.
+QUIZ_BASE_POINTS = 100        # a correct guess
+QUIZ_SPEED_MAX = 50           # the first correct answer's bonus on top
+QUIZ_SPEED_DECAY = 0.8        # and it decays down the order: 50, 40, 32, 26…
+QUIZ_MIN_PLAYERS = 2          # fewer than two and there is nothing to guess
+QUIZ_NAME_MIN = 2
+QUIZ_NAME_MAX = 18            # fits a card on a phone at two columns
+QUIZ_TOKEN_BYTES = 24         # a participant's personal link
+QUIZ_SAT_OUT = "__sat_out"    # what the subject of a question locks instead

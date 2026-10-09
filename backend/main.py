@@ -24,7 +24,10 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from backend import accounts, auth, config, duelroom, god, mailer, preview, protocol
+from backend import (
+    accounts, auth, config, duelroom, god, mailer, preview, protocol,
+    quizgate, quizroom, rollcall,
+)
 from backend.engine import EngineResult, RelayEngine
 from backend.models import LEADER_ONLY_EVENT_KINDS, Match
 from backend.registry import REGISTERED_MODULES, GameRegistry
@@ -131,6 +134,57 @@ room_locks = MatchLocks()
 room_manager = ConnectionManager()
 room_timers = TimerService(_room_timer_fired)
 room_activity: dict[str, float] = {}
+
+# ROLL CALL (backend/quizroom.py). One session at a time, on purpose: the
+# roster is a single list of real people and a second concurrent room would
+# need it keyed by session. Its own manager and lock for the same reason the
+# duel rooms have theirs.
+QUIZ_ROOM_ID = "rollcall"
+QUIZ_HOST_VIEWER = "host"
+quiz_manager = ConnectionManager()
+quiz_lock = MatchLocks()
+_quiz_room: quizroom.QuizRoom | None = None
+
+
+def quiz_room() -> quizroom.QuizRoom:
+    global _quiz_room
+    if _quiz_room is None:
+        _quiz_room = quizroom.create_room(rollcall.all_participants())
+    return _quiz_room
+
+
+def reset_quiz_room() -> quizroom.QuizRoom:
+    global _quiz_room
+    _quiz_room = quizroom.create_room(rollcall.all_participants())
+    return _quiz_room
+
+
+def refresh_quiz_seats(room: quizroom.QuizRoom) -> None:
+    """Pick up anyone who registered since the room was made.
+
+    Only in the lobby: once the questions are built, the set of cards is fixed
+    for the session. A new face appearing mid-game would change what the room
+    is guessing between one question and the next.
+    """
+    if room.phase != "lobby":
+        return
+    for person in rollcall.all_participants():
+        if not person.registered:
+            continue
+        seat = room.seats.get(person.id)
+        if seat is None:
+            room.seats[person.id] = quizroom.Seat(participant=person)
+        else:
+            seat.participant = person     # they may have changed name or face
+
+
+async def broadcast_quiz(room: quizroom.QuizRoom) -> None:
+    """One personalised snapshot per socket. The host is given no more than a
+    player: its screen is on a wall."""
+    for viewer_id, socket in quiz_manager.match_sockets(QUIZ_ROOM_ID):
+        is_host = viewer_id == QUIZ_HOST_VIEWER
+        await quiz_manager.send(socket, protocol.quiz_room_state(
+            room, None if is_host else viewer_id, is_host=is_host))
 
 
 def touch(match_id: str) -> None:
@@ -252,6 +306,14 @@ async def lifespan(app: FastAPI):
     # database is opened before the first request rather than lazily on the
     # first login (backend/accounts.py). Matches stay in memory as they were.
     accounts.connect()
+    # ROLL CALL's roster: its own small database beside the accounts one. The
+    # import is idempotent, so doing it on every boot keeps the table in step
+    # with the file without anybody remembering to run a command.
+    rollcall.connect()
+    try:
+        rollcall.import_roster()
+    except FileNotFoundError:
+        pass          # no roster on this machine, which is the normal case
     sweeper = asyncio.create_task(_eviction_loop())
     yield
     sweeper.cancel()
@@ -321,8 +383,105 @@ async def quiz_player_page():
 
 
 @app.get("/quizhost", response_model=None)
-async def quiz_host_page():
-    return _serve_page("quizhost.html")
+async def quiz_host_page(
+    key: str | None = None,
+    relay_quizhost: str | None = Cookie(default=None),
+):
+    """The projector, behind the Grandmaster's key (backend/quizgate.py)."""
+    if not quizgate.authorised(key, relay_quizhost):
+        return HTMLResponse(quizgate.login_html())
+    response = _serve_page("quizhost.html")
+    if key and not relay_quizhost:
+        # A key on the URL has to leave a cookie behind, because the page it
+        # unlocks immediately opens a WebSocket and a query string does not
+        # ride along on that. Without this, `?key=` renders the host screen
+        # and then silently fails to connect it to anything.
+        response.set_cookie(
+            quizgate.COOKIE_NAME, quizgate.cookie_token(),
+            max_age=60 * 60 * 24 * 30, httponly=True, samesite="lax",
+        )
+    return response
+
+
+@app.post("/quizhost", response_model=None)
+async def quiz_host_login(request: Request):
+    """Trade the key for a cookie, then land on the room.
+
+    A redirect rather than rendering the page into the POST response, so the
+    key is not sitting in something the browser re-posts on refresh. Body
+    parsed by hand, as /god and /preview do: one password box is not worth a
+    dependency on python-multipart.
+    """
+    body = (await request.body()).decode("utf-8", "replace")
+    key = parse_qs(body).get("key", [""])[0]
+    if not quizgate.enabled(key):
+        return HTMLResponse(quizgate.login_html(failed=True), status_code=401)
+    response = RedirectResponse(quizgate.HOST_PATH, status_code=303)
+    response.set_cookie(
+        quizgate.COOKIE_NAME, quizgate.cookie_token(),
+        max_age=60 * 60 * 24 * 30, httponly=True, samesite="lax",
+    )
+    return response
+
+
+@app.get("/rollcall/{token}", response_model=None)
+async def rollcall_page(token: str):
+    """A participant's personal link. Registration before the session, their
+    seat during it. Whoever holds it is that person."""
+    return _serve_page("rollcall.html")
+
+
+# --- ROLL CALL registration (backend/rollcall.py) -------------------------
+# Deliberately thin. The only thing a participant tells us here is the name
+# and face the room will see; their three answers came from the form that
+# produced the roster and are never retyped.
+
+class RegisterBody(BaseModel):
+    token: str
+    name: str
+    avatar: str | None = None
+
+
+def _me_payload(person: rollcall.Participant) -> dict:
+    """What the registration page may know: this person, and their own three
+    answers. Never anybody else's, and never a subject."""
+    return {
+        "id": person.id,
+        "email": person.email,
+        "name": person.display_name,
+        "avatar": person.avatar,
+        "registered": person.registered,
+        "suggested_name": rollcall.suggested_name(person.email),
+        "answers": [
+            {"category": key,
+             "label": rollcall.DEFAULT_CATEGORIES.get(key, key),
+             "body": body}
+            for key, body in rollcall.ordered_answers(person.answers)
+        ],
+    }
+
+
+@app.get("/api/rollcall/me")
+async def rollcall_me(token: str = "") -> dict:
+    person = rollcall.by_token(token)
+    if person is None:
+        raise HTTPException(status_code=404, detail="That link is not valid.")
+    return _me_payload(person)
+
+
+@app.post("/api/rollcall/register")
+async def rollcall_register(body: RegisterBody) -> dict:
+    try:
+        person = rollcall.register(body.token, body.name, body.avatar)
+    except rollcall.RegistrationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # A new card should appear on the projector without the host refreshing.
+    async with quiz_lock.for_match(QUIZ_ROOM_ID):
+        room = quiz_room()
+        refresh_quiz_seats(room)
+        await broadcast_quiz(room)
+    return _me_payload(person)
 
 
 # --- the account pages (backend/auth.py) ----------------------------------
@@ -930,6 +1089,124 @@ async def duel_room_endpoint(socket: WebSocket, room_id: str, seat_id: str = "")
                     # would let whoever is losing freeze it by pulling the plug.
                     duelroom.on_disconnect(room, viewer_id)
                     await broadcast_room(room)
+
+
+@app.websocket("/ws/quiz")
+async def quiz_endpoint(
+    socket: WebSocket,
+    token: str = "",
+    host_key: str = "",
+):
+    """ROLL CALL. One room, one host, everybody else on their own link.
+
+    Two kinds of viewer and no third: a participant identified by the token in
+    their invitation, and the Grandmaster, who proves it with the host key or
+    the cookie that key earned. There is no watcher seat, because there is no
+    public join code to arrive through.
+    """
+    await socket.accept()
+
+    cookie = socket.cookies.get(quizgate.COOKIE_NAME)
+    is_host = quizgate.authorised(host_key or None, cookie)
+    person = rollcall.by_token(token) if token else None
+
+    if not is_host and person is None:
+        await socket.close(code=protocol.CLOSE_UNKNOWN)
+        return
+    if person is not None and not person.registered:
+        # They have a valid link but have not chosen a name yet, so they have
+        # no card. The registration page is where they belong.
+        await socket.close(code=protocol.CLOSE_UNKNOWN)
+        return
+
+    viewer_id = QUIZ_HOST_VIEWER if is_host and person is None else person.id
+
+    old = quiz_manager.get(QUIZ_ROOM_ID, viewer_id)
+    # Publish the replacement before closing the old one, or that handler's
+    # finally block marks this seat away a moment after it arrived.
+    quiz_manager.register(QUIZ_ROOM_ID, viewer_id, socket)
+    if old is not None:
+        with contextlib.suppress(Exception):
+            await old.close(code=protocol.CLOSE_SUPERSEDED)
+
+    try:
+        async with quiz_lock.for_match(QUIZ_ROOM_ID):
+            room = quiz_room()
+            refresh_quiz_seats(room)
+            if person is not None:
+                quizroom.on_connect(room, person.id)
+            await broadcast_quiz(room)
+
+        while True:
+            raw = await socket.receive_json()
+            parsed = protocol.parse_quiz_message(raw)
+            if isinstance(parsed, str):
+                await quiz_manager.send(socket, protocol.error_message(parsed))
+                continue
+            msg_type, fields = parsed
+
+            async with quiz_lock.for_match(QUIZ_ROOM_ID):
+                room = quiz_room()
+
+                if msg_type == protocol.QUIZ_ANSWER:
+                    if person is None:
+                        await quiz_manager.send(socket, protocol.error_message(
+                            "The host does not play."))
+                        continue
+                    choice = fields["choice"]
+                    try:
+                        quizroom.pick(
+                            room, person.id,
+                            config.QUIZ_SAT_OUT if choice is None else choice,
+                        )
+                    except quizroom.Rejected as exc:
+                        await quiz_manager.send(
+                            socket, protocol.error_message(str(exc)))
+                        continue
+                    await broadcast_quiz(room)
+
+                elif msg_type == protocol.QUIZ_HOST:
+                    if not is_host:
+                        # Not an error worth explaining: a player's client has
+                        # no reason to send this, so anything that does is
+                        # poking at it.
+                        await quiz_manager.send(socket, protocol.error_message(
+                            "Only the host can do that."))
+                        continue
+                    action = fields["action"]
+                    try:
+                        if action == "reset":
+                            room = reset_quiz_room()
+                            refresh_quiz_seats(room)
+                            for seated, _ in quiz_manager.match_sockets(QUIZ_ROOM_ID):
+                                quizroom.on_connect(room, seated)
+                        else:
+                            {
+                                "start": quizroom.start,
+                                "reveal": quizroom.reveal,
+                                "next": quizroom.next_question,
+                                "finish": quizroom.finish,
+                                "close": quizroom.close,
+                            }[action](room)
+                    except quizroom.Rejected as exc:
+                        await quiz_manager.send(
+                            socket, protocol.error_message(str(exc)))
+                        continue
+                    await broadcast_quiz(room)
+
+                else:                       # request_state / heartbeat
+                    await quiz_manager.send(socket, protocol.quiz_room_state(
+                        room, None if is_host else viewer_id, is_host=is_host))
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        if quiz_manager.unregister(QUIZ_ROOM_ID, viewer_id, socket) and person:
+            async with quiz_lock.for_match(QUIZ_ROOM_ID):
+                # Away, not removed. With no clock in this game, waiting for a
+                # dropped phone to come back would stall the whole room.
+                quizroom.on_disconnect(quiz_room(), person.id)
+                await broadcast_quiz(quiz_room())
 
 
 @app.websocket("/ws/matches/{match_id}")

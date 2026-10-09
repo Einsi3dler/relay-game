@@ -1,74 +1,49 @@
 /* ROLL CALL — the player screen.
  *
  * A phone, held in one hand, in a room where something is being read aloud.
- * Everything it does is one of two things: show the prompt, and take one tap.
+ * It renders whatever the server last sent and sends one tap back; it holds
+ * no game state and decides nothing. Every rule it appears to enforce below
+ * is enforced again on the server, because a disabled button is a courtesy,
+ * not a guard.
  *
- * Two rules worth naming, because both were learned the hard way in the
- * design and are easy to undo by accident:
+ * Two of those courtesies are worth naming, because both were learned the
+ * hard way and are easy to undo:
  *
- *   * A tap selects; a second, deliberate press locks. There is no timer here,
- *     so there is no reason to punish a fat thumb, and an instant lock turns
- *     every misfire into a lost round.
- *   * The person a question is about sits it out. Their own card is drawn
- *     (the room's shape should not shift round to round) but nothing is
- *     selectable, and they are not counted in "locked in" on the host screen.
- *
- * Who *this* browser is, is kept in sessionStorage: a refresh mid-quiz should
- * put you back in your seat and not at the join form.
+ *   * A tap selects; a second, deliberate press locks. There is no timer, so
+ *     there is no reason to punish a fat thumb.
+ *   * The person a question is about still locks in, with a confirm button
+ *     instead of the grid. If the one person who cannot answer were also the
+ *     one tile that never lit up on the projector, the room would read the
+ *     answer off it.
  */
-(function () {
+(function (global) {
   "use strict";
 
-  var Room = window.RelayQuizRoom;
-  var ME_KEY = "relay.quiz.me";
+  var Room = global.RelayQuizRoom;
+  var token = new global.URLSearchParams(global.location.search).get("token") || "";
 
   var el = {};
-  ["me-meta", "stage-join", "stage-waiting", "stage-question", "stage-reveal",
-   "stage-final", "stage-closed", "join-form", "field-code", "field-name",
-   "field-face", "shuffle-face", "join-error", "wait-face", "wait-name",
-   "wait-roster", "p-counter", "p-prompt", "p-note", "p-cards", "p-callout",
-   "p-callout-big", "p-callout-small", "p-answer-face", "p-answer-name",
-   "p-right", "p-wrong", "p-right-list", "p-wrong-list",
-   "p-board", "p-awards", "p-final-rank", "p-final-score", "p-final-board", "lockbar",
-   "lock-in"
+  ["me-meta", "stage-nolink", "stage-waiting", "stage-question", "stage-reveal",
+   "stage-final", "stage-closed", "wait-face", "wait-name", "wait-roster",
+   "p-counter", "p-prompt", "p-note", "p-cards", "p-callout", "p-callout-big",
+   "p-callout-small", "p-answer-face", "p-answer-name", "p-right", "p-wrong",
+   "p-right-list", "p-wrong-list", "p-board", "p-awards", "p-final-rank",
+   "p-final-score", "p-final-board", "lockbar", "lock-in"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   var STAGES = {
-    join: el["stage-join"],
-    waiting: el["stage-waiting"],
-    question: el["stage-question"],
-    reveal: el["stage-reveal"],
-    final: el["stage-final"],
-    closed: el["stage-closed"]
+    nolink: el["stage-nolink"], waiting: el["stage-waiting"],
+    question: el["stage-question"], reveal: el["stage-reveal"],
+    final: el["stage-final"], closed: el["stage-closed"]
   };
 
-  /* Selected but not yet locked. Deliberately not in the room: a half-made
-     choice is this phone's business and nobody else's. */
-  var selection = null;
-
-  /* Same guard as the host: animate once per question, not once per render. */
-  var revealKey = null;
-  var rollHandle = null;
-
-  function stopRoll() {
-    if (rollHandle) { clearInterval(rollHandle); rollHandle = null; }
-  }
-  var faceCode = window.RelayAvatar.encode(window.RelayAvatar.random());
-
-  function myId() {
-    try { return window.sessionStorage.getItem(ME_KEY); } catch (err) { return null; }
-  }
-  function setMyId(id) {
-    try { window.sessionStorage.setItem(ME_KEY, id); } catch (err) { /* private window */ }
-  }
-
   function showStage(name) {
-    Object.keys(STAGES).forEach(function (key) { STAGES[key].hidden = key !== name; });
+    Object.keys(STAGES).forEach(function (key) {
+      STAGES[key].hidden = key !== name;
+    });
   }
 
-  function clear(node) {
-    while (node.firstChild) node.removeChild(node.firstChild);
-  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
   function ordinal(n) {
     var tens = n % 100;
@@ -76,50 +51,17 @@
     return n + (["th", "st", "nd", "rd"][n % 10] || "th");
   }
 
-  /* ------------------------------------------------------------------ join -- */
+  /* Selected but not yet locked. Deliberately not sent anywhere: a half-made
+     choice is this phone's business. */
+  var selection = null;
+  var revealKey = null;
+  var rollHandle = null;
 
-  function drawFace() {
-    el["field-face"].innerHTML = window.RelayAvatar.svg(window.RelayAvatar.decode(faceCode));
+  function stopRoll() {
+    if (rollHandle) { global.clearInterval(rollHandle); rollHandle = null; }
   }
 
-  el["shuffle-face"].addEventListener("click", function () {
-    faceCode = window.RelayAvatar.encode(window.RelayAvatar.random());
-    drawFace();
-  });
-
-  el["join-form"].addEventListener("submit", function (event) {
-    event.preventDefault();
-    var room = Room.read();
-    var code = el["field-code"].value.trim().toUpperCase();
-    var name = el["field-name"].value.trim();
-
-    if (!room || room.phase === "closed") {
-      el["join-error"].textContent = "No session is running right now.";
-      return;
-    }
-    if (code !== room.code) {
-      el["join-error"].textContent = "That code does not match the screen.";
-      return;
-    }
-    if (name.length < 2) {
-      el["join-error"].textContent = "Give the room a name to call you.";
-      return;
-    }
-    var taken = room.players.some(function (p) {
-      return p.name.toLowerCase() === name.toLowerCase();
-    });
-    if (taken) {
-      el["join-error"].textContent = "Somebody is already going by that. Try another.";
-      return;
-    }
-
-    el["join-error"].textContent = "";
-    var id = Room.makeId();
-    setMyId(id);
-    Room.apply("join", { id: id, name: name, avatar: faceCode });
-  });
-
-  /* --------------------------------------------------------------- pieces -- */
+  /* ---------------------------------------------------------------- pieces -- */
 
   function boardRow(player, rank, meId) {
     var li = document.createElement("li");
@@ -150,13 +92,13 @@
     });
   }
 
-  /* --------------------------------------------------------------- stages -- */
+  /* ---------------------------------------------------------------- stages -- */
 
   function renderWaiting(room, me) {
     el["wait-face"].innerHTML = Room.faceSvg(me);
     el["wait-name"].textContent = me.name;
     clear(el["wait-roster"]);
-    room.players.forEach(function (p) {
+    Room.present(room).forEach(function (p) {
       var li = document.createElement("li");
       li.className = "roster__chip";
       li.appendChild(Room.faceNode(p));
@@ -168,19 +110,23 @@
   }
 
   function renderQuestion(room, me) {
-    var q = Room.currentQuestion(room);
+    var q = room.question;
     if (!q) return;
 
-    el["p-counter"].textContent = "Question " + (room.index + 1) + " of " + room.questions.length;
-    el["p-prompt"].textContent = q.prompt;
+    el["p-counter"].textContent = q.label + " · " +
+      (room.index + 1) + " of " + room.total;
+    el["p-prompt"].textContent = "“" + q.body + "”";
+    /* Long answers are paragraphs, not headlines. The display size that fits
+       "I play the harmonica" does not fit fifty words. */
+    el["p-prompt"].style.fontSize = q.body.length > 160 ? "1.05rem"
+      : q.body.length > 80 ? "1.2rem" : "";
 
-    var isSubject = me.id === q.subject;
-    var locked = !!me.answer;
+    var isSubject = room.you_are_subject;
+    var locked = !!room.your_answer;
 
     el["p-note"].textContent = isSubject
-      ? (locked
-          ? "Locked in. Keep a straight face."
-          : "This one is about you. You cannot answer it, but confirm below so the room is not left staring at the one name that never lights up.")
+      ? (locked ? "Locked in. Keep a straight face."
+                : "This one is about you. You cannot answer it, but confirm below so the room is not left staring at the one name that never lights up.")
       : locked ? "Locked in. Waiting for the rest of the room." : "";
 
     clear(el["p-cards"]);
@@ -200,18 +146,18 @@
 
       if (isSubject || locked) {
         card.disabled = true;
-        var chosen = locked && me.answer === player.id;
-        if (chosen) card.setAttribute("aria-pressed", "true");
-        else card.classList.add("pcard--dim");
+        if (locked && room.your_answer === player.id) {
+          card.setAttribute("aria-pressed", "true");
+        } else {
+          card.classList.add("pcard--dim");
+        }
       } else if (player.id === me.id) {
-        /* You cannot be the answer to a question you are answering: the
-           subject is always somebody else from where you are sitting. */
-        card.disabled = true;
+        card.disabled = true;      // it is never you
       } else {
         card.setAttribute("aria-pressed", selection === player.id ? "true" : "false");
         card.addEventListener("click", function () {
           selection = selection === player.id ? null : player.id;
-          render(Room.read());
+          render(room);
         });
       }
 
@@ -221,31 +167,23 @@
 
     el["lockbar"].hidden = locked;
     if (isSubject) {
-      /* The subject locks too. Their tile on the projector has to behave like
-         everyone else's or the missing one names them. */
       el["lock-in"].disabled = false;
       el["lock-in"].textContent = "Ready, my lips are sealed";
       return;
     }
     el["lock-in"].disabled = !selection;
-    if (selection) {
-      var pick = Room.playerById(room, selection);
-      el["lock-in"].textContent = pick ? "Lock in " + pick.name : "Lock it in";
-    } else {
-      el["lock-in"].textContent = "Pick a face";
-    }
+    var pick = selection && Room.playerById(room, selection);
+    el["lock-in"].textContent = pick ? "Lock in " + pick.name : "Pick a face";
   }
 
   function renderReveal(room, me) {
-    var q = Room.currentQuestion(room);
-    var subject = Room.playerById(room, q && q.subject);
-    if (!q || !subject) return;
+    var subject = Room.playerById(room, room.subject);
+    if (!subject) return;
 
-    var sat = me.id === q.subject;
-    var right = !sat && me.answer === q.subject;
-
+    var sat = me.id === room.subject;
+    var right = !sat && room.your_answer === room.subject;
     var tone = sat ? "callout--idle" : right ? "callout--right" : "callout--wrong";
-    el["p-callout"].className = "callout " + tone;
+
     el["p-callout-big"].textContent = sat ? "That was you"
       : right ? "+" + me.gain : "Not this time";
     el["p-callout-small"].textContent = sat
@@ -253,29 +191,24 @@
       : right ? (me.bonus > 0
           ? Room.BASE_POINTS + " for the answer, " + me.bonus + " for being early."
           : Room.BASE_POINTS + " for the answer.")
-      : (me.answer
-        ? "You said " + (Room.playerById(room, me.answer) || { name: "nobody" }).name + "."
-        : "You did not lock one in.");
+      : (room.your_answer
+          ? "You said " + ((Room.playerById(room, room.your_answer) || {}).name || "nobody") + "."
+          : "You did not lock one in.");
 
-    var key = room.index + ":" + q.id;
+    var key = room.index + ":" + (room.question && room.question.id);
     if (key !== revealKey) {
       revealKey = key;
       stopRoll();
-      /* Hold the punchline until the face has landed, or the callout spoils
-         its own reveal before the roll has finished spinning. */
       el["p-callout"].className = "callout " + tone + " is-held";
       rollHandle = Room.rollReveal(
         el["p-answer-face"], el["p-answer-name"], room, subject,
         function () {
           rollHandle = null;
           el["p-callout"].className = "callout " + tone + " is-landed";
-        }
-      );
+        });
       Room.renderGroups({
-        rightList: el["p-right-list"],
-        wrongList: el["p-wrong-list"],
-        rightCount: el["p-right"],
-        wrongCount: el["p-wrong"]
+        rightList: el["p-right-list"], wrongList: el["p-wrong-list"],
+        rightCount: el["p-right"], wrongCount: el["p-wrong"]
       }, room, me.id);
     }
 
@@ -284,81 +217,63 @@
 
   function renderFinal(room, me) {
     var ranked = Room.standings(room);
-    var place = ranked.findIndex(function (p) { return p.id === me.id; }) + 1;
-    el["p-final-rank"].textContent = place > 0 ? ordinal(place) + " place" : "Thanks for playing";
+    var place = 0;
+    ranked.forEach(function (p, i) { if (p.id === me.id) place = i + 1; });
+    el["p-final-rank"].textContent = place ? ordinal(place) + " place" : "Thanks for playing";
     el["p-final-score"].textContent = me.score + " points, from " + me.correct +
       (me.correct === 1 ? " right answer" : " right answers") +
-      " out of " + room.questions.length + ".";
+      " out of " + room.total + ".";
     Room.renderAwards(el["p-awards"], room);
     renderBoard(el["p-final-board"], room, me.id);
   }
 
   /* ------------------------------------------------------------------ draw -- */
 
-  function render(room) {
+  function render(room, status) {
     if (!room || room.phase !== "reveal") { revealKey = null; stopRoll(); }
 
-    if (!room) {
-      showStage("join");
+    if (status === "rejected" || !token) {
+      showStage("nolink");
+      el["lockbar"].hidden = true;
+      el["me-meta"].textContent = "";
+      return;
+    }
+    if (!room) return;
+
+    var me = Room.playerById(room, room.you);
+    if (room.phase === "closed" || !me) {
+      showStage(room.phase === "closed" ? "closed" : "nolink");
       el["lockbar"].hidden = true;
       el["me-meta"].textContent = "";
       return;
     }
 
-    var me = Room.playerById(room, myId());
-
-    if (room.phase === "closed") {
-      showStage("closed");
-      el["lockbar"].hidden = true;
-      el["me-meta"].textContent = "";
-      return;
-    }
-    if (!me) {
-      showStage("join");
-      el["lockbar"].hidden = true;
-      el["me-meta"].textContent = "";
-      return;
-    }
-
-    /* No unit: "Yusuf · 150 pts" does not fit beside the wordmark on a phone
-       and was being cut to "150 P...". The number alone is unambiguous. */
     el["me-meta"].textContent = me.name + " · " + me.score;
 
     if (room.phase === "lobby") {
-      showStage("waiting");
-      el["lockbar"].hidden = true;
-      renderWaiting(room, me);
-      return;
+      showStage("waiting"); el["lockbar"].hidden = true;
+      renderWaiting(room, me); return;
     }
     if (room.phase === "question") {
-      showStage("question");
-      renderQuestion(room, me);
-      return;
+      showStage("question"); renderQuestion(room, me); return;
     }
 
-    /* A new question clears the pending pick, so the last round's highlight
-       never carries into the next one. */
     selection = null;
     el["lockbar"].hidden = true;
-
     if (room.phase === "reveal") { showStage("reveal"); renderReveal(room, me); return; }
     if (room.phase === "final") { showStage("final"); renderFinal(room, me); }
   }
 
   el["lock-in"].addEventListener("click", function () {
-    var room = Room.read();
-    var q = room && Room.currentQuestion(room);
-    var mine = Room.playerById(room, myId());
-    if (!q || !mine) return;
-    if (mine.id === q.subject) {
-      Room.apply("pick", { playerId: mine.id, choice: Room.SAT_OUT });
-      return;
-    }
-    if (!selection) return;
-    Room.apply("pick", { playerId: mine.id, choice: selection });
+    el["lock-in"].disabled = true;
+    /* The subject's grid is entirely disabled, so `selection` is still null
+       for them, and null is exactly how the wire says "I am sitting this one
+       out". Everyone else sends the id they picked. */
+    Room.answer(selection);
     selection = null;
   });
 
-  drawFace();
+  if (!token) { showStage("nolink"); return; }
   Room.subscribe(render);
-})();
+  Room.connect({ token: token });
+})(window);
