@@ -32,6 +32,24 @@ above again. It is cheap; a merge disaster is not.
 
 ---
 
+## 🔴 RULE 0.5 — DO NOT MAIL THE ROLL CALL ROSTER
+
+`var/rollcall/roster.json` holds real people's email addresses. **Nothing sends
+mail to them until the repository owner says so in the conversation where it
+happens.** This deployment has `RELAY_MAIL_BACKEND=smtp` and a real `base_url`,
+so a stray `mailer.send` reaches a real inbox and cannot be recalled.
+
+`backend/rollcall.py` must never import `backend/mailer.py`;
+`tests/test_rollcall_no_send.py` enforces it. Do not delete that test to
+"finish the feature". Read
+[docs/ROLL_CALL_DO_NOT_SEND.md](docs/ROLL_CALL_DO_NOT_SEND.md) first.
+
+The roster itself must also never be committed: it is gitignored, and
+`tests/test_roster_privacy.py` scans every tracked file for its contents. No
+example anywhere in this repository may be copied out of it.
+
+---
+
 ## What this project is
 
 The Relay: a two-team synchronous relay puzzle race. Each team = 4 playing

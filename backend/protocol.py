@@ -76,6 +76,14 @@ REMATCH = "rematch"
 READY = "ready"
 ROOM_MESSAGE_TYPES = (DUEL_CHOICE, READY, REMATCH, REQUEST_STATE, HEARTBEAT)
 
+# ROLL CALL (backend/quizroom.py). A third small dialect on a third socket,
+# kept out of CLIENT_TYPES for the reason the duel room's is: the cheapest way
+# to keep the match's message set closed is for the quiz never to touch it.
+QUIZ_ANSWER = "quiz_answer"
+QUIZ_HOST = "quiz_host"
+QUIZ_MESSAGE_TYPES = (QUIZ_ANSWER, QUIZ_HOST, REQUEST_STATE, HEARTBEAT)
+QUIZ_HOST_ACTIONS = ("start", "reveal", "next", "finish", "close", "reset")
+
 # Server → client
 STATE_SNAPSHOT = "state_snapshot"
 ERROR = "error"
@@ -87,6 +95,9 @@ MATCH_WON = "match_won"
 # A room's snapshot is its own message, not a `state_snapshot`: the client's
 # match renderer reads a MatchPublic and a room is not one.
 DUEL_ROOM_STATE = "duel_room_state"
+# And the quiz's own snapshot, for the same reason: a client that renders a
+# MatchPublic must never be handed one of these by accident.
+QUIZ_ROOM_STATE = "quiz_room_state"
 
 # Close codes
 CLOSE_UNKNOWN = 4404  # unknown match or player
@@ -155,6 +166,37 @@ def parse_room_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
             "duel_id": duel_id, "round": round_index, "choice": choice,
         }
     return msg_type, {}  # rematch / request_state / heartbeat
+
+
+def parse_quiz_message(raw: Any) -> tuple[str, dict[str, Any]] | str:
+    """Validate a message on a ROLL CALL socket.
+
+    `choice` is allowed to be null: that is how the subject of a question says
+    "I know, I am sitting this one out". The room decides whether the sender
+    was entitled to send it; this only checks the shape.
+    """
+    if not isinstance(raw, dict):
+        return "Malformed message."
+    msg_type = raw.get("type")
+    if msg_type not in QUIZ_MESSAGE_TYPES:
+        return "Unknown message type."
+    if msg_type == QUIZ_ANSWER:
+        choice = raw.get("choice")
+        if choice is not None and not isinstance(choice, str):
+            return "Malformed message."
+        return msg_type, {"choice": choice}
+    if msg_type == QUIZ_HOST:
+        action = raw.get("action")
+        if action not in QUIZ_HOST_ACTIONS:
+            return "Unknown host action."
+        return msg_type, {"action": action}
+    return msg_type, {}          # request_state / heartbeat
+
+
+def quiz_room_state(room: Any, viewer_id: str | None,
+                    is_host: bool = False) -> dict[str, Any]:
+    return {"type": QUIZ_ROOM_STATE,
+            "room": room.public(viewer_id, is_host=is_host)}
 
 
 def parse_client_message(raw: Any) -> tuple[str, dict[str, Any]] | str:

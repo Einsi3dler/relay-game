@@ -30,25 +30,27 @@
     <!-- ------------------------------------------------------------ lobby -->
     <section class="stage" id="stage-lobby">
       <p class="quiz-eyebrow">Waiting room</p>
-      <h1 class="qprompt">Get everyone in.</h1>
-      <p class="quiz-sub">Players open the link on their phone and type the code. No app, no timer.</p>
+      <h1 class="qprompt">Everyone has their own link.</h1>
+      <p class="quiz-sub">No code to read out. Each person was sent an invitation
+        that carries their seat.</p>
 
       <div class="qpanel joincode" style="margin-top: 24px;">
         <div>
-          <p class="joincode__url" id="join-url">relay.local/quiz</p>
-          <p class="joincode__value" id="join-code">----</p>
-        </div>
-        <div class="joincode__count">
-          <strong id="lobby-count">0</strong>
-          <span>in the room</span>
+          <p class="joincode__url">In the room</p>
+          <p class="joincode__value"><span id="lobby-here">0</span><span
+             style="opacity:.35"> / </span><span id="lobby-total">0</span></p>
         </div>
       </div>
 
+      <h2 class="quiz-eyebrow" style="margin-top: 26px;">Here</h2>
       <ul class="roster" id="lobby-roster"></ul>
+
+      <h2 class="quiz-eyebrow" style="margin-top: 22px;">Still to arrive</h2>
+      <ul class="roster" id="lobby-missing"></ul>
 
       <p style="margin-top: 28px;">
         <button class="qbtn qbtn--go" id="start-quiz" disabled>Start the quiz</button>
-        <span class="quiz-sub" id="start-hint" style="margin-left: 12px;">Two players minimum.</span>
+        <span class="quiz-sub" id="start-hint" style="margin-left: 12px;">Waiting for at least two people.</span>
       </p>
     </section>
 
@@ -127,16 +129,6 @@
     </section>
 
   </main>
-
-  <!-- Prototype controls. These stand in for the phones in the room so the
-       host screen can be reviewed by one person; they go when the room is
-       wired to the server. -->
-  <div class="devstrip" id="devstrip">
-    <span class="devstrip__label">Prototype controls</span>
-    <button class="qbtn" id="dev-fill">Add 6 players</button>
-    <button class="qbtn" id="dev-answer">Everyone answers</button>
-    <button class="qbtn" id="dev-reset">Reset room</button>
-  </div>
 
   <script src="/static/avatar.js"></script>
   <script src="/static/quiz.js"></script>

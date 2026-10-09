@@ -1,47 +1,31 @@
 /* ROLL CALL — the host screen.
  *
- * This is the projector. One person drives it and the whole room reads it, so
- * two things hold everywhere below: it never shows anything a player should
- * not see yet (above all the subject of the live question, which is the
- * answer), and every number on it is big enough to read from the back.
+ * This is the projector. One person drives it and the whole room reads it,
+ * which makes it the *least* trusted viewer in the building, not the most: it
+ * is given exactly what a player is given, and the server enforces that.
  *
- * It owns no state. It renders whatever RelayQuizRoom hands it and sends
- * intents back. See quiz.js for why that seam is drawn where it is.
+ * It owns no state. It renders the last snapshot and sends host actions back.
  */
-(function () {
+(function (global) {
   "use strict";
 
-  var Room = window.RelayQuizRoom;
+  var Room = global.RelayQuizRoom;
 
   var el = {};
   ["bar-meta", "end-session", "stage-lobby", "stage-question", "stage-reveal",
-   "stage-final", "stage-closed", "join-url", "join-code", "lobby-count",
-   "lobby-roster", "start-quiz", "start-hint", "q-counter", "q-prompt",
+   "stage-final", "stage-closed", "lobby-here", "lobby-total", "lobby-roster",
+   "lobby-missing", "start-quiz", "start-hint", "q-counter", "q-prompt",
    "lock-tally", "lock-fill", "lock-roster", "reveal-answer", "reveal-face",
    "reveal-name", "reveal-prompt", "reveal-right", "reveal-wrong",
-   "reveal-right-list", "reveal-wrong-list",
-   "reveal-board", "next-question", "final-podium", "final-awards", "final-board",
-   "close-session", "new-session", "dev-fill", "dev-answer", "dev-reset"
+   "reveal-right-list", "reveal-wrong-list", "reveal-board", "next-question",
+   "final-podium", "final-awards", "final-board", "close-session", "new-session"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   var STAGES = {
-    lobby: el["stage-lobby"],
-    question: el["stage-question"],
-    reveal: el["stage-reveal"],
-    final: el["stage-final"],
+    lobby: el["stage-lobby"], question: el["stage-question"],
+    reveal: el["stage-reveal"], final: el["stage-final"],
     closed: el["stage-closed"]
   };
-
-  /* The reveal animates once per question, not once per render. State
-     arrives on every storage event (somebody joining late, a phone
-     reconnecting) and re-running the roll on each of those would leave the
-     room watching a face machine-gun forever. */
-  var revealKey = null;
-  var rollHandle = null;
-
-  function stopRoll() {
-    if (rollHandle) { clearInterval(rollHandle); rollHandle = null; }
-  }
 
   function showStage(phase) {
     Object.keys(STAGES).forEach(function (key) {
@@ -49,13 +33,17 @@
     });
   }
 
-  function clear(node) {
-    while (node.firstChild) node.removeChild(node.firstChild);
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  var revealKey = null;
+  var rollHandle = null;
+  function stopRoll() {
+    if (rollHandle) { global.clearInterval(rollHandle); rollHandle = null; }
   }
 
   /* --------------------------------------------------------------- pieces -- */
 
-  function rosterChip(player, dimmed) {
+  function chip(player, dimmed) {
     var li = document.createElement("li");
     li.className = "roster__chip" + (dimmed ? " roster__chip--out" : "");
     li.appendChild(Room.faceNode(player));
@@ -95,48 +83,58 @@
 
   function renderBoard(node, room, showGain) {
     clear(node);
-    Room.standings(room).forEach(function (player, i) {
-      node.appendChild(boardRow(player, i + 1, showGain));
+    Room.standings(room).forEach(function (p, i) {
+      node.appendChild(boardRow(p, i + 1, showGain));
     });
   }
 
-  /* ---------------------------------------------------------------- stages -- */
+  /* --------------------------------------------------------------- stages -- */
 
   function renderLobby(room) {
-    el["join-code"].textContent = room.code;
-    el["join-url"].textContent = location.host + "/quiz";
-    el["lobby-count"].textContent = room.players.length;
+    el["lobby-here"].textContent = room.here;
+    el["lobby-total"].textContent = room.registered;
 
     clear(el["lobby-roster"]);
-    room.players.forEach(function (p) { el["lobby-roster"].appendChild(rosterChip(p)); });
+    Room.present(room).forEach(function (p) {
+      el["lobby-roster"].appendChild(chip(p));
+    });
 
-    var ready = room.players.length >= 2;
+    /* Who is still missing, which is the thing the host actually needs and
+       the reason there is no join code on this screen. */
+    var away = room.players.filter(function (p) { return !p.connected; });
+    clear(el["lobby-missing"]);
+    away.forEach(function (p) { el["lobby-missing"].appendChild(chip(p, true)); });
+
+    var ready = room.here >= 2;
     el["start-quiz"].disabled = !ready;
     el["start-hint"].textContent = ready
-      ? "Everyone can still join after this."
-      : "Two players minimum.";
+      ? "Anyone still on their way can join after this."
+      : "Waiting for at least two people.";
   }
 
   function renderQuestion(room) {
-    var q = Room.currentQuestion(room);
+    var q = room.question;
     if (!q) return;
 
-    el["q-counter"].textContent = "Question " + (room.index + 1) + " of " + room.questions.length;
-    el["q-prompt"].textContent = q.prompt;
+    el["q-counter"].textContent = q.label + " · question " +
+      (room.index + 1) + " of " + room.total;
+    el["q-prompt"].textContent = "“" + q.body + "”";
+    /* A fifty-word answer is a paragraph, not a headline. */
+    el["q-prompt"].style.fontSize = q.body.length > 160 ? "1.9rem"
+      : q.body.length > 80 ? "2.4rem" : "";
 
-    /* Every seat is drawn, the subject's included. Leaving them out was the
-       bug: a room that can see six names on a seven-person roster has been
-       handed the answer. The subject locks a SAT_OUT in the same beat as
-       everybody else, so from here their tile is indistinguishable. */
-    var pool = room.players;
-    var locked = Room.answeredCount(room);
-    el["lock-tally"].textContent = locked + " of " + pool.length;
-    el["lock-fill"].style.width = pool.length ? (locked / pool.length * 100) + "%" : "0%";
+    /* Every seat that is here, the subject included. Leaving them out was the
+       bug: a room that sees nine names on a ten-person roster has been handed
+       the answer. */
+    var here = Room.present(room);
+    el["lock-tally"].textContent = room.locked_in + " of " + here.length;
+    el["lock-fill"].style.width =
+      here.length ? (room.locked_in / here.length * 100) + "%" : "0%";
 
     clear(el["lock-roster"]);
-    pool.forEach(function (p) {
+    here.forEach(function (p) {
       var li = document.createElement("li");
-      li.className = "lockseat" + (p.answer ? " lockseat--in" : "");
+      li.className = "lockseat" + (p.answered ? " lockseat--in" : "");
       li.appendChild(Room.faceNode(p));
 
       var name = document.createElement("span");
@@ -144,61 +142,51 @@
       name.textContent = p.name;
       li.appendChild(name);
 
-      /* A drawn glyph, not an emoji: it has to read at projector size and in
-         one colour. */
       var tick = document.createElement("span");
       tick.className = "lockseat__tick";
-      tick.textContent = "\u2713";
+      tick.textContent = "✓";
       tick.setAttribute("aria-hidden", "true");
       li.appendChild(tick);
 
       el["lock-roster"].appendChild(li);
     });
 
-    el["reveal-answer"].textContent = Room.allAnswered(room)
+    el["reveal-answer"].textContent = room.locked_in >= here.length
       ? "Reveal the answer"
-      : "Reveal the answer (" + locked + " in)";
+      : "Reveal the answer (" + room.locked_in + " in)";
   }
 
   function renderReveal(room) {
-    var q = Room.currentQuestion(room);
-    var subject = Room.playerById(room, q && q.subject);
-    if (!q || !subject) return;
+    var subject = Room.playerById(room, room.subject);
+    if (!subject || !room.question) return;
 
-    el["reveal-prompt"].textContent = q.prompt;
+    el["reveal-prompt"].textContent = "“" + room.question.body + "”";
 
-    var key = room.index + ":" + q.id;
+    var key = room.index + ":" + room.question.id;
     if (key !== revealKey) {
       revealKey = key;
       stopRoll();
       rollHandle = Room.rollReveal(
         el["reveal-face"], el["reveal-name"], room, subject,
-        function () { rollHandle = null; }
-      );
-      /* The groups are the round's result, which is settled the moment the
-         host pressed reveal, so they are built once and left alone. Rebuilding
-         them on every render would restart the cascade under the room's
-         nose. */
+        function () { rollHandle = null; });
+      /* Built once: the round's result is settled the moment the host pressed
+         reveal, and rebuilding per snapshot would restart the cascade. */
       Room.renderGroups({
-        rightList: el["reveal-right-list"],
-        wrongList: el["reveal-wrong-list"],
-        rightCount: el["reveal-right"],
-        wrongCount: el["reveal-wrong"]
+        rightList: el["reveal-right-list"], wrongList: el["reveal-wrong-list"],
+        rightCount: el["reveal-right"], wrongCount: el["reveal-wrong"]
       }, room, null);
     }
 
     renderBoard(el["reveal-board"], room, true);
-
-    var last = room.index + 1 >= room.questions.length;
-    el["next-question"].textContent = last ? "See the final standings" : "Next question";
+    el["next-question"].textContent = room.index + 1 >= room.total
+      ? "See the final standings" : "Next question";
   }
 
   function renderFinal(room) {
     var ranked = Room.standings(room);
     clear(el["final-podium"]);
 
-    /* Second, first, third, so the tallest plinth sits in the middle. */
-    [1, 0, 2].forEach(function (at) {
+    [1, 0, 2].forEach(function (at) {       // second, first, third
       var player = ranked[at];
       if (!player) return;
       var spot = document.createElement("div");
@@ -234,43 +222,37 @@
 
   /* ----------------------------------------------------------------- draw -- */
 
-  function render(room) {
-    if (!room) { room = Room.ensure(); }
+  function render(room, status) {
+    if (!room) return;
+    if (room.phase !== "reveal") { revealKey = null; stopRoll(); }
 
     showStage(room.phase);
     el["end-session"].hidden = room.phase === "closed" || room.phase === "final";
-
-    el["bar-meta"].textContent = room.phase === "lobby"
-      ? "Code " + room.code
-      : room.players.length + (room.players.length === 1 ? " player" : " players");
+    el["bar-meta"].textContent = status === "closed"
+      ? "Reconnecting…"
+      : room.here + " of " + room.registered + " here";
 
     if (room.phase === "lobby") renderLobby(room);
     if (room.phase === "question") renderQuestion(room);
-    if (room.phase !== "reveal") { revealKey = null; stopRoll(); }
     if (room.phase === "reveal") renderReveal(room);
     if (room.phase === "final") renderFinal(room);
   }
 
   /* -------------------------------------------------------------- intents -- */
 
-  el["start-quiz"].addEventListener("click", function () { Room.apply("start"); });
-  el["reveal-answer"].addEventListener("click", function () { Room.apply("reveal"); });
-  el["next-question"].addEventListener("click", function () { Room.apply("next"); });
+  el["start-quiz"].addEventListener("click", function () { Room.host("start"); });
+  el["reveal-answer"].addEventListener("click", function () { Room.host("reveal"); });
+  el["next-question"].addEventListener("click", function () { Room.host("next"); });
+  el["close-session"].addEventListener("click", function () { Room.host("close"); });
+  el["new-session"].addEventListener("click", function () { Room.host("reset"); });
 
   el["end-session"].addEventListener("click", function () {
     /* Two steps on purpose: ending drops the room to the standings so it has
        an ending, and only the second press lets everyone's screen go. */
-    if (!window.confirm("End the quiz here and show the final standings?")) return;
-    Room.apply("finish");
+    if (!global.confirm("End the quiz here and show the final standings?")) return;
+    Room.host("finish");
   });
 
-  el["close-session"].addEventListener("click", function () { Room.apply("close"); });
-  el["new-session"].addEventListener("click", function () { Room.apply("reset"); });
-
-  el["dev-fill"].addEventListener("click", function () { Room.apply("seedPlayers"); });
-  el["dev-answer"].addEventListener("click", function () { Room.apply("autoAnswer"); });
-  el["dev-reset"].addEventListener("click", function () { Room.apply("reset"); });
-
-  Room.ensure();
   Room.subscribe(render);
-})();
+  Room.connect({});          // the host cookie is the credential
+})(window);

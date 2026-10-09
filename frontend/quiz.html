@@ -24,35 +24,11 @@
 
   <main class="quiz__body">
 
-    <!-- ------------------------------------------------------------- join -->
-    <section class="stage" id="stage-join">
-      <p class="quiz-eyebrow">Join the room</p>
-      <h1 class="qprompt">Who is who?</h1>
-      <p class="quiz-sub">A prompt lands, you tap the face you think it belongs to. No clock, no pressure.</p>
-
-      <form class="jform qpanel" id="join-form" style="margin-top: 22px;" novalidate>
-        <label class="jfield">
-          <span>Room code</span>
-          <input class="jinput jinput--code" id="field-code" maxlength="4" autocomplete="off"
-                 autocapitalize="characters" spellcheck="false" placeholder="ABCD">
-        </label>
-
-        <label class="jfield">
-          <span>Your name</span>
-          <input class="jinput" id="field-name" maxlength="18" autocomplete="off" placeholder="What the room calls you">
-        </label>
-
-        <div class="jfield">
-          <span>Your face</span>
-          <div class="facepick">
-            <span class="face" id="field-face"></span>
-            <button type="button" class="qbtn" id="shuffle-face">Try another</button>
-          </div>
-        </div>
-
-        <p class="jerror" id="join-error"></p>
-        <button class="qbtn qbtn--go qbtn--big" type="submit">Join</button>
-      </form>
+    <!-- ------------------------------------------------------- no link --- -->
+    <section class="stage closed" id="stage-nolink">
+      <h1>This page needs your invitation link.</h1>
+      <p class="quiz-sub">Open the link that was sent to you. It carries your
+        seat, so there is no code to type.</p>
     </section>
 
     <!-- ---------------------------------------------------------- waiting -->
