@@ -350,6 +350,13 @@ def _serve_page(filename: str):
 
 
 @app.get("/", response_model=None)
+async def hub():
+    # The platform's front door: a plain list of the games on offer. The
+    # Relay's own landing page lives at /relay.
+    return _serve_page("hub.html")
+
+
+@app.get("/relay", response_model=None)
 async def landing():
     return _serve_page("landing.html")
 
