@@ -60,7 +60,7 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id            TEXT PRIMARY KEY,
-    email         TEXT NOT NULL UNIQUE,
+    email         TEXT UNIQUE,
     username      TEXT NOT NULL UNIQUE,
     first_name    TEXT NOT NULL,
     last_name     TEXT NOT NULL,
@@ -136,6 +136,54 @@ def _migrate(db: sqlite3.Connection) -> None:
         have = {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}
         if column not in have:
             db.execute(statement)
+    _make_email_optional(db)
+
+
+_USER_COLUMNS = ("id, email, username, first_name, last_name, password_hash,"
+                 " verified, created_at, avatar")
+
+
+def _make_email_optional(db: sqlite3.Connection) -> None:
+    """Email became optional (it is only for game-night news). The first
+    release declared it NOT NULL, and SQLite cannot drop that in place, so an
+    old table is rebuilt once, rows and all.
+
+    SQLite's documented procedure: foreign keys off, copy into a new table,
+    swap, check, foreign keys back on. With them left on, DROP TABLE would
+    cascade and sign every account out by deleting their sessions.
+    """
+    email = next((row for row in db.execute("PRAGMA table_info(users)")
+                  if row["name"] == "email"), None)
+    if email is None or not email["notnull"]:
+        return
+    db.commit()
+    db.execute("PRAGMA foreign_keys = OFF")
+    try:
+        db.execute("BEGIN")
+        db.execute("""
+            CREATE TABLE users_new (
+                id            TEXT PRIMARY KEY,
+                email         TEXT UNIQUE,
+                username      TEXT NOT NULL UNIQUE,
+                first_name    TEXT NOT NULL,
+                last_name     TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                verified      INTEGER NOT NULL DEFAULT 0,
+                created_at    INTEGER NOT NULL,
+                avatar        TEXT
+            )""")
+        db.execute(f"INSERT INTO users_new ({_USER_COLUMNS})"
+                   f" SELECT {_USER_COLUMNS} FROM users")
+        db.execute("DROP TABLE users")
+        db.execute("ALTER TABLE users_new RENAME TO users")
+        if db.execute("PRAGMA foreign_key_check").fetchall():
+            raise sqlite3.IntegrityError("foreign keys broken by the users rebuild")
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
+    finally:
+        db.execute("PRAGMA foreign_keys = ON")
 
 
 def close() -> None:
@@ -222,10 +270,15 @@ def normalise_username(username: str) -> str:
 
 
 def validate_signup(
-    first_name: str, last_name: str, email: str,
-    username: str, password: str, confirm: str,
-) -> dict[str, str]:
+    first_name: str, last_name: str, email: str | None,
+    username: str, password: str, confirm: str | None = None,
+) -> dict[str, str | None]:
     """Check a registration and hand back the cleaned fields.
+
+    Email is optional: it is only how we tell somebody about upcoming game
+    nights, so leaving it blank is a normal answer and comes back as None.
+    `confirm` is checked only when a form asks for it; the sign-up page shows
+    the password instead of asking for it twice.
 
     Raises ValueError with a message meant to be read by the person who typed
     it — the route turns that straight into a 400, the same contract the engine
@@ -240,8 +293,8 @@ def validate_signup(
         raise ValueError("enter your first and last name")
     if len(first) > config.NAME_MAX or len(last) > config.NAME_MAX:
         raise ValueError(f"names cannot be longer than {config.NAME_MAX} characters")
-    if not mail or len(mail) > config.EMAIL_MAX or not _EMAIL_RE.match(mail):
-        raise ValueError("enter a valid email address")
+    if mail and (len(mail) > config.EMAIL_MAX or not _EMAIL_RE.match(mail)):
+        raise ValueError("enter a valid email address, or leave it blank")
     if not (config.USERNAME_MIN <= len(user) <= config.USERNAME_MAX):
         raise ValueError(
             f"username must be {config.USERNAME_MIN}-{config.USERNAME_MAX} characters"
@@ -252,9 +305,10 @@ def validate_signup(
         raise ValueError(f"password must be at least {config.PASSWORD_MIN} characters")
     if len(password) > config.PASSWORD_MAX:
         raise ValueError("that password is too long")
-    if password != confirm:
+    if confirm is not None and password != confirm:
         raise ValueError("passwords do not match")
-    return {"first_name": first, "last_name": last, "email": mail, "username": user}
+    return {"first_name": first, "last_name": last, "email": mail or None,
+            "username": user}
 
 
 # --- users ----------------------------------------------------------------
@@ -262,7 +316,7 @@ def validate_signup(
 @dataclass
 class User:
     id: str
-    email: str
+    email: str | None       # optional: only for game-night news and recovery
     username: str
     first_name: str
     last_name: str
@@ -306,8 +360,8 @@ def _user(row: sqlite3.Row | None) -> User | None:
 
 
 def create_user(
-    first_name: str, last_name: str, email: str,
-    username: str, password: str, confirm: str,
+    first_name: str, last_name: str, email: str | None,
+    username: str, password: str, confirm: str | None = None,
 ) -> User:
     """Register an account. Validates first, then takes the email and username.
 
@@ -323,7 +377,7 @@ def create_user(
             (fields["email"], fields["username"]),
         ).fetchone()
         if taken is not None:
-            if taken["email"] == fields["email"]:
+            if fields["email"] and taken["email"] == fields["email"]:
                 raise ValueError("an account already uses that email address")
             raise ValueError("that username is taken")
         user_id = "u_" + secrets.token_urlsafe(16)
@@ -344,9 +398,12 @@ def by_id(user_id: str) -> User | None:
     return _user(_db().execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone())
 
 
-def by_email(email: str) -> User | None:
+def by_email(email: str | None) -> User | None:
+    mail = normalise_email(email or "")
+    if not mail:
+        return None
     return _user(_db().execute(
-        "SELECT * FROM users WHERE email = ?", (normalise_email(email),)
+        "SELECT * FROM users WHERE email = ?", (mail,)
     ).fetchone())
 
 
@@ -356,16 +413,21 @@ def by_username(username: str) -> User | None:
     ).fetchone())
 
 
-def check_login(email: str, password: str) -> User | None:
-    """Password login. None on any failure, with no hint about which one.
+def check_login(identifier: str, password: str) -> User | None:
+    """Password login by username or email. None on any failure, with no hint
+    about which one.
 
-    An unknown address still pays for a hash. Without that, "no such user"
+    Anything with an "@" is looked up as an email, everything else as a
+    username: the username alphabet has no "@", so the two cannot collide.
+    An unknown name still pays for a hash. Without that, "no such user"
     returns in microseconds while a wrong password takes ~100ms, and the
-    difference tells an attacker which addresses are registered.
+    difference tells an attacker which names are registered.
     """
+    who = (identifier or "").strip().lower()
+    column = "email" if "@" in who else "username"
     row = _db().execute(
-        "SELECT * FROM users WHERE email = ?", (normalise_email(email),)
-    ).fetchone()
+        f"SELECT * FROM users WHERE {column} = ?", (who,)
+    ).fetchone() if who else None
     if row is None:
         hash_password(password or "")
         return None

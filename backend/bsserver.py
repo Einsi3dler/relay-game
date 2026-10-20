@@ -121,6 +121,7 @@ LOGIN_HTML = """<!DOCTYPE html>
 <meta name="theme-color" content="#6a3cf5">
 <title>Bullshit Quiz host</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap">
+<link rel="stylesheet" href="/static/toon.css">
 <link rel="stylesheet" href="/static/bullshit.css">
 </head>
 <body class="bs">

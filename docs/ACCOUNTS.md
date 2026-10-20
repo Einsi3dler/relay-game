@@ -1,11 +1,13 @@
 # Accounts: sign up, sign in, sign out
 
-Optional accounts for The Relay. A player can register, sign in with a password
-or a one-click email link, reset a forgotten password, and confirm their email
-address.
+Optional accounts for the whole site: Game Night (`/`), its games, and The
+Relay. A player registers with first name, last name, username and password;
+email is optional. They sign in with their username (or their email, if they
+gave one), and people with an email can also use a one-click email link,
+reset a forgotten password, and confirm their address.
 
 Read this before touching `backend/accounts.py`, `backend/auth.py`,
-`backend/mailer.py`, or the `frontend/auth.*` trio.
+`backend/mailer.py`, or `frontend/auth.html` / `auth.js`.
 
 ---
 
@@ -67,7 +69,7 @@ and uvicorn.
 | `backend/auth.py` | The routes, as an `APIRouter` under `/api/auth`. Imports the store and the mailer, nothing else. |
 | `backend/mailer.py` | Outbound email. One `send`, a console backend and an SMTP backend. |
 | `backend/config.py` | Every tunable, in the `Accounts` block at the bottom. |
-| `frontend/auth.html` `.css` `.js` | One page behind `/signup`, `/login`, `/forgot`, `/reset`, `/verify`, `/magic` and `/account`. |
+| `frontend/auth.html` `.js` | One page behind `/signup`, `/login`, `/forgot`, `/reset`, `/verify`, `/magic` and `/account`, in the site's cartoon style (`toon.css` + `site.css`). |
 | `tests/test_accounts.py` | The store's rules, with no server. |
 | `tests/test_auth.py` | The routes end to end, reading links out of the console outbox. |
 | `tests/conftest.py` | Pins the test database in memory. See the warning below. |
@@ -77,12 +79,24 @@ the page routes. The engine is not touched.
 
 ## The flows
 
-**Sign up** — first name, last name, email, username, password, confirm.
-Creates the account, mails a verification link, and signs the browser in
-immediately. Unverified.
+**Sign up** — first name, last name, username, password, and optionally an
+email. The email is only for news about upcoming game nights and for getting
+back in, and the form says so. The password is asked once, with a Show
+button, instead of twice. Creates the account and signs the browser in
+immediately. If an email was given it mails a verification link (unverified
+until clicked); with no email, nothing is sent at all.
 
-**Sign in** — email and password. Or "Email me a sign-in link", which sends a
-magic link using whatever address is already typed in the form.
+**Sign in** — username or email, and password. Anything with an "@" is
+looked up as an email; usernames cannot contain one. Or "Email me a sign-in
+link", which sends a magic link to an email typed in the form.
+
+**No email, forgotten password** — there is no self-service way back. That
+is the trade the person made by leaving it blank, and the forgot page says
+to ask the host.
+
+**Upgrading an old database** — email was NOT NULL in the first release.
+`_make_email_optional` in `backend/accounts.py` rebuilds the `users` table
+once, with foreign keys off so no session is lost, and is a no-op afterwards.
 
 **Forgot password** — `/forgot` asks which of two things to send:
 

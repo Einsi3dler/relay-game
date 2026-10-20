@@ -59,6 +59,9 @@ class SignupBody(BaseModel):
 
 
 class LoginBody(BaseModel):
+    # Username or email. `email` is the field's original name and still
+    # accepted, so an old page open in somebody's tab keeps working.
+    login: str = ""
     email: str = ""
     password: str = ""
 
@@ -146,7 +149,7 @@ def _send_verification(user: accounts.User) -> bool:
     so doing it the other way round would let a double-click invalidate the
     link the user already has while refusing to send its replacement.
     """
-    if mailer.throttled(user.email, "verify"):
+    if not user.email or mailer.throttled(user.email, "verify"):
         return False
     token = accounts.issue_token(user.id, "verify", config.VERIFY_TTL_SECONDS)
     mailer.send_verify(user.email, user.first_name, token)
@@ -184,31 +187,33 @@ async def signup(body: SignupBody, response: Response):
     try:
         user = accounts.create_user(
             body.first_name, body.last_name, body.email,
-            body.username, body.password, body.confirm_password,
+            body.username, body.password, body.confirm_password or None,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     # Signed in immediately, unverified. Making people go to their inbox before
     # they can do anything is how you lose someone who is registering because a
-    # match starts in five minutes.
-    _send_verification(user)
+    # match starts in five minutes. No address, nothing to verify.
+    if user.email:
+        _send_verification(user)
     return _sign_in(response, user)
 
 
 @router.post("/login")
 async def login(body: LoginBody, response: Response):
-    email = accounts.normalise_email(body.email)
-    if _locked_out(email):
+    who = (body.login or body.email).strip().lower()
+    if _locked_out(who):
         raise HTTPException(
             status_code=429,
             detail="Too many attempts. Wait 15 minutes, or use a sign-in link.",
         )
-    user = accounts.check_login(email, body.password)
+    user = accounts.check_login(who, body.password)
     if user is None:
-        _note_failure(email)
-        # One message for a wrong address and a wrong password alike.
-        raise HTTPException(status_code=400, detail="Email or password is incorrect.")
-    _failures.pop(email, None)
+        _note_failure(who)
+        # One message for a wrong name and a wrong password alike.
+        raise HTTPException(status_code=400,
+                            detail="Username or password is incorrect.")
+    _failures.pop(who, None)
     return _sign_in(response, user)
 
 
@@ -332,6 +337,8 @@ async def resend_verification(
     user = current_user(relay_session)
     if user is None:
         raise HTTPException(status_code=401, detail="Sign in first.")
+    if not user.email:
+        raise HTTPException(status_code=400, detail="There is no email on this account.")
     if user.verified:
         return {"ok": True, "message": "That address is already confirmed."}
     if not _send_verification(user):
