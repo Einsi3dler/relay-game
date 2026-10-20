@@ -70,6 +70,8 @@
     toast: document.getElementById("toast")
   };
 
+  document.getElementById("mute-slot").replaceWith(BS.muteButton());
+
   /* ------------------------------------------------------------- helpers -- */
 
   function show(name) {
@@ -449,6 +451,7 @@
         h("p", { class: "bs-line__parts", text: BS.lineParts(line).join(", ") })));
     }
     nodes.push(BS.leaderboard(s, "Scores"));
+    nodes.push(BS.history(s, { title: "Rounds so far" }));
     return nodes;
   }
 
@@ -460,7 +463,8 @@
         h("span", { text: won ? "YOU WIN!" : "GAME OVER" })),
       BS.title(names.length > 1 ? "Joint winners" : "The winner", true),
       BS.sub(names.join(" and ") || "Nobody", true),
-      BS.leaderboard(s, "Final scores")
+      BS.leaderboard(s, "Final scores"),
+      BS.history(s, { title: "Every round" })
     ];
   }
 
@@ -477,7 +481,8 @@
       : s.phase === "waiting" ? [
           BS.title("Hang tight"),
           BS.sub("Not enough players are online for the next round. The host will deal it once a few more are back."),
-          BS.leaderboard(s, "Scores")
+          BS.leaderboard(s, "Scores"),
+          BS.history(s)
         ]
       : final(s);
     el.game.innerHTML = "";
@@ -505,6 +510,30 @@
     if (!wasGame) window.scrollTo(0, 0);
   }
 
+  /* Sound and buzz for the moments that matter to this player: their turn
+     to act, their own lock-in, the reveal (and whether it went their way),
+     and the end. Compared against the previous snapshot so a rebroadcast
+     caused by somebody else never replays anything. */
+  function cue(before, after) {
+    if (!before || after.phase === "lobby") return;
+    var moved = before.phase !== after.phase || before.round !== after.round;
+    if (moved) {
+      var mustAct = (after.phase === "briefing" && (after.role === "truthful" || after.role === "bullshitter")) ||
+                    (after.phase === "open" && after.role === "guesser");
+      if (mustAct && !after.committed) { BS.play("turn"); BS.buzz(); }
+      if (after.phase === "reveal") {
+        BS.play("stamp");
+        var mine = (after.players || []).filter(function (p) { return p.id === after.you; })[0];
+        if (mine && mine.line) {
+          setTimeout(function () { BS.play(mine.line.delta >= 0 ? "right" : "wrong"); }, 350);
+        }
+      }
+      if (after.phase === "final") BS.play("fanfare");
+      return;
+    }
+    if (!before.committed && after.committed) BS.play("pop");
+  }
+
   function startLive() {
     render();
     socket = BS.connect("", {
@@ -514,6 +543,7 @@
           editing = false;
           me.locked = true;
         }
+        cue(live, state);
         live = state;
         render();
         if (phaseChanged && stage === "game") window.scrollTo(0, 0);

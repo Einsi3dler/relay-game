@@ -259,10 +259,3 @@
 
 .acct-face[aria-checked="true"] { background: var(--bs-yellow); box-shadow: var(--bs-shadow-sm); transform: rotate(-3deg); }
 .acct-face svg { width: 100%; height: 100%; display: block; }
-
-.bs-btn--inline {
-  width: auto;
-  margin: 0;
-  padding: 8px 14px;
-  font-size: 1rem;
-}

@@ -340,3 +340,97 @@ def test_staying_away_past_the_grace_period_relegates(client, players, monkeypat
         time.sleep(0.6)
         seat = bsserver.room().seats[guesser]
         assert not seat.connected and seat.relegated
+
+
+# --- host: undo reset and the invitations ---------------------------------
+
+def _host_action(host, action, **extra):
+    host.send_json({"type": bsserver.HOST, "action": action, **extra})
+
+
+def test_undo_reset_inside_the_window(client, players):
+    with ExitStack() as stack:
+        host, _ = _started_with_sockets(client, players, stack)
+        before = bsserver.room()
+        _host_action(host, "reset")
+        view = until(host, lambda v: v["phase"] == "lobby")
+        assert view["can_undo_reset"] is True
+        _host_action(host, "undo_reset")
+        until(host, lambda v: v["phase"] == "briefing")
+        assert bsserver.room() is before
+
+
+def test_undo_reset_after_the_window_is_refused(client, players, monkeypatch):
+    import time
+    monkeypatch.setattr(bsserver.config, "BS_UNDO_SECONDS", 0)
+    with ExitStack() as stack:
+        host, _ = _started_with_sockets(client, players, stack)
+        _host_action(host, "reset")
+        until(host, lambda v: v["phase"] == "lobby")
+        time.sleep(0.05)
+        _host_action(host, "undo_reset")
+        msg = host.receive_json()
+        while msg["type"] != "error":
+            msg = host.receive_json()
+        assert "too late" in msg["error"].lower()
+
+
+def test_host_marks_a_player_gone(client, players):
+    with ExitStack() as stack:
+        host, _ = _started_with_sockets(client, players, stack)
+        guesser = next(s.id for s in bsserver.room().guessers())
+        _host_action(host, "drop", player=guesser)
+        view = until(host, lambda v: any(p["id"] == guesser and p["relegated"]
+                                         for p in v["players"]))
+        assert view["phase"] == "briefing"
+
+
+def test_acting_after_being_marked_gone_counts_as_back(client, players):
+    with ExitStack() as stack:
+        host, socks = _started_with_sockets(client, players, stack)
+        current = bsserver.room()
+        guesser = next(s.id for s in current.guessers())
+        _host_action(host, "drop", player=guesser)
+        until(host, lambda v: any(p["id"] == guesser and not p["connected"]
+                                  for p in v["players"]))
+        # Get to the discussion, then the "gone" guesser answers.
+        for seat in list(current.speakers()):
+            if current.role_of(seat.id) == "truthful":
+                socks[seat.id].send_json({"type": bsserver.READY})
+            else:
+                socks[seat.id].send_json({"type": bsserver.BLUFF, "wager": 1})
+        until(host, lambda v: v.get("speakers_in") == v.get("speakers"))
+        _host_action(host, "open")
+        until(host, lambda v: v["phase"] == "open")
+        socks[guesser].send_json({"type": bsserver.GUESS, "option": "A", "wager": 1})
+        until(host, lambda v: any(p["id"] == guesser and p["connected"]
+                                  for p in v["players"]))
+        seat = bsserver.room().seats[guesser]
+        assert seat.connected and seat.relegated
+
+
+def test_invites_are_host_only_and_list_everyone(client, roster):
+    assert client.get("/api/bullshit/host/invites").status_code == 401
+    host_client(client)
+    invites = client.get("/api/bullshit/host/invites").json()["invites"]
+    assert len(invites) == 4 and not any(i["claimed"] for i in invites)
+    assert all(i["email"].endswith("@example.test") for i in invites)
+
+
+def test_new_link_replaces_the_old_one(client, roster):
+    person, old = roster[0]
+    host_client(client)
+    link = client.post(f"/api/bullshit/host/invites/{person.id}/link").json()["link"]
+    new = link.rsplit("/", 1)[1]
+    assert bsroster.by_token(old) is None
+    assert bsroster.by_token(new).id == person.id
+
+
+def test_no_new_link_for_a_claimed_seat(client, players):
+    host_client(client)
+    response = client.post(f"/api/bullshit/host/invites/{players[0].person.id}/link")
+    assert response.status_code == 400 and "sign in" in response.json()["detail"]
+
+
+def test_a_player_cannot_see_the_invites(client, players):
+    assert players[0].web.get("/api/bullshit/host/invites").status_code == 401

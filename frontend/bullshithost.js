@@ -3,8 +3,19 @@
  * The host runs the game and never plays. They are on the group call too, and
  * probably sharing this screen, so the server gives it exactly what a guesser
  * sees (backend/bsroom.py) and nothing more: no answer key, no author, no
- * roles until the reveal. This page only adds the buttons that move the game
- * on, one big one per phase.
+ * roles until the reveal. This page adds the buttons that move the game on,
+ * one big one per phase, and a few safety valves:
+ *
+ *   - Mark gone: apply the leaving rule to somebody now, not after the grace
+ *     period, for a player who has stopped answering.
+ *   - Lock anyway: close the votes while a guesser is still thinking. They
+ *     cast no vote; nothing is guessed for them.
+ *   - Undo reset: for BS_UNDO_SECONDS after "Reset the room".
+ *
+ * The invitations panel is the one place email addresses appear. It is
+ * fetched only when opened, never part of the snapshot, and it sits outside
+ * the part of the page that redraws on every update, so it does not snap shut
+ * (or lose a freshly made link) whenever somebody joins.
  *
  * No build step (see CLAUDE.md). Needs bullshit-common.js loaded first.
  */
@@ -14,8 +25,13 @@
   var h = BS.h;
   var root = document.getElementById("host");
   var toastEl = document.getElementById("toast");
+  var invitesEl = document.getElementById("invites");
   var socket = null;
   var live = null;
+  var undoUntil = 0;          // client clock: when the Undo reset bar disappears
+  var UNDO_MS = 10000;        // matches BS_UNDO_SECONDS; the server has the final say
+
+  document.getElementById("mute-slot").replaceWith(BS.muteButton());
 
   var toastTimer = null;
   function toast(text) {
@@ -25,8 +41,10 @@
     toastTimer = setTimeout(function () { toastEl.hidden = true; }, 3200);
   }
 
-  function step(action) {
-    socket.send({ type: "bs_host", action: action });
+  function step(action, extra) {
+    var msg = { type: "bs_host", action: action };
+    if (extra) Object.keys(extra).forEach(function (k) { msg[k] = extra[k]; });
+    socket.send(msg);
   }
 
   function bigButton(text, action, enabled) {
@@ -34,10 +52,14 @@
                          text: text, onclick: function () { step(action); } });
   }
 
+  /* ------------------------------------------------------------- roster -- */
+
   /* Who is here, and in a round who has committed. Public information: the
      speakers are named on the options anyway, and every speaker commits the
-     same way, truthful or not. */
+     same way, truthful or not. During a game each chip also carries Mark
+     gone, except for people already relegated. */
   function roster(s) {
+    var inGame = s.phase !== "lobby" && s.phase !== "final";
     return h("ul", { class: "bs-roster" }, (s.players || []).map(function (p) {
       var tag = s.phase === "lobby" ? (p.submitted ? "wrote it" : "writing")
         : p.speaker ? (p.committed ? "speaker, ready" : "speaker")
@@ -45,6 +67,18 @@
         : p.relegated ? "guessing only"
         : "";
       var done = s.phase === "lobby" ? p.submitted : p.committed;
+      var gone = inGame && !p.relegated
+        ? h("button", {
+            class: "bs-roster__gone", type: "button", text: "Mark gone",
+            "aria-label": "Mark " + p.name + " as gone",
+            onclick: function () {
+              if (window.confirm("Mark " + p.name + " as gone? They keep their score but only " +
+                                 "guess for the rest of the game. Use this if they've stopped responding.")) {
+                step("drop", { player: p.id });
+              }
+            }
+          })
+        : null;
       return h("li", { class: "bs-roster__item" + (done ? " is-done" : "") +
                          (p.connected && !p.reconnecting ? "" : " is-away") },
         h("span", { class: "bs-roster__dot", "aria-hidden": "true" }),
@@ -52,9 +86,12 @@
         tag || !p.connected || p.reconnecting
           ? h("span", { class: "bs-roster__tag",
                         text: p.reconnecting ? "reconnecting" : p.connected ? tag : "away" })
-          : null);
+          : null,
+        gone);
     }));
   }
+
+  /* -------------------------------------------------------------- phases -- */
 
   function lobby(s) {
     var ready = s.registered >= 3 && s.submitted === s.registered;
@@ -64,7 +101,7 @@
       : "Everyone's question is in. " + s.registered + " players means " + s.registered + " rounds.";
     return [
       BS.title("The lobby"),
-      BS.sub("Players sign in from their own links and write one question each."),
+      BS.sub("Players claim their seat from their own invite link and write one question each."),
       BS.meter("Questions in", s.submitted, s.registered),
       roster(s),
       bigButton("Start the game", "start", ready),
@@ -84,10 +121,26 @@
       nodes.push(BS.meter("Speakers ready", s.speakers_in, s.speakers));
       nodes.push(bigButton("Open the discussion", "open", s.speakers_in === s.speakers));
       nodes.push(h("p", { class: "bs-missing",
-        text: "Speakers are reading their roles. Bullshitters lock their wagers now." }));
+        text: s.speakers_in === s.speakers
+          ? "Every speaker is ready."
+          : "Speakers are reading their roles. If one has stopped responding, use Mark gone below." }));
     } else if (s.phase === "open") {
+      var waitingOn = s.guessers - s.guessers_in;
       nodes.push(BS.meter("Guesses in", s.guessers_in, s.guessers));
-      nodes.push(bigButton("Lock the votes", "lock", s.guessers_in === s.guessers));
+      nodes.push(bigButton("Lock the votes", "lock", waitingOn === 0));
+      if (waitingOn > 0) {
+        nodes.push(h("button", {
+          class: "bs-btn bs-btn--ghost", type: "button",
+          text: "Lock anyway (" + waitingOn + " still thinking)",
+          onclick: function () {
+            if (window.confirm("Lock the votes now? " + waitingOn + " guesser" +
+                               (waitingOn === 1 ? " hasn't" : "s haven't") +
+                               " answered. They get no vote this round and lose nothing.")) {
+              step("lock_anyway");
+            }
+          }
+        }));
+      }
       nodes.push(h("p", { class: "bs-missing",
         text: "Let the speakers make their case on the call." }));
     } else if (s.phase === "votes") {
@@ -97,17 +150,19 @@
       nodes.push(bigButton(s.round >= s.rounds ? "Final scores" : "Next round", "next", true));
     }
     nodes.push(roster(s));
+    if (s.phase === "reveal") nodes.push(BS.history(s, { title: "Rounds so far" }));
     return nodes;
   }
 
   /* Too few players online to deal anything. Players drift back by
-     reopening their links; the host retries when they have. */
+     signing in again; the host retries when they have. */
   function waiting(s) {
     return [
       BS.title("Waiting for players"),
-      BS.sub("Not enough players are online to deal the next round. Ask people to reopen their links, then try again."),
+      BS.sub("Not enough players are online to deal the next round. Ask people to sign back in, then try again."),
       roster(s),
-      bigButton("Try again", "next", true)
+      bigButton("Try again", "next", true),
+      BS.history(s)
     ];
   }
 
@@ -120,17 +175,104 @@
       s.dropped ? BS.sub(s.dropped + " question" + (s.dropped === 1 ? " was" : "s were") +
         " dropped because " + (s.dropped === 1 ? "its author" : "their authors") +
         " never came back.", true) : null,
-      BS.leaderboard(s, "Final scores")
+      BS.leaderboard(s, "Final scores"),
+      BS.history(s, { title: "Every round" })
     ];
   }
+
+  /* ---------------------------------------------------------- reset/undo -- */
 
   function resetButton() {
     return h("button", { class: "bs-btn bs-btn--ghost bs-btn--small", type: "button",
       text: "Reset the room",
       onclick: function () {
-        if (window.confirm("Reset the room? Scores are lost. Questions are kept.")) step("reset");
+        if (window.confirm("Reset the room? Scores are lost. Questions are kept. " +
+                           "You'll have 10 seconds to undo.")) step("reset");
       } });
   }
+
+  function undoBar() {
+    if (Date.now() > undoUntil) return null;
+    return h("div", { class: "bs-undo", role: "status" },
+      h("span", { text: "The room was reset." }),
+      h("button", { class: "bs-btn bs-btn--inline", type: "button", text: "Undo",
+                    onclick: function () { undoUntil = 0; step("undo_reset"); } }));
+  }
+
+  /* ---------------------------------------------------------- invitations -- */
+
+  function buildInvitesPanel() {
+    var list = h("div", { class: "bs-invites__list" },
+      h("p", { class: "bs-invites__hint", text: "Loading..." }));
+    var panel = h("details", { class: "bs-card bs-invites" },
+      h("summary", { class: "bs-invites__head" },
+        h("span", { class: "bs-label", text: "Invitations" }),
+        h("span", { class: "bs-invites__warn", text: "Shows email addresses. Don't open while screen-sharing." })),
+      list);
+    panel.addEventListener("toggle", function () { if (panel.open) loadInvites(list); });
+    invitesEl.appendChild(panel);
+    return { panel: panel, list: list };
+  }
+
+  var invites = buildInvitesPanel();
+
+  function loadInvites(list) {
+    fetch("/api/bullshit/host/invites", { credentials: "same-origin" })
+      .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
+      .then(function (data) { paintInvites(list, data.invites); })
+      .catch(function () {
+        list.innerHTML = "";
+        list.appendChild(h("p", { class: "bs-invites__hint", text: "Could not load the invitations." }));
+      });
+  }
+
+  function paintInvites(list, rows) {
+    list.innerHTML = "";
+    var claimed = rows.filter(function (r) { return r.claimed; }).length;
+    list.appendChild(h("p", { class: "bs-invites__hint",
+      text: claimed + " of " + rows.length + " claimed. A new link replaces the old one, " +
+            "so only send it to the person it is for." }));
+    list.appendChild(h("ul", { class: "bs-invites__rows" }, rows.map(function (r) {
+      var status = !r.claimed ? "Not claimed yet"
+        : r.has_question ? "Claimed, question in" : "Claimed, writing";
+      var slot = h("div", { class: "bs-invites__slot" });
+      var action = r.claimed ? null : h("button", {
+        class: "bs-btn bs-btn--inline bs-btn--ghost", type: "button", text: "New link",
+        onclick: function () {
+          if (!window.confirm("Make a new link for " + r.email + "? Their old link stops working.")) return;
+          fetch("/api/bullshit/host/invites/" + encodeURIComponent(r.id) + "/link",
+                { method: "POST", credentials: "same-origin" })
+            .then(function (res) { return res.json().then(function (d) { return res.ok ? d : Promise.reject(d); }); })
+            .then(function (data) { showLink(slot, data.link); })
+            .catch(function (err) { toast((err && err.detail) || "Could not make a link."); });
+        }
+      });
+      return h("li", { class: "bs-invites__row" + (r.claimed ? " is-claimed" : "") },
+        h("div", { class: "bs-invites__who" },
+          h("span", { class: "bs-invites__name", text: r.name || r.email }),
+          r.name ? h("span", { class: "bs-invites__email", text: r.email }) : null,
+          h("span", { class: "bs-invites__status", text: status })),
+        action, slot);
+    })));
+  }
+
+  function showLink(slot, link) {
+    slot.innerHTML = "";
+    var input = h("input", { class: "bs-field bs-invites__link", type: "text", readonly: true,
+                             "aria-label": "New invitation link" });
+    input.value = link;
+    var copy = h("button", { class: "bs-btn bs-btn--inline", type: "button", text: "Copy",
+      onclick: function () {
+        input.select();
+        var done = function () { copy.textContent = "Copied"; };
+        if (navigator.clipboard) navigator.clipboard.writeText(link).then(done, function () {});
+        else { try { document.execCommand("copy"); done(); } catch (e) { /* select is enough */ } }
+      } });
+    slot.appendChild(input);
+    slot.appendChild(copy);
+  }
+
+  /* -------------------------------------------------------------- render -- */
 
   function render() {
     var s = live;
@@ -140,17 +282,34 @@
       nodes.unshift(h("div", { class: "bs-head" },
         h("span", { class: "bs-sticker", text: s.phase === "final" ? "Done" : "Round " + s.round + " of " + s.rounds })));
     }
+    nodes.unshift(undoBar());
     nodes.push(resetButton());
     root.innerHTML = "";
     nodes.forEach(function (n) { if (n) root.appendChild(n); });
   }
 
+  function cue(before, after) {
+    if (!before) return;
+    if (before.phase !== after.phase) {
+      if (after.phase === "reveal") BS.play("stamp");
+      if (after.phase === "final") BS.play("fanfare");
+    }
+  }
+
   socket = BS.connect("as=host", {
     onState: function (state) {
       var moved = !live || live.phase !== state.phase || live.round !== state.round;
+      if (state.can_undo_reset && !(live && live.can_undo_reset)) {
+        undoUntil = Date.now() + UNDO_MS;
+        setTimeout(function () { if (live) render(); }, UNDO_MS + 50);
+      }
+      if (!state.can_undo_reset) undoUntil = 0;
+      cue(live, state);
       live = state;
       render();
       if (moved) window.scrollTo(0, 0);
+      // Keep an open invitations panel current as people claim and write.
+      if (invites.panel.open && state.phase === "lobby") loadInvites(invites.list);
     },
     onError: toast,
     onClosed: function (code) {

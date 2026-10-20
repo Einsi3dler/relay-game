@@ -55,6 +55,19 @@ screens `frontend/bullshit*.{html,js,css}`.
 5. Each round the host presses: **Open the discussion** (once every speaker
    has committed), **Lock the votes** (once every guesser has), **Reveal the
    truth**, **Next round**. Nothing has a timer.
+6. Host tools, all on the host page:
+   - **Invitations** (collapsed; it shows email addresses, so do not open it
+     while screen-sharing): who has claimed and written, and **New link** for
+     somebody who lost theirs. Links are stored hashed, so a new link
+     replaces the old one; claimed seats need no link, just a sign-in.
+   - **Mark gone** on any player's chip mid-game: the leaving rule, applied
+     now instead of after the grace period. If they act again they count as
+     back (still guessing only).
+   - **Lock anyway** when a guesser is connected but not answering: they cast
+     no vote that round and lose nothing.
+   - **Undo** for 10 seconds after **Reset the room** (`BS_UNDO_SECONDS`).
+   Everyone also gets a **Past rounds** list from the first reveal, sounds
+   and a buzz when it is their turn, and a mute button.
 
 Leaving mid-game (owner's rule, 21 October 2026). Going offline after the
 start relegates a player to guessing for the rest of the game. 
