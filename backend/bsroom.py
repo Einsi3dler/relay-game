@@ -121,6 +121,7 @@ class BullshitRoom:
     questions: dict[str, bsquiz.Question] = field(default_factory=dict)
     panel: bsquiz.Panel | None = None
     result: bsquiz.RoundResult | None = None
+    history: list[dict[str, Any]] = field(default_factory=list)  # revealed rounds only
     host_connected: bool = False
     rng: random.Random = field(default_factory=lambda: random.Random(secrets.randbits(64)))
 
@@ -236,6 +237,12 @@ class BullshitRoom:
                     "bullshitters": list(self.panel.bullshitters),
                     "winner": self.result.winner,
                 }
+
+        if is_host and self.phase != "lobby":
+            # Host only, by the owner's call: players see each round's reveal
+            # as it happens but get no running record of who bluffed when.
+            # Finished rounds only, each recorded at its reveal.
+            view["history"] = self.history
 
         if me is not None:
             view["your_total"] = me.total
@@ -353,6 +360,7 @@ def start(room: BullshitRoom, questions: dict[str, bsquiz.Question]) -> None:
     room.pending = bsquiz.schedule(list(room.seats), room.rng)
     room.played = []
     room.dropped = []
+    room.history = []
     for seat in room.seats.values():
         seat.total = 0
         seat.used = set()
@@ -511,13 +519,18 @@ def open_discussion(room: BullshitRoom) -> None:
     room.phase = "open"
 
 
-def lock(room: BullshitRoom) -> None:
+def lock(room: BullshitRoom, force: bool = False) -> None:
     """Close guessing and show the headcount, not yet the truth. Waits only
-    on online guessers; an offline one who never guessed casts no vote."""
+    on online guessers; an offline one who never guessed casts no vote.
+
+    `force` is the host's "Lock anyway", for a guesser who is connected but
+    not answering: they cast no vote and spend no wager, exactly as if they
+    had gone offline. Nothing is guessed on their behalf.
+    """
     if room.phase != "open":
         raise Rejected("There is no discussion to lock.")
     waiting = len(room.awaited_guessers()) - room.guessers_in()
-    if waiting:
+    if waiting and not force:
         raise Rejected(f"Waiting on {waiting} guesser{'s' if waiting != 1 else ''}.")
     guesses = {s.id: s.pick for s in room.guessers() if s.pick is not None}
     bluffs = {s.id: s.bluff for s in room.speakers() if s.bluff is not None}
@@ -532,7 +545,38 @@ def reveal(room: BullshitRoom) -> None:
         raise Rejected("Lock the votes first.")
     for player_id, line in room.result.lines.items():
         room.seats[player_id].total += line.delta
+    room.history.append(_history_entry(room))
     room.phase = "reveal"
+
+
+def _history_entry(room: BullshitRoom) -> dict[str, Any]:
+    """One revealed round, as the history list shows it."""
+    q = room.question()
+    return {
+        "round": len(room.played) + 1,
+        "prompt": q.prompt,
+        "options": [{"key": o.key, "text": o.text, "speaker": o.speaker}
+                    for o in room.panel.options],
+        "truth": room.panel.correct_key,
+        "author": room.panel.author,
+        "bullshitters": list(room.panel.bullshitters),
+        "explanation": q.explanation,
+        "counts": dict(room.result.counts),
+        "winner": room.result.winner,
+        "deltas": {pid: line.delta for pid, line in room.result.lines.items()},
+    }
+
+
+def mark_gone(room: BullshitRoom, player_id: str) -> None:
+    """The host's "Mark gone": apply the leaving rule now instead of after the
+    grace period, for somebody who has stopped responding. Same consequences
+    as really leaving (relegated for the rest of the game, swapped out of a
+    briefing); if they come back they can still guess."""
+    if room.phase == "lobby":
+        raise Rejected("Nobody can leave a game that has not started.")
+    if player_id not in room.seats:
+        raise Rejected("That player is not in this game.")
+    on_disconnect(room, player_id)
 
 
 def next_round(room: BullshitRoom) -> None:

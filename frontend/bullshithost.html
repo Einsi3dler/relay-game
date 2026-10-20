@@ -19,12 +19,18 @@
       <span class="bs-logo__top">BULLSHIT</span>
       <span class="bs-logo__bottom">QUIZ</span>
     </a>
-    <span class="bs-chip">Host</span>
+    <div class="bs-bar__end">
+      <span id="mute-slot"></span>
+      <span class="bs-chip">Host</span>
+    </div>
   </header>
 
   <main class="bs-main" id="host">
     <p class="bs-sub bs-sub--center">Opening the room...</p>
   </main>
+
+  <!-- Outside #host so it survives every redraw. Filled by bullshithost.js. -->
+  <section class="bs-main bs-main--tail" id="invites"></section>
 
   <div class="bs-toast" id="toast" role="status" aria-live="polite" hidden></div>
 

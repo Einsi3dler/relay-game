@@ -28,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import os
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
@@ -53,8 +54,9 @@ STATE = "bs_state"
 READY = "bs_ready"            # truthful player, in the briefing
 BLUFF = "bs_bluff"            # bullshitter: {wager}
 GUESS = "bs_guess"            # guesser: {option, wager}
-HOST = "bs_host"              # host: {action}
-HOST_ACTIONS = ("start", "open", "lock", "reveal", "next", "reset")
+HOST = "bs_host"              # host: {action, player?}
+HOST_ACTIONS = ("start", "open", "lock", "lock_anyway", "reveal", "next",
+                "reset", "undo_reset", "drop")
 
 router = APIRouter()
 
@@ -62,6 +64,7 @@ _room: bsroom.BullshitRoom | None = None
 _lock = asyncio.Lock()
 _sockets: dict[str, WebSocket] = {}
 _grace: dict[str, asyncio.Task] = {}      # viewer -> pending "they left" check
+_undo: tuple[bsroom.BullshitRoom, float] | None = None   # the room a reset replaced
 
 
 # --- the room -------------------------------------------------------------
@@ -100,17 +103,40 @@ def _cancel_grace(player_id: str) -> None:
 
 
 def reset_room() -> bsroom.BullshitRoom:
-    global _room
+    """Back to the lobby. The old room is kept for BS_UNDO_SECONDS so a
+    misclick on "Reset the room" mid-game is not the end of the evening."""
+    global _room, _undo
+    if _room is not None and _room.phase != "lobby":
+        _undo = (_room, time.monotonic())
     _room = bsroom.create_room(bsroster.all_players())
     for viewer in _sockets:
         bsroom.on_connect(_room, viewer)
     return _room
 
 
+def can_undo_reset() -> bool:
+    return _undo is not None and time.monotonic() - _undo[1] <= config.BS_UNDO_SECONDS
+
+
+def undo_reset() -> bsroom.BullshitRoom:
+    """Put back the room the last reset replaced, with who is here now."""
+    global _room, _undo
+    if not can_undo_reset():
+        _undo = None
+        raise bsroom.Rejected("Too late to undo the reset.")
+    _room, _undo = _undo[0], None
+    for seat in _room.seats.values():
+        seat.connected = seat.id in _sockets
+        seat.reconnecting = False
+    return _room
+
+
 def snapshot(current: bsroom.BullshitRoom, viewer: str) -> dict[str, Any]:
     is_host = viewer == HOST_VIEWER
-    return {"type": STATE,
-            "state": current.public(None if is_host else viewer, is_host=is_host)}
+    state = current.public(None if is_host else viewer, is_host=is_host)
+    if is_host:
+        state["can_undo_reset"] = can_undo_reset()
+    return {"type": STATE, "state": state}
 
 
 async def _send(socket: WebSocket, payload: dict) -> None:
@@ -334,6 +360,47 @@ async def submit_question(body: QuestionBody,
     return _me(bsroster.by_id(person.id), user)
 
 
+# --- host: the invitations ------------------------------------------------
+# Separate from the snapshot on purpose: this carries email addresses, so the
+# host page fetches it only when the host opens the panel, and it is never
+# broadcast to anybody.
+
+def _require_host(cookie: str | None) -> None:
+    if not host_authorised(None, cookie):
+        raise HTTPException(status_code=401, detail="Host only.")
+
+
+@router.get("/api/bullshit/host/invites")
+async def host_invites(relay_bullshithost: str | None = Cookie(default=None)) -> dict:
+    _require_host(relay_bullshithost)
+    return {"invites": [
+        {"id": p.id, "email": p.email, "name": p.display_name,
+         "claimed": p.registered, "has_question": p.has_question,
+         "option_count": p.option_count}
+        for p in bsroster.all_players()
+    ]}
+
+
+@router.post("/api/bullshit/host/invites/{player_id}/link")
+async def host_new_link(player_id: str, request: Request,
+                        relay_bullshithost: str | None = Cookie(default=None)) -> dict:
+    """A fresh invitation link for one person. Links are stored hashed and
+    cannot be read back, so this mints a new one and the old one stops
+    working. Only useful before they have claimed the seat: after that, the
+    account is the seat and they just sign in."""
+    _require_host(relay_bullshithost)
+    person = bsroster.by_id(player_id)
+    if person is None:
+        raise HTTPException(status_code=404, detail="No such invitation.")
+    if person.registered:
+        raise HTTPException(status_code=400, detail=(
+            f"{person.display_name} has already claimed their seat. "
+            "They just need to sign in."))
+    raw = bsroster.reissue(player_id)
+    base = os.environ.get("RELAY_BASE_URL") or str(request.base_url)
+    return {"link": f"{base.rstrip('/')}{bsroster.LINK_PATH}{raw}"}
+
+
 # --- the socket -----------------------------------------------------------
 
 def _parse(raw: Any) -> tuple[str, dict[str, Any]] | str:
@@ -350,16 +417,26 @@ def _parse(raw: Any) -> tuple[str, dict[str, Any]] | str:
         action = raw.get("action")
         if action not in HOST_ACTIONS:
             return "Unknown host action."
-        return kind, {"action": action}
+        return kind, {"action": action, "player": raw.get("player")}
     return "Unknown message type."
 
 
-def _host_step(current: bsroom.BullshitRoom, action: str) -> bsroom.BullshitRoom:
+def _host_step(current: bsroom.BullshitRoom, action: str,
+               player: object = None) -> bsroom.BullshitRoom:
     if action == "reset":
         return reset_room()
+    if action == "undo_reset":
+        return undo_reset()
     if action == "start":
         bsroom.refresh(current, bsroster.all_players())
         bsroom.start(current, bsroster.questions())
+    elif action == "drop":
+        if not isinstance(player, str):
+            raise bsroom.Rejected("Say which player.")
+        _cancel_grace(player)
+        bsroom.mark_gone(current, player)
+    elif action == "lock_anyway":
+        bsroom.lock(current, force=True)
     else:
         {"open": bsroom.open_discussion, "lock": bsroom.lock,
          "reveal": bsroom.reveal, "next": bsroom.next_round}[action](current)
@@ -411,10 +488,17 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
                     if kind == HOST:
                         if viewer != HOST_VIEWER:
                             raise bsroom.Rejected("Only the host can do that.")
-                        current = _host_step(current, fields["action"])
+                        current = _host_step(current, fields["action"],
+                                             fields.get("player"))
                     elif kind in (READY, BLUFF, GUESS):
                         if person is None:
                             raise bsroom.Rejected("The host does not play.")
+                        seat = current.seats.get(person.id)
+                        if seat is not None and not seat.connected:
+                            # Marked gone by the host while still on the page,
+                            # and now acting: they are back. Still relegated,
+                            # but their own question becomes playable again.
+                            bsroom.on_connect(current, person.id)
                         if kind == READY:
                             bsroom.ready(current, person.id)
                         elif kind == BLUFF:

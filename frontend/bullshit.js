@@ -70,6 +70,8 @@
     toast: document.getElementById("toast")
   };
 
+  document.getElementById("mute-slot").replaceWith(BS.muteButton());
+
   /* ------------------------------------------------------------- helpers -- */
 
   function show(name) {
@@ -505,6 +507,30 @@
     if (!wasGame) window.scrollTo(0, 0);
   }
 
+  /* Sound and buzz for the moments that matter to this player: their turn
+     to act, their own lock-in, the reveal (and whether it went their way),
+     and the end. Compared against the previous snapshot so a rebroadcast
+     caused by somebody else never replays anything. */
+  function cue(before, after) {
+    if (!before || after.phase === "lobby") return;
+    var moved = before.phase !== after.phase || before.round !== after.round;
+    if (moved) {
+      var mustAct = (after.phase === "briefing" && (after.role === "truthful" || after.role === "bullshitter")) ||
+                    (after.phase === "open" && after.role === "guesser");
+      if (mustAct && !after.committed) { BS.play("turn"); BS.buzz(); }
+      if (after.phase === "reveal") {
+        BS.play("stamp");
+        var mine = (after.players || []).filter(function (p) { return p.id === after.you; })[0];
+        if (mine && mine.line) {
+          setTimeout(function () { BS.play(mine.line.delta >= 0 ? "right" : "wrong"); }, 350);
+        }
+      }
+      if (after.phase === "final") BS.play("fanfare");
+      return;
+    }
+    if (!before.committed && after.committed) BS.play("pop");
+  }
+
   function startLive() {
     render();
     socket = BS.connect("", {
@@ -514,6 +540,7 @@
           editing = false;
           me.locked = true;
         }
+        cue(live, state);
         live = state;
         render();
         if (phaseChanged && stage === "game") window.scrollTo(0, 0);

@@ -231,6 +231,15 @@ body.bs {
 .bs-btn--go { background: var(--bs-green); }
 .bs-btn--ghost { background: var(--bs-paper); font-size: 1.3rem; margin-top: 22px; }
 
+/* A small button that sits in a line of text or a bar, not across the page. */
+.bs-btn--inline {
+  flex: none;
+  width: auto;
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 1rem;
+}
+
 .bs-btn:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 8px 8px 0 var(--bs-ink); }
 .bs-btn:active:not(:disabled) { transform: translate(6px, 6px); box-shadow: 0 0 0 var(--bs-ink); }
 .bs-btn:focus-visible { outline: 4px solid var(--bs-yellow); outline-offset: 4px; }

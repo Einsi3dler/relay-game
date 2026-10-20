@@ -218,10 +218,136 @@
     return [(line.won ? "Right" : "Wrong") + " with a " + line.wager + " wager"];
   }
 
+  /* ------------------------------------------------------------- history -- */
+
+  /* Every revealed round, newest first, folded so the list stays short. The
+     host's screen only: the server sends `history` to the host alone
+     (backend/bsroom.py), and only finished rounds. `open` unfolds the newest. */
+  function history(state, opts) {
+    var rounds = (state.history || []).slice().reverse();
+    if (!rounds.length) return null;
+    var o = opts || {};
+    return h("div", { class: "bs-card bs-history" },
+      h("span", { class: "bs-label", text: o.title || "Past rounds" }),
+      rounds.map(function (r, i) {
+        var mine = state.you && r.deltas ? r.deltas[state.you] : undefined;
+        var head = h("summary", { class: "bs-history__head" },
+          h("span", { class: "bs-history__round", text: "R" + r.round }),
+          h("span", { class: "bs-history__prompt", text: r.prompt }),
+          mine !== undefined
+            ? h("span", { class: "bs-history__delta" + (mine >= 0 ? " is-up" : " is-down"),
+                          text: signed(mine) })
+            : null);
+        var winner = r.winner === null ? "Tie at the top: nobody won the crowd."
+          : r.winner === r.truth ? "The truth won the crowd."
+          : nameOf(state, optionSpeaker(r, r.winner)) + " won the crowd with bullshit.";
+        var body = h("div", { class: "bs-history__body" },
+          h("ol", { class: "bs-history__opts" }, r.options.map(function (opt) {
+            var isTrue = opt.key === r.truth;
+            return h("li", { class: isTrue ? "is-true" : null },
+              h("b", { text: opt.key }),
+              h("span", { class: "bs-history__text", text: opt.text }),
+              h("span", { class: "bs-history__who",
+                          text: nameOf(state, opt.speaker) + (isTrue ? ", truth" : ", bullshit") }),
+              h("span", { class: "bs-history__votes",
+                          text: (r.counts[opt.key] || 0) + " vote" + (r.counts[opt.key] === 1 ? "" : "s") }));
+          })),
+          h("p", { class: "bs-history__note", text: nameOf(state, r.author) + " wrote it. " + winner }),
+          r.explanation ? h("p", { class: "bs-history__why", text: r.explanation }) : null);
+        return h("details", { class: "bs-history__item", open: o.open && i === 0 ? true : null },
+          head, body);
+      }));
+  }
+
+  function optionSpeaker(round, key) {
+    var opt = round.options.filter(function (x) { return x.key === key; })[0];
+    return opt ? opt.speaker : null;
+  }
+
+  /* --------------------------------------------------------- sound + buzz -- */
+
+  /* Cartoon blips synthesised with Web Audio: no files to load, nothing to
+     license. Browsers only allow sound after a tap, so the context is made
+     lazily and resumed on the first interaction. Muting is remembered per
+     browser, a convenience and nothing more, so storage failures are fine. */
+  var MUTE_KEY = "bullshit.muted";
+  var audio = null;
+  var muted = false;
+  try { muted = localStorage.getItem(MUTE_KEY) === "1"; } catch (e) { /* fine */ }
+
+  function ctx() {
+    if (!audio) {
+      var Ctor = global.AudioContext || global.webkitAudioContext;
+      if (!Ctor) return null;
+      audio = new Ctor();
+    }
+    if (audio.state === "suspended") audio.resume();
+    return audio;
+  }
+
+  document.addEventListener("pointerdown", function () { if (!muted) ctx(); }, { once: true });
+
+  /* One note: a pitch slide with a quick decay. */
+  function tone(freq, endFreq, start, length, type, volume) {
+    var a = ctx();
+    if (!a) return;
+    var t = a.currentTime + start;
+    var osc = a.createOscillator();
+    var gain = a.createGain();
+    osc.type = type || "square";
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, t + length);
+    gain.gain.setValueAtTime(volume || 0.08, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + length);
+    osc.connect(gain).connect(a.destination);
+    osc.start(t);
+    osc.stop(t + length + 0.02);
+  }
+
+  var SOUNDS = {
+    pop: function () { tone(520, 880, 0, 0.09, "square", 0.07); },
+    turn: function () { tone(660, 660, 0, 0.08, "triangle", 0.1); tone(990, 990, 0.1, 0.12, "triangle", 0.1); },
+    stamp: function () { tone(140, 60, 0, 0.18, "sawtooth", 0.12); },
+    right: function () { tone(784, 784, 0, 0.1, "triangle", 0.1); tone(1175, 1175, 0.11, 0.2, "triangle", 0.1); },
+    wrong: function () { tone(220, 110, 0, 0.35, "sawtooth", 0.09); },
+    fanfare: function () {
+      [523, 659, 784, 1047].forEach(function (f, i) { tone(f, f, i * 0.12, 0.16, "square", 0.07); });
+      tone(1047, 1568, 0.5, 0.4, "triangle", 0.09);
+    }
+  };
+
+  function play(name) {
+    if (muted || !SOUNDS[name]) return;
+    try { SOUNDS[name](); } catch (e) { /* audio is decoration */ }
+  }
+
+  function buzz(pattern) {
+    if (muted || !navigator.vibrate) return;
+    try { navigator.vibrate(pattern || [60, 40, 60]); } catch (e) { /* fine */ }
+  }
+
+  /* A small sticker button for the top bar. */
+  function muteButton() {
+    var button = h("button", { class: "bs-chip bs-mute", type: "button" });
+    function paint() {
+      button.textContent = muted ? "Sound off" : "Sound on";
+      button.setAttribute("aria-pressed", muted ? "true" : "false");
+    }
+    button.addEventListener("click", function () {
+      muted = !muted;
+      try { localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); } catch (e) { /* fine */ }
+      paint();
+      if (!muted) play("pop");
+    });
+    paint();
+    return button;
+  }
+
   global.BS = {
     h: h, nameOf: nameOf, signed: signed, connect: connect,
     optionTiles: optionTiles, wagerPicker: wagerPicker, meter: meter,
     leaderboard: leaderboard, title: title, sub: sub, questionCard: questionCard,
-    verdict: verdict, lineParts: lineParts
+    verdict: verdict, lineParts: lineParts, history: history,
+    play: play, buzz: buzz, muteButton: muteButton
   };
 })(window);

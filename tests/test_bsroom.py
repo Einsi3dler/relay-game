@@ -174,7 +174,7 @@ def test_the_host_sees_no_more_than_a_guesser():
     host = room.public(None, is_host=True)
     seen = room.public(guesser)
     for key in ("role", "committed", "your_wager", "your_pick", "used_wagers",
-                "your_total", "you", "relegated"):
+                "your_total", "you", "relegated", "history"):
         host.pop(key, None)
         seen.pop(key, None)
     host.pop("is_host")
@@ -551,3 +551,87 @@ def guess_all_remaining_except(room, skip: str) -> None:
     for seat in room.guessers():
         if seat.id != skip and seat.pick is None:
             bsroom.guess(room, seat.id, "A", free_wager(room, seat.id))
+
+
+# --- round history --------------------------------------------------------
+
+def test_history_records_each_round_at_its_reveal():
+    room = started(5, seed=3)
+    assert room.public(None, is_host=True)["history"] == []
+    brief(room)
+    guess_all(room)
+    bsroom.lock(room)
+    assert room.public(None, is_host=True)["history"] == []    # votes: not yet
+    bsroom.reveal(room)
+    entry = room.public(None, is_host=True)["history"][0]
+    assert entry["round"] == 1
+    assert entry["truth"] == room.panel.correct_key
+    assert entry["author"] == room.panel.author
+    assert sum(entry["deltas"].values()) == sum(l.delta for l in room.result.lines.values())
+    bsroom.next_round(room)
+    # The new round's briefing still shows only the finished one.
+    assert len(room.public(None, is_host=True)["history"]) == 1
+
+
+def test_history_never_carries_the_round_in_play():
+    room = started(6, seed=8)
+    play_round(room)
+    bsroom.next_round(room)
+    current = room.question()
+    blob = json.dumps(room.public(None, is_host=True)["history"])
+    assert current.prompt not in blob
+
+
+def test_players_never_receive_the_history():
+    """Host only (the owner's call). Checked in every phase of a whole game,
+    for every seat, on the raw snapshot rather than the screen."""
+    room = started(5, seed=4)
+    while True:
+        for viewer in room.seats:
+            assert "history" not in room.public(viewer)
+        if room.phase == "final":
+            break
+        play_round(room)
+        for viewer in room.seats:
+            assert "history" not in room.public(viewer)
+        bsroom.next_round(room)
+    assert room.public(None, is_host=True)["history"]
+
+
+def test_history_is_a_full_recap_at_the_end():
+    room = started(4, seed=2)
+    while room.phase != "final":
+        play_round(room)
+        bsroom.next_round(room)
+    assert [h["round"] for h in room.public(None, is_host=True)["history"]] == [1, 2, 3, 4]
+
+
+# --- host safety controls -------------------------------------------------
+
+def test_lock_anyway_gives_a_stalled_guesser_no_vote():
+    room = started(6)
+    brief(room)
+    stalled = room.guessers()[0].id
+    guess_all_remaining_except(room, stalled)
+    with pytest.raises(bsroom.Rejected):
+        bsroom.lock(room)
+    bsroom.lock(room, force=True)
+    assert stalled not in room.result.lines
+    assert room.seats[stalled].used == set()
+
+
+def test_mark_gone_applies_the_leaving_rule_now():
+    room = started(7, seed=6)
+    liar = room.panel.bullshitters[0]
+    bsroom.mark_gone(room, liar)
+    assert room.seats[liar].relegated
+    assert liar not in room.panel.speakers
+
+
+def test_mark_gone_is_refused_in_the_lobby_and_for_strangers():
+    room, _ = make_room(4)
+    with pytest.raises(bsroom.Rejected):
+        bsroom.mark_gone(room, "p0")
+    room = started(4)
+    with pytest.raises(bsroom.Rejected):
+        bsroom.mark_gone(room, "nobody")
