@@ -167,6 +167,13 @@ def test_relay_serves_landing(client):
     assert "The Relay" in response.text
 
 
+def test_bullshit_serves_the_question_writer(client):
+    response = client.get("/bullshit")
+    assert response.status_code == 200
+    assert 'id="stage-write"' in response.text
+    assert "/static/bullshit.js" in response.text
+
+
 def test_play_serves_app(client):
     response = client.get("/play")
     assert response.status_code == 200

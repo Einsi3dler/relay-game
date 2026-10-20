@@ -376,6 +376,14 @@ async def games_page():
     return _serve_page("games.html")
 
 
+# --- BULLSHIT QUIZ ----------------------------------------------------------
+# Screens only for now: the "write your question" page every invitee fills in
+# before the game. Nothing here talks to a server yet; see frontend/bullshit.js.
+@app.get("/bullshit", response_model=None)
+async def bullshit_page():
+    return _serve_page("bullshit.html")
+
+
 # --- ROLL CALL, the room quiz (docs/QUIZ_ROLL_CALL.md) ---------------------
 # Two pages, one event: /quizhost is the projector the room reads, /quiz is the
 # phone in each player's hand. Kept apart from the match pages on purpose —

@@ -1,0 +1,472 @@
+/* BULLSHIT QUIZ — the phone screens.
+ *
+ * Cartoon on purpose: thick ink outlines, hard offset shadows instead of soft
+ * ones, flat saturated fills, and a press that pushes the button down into its
+ * own shadow. Every surface uses the same three tokens for that, so a new card
+ * gets the look by using --bs-line, --bs-shadow and --bs-radius, not by
+ * inventing its own border.
+ *
+ * Owns its own `--bs-*` names and loads without style.css, so nothing here can
+ * leak into the Relay screens or the other way round.
+ */
+
+:root {
+  --bs-ink: #1a1033;
+  --bs-paper: #fffaf0;
+  --bs-field: #6a3cf5;
+  --bs-field-dot: #7d55ff;
+
+  --bs-yellow: #ffd21c;
+  --bs-cyan: #2fd3f0;
+  --bs-pink: #ff5c8a;
+  --bs-green: #45dc85;
+  --bs-orange: #ff9b21;
+
+  --bs-line: 4px solid var(--bs-ink);
+  --bs-shadow: 6px 6px 0 var(--bs-ink);
+  --bs-shadow-sm: 3px 3px 0 var(--bs-ink);
+  --bs-radius: 22px;
+
+  --bs-display: "Lilita One", "Arial Black", "Segoe UI Black", Impact, sans-serif;
+  --bs-body: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body.bs {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--bs-ink);
+  font-family: var(--bs-body);
+  font-weight: 800;
+  background-color: var(--bs-field);
+  /* Halftone dots: the comic-book field everything sits on. */
+  background-image: radial-gradient(var(--bs-field-dot) 22%, transparent 24%);
+  background-size: 22px 22px;
+}
+
+[hidden] { display: none !important; }
+
+/* ------------------------------------------------------------- top bar -- */
+
+.bs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 16px 4px;
+}
+
+.bs-logo {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 0.9;
+  text-decoration: none;
+  color: var(--bs-ink);
+  transform: rotate(-4deg);
+}
+
+.bs-logo__top,
+.bs-logo__bottom {
+  font-family: var(--bs-display);
+  padding: 4px 10px;
+  border: var(--bs-line);
+  box-shadow: var(--bs-shadow-sm);
+  border-radius: 10px;
+}
+
+.bs-logo__top { background: var(--bs-yellow); font-size: 1.5rem; }
+.bs-logo__bottom {
+  background: var(--bs-pink);
+  color: var(--bs-paper);
+  font-size: 1.1rem;
+  margin: -4px 0 0 18px;
+  -webkit-text-stroke: 1px var(--bs-ink);
+}
+
+.bs-chip {
+  padding: 8px 14px;
+  border: var(--bs-line);
+  border-radius: 999px;
+  background: var(--bs-paper);
+  box-shadow: var(--bs-shadow-sm);
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
+}
+
+/* --------------------------------------------------------------- stage -- */
+
+.bs-main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 16px 56px;
+}
+
+.bs-stage { animation: bs-pop 0.35s cubic-bezier(.2, 1.6, .4, 1) both; }
+
+.bs-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 12px;
+}
+
+.bs-title {
+  margin: 0;
+  font-family: var(--bs-display);
+  font-weight: 400;
+  font-size: clamp(2.2rem, 9vw, 3.2rem);
+  line-height: 1;
+  color: var(--bs-paper);
+  -webkit-text-stroke: 2px var(--bs-ink);
+  text-shadow: 4px 4px 0 var(--bs-ink);
+  letter-spacing: 0.5px;
+}
+
+.bs-title--center { text-align: center; }
+
+.bs-sticker {
+  display: inline-block;
+  padding: 6px 12px;
+  border: var(--bs-line);
+  border-radius: 12px;
+  background: var(--bs-cyan);
+  box-shadow: var(--bs-shadow-sm);
+  font-family: var(--bs-display);
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  transform: rotate(5deg);
+}
+
+.bs-sub {
+  margin: 10px 0 22px;
+  color: var(--bs-paper);
+  font-size: 1.1rem;
+}
+
+.bs-sub--center { text-align: center; }
+
+.bs-hint {
+  margin: 26px 0 12px;
+  color: var(--bs-paper);
+  font-size: 1rem;
+}
+
+/* ---------------------------------------------------------------- card -- */
+
+.bs-card {
+  position: relative;
+  padding: 18px;
+  border: var(--bs-line);
+  border-radius: var(--bs-radius);
+  background: var(--bs-paper);
+  box-shadow: var(--bs-shadow);
+}
+
+.bs-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.bs-question {
+  display: block;
+  width: 100%;
+  resize: none;
+  border: 0;
+  background: transparent;
+  color: var(--bs-ink);
+  font-family: var(--bs-display);
+  font-size: clamp(1.4rem, 5.5vw, 1.8rem);
+  line-height: 1.2;
+}
+
+.bs-question:focus { outline: none; }
+.bs-card--question:focus-within { transform: rotate(-0.6deg); }
+
+.bs-question::placeholder,
+.bs-option__input::placeholder { color: rgba(26, 16, 51, 0.35); }
+
+.bs-count {
+  display: block;
+  text-align: right;
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------- options -- */
+
+.bs-options {
+  display: grid;
+  /* minmax(0, ...) or a row is as wide as its input's default size, which
+     on a phone is wider than the screen. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bs-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: var(--bs-line);
+  border-radius: var(--bs-radius);
+  box-shadow: var(--bs-shadow);
+  transition: transform 0.12s ease;
+  animation: bs-pop 0.35s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+.bs-option:nth-child(1) { background: var(--bs-yellow); }
+.bs-option:nth-child(2) { background: var(--bs-cyan); animation-delay: 0.05s; }
+.bs-option:nth-child(3) { background: var(--bs-pink); animation-delay: 0.1s; }
+.bs-option:nth-child(4) { background: var(--bs-orange); animation-delay: 0.15s; }
+
+.bs-option.is-real { transform: rotate(-1deg) scale(1.02); }
+
+.bs-option__letter {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: var(--bs-line);
+  border-radius: 14px;
+  background: var(--bs-paper);
+  font-family: var(--bs-display);
+  font-size: 1.6rem;
+}
+
+.bs-option__input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 12px;
+  background: var(--bs-paper);
+  color: var(--bs-ink);
+  font-family: var(--bs-body);
+  font-weight: 900;
+  font-size: 1.15rem;
+  line-height: 1.25;
+  resize: none;
+  overflow: hidden;
+}
+
+.bs-option__input:focus { outline: 3px solid var(--bs-paper); outline-offset: 2px; }
+
+.bs-tick {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: var(--bs-line);
+  border-radius: 50%;
+  background: var(--bs-paper);
+  box-shadow: var(--bs-shadow-sm);
+  color: transparent;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.bs-tick svg { width: 28px; height: 28px; }
+
+.bs-tick:hover { color: rgba(26, 16, 51, 0.25); }
+
+.bs-tick[aria-pressed="true"] {
+  background: var(--bs-green);
+  color: var(--bs-ink);
+  animation: bs-boing 0.4s cubic-bezier(.2, 1.8, .4, 1);
+}
+
+.bs-tick:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--bs-ink); }
+.bs-tick:focus-visible { outline: 3px solid var(--bs-paper); outline-offset: 3px; }
+
+/* ------------------------------------------------------------- buttons -- */
+
+.bs-btn {
+  display: block;
+  width: 100%;
+  margin-top: 30px;
+  padding: 18px 20px;
+  border: var(--bs-line);
+  border-radius: var(--bs-radius);
+  box-shadow: var(--bs-shadow);
+  font-family: var(--bs-display);
+  font-size: clamp(1.4rem, 6vw, 1.8rem);
+  letter-spacing: 0.5px;
+  color: var(--bs-ink);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.bs-btn--go { background: var(--bs-green); }
+.bs-btn--ghost { background: var(--bs-paper); font-size: 1.3rem; margin-top: 22px; }
+
+.bs-btn:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 8px 8px 0 var(--bs-ink); }
+.bs-btn:active:not(:disabled) { transform: translate(6px, 6px); box-shadow: 0 0 0 var(--bs-ink); }
+.bs-btn:focus-visible { outline: 4px solid var(--bs-yellow); outline-offset: 4px; }
+
+.bs-btn:disabled {
+  background: #cfc8e6;
+  color: rgba(26, 16, 51, 0.5);
+  cursor: not-allowed;
+}
+
+.bs-missing {
+  min-height: 1.4em;
+  margin: 14px 0 0;
+  text-align: center;
+  color: var(--bs-paper);
+  font-size: 1rem;
+}
+
+/* ---------------------------------------------------------------- done -- */
+
+.bs-burst {
+  /* A ten-point comic burst. clip-path eats borders, so the ink outline is
+     the burst itself and the yellow is a smaller copy laid on top. */
+  --bs-burst: polygon(50% 0, 61% 17%, 80% 7%, 79% 28%, 100% 30%, 86% 47%,
+                      100% 64%, 79% 69%, 80% 92%, 61% 83%, 50% 100%, 39% 83%,
+                      20% 92%, 21% 69%, 0 64%, 14% 47%, 0 30%, 21% 28%,
+                      20% 7%, 39% 17%);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(280px, 80vw);
+  aspect-ratio: 1;
+  margin: 8px auto 18px;
+  background: var(--bs-ink);
+  clip-path: var(--bs-burst);
+  animation: bs-spin-in 0.6s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+.bs-burst::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  background: var(--bs-yellow);
+  clip-path: var(--bs-burst);
+}
+
+.bs-burst span {
+  position: relative;
+  font-family: var(--bs-display);
+  font-size: clamp(1.6rem, 8vw, 2.2rem);
+  line-height: 1;
+  text-align: center;
+  max-width: 60%;
+  transform: rotate(-8deg);
+}
+
+.bs-card--preview { margin-top: 22px; }
+
+.bs-preview__q {
+  margin: 0 0 14px;
+  font-family: var(--bs-display);
+  font-size: 1.5rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.bs-preview__opts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bs-preview__opts li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 12px;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+
+.bs-preview__opts li.is-real { background: var(--bs-green); }
+
+.bs-preview__opts b {
+  flex: none;
+  font-family: var(--bs-display);
+  font-weight: 400;
+  font-size: 1.2rem;
+}
+
+.bs-preview__real {
+  margin-left: auto;
+  flex: none;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.bs-card--meter { margin-top: 22px; }
+
+.bs-meter__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.bs-meter__num { font-family: var(--bs-display); font-size: 1.3rem; }
+
+.bs-meter {
+  height: 26px;
+  border: var(--bs-line);
+  border-radius: 999px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.bs-meter__fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: repeating-linear-gradient(-45deg, var(--bs-pink) 0 12px, var(--bs-orange) 12px 24px);
+  border-right: var(--bs-line);
+  transition: width 0.5s cubic-bezier(.2, 1.4, .4, 1);
+}
+
+/* ---------------------------------------------------------- animation -- */
+
+@keyframes bs-pop {
+  from { opacity: 0; transform: scale(0.9) translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes bs-boing {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes bs-spin-in {
+  from { opacity: 0; transform: scale(0.3) rotate(-90deg); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
