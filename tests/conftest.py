@@ -21,7 +21,7 @@ import os
 
 import pytest
 
-from backend import accounts
+from backend import accounts, bsroster
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -36,3 +36,20 @@ def _accounts_in_memory():
         os.environ.pop("RELAY_DB_PATH", None)
     else:
         os.environ["RELAY_DB_PATH"] = previous
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _bullshit_roster_in_memory():
+    """The same reasoning, for BULLSHIT QUIZ's store (backend/bsroster.py):
+    var/bullshit.db holds real people's addresses on a machine running a
+    session, and a test run must not be able to write to it."""
+    previous = os.environ.get("RELAY_BULLSHIT_DB")
+    os.environ["RELAY_BULLSHIT_DB"] = ":memory:"
+    bsroster.close()
+    bsroster.connect()
+    yield
+    bsroster.close()
+    if previous is None:
+        os.environ.pop("RELAY_BULLSHIT_DB", None)
+    else:
+        os.environ["RELAY_BULLSHIT_DB"] = previous
