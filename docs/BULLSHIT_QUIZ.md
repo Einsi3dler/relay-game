@@ -44,8 +44,13 @@ screens `frontend/bullshit*.{html,js,css}`.
    docs/ROLL_CALL_DO_NOT_SEND.md. Running `links` again replaces every link.
 3. Set `RELAY_BULLSHIT_HOST_KEY` (the default is `dev`, in a public repo) and
    open `/bullshithost`.
-4. Players open their link, pick a name and write their question. The host
-   lobby shows who has written. **Start the game** needs at least three
+4. Players open their link once. Signed out, they sign in or make a Game
+   Night account and come straight back; then **Claim my seat** ties the
+   invitation to their account. Their in-game name is their first name (plus
+   a last initial if two players share one). They write their question, and
+   the host lobby shows who has written. From then on the account is the
+   seat: signing in anywhere and opening `/bullshit` (or the hub card)
+   resumes it, and the link alone opens nothing. **Start the game** needs at least three
    players and a question from every one of them; it fixes N and the order.
 5. Each round the host presses: **Open the discussion** (once every speaker
    has committed), **Lock the votes** (once every guesser has), **Reveal the
@@ -73,8 +78,7 @@ below apply. In detail:
 - If too few players are online to deal anything, the host sees **Waiting
   for players** and retries once people reopen their links.
 
-Reopening the personal link resumes the seat. Tying seats to accounts is
-planned but not built yet.
+Signing back in (on any device) and opening `/bullshit` resumes the seat.
 
 ## 1. Read this first
 

@@ -21,7 +21,7 @@ SECRET_EXPLANATION = "zebra-explanation-marker"
 
 def player(i: int) -> Player:
     return Player(id=f"p{i}", email=f"p{i}@example.test", option_count=4,
-                  display_name=f"Player {i}", has_question=True)
+                  display_name=f"Player {i}", has_question=True, user_id=f"u{i}")
 
 
 def questions_for(players: list[Player]) -> dict[str, bsquiz.Question]:

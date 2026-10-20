@@ -41,17 +41,40 @@
       <p class="bs-sub">Ask the host for a fresh one. Links stop working when a new one is made.</p>
     </section>
 
-    <!-- -------------------------------------------------------- name --- -->
-    <section class="bs-stage" id="stage-name" hidden>
-      <h1 class="bs-title">Who are you?</h1>
-      <p class="bs-sub">Use the name people on the call know you by.</p>
-      <form class="bs-card" id="name-form">
-        <label class="bs-label" for="name-input">Your name</label>
-        <input class="bs-field" id="name-input" type="text" maxlength="18"
-               autocomplete="nickname" required>
-        <p class="bs-error" id="name-error" aria-live="polite"></p>
-        <button class="bs-btn bs-btn--go" type="submit">That's me</button>
-      </form>
+    <!-- ---------------------------------------------------- sign in --- -->
+    <section class="bs-stage" id="stage-signin" hidden>
+      <h1 class="bs-title" id="signin-title">Sign in to play</h1>
+      <p class="bs-sub" id="signin-sub">Your seat lives on your Game Night account, so you can pick it back up from any device.</p>
+      <div class="bs-card bs-card--actions">
+        <a class="bs-btn bs-btn--go" id="signin-go" href="/login">Sign in</a>
+        <a class="bs-btn bs-btn--ghost" id="signup-go" href="/signup">Make an account</a>
+      </div>
+    </section>
+
+    <!-- ------------------------------------------------------ claim --- -->
+    <section class="bs-stage" id="stage-claim" hidden>
+      <h1 class="bs-title">This seat is yours</h1>
+      <p class="bs-sub" id="claim-sub"></p>
+      <div class="bs-card bs-card--actions">
+        <button class="bs-btn bs-btn--go" id="claim-go" type="button">Claim my seat</button>
+        <button class="bs-btn bs-btn--ghost" id="claim-not-me" type="button">Not you? Sign out</button>
+      </div>
+      <p class="bs-missing" id="claim-error" aria-live="polite"></p>
+    </section>
+
+    <!-- --------------------------------------------- claimed elsewhere --- -->
+    <section class="bs-stage" id="stage-taken" hidden>
+      <h1 class="bs-title">Already claimed</h1>
+      <p class="bs-sub" id="taken-sub">Somebody's account already claimed this invitation. If that was you, sign in with that account.</p>
+      <div class="bs-card bs-card--actions">
+        <button class="bs-btn bs-btn--go" id="taken-switch" type="button">Sign in as someone else</button>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------- no seat --- -->
+    <section class="bs-stage" id="stage-noseat" hidden>
+      <h1 class="bs-title">No seat yet</h1>
+      <p class="bs-sub" id="noseat-sub">Your account isn't in this game yet. Open the invitation link the host gave you, once, to claim your seat.</p>
     </section>
 
     <!-- ------------------------------------------------------- write --- -->
@@ -106,7 +129,7 @@
     <!-- ----------------------------------------------- started late --- -->
     <section class="bs-stage" id="stage-late" hidden>
       <h1 class="bs-title">The game has started.</h1>
-      <p class="bs-sub">It began before you picked a name, so there is no seat for you in this one. Catch the next game.</p>
+      <p class="bs-sub">It began before this seat was claimed, so there is no place for you in this one. Catch the next game.</p>
     </section>
 
     <!-- -------------------------------------------------------- game --- -->

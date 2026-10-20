@@ -1,7 +1,10 @@
 /* BULLSHIT QUIZ — the player's phone, from personal link to final score.
  *
- * The page is a seat: `/bullshit/<token>`. Before the game it asks for a name
- * and the player's one question; during it, the server's snapshot says what
+ * The seat lives on the player's site account. `/bullshit/<token>` is the
+ * invitation: opened once while signed in, it claims the seat, and from then
+ * on plain `/bullshit` finds it from any device. Signed out, the page sends
+ * them to sign in or make an account and brings them straight back here.
+ * Before the game it asks for their one question; during it, the snapshot says what
  * this player is this round (truthful, bullshitter or guesser) and this page
  * draws the matching screen. It decides nothing: every commitment goes to the
  * server, which refuses anything the rules do not allow.
@@ -42,9 +45,16 @@
 
   var el = {
     chip: document.getElementById("me-chip"),
-    nameForm: document.getElementById("name-form"),
-    nameInput: document.getElementById("name-input"),
-    nameError: document.getElementById("name-error"),
+    signinTitle: document.getElementById("signin-title"),
+    signinSub: document.getElementById("signin-sub"),
+    signinGo: document.getElementById("signin-go"),
+    signupGo: document.getElementById("signup-go"),
+    claimSub: document.getElementById("claim-sub"),
+    claimGo: document.getElementById("claim-go"),
+    claimNotMe: document.getElementById("claim-not-me"),
+    claimError: document.getElementById("claim-error"),
+    takenSub: document.getElementById("taken-sub"),
+    takenSwitch: document.getElementById("taken-switch"),
     sticker: document.getElementById("count-sticker"),
     question: document.getElementById("q-text"),
     qCount: document.getElementById("q-count"),
@@ -64,7 +74,8 @@
 
   function show(name) {
     stage = name;
-    ["loading", "nolink", "badlink", "name", "write", "done", "late", "game"].forEach(function (s) {
+    ["loading", "nolink", "badlink", "signin", "claim", "taken", "noseat",
+     "write", "done", "late", "game"].forEach(function (s) {
       document.getElementById("stage-" + s).hidden = s !== name;
     });
   }
@@ -89,8 +100,13 @@
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
         if (!res.ok) {
-          var err = new Error(data.detail || "Something went wrong.");
+          // Refusals the page turns into a screen carry a reason; others
+          // are a plain message.
+          var detail = data.detail || "Something went wrong.";
+          var err = new Error(typeof detail === "string" ? detail : detail.message);
           err.status = res.status;
+          err.reason = typeof detail === "object" ? detail.reason : null;
+          err.account = typeof detail === "object" ? detail.account : null;
           throw err;
         }
         return data;
@@ -233,7 +249,7 @@
     var answer = draft.options[draft.real];
     var decoys = draft.options.filter(function (_, i) { return i !== draft.real; });
     api("POST", "/api/bullshit/question", {
-      token: token, prompt: draft.question, answer: answer,
+      prompt: draft.question, answer: answer,
       decoys: decoys, explanation: draft.why || ""
     }).then(function (data) {
       me = data;
@@ -269,19 +285,46 @@
     }
   }
 
-  /* ---------------------------------------------------------------- name -- */
+  /* ------------------------------------------------------ sign in + claim -- */
 
-  el.nameForm.addEventListener("submit", function (event) {
-    event.preventDefault();
-    el.nameError.textContent = "";
-    api("POST", "/api/bullshit/register", { token: token, name: el.nameInput.value })
+  function backHere() {
+    return "?next=" + encodeURIComponent(location.pathname);
+  }
+
+  function showSignin(withLink) {
+    el.signinTitle.textContent = withLink ? "Claim your seat" : "Sign in to play";
+    el.signinSub.textContent = withLink
+      ? "Sign in, or make a Game Night account, and this invitation becomes your seat. After that you can pick it back up from any device."
+      : "Your seat lives on your Game Night account, so you can pick it back up from any device.";
+    el.signinGo.href = "/login" + backHere();
+    el.signupGo.href = "/signup" + backHere();
+    show("signin");
+  }
+
+  function signOutAndReturn() {
+    api("POST", "/api/auth/logout").catch(function () {}).then(function () {
+      location.href = "/login" + backHere();
+    });
+  }
+
+  el.claimGo.addEventListener("click", function () {
+    el.claimGo.disabled = true;
+    el.claimError.textContent = "";
+    api("POST", "/api/bullshit/claim", { token: token })
       .then(function (data) {
         me = data;
-        setChip();
+        // The link has done its job. Plain /bullshit finds the seat from now on.
+        history.replaceState(null, "", "/bullshit");
         startLive();
       })
-      .catch(function (err) { el.nameError.textContent = err.message; });
+      .catch(function (err) {
+        el.claimGo.disabled = false;
+        el.claimError.textContent = err.message;
+      });
   });
+
+  el.claimNotMe.addEventListener("click", signOutAndReturn);
+  el.takenSwitch.addEventListener("click", signOutAndReturn);
 
   /* ---------------------------------------------------------------- game -- */
 
@@ -464,7 +507,7 @@
 
   function startLive() {
     render();
-    socket = BS.connect("token=" + encodeURIComponent(token), {
+    socket = BS.connect("", {
       onState: function (state) {
         var phaseChanged = !live || live.phase !== state.phase || live.round !== state.round;
         if (live && live.phase === "lobby" && state.phase !== "lobby") {
@@ -477,28 +520,40 @@
       },
       onError: toast,
       onClosed: function (code) {
-        toast(code === 4001 ? "Your seat opened in another tab." : "That link does not work.");
+        toast(code === 4001 ? "Your seat opened in another tab." : "Sign in again to rejoin.");
       }
     });
   }
 
   /* ---------------------------------------------------------------- boot -- */
 
-  if (!token) {
-    show("nolink");
-    return;
-  }
-  api("GET", "/api/bullshit/me?token=" + encodeURIComponent(token))
+  api("GET", "/api/bullshit/me" + (token ? "?token=" + encodeURIComponent(token) : ""))
     .then(function (data) {
       me = data;
-      if (!me.registered) {
-        show(me.locked ? "late" : "name");
+      if (me.claimed) {
+        if (token) history.replaceState(null, "", "/bullshit");
+        startLive();
         return;
       }
-      startLive();
+      if (me.locked) { show("late"); return; }
+      var who = me.account ? me.account.first_name + " (" + me.account.username + ")" : "you";
+      el.claimSub.textContent = "You're signed in as " + who +
+        ". Claim this invitation and it becomes your seat in the game.";
+      show("claim");
     })
     .catch(function (err) {
-      show(err.status === 404 ? "badlink" : "nolink");
-      if (err.status !== 404) toast(err.message);
+      if (err.reason === "signed_out") { showSignin(!!token); return; }
+      if (err.reason === "claimed_by_other") {
+        if (err.account) {
+          el.takenSub.textContent = "Another account already claimed this invitation. You're signed in as " +
+            err.account.username + ". If the seat is yours, sign in with the account that claimed it.";
+        }
+        show("taken");
+        return;
+      }
+      if (err.reason === "no_seat") { show("noseat"); return; }
+      if (err.reason === "bad_link" || err.status === 404) { show("badlink"); return; }
+      show("nolink");
+      toast(err.message);
     });
 })();
