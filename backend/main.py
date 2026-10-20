@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from backend import (
-    accounts, auth, config, duelroom, god, mailer, preview, protocol,
+    accounts, auth, bsserver, config, duelroom, god, mailer, preview, protocol,
     quizgate, quizroom, rollcall,
 )
 from backend.engine import EngineResult, RelayEngine
@@ -314,6 +314,8 @@ async def lifespan(app: FastAPI):
         rollcall.import_roster()
     except FileNotFoundError:
         pass          # no roster on this machine, which is the normal case
+    # BULLSHIT QUIZ keeps its own roster and store, for the same reason.
+    bsserver.startup()
     sweeper = asyncio.create_task(_eviction_loop())
     yield
     sweeper.cancel()
@@ -325,6 +327,9 @@ app = FastAPI(title="The Relay", lifespan=lifespan)
 # Optional by design: guest join is untouched and the engine never asks who
 # you are. See backend/auth.py and docs/ACCOUNTS.md.
 app.include_router(auth.router)
+
+# BULLSHIT QUIZ: its pages, REST and socket, all in backend/bsserver.py.
+app.include_router(bsserver.router)
 
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
@@ -374,14 +379,6 @@ async def explore_page():
 @app.get("/games", response_model=None)
 async def games_page():
     return _serve_page("games.html")
-
-
-# --- BULLSHIT QUIZ ----------------------------------------------------------
-# Screens only for now: the "write your question" page every invitee fills in
-# before the game. Nothing here talks to a server yet; see frontend/bullshit.js.
-@app.get("/bullshit", response_model=None)
-async def bullshit_page():
-    return _serve_page("bullshit.html")
 
 
 # --- ROLL CALL, the room quiz (docs/QUIZ_ROLL_CALL.md) ---------------------
