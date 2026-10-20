@@ -193,3 +193,46 @@ def test_a_full_round_over_sockets(client, players):
     # Questions lock once the game is under way.
     person, raw = players[0]
     assert write(client, person, raw).status_code == 400
+
+
+# --- the grace period -----------------------------------------------------
+
+def _started_with_sockets(client, players, stack):
+    for person, raw in players:
+        assert write(client, person, raw).status_code == 200
+    host_client(client)
+    host = stack.enter_context(client.websocket_connect("/ws/bullshit"))
+    socks = {person.id: stack.enter_context(
+                 client.websocket_connect(f"/ws/bullshit?token={raw}"))
+             for person, raw in players}
+    host.send_json({"type": bsserver.HOST, "action": "start"})
+    until(host, lambda v: v["phase"] == "briefing")
+    return host, socks
+
+
+def test_reconnecting_inside_the_grace_period_changes_nothing(client, players, monkeypatch):
+    import time
+    monkeypatch.setattr(bsserver.config, "BS_GRACE_SECONDS", 0.3)
+    with ExitStack() as stack:
+        host, socks = _started_with_sockets(client, players, stack)
+        guesser = next(s.id for s in bsserver.room().guessers())
+        socks.pop(guesser).close()
+        until(host, lambda v: any(p["id"] == guesser and p["reconnecting"]
+                                  for p in v["players"]))
+        raw = next(r for p, r in players if p.id == guesser)
+        stack.enter_context(client.websocket_connect(f"/ws/bullshit?token={raw}"))
+        time.sleep(0.6)
+        seat = bsserver.room().seats[guesser]
+        assert seat.connected and not seat.reconnecting and not seat.relegated
+
+
+def test_staying_away_past_the_grace_period_relegates(client, players, monkeypatch):
+    import time
+    monkeypatch.setattr(bsserver.config, "BS_GRACE_SECONDS", 0.2)
+    with ExitStack() as stack:
+        host, socks = _started_with_sockets(client, players, stack)
+        guesser = next(s.id for s in bsserver.room().guessers())
+        socks.pop(guesser).close()
+        time.sleep(0.6)
+        seat = bsserver.room().seats[guesser]
+        assert not seat.connected and seat.relegated

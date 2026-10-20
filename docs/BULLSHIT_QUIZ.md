@@ -52,7 +52,13 @@ screens `frontend/bullshit*.{html,js,css}`.
    truth**, **Next round**. Nothing has a timer.
 
 Leaving mid-game (owner's rule, 21 October 2026). Going offline after the
-start relegates a player to guessing for the rest of the game. In detail:
+start relegates a player to guessing for the rest of the game. 
+"Offline" means gone for longer than the grace period
+(`BS_GRACE_SECONDS`, 30 seconds): phones drop the connection whenever the
+screen locks, so a dropped socket first only shows the player as
+*reconnecting* on the host screen, and the game carries on treating them as
+present. Only if they have not reopened their link by then does the rule
+below apply. In detail:
 
 - An offline guesser is not waited on. A vote they locked before leaving
   still counts; if they never voted, they score nothing and spend no wager.

@@ -32,7 +32,7 @@ from fastapi import APIRouter, Cookie, HTTPException, Request, WebSocket, WebSoc
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
-from backend import bsroom, bsroster, devgate, protocol
+from backend import bsroom, bsroster, config, devgate, protocol
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -56,6 +56,7 @@ router = APIRouter()
 _room: bsroom.BullshitRoom | None = None
 _lock = asyncio.Lock()
 _sockets: dict[str, WebSocket] = {}
+_grace: dict[str, asyncio.Task] = {}      # viewer -> pending "they left" check
 
 
 # --- the room -------------------------------------------------------------
@@ -73,6 +74,24 @@ def room() -> bsroom.BullshitRoom:
     if _room is None:
         _room = bsroom.create_room(bsroster.all_players())
     return _room
+
+
+async def _leave_after_grace(player_id: str) -> None:
+    """The strict rule, applied only if they have not come back in time."""
+    await asyncio.sleep(config.BS_GRACE_SECONDS)
+    async with _lock:
+        _grace.pop(player_id, None)
+        if player_id in _sockets:
+            return
+        current = room()
+        bsroom.on_disconnect(current, player_id)
+        await broadcast(current)
+
+
+def _cancel_grace(player_id: str) -> None:
+    task = _grace.pop(player_id, None)
+    if task is not None:
+        task.cancel()
 
 
 def reset_room() -> bsroom.BullshitRoom:
@@ -309,6 +328,7 @@ async def socket_endpoint(socket: WebSocket, token: str = "", host_key: str = ""
         await socket.close(code=protocol.CLOSE_UNKNOWN)
         return
     viewer = person.id if person is not None else HOST_VIEWER
+    _cancel_grace(viewer)
 
     old = _sockets.get(viewer)
     _sockets[viewer] = socket        # publish first, or the old one's finally
@@ -363,5 +383,9 @@ async def socket_endpoint(socket: WebSocket, token: str = "", host_key: str = ""
             async with _lock:
                 current = room()
                 if person is not None:
-                    bsroom.on_disconnect(current, person.id)
+                    # Not gone yet: a locked phone screen drops the socket.
+                    bsroom.on_drop(current, person.id)
+                    _cancel_grace(person.id)
+                    _grace[person.id] = asyncio.create_task(
+                        _leave_after_grace(person.id))
                 await broadcast(current)
