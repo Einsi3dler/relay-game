@@ -145,7 +145,7 @@
     nodes.forEach(function (n) { if (n) root.appendChild(n); });
   }
 
-  socket = BS.connect("", {
+  socket = BS.connect("as=host", {
     onState: function (state) {
       var moved = !live || live.phase !== state.phase || live.round !== state.round;
       live = state;

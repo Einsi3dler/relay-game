@@ -293,6 +293,6 @@ calls to `asyncio.to_thread`.
 
 Not oversights, just not asked for: OAuth and social sign-in, changing your
 email or password while signed in, deleting an account, admin user management,
-account-to-seat binding so a signed-in player reclaims their seat automatically
-(the identity is there, nothing consumes it yet), and any profile or stats
-history.
+account-to-seat binding for The Relay (Bullshit Quiz has it: an invitation
+is claimed by an account, see docs/BULLSHIT_QUIZ.md), and any profile or
+stats history.

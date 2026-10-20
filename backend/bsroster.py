@@ -15,6 +15,12 @@ The roster file is `var/bullshit/roster.json`, gitignored, real people's
 addresses: `{"participants": [{"email": "..."}, ...]}`. Nothing in here may
 copy a line of it into this repository.
 
+A seat is claimed by a site account (backend/accounts.py): the personal link
+is an invitation, used once to tie the seat to whoever is signed in. After
+that the account *is* the seat, so a player resumes from any device by
+signing in, and the link alone opens nothing. The in-game name comes from
+the account's first name.
+
 What a player writes is private until their round's reveal: the prompt, the
 real answer, the decoys and the author's identity. `my_question` hands a
 player their own and nothing else. `questions()` is for the room, which is
@@ -58,7 +64,8 @@ CREATE TABLE IF NOT EXISTS player (
   option_count  INTEGER NOT NULL,
   display_name  TEXT,
   registered_at TEXT,
-  created_at    TEXT NOT NULL
+  created_at    TEXT NOT NULL,
+  user_id       TEXT
 );
 CREATE TABLE IF NOT EXISTS question (
   player_id   TEXT PRIMARY KEY REFERENCES player(id),
@@ -84,8 +91,18 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
         _db = sqlite3.connect(target, check_same_thread=False)
         _db.row_factory = sqlite3.Row
         _db.executescript(SCHEMA)
+        _migrate(_db)
         _db.commit()
         return _db
+
+
+def _migrate(db: sqlite3.Connection) -> None:
+    """`user_id` arrived with account sign-in. SQLite cannot add a UNIQUE
+    column, so uniqueness is an index: one account, one seat."""
+    have = {row["name"] for row in db.execute("PRAGMA table_info(player)")}
+    if "user_id" not in have:
+        db.execute("ALTER TABLE player ADD COLUMN user_id TEXT")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS player_user ON player(user_id)")
 
 
 def close() -> None:
@@ -123,10 +140,12 @@ class Player:
     option_count: int          # what the server asked them to write: 2, 3 or 4
     display_name: str | None
     has_question: bool
+    user_id: str | None = None  # the account that claimed this seat
 
     @property
     def registered(self) -> bool:
-        return bool(self.display_name)
+        """Claimed by an account, and so named. The room seats only these."""
+        return bool(self.display_name and self.user_id)
 
     @property
     def name(self) -> str:
@@ -146,6 +165,7 @@ def _row_to_player(row: sqlite3.Row) -> Player:
         option_count=row["option_count"],
         display_name=row["display_name"],
         has_question=bool(row["has_question"]),
+        user_id=row["user_id"],
     )
 
 
@@ -163,6 +183,15 @@ def all_players() -> list[Player]:
 def by_id(player_id: str) -> Player | None:
     row = _conn().execute(_PLAYER_SELECT + " WHERE p.id = ?",
                           (player_id,)).fetchone()
+    return _row_to_player(row) if row else None
+
+
+def by_user(user_id: str | None) -> Player | None:
+    """The seat this account claimed, if any."""
+    if not user_id:
+        return None
+    row = _conn().execute(_PLAYER_SELECT + " WHERE p.user_id = ?",
+                          (user_id,)).fetchone()
     return _row_to_player(row) if row else None
 
 
@@ -247,51 +276,80 @@ def link_for(player_id: str, base_url: str) -> str | None:
     return f"{base_url.rstrip('/')}{LINK_PATH}{raw}" if raw else None
 
 
-# --- registration ---------------------------------------------------------
+# --- claiming a seat -----------------------------------------------------
 
 class Refused(ValueError):
     """Something a player sent that cannot be accepted. The message is for
     them to read."""
 
 
-def register(raw_token: str, name: str) -> Player:
+def name_for(first_name: str, last_name: str, username: str,
+             taken: set[str]) -> str:
+    """The name the game shows: what people on the call know them by.
+
+    First name; with a last initial if somebody already has that first name;
+    the username as the last resort. `taken` is lower-cased names in use.
+    """
+    first = " ".join((first_name or "").split())[:config.BS_NAME_MAX]
+    initial = (last_name or "").strip()[:1].upper()
+    for candidate in (first, f"{first} {initial}." if initial else "", username):
+        candidate = candidate[:config.BS_NAME_MAX]
+        if candidate and candidate.lower() not in taken:
+            return candidate
+    return username[:config.BS_NAME_MAX]
+
+
+def claim(raw_token: str, user_id: str, first_name: str, last_name: str,
+          username: str) -> Player:
+    """Tie the invitation's seat to a signed-in account.
+
+    Idempotent for the same account. Refused when the seat belongs to
+    another account, or this account already holds a different seat.
+    Whether the game still accepts newcomers is the room's call.
+    """
     person = by_token(raw_token)
     if person is None:
         raise Refused("That link is not valid.")
-
-    cleaned = _clean(name)
-    if not (config.BS_NAME_MIN <= len(cleaned) <= config.BS_NAME_MAX):
-        raise Refused(f"Pick a name between {config.BS_NAME_MIN} and "
-                      f"{config.BS_NAME_MAX} characters.")
+    if person.user_id == user_id:
+        return person
+    if person.user_id:
+        raise Refused("This invitation has already been claimed by another account.")
+    if by_user(user_id) is not None:
+        raise Refused("Your account already has a seat in this game.")
 
     db = _conn()
-    clash = db.execute(
-        "SELECT id FROM player WHERE display_name = ? COLLATE NOCASE"
-        " AND id != ?", (cleaned, person.id)).fetchone()
-    if clash is not None:
-        raise Refused("Somebody is already going by that. Try another.")
-
     with _lock:
-        db.execute("UPDATE player SET display_name = ?, registered_at = ?"
-                   " WHERE id = ?", (cleaned, _now(), person.id))
-        db.commit()
-    return by_id(person.id)
+        taken = {row["display_name"].lower() for row in db.execute(
+            "SELECT display_name FROM player WHERE display_name IS NOT NULL"
+            " AND id != ?", (person.id,))}
+        name = name_for(first_name, last_name, username, taken)
+        try:
+            db.execute("UPDATE player SET user_id = ?, display_name = ?,"
+                       " registered_at = ? WHERE id = ? AND user_id IS NULL",
+                       (user_id, name, _now(), person.id))
+            db.commit()
+        except sqlite3.IntegrityError:
+            raise Refused("Your account already has a seat in this game.")
+    claimed = by_id(person.id)
+    if claimed.user_id != user_id:
+        raise Refused("This invitation has already been claimed by another account.")
+    return claimed
 
 
 # --- the questions --------------------------------------------------------
 
-def submit_question(raw_token: str, prompt: str, answer: str,
+def submit_question(player_id: str, prompt: str, answer: str,
                     decoys: list[str], explanation: str = "") -> bsquiz.Question:
     """Store or replace this player's question.
 
     Whether submissions are still open is the room's call, not this module's:
     the caller checks that the game has not started before calling.
     """
-    person = by_token(raw_token)
+    person = by_id(player_id)
     if person is None:
-        raise Refused("That link is not valid.")
+        raise Refused("You are not in this game.")
     if not person.registered:
-        raise Refused("Pick your name first.")
+        raise Refused("Claim your seat first.")
 
     prompt = _clean(prompt)
     answer = _clean(answer)
@@ -367,7 +425,7 @@ def _cli(argv: list[str]) -> int:
 
     if command == "list":
         for person in all_players():
-            state = person.display_name or "(not registered)"
+            state = person.display_name or "(not claimed)"
             wrote = "question in" if person.has_question else "no question yet"
             print(f"{person.id}  {person.email:34}  {state:20}  "
                   f"{person.option_count} options, {wrote}")

@@ -37,7 +37,7 @@ def seated(tmp_path, count: int = 5) -> list[tuple[bsroster.Player, str]]:
     out = []
     for i, person in enumerate(bsroster.all_players()):
         raw = bsroster._fresh_tokens[person.id]
-        out.append((bsroster.register(raw, f"Player {i}"), raw))
+        out.append((bsroster.claim(raw, f"user{i}", f"Player{i}", "Tester", f"player_{i}"), raw))
     return out
 
 
@@ -45,7 +45,7 @@ def full_question(person: bsroster.Player, raw: str, **overrides):
     fields = dict(prompt="What did I eat?", answer="Rice",
                   decoys=[f"Decoy {i}" for i in range(person.option_count - 1)])
     fields.update(overrides)
-    return bsroster.submit_question(raw, **fields)
+    return bsroster.submit_question(person.id, **fields)
 
 
 # --- import ---------------------------------------------------------------
@@ -88,18 +88,57 @@ def test_reissue_kills_the_old_link(tmp_path):
     assert bsroster.link_for(person.id, "https://x.test/").endswith(f"/bullshit/{new}")
 
 
-# --- registration ---------------------------------------------------------
+# --- claiming a seat ------------------------------------------------------
 
-def test_register_names_must_be_unique_and_sized(tmp_path):
+def test_claim_ties_a_seat_to_an_account(tmp_path):
+    bsroster.import_roster(write_roster(tmp_path, 2))
+    raw = bsroster._fresh_tokens[bsroster.all_players()[0].id]
+    seat = bsroster.claim(raw, "u_grace", "  Grace ", "Hopper", "grace_h")
+    assert seat.name == "Grace" and seat.user_id == "u_grace" and seat.registered
+    assert bsroster.by_user("u_grace").id == seat.id
+    assert bsroster.claim(raw, "u_grace", "Grace", "Hopper", "grace_h").id == seat.id
+
+
+def test_claim_refusals(tmp_path):
     bsroster.import_roster(write_roster(tmp_path, 2))
     a, b = (bsroster._fresh_tokens[p.id] for p in bsroster.all_players())
-    assert bsroster.register(a, "  Sam   Jones ").name == "Sam Jones"
-    with pytest.raises(bsroster.Refused):
-        bsroster.register(b, "sam jones")
-    with pytest.raises(bsroster.Refused):
-        bsroster.register(b, "x")
-    with pytest.raises(bsroster.Refused):
-        bsroster.register("bad", "Valid Name")
+    bsroster.claim(a, "u1", "Ann", "One", "ann")
+    with pytest.raises(bsroster.Refused, match="another account"):
+        bsroster.claim(a, "u2", "Bob", "Two", "bob")
+    with pytest.raises(bsroster.Refused, match="already has a seat"):
+        bsroster.claim(b, "u1", "Ann", "One", "ann")
+    with pytest.raises(bsroster.Refused, match="not valid"):
+        bsroster.claim("bad", "u3", "Cy", "Three", "cy")
+
+
+@pytest.mark.parametrize("taken, expected", [
+    (set(), "Sam"),
+    ({"sam"}, "Sam T."),
+    ({"sam", "sam t."}, "samt"),
+])
+def test_name_for(taken, expected):
+    assert bsroster.name_for("Sam", "Tester", "samt", taken) == expected
+
+
+def test_unclaimed_seats_are_not_registered(tmp_path):
+    bsroster.import_roster(write_roster(tmp_path, 1))
+    assert not bsroster.all_players()[0].registered
+
+
+def test_user_id_column_is_added_to_an_old_store(tmp_path):
+    import sqlite3
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.executescript("""
+        CREATE TABLE player (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE,
+          token_hash TEXT NOT NULL UNIQUE, option_count INTEGER NOT NULL,
+          display_name TEXT, registered_at TEXT, created_at TEXT NOT NULL);""")
+    old.execute("INSERT INTO player VALUES ('bs_1','a@example.test','h',2,NULL,NULL,'t')")
+    old.commit()
+    old.close()
+    bsroster.close()
+    bsroster.connect(str(path))
+    assert bsroster.by_id("bs_1").user_id is None
 
 
 def test_card_carries_no_question_state(tmp_path):
@@ -122,11 +161,11 @@ def test_submit_and_replace(tmp_path):
     assert list(bsroster.questions()) == [person.id]
 
 
-def test_must_register_before_writing(tmp_path):
+def test_must_claim_before_writing(tmp_path):
     bsroster.import_roster(write_roster(tmp_path, 3))
     person = bsroster.all_players()[0]
-    with pytest.raises(bsroster.Refused, match="name"):
-        bsroster.submit_question(bsroster._fresh_tokens[person.id], "Q?", "A", ["B"])
+    with pytest.raises(bsroster.Refused, match="Claim"):
+        bsroster.submit_question(person.id, "Q?", "A", ["B"])
 
 
 @pytest.mark.parametrize("overrides, message", [
@@ -147,7 +186,7 @@ def test_the_option_count_is_the_servers(tmp_path):
     (person, raw), *_ = seated(tmp_path)
     wrong = [f"D{i}" for i in range(person.option_count)]      # one too many
     with pytest.raises(bsroster.Refused, match="asked for"):
-        bsroster.submit_question(raw, "Q?", "A", wrong)
+        bsroster.submit_question(person.id, "Q?", "A", wrong)
 
 
 def test_my_question_is_only_mine(tmp_path):

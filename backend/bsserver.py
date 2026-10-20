@@ -7,8 +7,12 @@ store `backend/bsroster.py`. This file only moves messages between them.
 
 One room at a time, like ROLL CALL: the roster is a single list of people.
 
-Two kinds of viewer: a player on their personal link (`/bullshit/<token>`),
-and the host, who proves it with the host key or the cookie that key earned.
+Two kinds of viewer. A player is whoever is signed in to the site account
+that claimed a seat: the personal link (`/bullshit/<token>`) is only used
+once, to claim it, so after that they resume from any device by signing in.
+The host proves it with the host key or the cookie that key earned, and the
+host page asks for that view explicitly (`?as=host`), because one browser
+can hold both a host cookie and a player's sign-in.
 The host never plays, and `bsroom.public` gives them no more than a guesser,
 because on a group call the host is the one most likely sharing a screen.
 
@@ -28,11 +32,12 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Cookie, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import (APIRouter, Cookie, HTTPException, Query, Request, WebSocket,
+                     WebSocketDisconnect)
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
-from backend import bsroom, bsroster, config, devgate, protocol
+from backend import accounts, bsroom, bsroster, config, devgate, protocol
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -208,29 +213,38 @@ async def host_login(request: Request):
     return _with_host_cookie(RedirectResponse(HOST_PATH, status_code=303))
 
 
-# --- REST: who am I, my name, my question ---------------------------------
+# --- REST: who am I, claiming a seat, my question ------------------------
 
-class RegisterBody(BaseModel):
+class ClaimBody(BaseModel):
     token: str
-    name: str
 
 
 class QuestionBody(BaseModel):
-    token: str
     prompt: str
     answer: str
     decoys: list[str]
     explanation: str = ""
 
 
-def _me(person: bsroster.Player) -> dict[str, Any]:
+def signed_in(session: str | None) -> accounts.User | None:
+    """The site account behind this request's session cookie, if any."""
+    return accounts.session_user(session)
+
+
+def _account(user: accounts.User | None) -> dict[str, Any] | None:
+    return None if user is None else {
+        "first_name": user.first_name, "username": user.username}
+
+
+def _me(person: bsroster.Player, user: accounts.User | None) -> dict[str, Any]:
     """What the player's own page may know before the game: themselves and
     their own question. Never anybody else's."""
     q = bsroster.my_question(person.id)
     return {
         "id": person.id,
         "name": person.display_name,
-        "registered": person.registered,
+        "claimed": person.registered,
+        "account": _account(user),
         "option_count": person.option_count,
         "question": None if q is None else {
             "prompt": q.prompt, "answer": q.answer,
@@ -240,48 +254,84 @@ def _me(person: bsroster.Player) -> dict[str, Any]:
     }
 
 
-def _player_or_404(token: str) -> bsroster.Player:
-    person = bsroster.by_token(token)
+def _refuse(status: int, detail: str, reason: str, user: accounts.User | None = None):
+    """An error the page turns into a screen, so it carries a `reason`."""
+    raise HTTPException(status_code=status, detail={
+        "message": detail, "reason": reason, "account": _account(user)})
+
+
+def _seat_for(user: accounts.User | None) -> bsroster.Player:
+    if user is None:
+        _refuse(401, "Sign in to play.", "signed_out")
+    person = bsroster.by_user(user.id)
     if person is None:
-        raise HTTPException(status_code=404, detail="That link is not valid.")
+        _refuse(404, "Your account has no seat in this game yet. Open your "
+                "invitation link once to claim it.", "no_seat", user)
     return person
 
 
+SESSION = Cookie(default=None, alias=config.SESSION_COOKIE)
+
+
 @router.get("/api/bullshit/me")
-async def me(token: str = "") -> dict:
-    return _me(_player_or_404(token))
+async def me(token: str = "", relay_session: str | None = SESSION) -> dict:
+    """Who this is, from the invitation and the sign-in together.
+
+    With a link: the seat it opens, if it is unclaimed (the page offers to
+    claim it) or claimed by this account. Without one: this account's seat.
+    """
+    user = signed_in(relay_session)
+    if not token:
+        return _me(_seat_for(user), user)
+    person = bsroster.by_token(token)
+    if person is None:
+        _refuse(404, "That link is not valid.", "bad_link", user)
+    if person.user_id and (user is None or user.id != person.user_id):
+        _refuse(403, "This invitation has already been claimed. Sign in with "
+                "the account that claimed it.", "claimed_by_other", user)
+    if not person.user_id and user is None:
+        _refuse(401, "Sign in or make an account to claim your seat.",
+                "signed_out")
+    return _me(person, user)
 
 
-@router.post("/api/bullshit/register")
-async def register(body: RegisterBody) -> dict:
+@router.post("/api/bullshit/claim")
+async def claim(body: ClaimBody, relay_session: str | None = SESSION) -> dict:
+    user = signed_in(relay_session)
+    if user is None:
+        _refuse(401, "Sign in to claim your seat.", "signed_out")
     async with _lock:
         current = room()
-        if current.phase != "lobby":
-            # Names are frozen with the roster: a seat renamed mid-game would
-            # not match the name on everybody else's screen.
+        person = bsroster.by_token(body.token)
+        if current.phase != "lobby" and not (person and person.user_id == user.id):
+            # The roster froze when the game started (handoff §3).
             raise HTTPException(status_code=400, detail="The game has already started.")
         try:
-            person = bsroster.register(body.token, body.name)
+            person = bsroster.claim(body.token, user.id, user.first_name,
+                                    user.last_name, user.username)
         except bsroster.Refused as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         bsroom.refresh(current, bsroster.all_players())
         await broadcast(current)
-    return _me(person)
+    return _me(person, user)
 
 
 @router.post("/api/bullshit/question")
-async def submit_question(body: QuestionBody) -> dict:
+async def submit_question(body: QuestionBody,
+                          relay_session: str | None = SESSION) -> dict:
+    user = signed_in(relay_session)
+    person = _seat_for(user)
     async with _lock:
         current = room()
         try:
             bsroom.can_submit(current)
-            bsroster.submit_question(body.token, body.prompt, body.answer,
+            bsroster.submit_question(person.id, body.prompt, body.answer,
                                      body.decoys, body.explanation)
         except (bsroom.Rejected, bsroster.Refused) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         bsroom.refresh(current, bsroster.all_players())
         await broadcast(current)
-    return _me(_player_or_404(body.token))
+    return _me(bsroster.by_id(person.id), user)
 
 
 # --- the socket -----------------------------------------------------------
@@ -317,17 +367,20 @@ def _host_step(current: bsroom.BullshitRoom, action: str) -> bsroom.BullshitRoom
 
 
 @router.websocket("/ws/bullshit")
-async def socket_endpoint(socket: WebSocket, token: str = "", host_key: str = ""):
+async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Query("", alias="as")):
     await socket.accept()
 
-    is_host = host_authorised(host_key or None, socket.cookies.get(COOKIE_NAME))
-    person = bsroster.by_token(token) if token else None
-    if person is None and not is_host:
-        await socket.close(code=protocol.CLOSE_UNKNOWN)
-        return
-    if person is not None and not person.registered:
-        await socket.close(code=protocol.CLOSE_UNKNOWN)
-        return
+    person = None
+    if as_ == "host":
+        if not host_authorised(host_key or None, socket.cookies.get(COOKIE_NAME)):
+            await socket.close(code=protocol.CLOSE_UNKNOWN)
+            return
+    else:
+        user = signed_in(socket.cookies.get(config.SESSION_COOKIE))
+        person = bsroster.by_user(user.id) if user else None
+        if person is None or not person.registered:
+            await socket.close(code=protocol.CLOSE_UNKNOWN)
+            return
     viewer = person.id if person is not None else HOST_VIEWER
     _cancel_grace(viewer)
 

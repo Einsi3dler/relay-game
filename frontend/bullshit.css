@@ -487,3 +487,10 @@
   padding: 10px 18px;
   font-size: 1rem;
 }
+
+/* ------------------------------------------------------- sign in / claim -- */
+
+.bs-card--actions { display: grid; }
+.bs-card--actions .bs-btn { text-align: center; text-decoration: none; }
+.bs-card--actions .bs-btn:first-child { margin-top: 0; }
+.bs-card--actions .bs-btn + .bs-btn { margin-top: 14px; }
