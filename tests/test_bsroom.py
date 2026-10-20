@@ -174,7 +174,7 @@ def test_the_host_sees_no_more_than_a_guesser():
     host = room.public(None, is_host=True)
     seen = room.public(guesser)
     for key in ("role", "committed", "your_wager", "your_pick", "used_wagers",
-                "your_total", "you", "relegated"):
+                "your_total", "you", "relegated", "history"):
         host.pop(key, None)
         seen.pop(key, None)
     host.pop("is_host")
@@ -563,14 +563,14 @@ def test_history_records_each_round_at_its_reveal():
     bsroom.lock(room)
     assert room.public(None, is_host=True)["history"] == []    # votes: not yet
     bsroom.reveal(room)
-    entry = room.public("p0")["history"][0]
+    entry = room.public(None, is_host=True)["history"][0]
     assert entry["round"] == 1
     assert entry["truth"] == room.panel.correct_key
     assert entry["author"] == room.panel.author
     assert sum(entry["deltas"].values()) == sum(l.delta for l in room.result.lines.values())
     bsroom.next_round(room)
     # The new round's briefing still shows only the finished one.
-    assert len(room.public("p0")["history"]) == 1
+    assert len(room.public(None, is_host=True)["history"]) == 1
 
 
 def test_history_never_carries_the_round_in_play():
@@ -578,8 +578,24 @@ def test_history_never_carries_the_round_in_play():
     play_round(room)
     bsroom.next_round(room)
     current = room.question()
-    blob = json.dumps(room.public("p1")["history"])
+    blob = json.dumps(room.public(None, is_host=True)["history"])
     assert current.prompt not in blob
+
+
+def test_players_never_receive_the_history():
+    """Host only (the owner's call). Checked in every phase of a whole game,
+    for every seat, on the raw snapshot rather than the screen."""
+    room = started(5, seed=4)
+    while True:
+        for viewer in room.seats:
+            assert "history" not in room.public(viewer)
+        if room.phase == "final":
+            break
+        play_round(room)
+        for viewer in room.seats:
+            assert "history" not in room.public(viewer)
+        bsroom.next_round(room)
+    assert room.public(None, is_host=True)["history"]
 
 
 def test_history_is_a_full_recap_at_the_end():

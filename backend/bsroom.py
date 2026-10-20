@@ -238,9 +238,10 @@ class BullshitRoom:
                     "winner": self.result.winner,
                 }
 
-        if self.phase != "lobby":
-            # Finished rounds only, each recorded at its reveal: everything in
-            # here was already shown to the whole room.
+        if is_host and self.phase != "lobby":
+            # Host only, by the owner's call: players see each round's reveal
+            # as it happens but get no running record of who bluffed when.
+            # Finished rounds only, each recorded at its reveal.
             view["history"] = self.history
 
         if me is not None:

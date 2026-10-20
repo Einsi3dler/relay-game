@@ -221,8 +221,8 @@
   /* ------------------------------------------------------------- history -- */
 
   /* Every revealed round, newest first, folded so the list stays short. The
-     server only ever sends finished rounds (backend/bsroom.py), so nothing
-     here can give away the round in play. `open` unfolds the newest one. */
+     host's screen only: the server sends `history` to the host alone
+     (backend/bsroom.py), and only finished rounds. `open` unfolds the newest. */
   function history(state, opts) {
     var rounds = (state.history || []).slice().reverse();
     if (!rounds.length) return null;

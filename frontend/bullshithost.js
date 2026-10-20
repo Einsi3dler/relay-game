@@ -150,7 +150,6 @@
       nodes.push(bigButton(s.round >= s.rounds ? "Final scores" : "Next round", "next", true));
     }
     nodes.push(roster(s));
-    if (s.phase === "reveal") nodes.push(BS.history(s, { title: "Rounds so far" }));
     return nodes;
   }
 
@@ -161,8 +160,7 @@
       BS.title("Waiting for players"),
       BS.sub("Not enough players are online to deal the next round. Ask people to sign back in, then try again."),
       roster(s),
-      bigButton("Try again", "next", true),
-      BS.history(s)
+      bigButton("Try again", "next", true)
     ];
   }
 
@@ -175,8 +173,7 @@
       s.dropped ? BS.sub(s.dropped + " question" + (s.dropped === 1 ? " was" : "s were") +
         " dropped because " + (s.dropped === 1 ? "its author" : "their authors") +
         " never came back.", true) : null,
-      BS.leaderboard(s, "Final scores"),
-      BS.history(s, { title: "Every round" })
+      BS.leaderboard(s, "Final scores")
     ];
   }
 
@@ -215,6 +212,33 @@
   }
 
   var invites = buildInvitesPanel();
+
+  /* Round history: host only, and collapsed, because the host may be sharing
+     this screen on the call and players are not meant to see a running
+     record of who bluffed when. Its open/closed state survives redraws for
+     the same reason the invitations panel's does. */
+  function buildHistoryPanel() {
+    var body = h("div", { class: "bs-roundlog__body" },
+      h("p", { class: "bs-invites__hint", text: "Rounds appear here as they are revealed." }));
+    var panel = h("details", { class: "bs-card bs-invites bs-roundlog" },
+      h("summary", { class: "bs-invites__head" },
+        h("span", { class: "bs-label", text: "Round history" }),
+        h("span", { class: "bs-invites__warn", text: "Host only. Don't open while screen-sharing." })),
+      body);
+    invitesEl.appendChild(panel);
+    return { panel: panel, body: body };
+  }
+
+  var roundlog = buildHistoryPanel();
+
+  function paintHistory(s) {
+    var count = (s.history || []).length;
+    roundlog.panel.hidden = s.phase === "lobby";
+    roundlog.body.innerHTML = "";
+    var list = count ? BS.history(s, { title: count + " round" + (count === 1 ? "" : "s") + " revealed" }) : null;
+    roundlog.body.appendChild(list || h("p", { class: "bs-invites__hint",
+      text: "Rounds appear here as they are revealed." }));
+  }
 
   function loadInvites(list) {
     fetch("/api/bullshit/host/invites", { credentials: "same-origin" })
@@ -310,6 +334,7 @@
       if (moved) window.scrollTo(0, 0);
       // Keep an open invitations panel current as people claim and write.
       if (invites.panel.open && state.phase === "lobby") loadInvites(invites.list);
+      paintHistory(state);
     },
     onError: toast,
     onClosed: function (code) {

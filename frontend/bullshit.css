@@ -650,3 +650,7 @@
 .bs-invites__slot { grid-column: 1 / -1; display: flex; gap: 8px; }
 .bs-invites__slot:empty { display: none; }
 .bs-invites__link { flex: 1; min-width: 0; font-family: var(--bs-body); font-size: 0.85rem; padding: 8px 10px; }
+
+/* The host's round history panel: the history list without its own card. */
+.bs-roundlog { margin-top: 18px; }
+.bs-roundlog .bs-history { margin-top: 14px; padding: 0; border: 0; box-shadow: none; background: none; }

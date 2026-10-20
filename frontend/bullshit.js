@@ -451,7 +451,6 @@
         h("p", { class: "bs-line__parts", text: BS.lineParts(line).join(", ") })));
     }
     nodes.push(BS.leaderboard(s, "Scores"));
-    nodes.push(BS.history(s, { title: "Rounds so far" }));
     return nodes;
   }
 
@@ -463,8 +462,7 @@
         h("span", { text: won ? "YOU WIN!" : "GAME OVER" })),
       BS.title(names.length > 1 ? "Joint winners" : "The winner", true),
       BS.sub(names.join(" and ") || "Nobody", true),
-      BS.leaderboard(s, "Final scores"),
-      BS.history(s, { title: "Every round" })
+      BS.leaderboard(s, "Final scores")
     ];
   }
 
@@ -481,8 +479,7 @@
       : s.phase === "waiting" ? [
           BS.title("Hang tight"),
           BS.sub("Not enough players are online for the next round. The host will deal it once a few more are back."),
-          BS.leaderboard(s, "Scores"),
-          BS.history(s)
+          BS.leaderboard(s, "Scores")
         ]
       : final(s);
     el.game.innerHTML = "";

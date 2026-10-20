@@ -66,8 +66,10 @@ screens `frontend/bullshit*.{html,js,css}`.
    - **Lock anyway** when a guesser is connected but not answering: they cast
      no vote that round and lose nothing.
    - **Undo** for 10 seconds after **Reset the room** (`BS_UNDO_SECONDS`).
-   Everyone also gets a **Past rounds** list from the first reveal, sounds
-   and a buzz when it is their turn, and a mute button.
+   - **Round history** (collapsed, host only): every revealed round, with
+     the truth, who bluffed and the vote split. Players never receive it;
+     open it only when you are not screen-sharing.
+   Players get sounds and a buzz when it is their turn, and a mute button.
 
 Leaving mid-game (owner's rule, 21 October 2026). Going offline after the
 start relegates a player to guessing for the rest of the game. 
