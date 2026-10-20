@@ -521,3 +521,33 @@ def test_lobby_disconnects_do_not_relegate():
     bsroom.on_connect(room, "p1")
     bsroom.start(room, qs)
     assert not room.seats["p1"].relegated
+
+
+# --- the grace period -----------------------------------------------------
+
+def test_a_dropped_socket_is_not_leaving():
+    room = started(6)
+    brief(room)
+    g = room.guessers()[0].id
+    bsroom.on_drop(room, g)
+    seat = room.seats[g]
+    assert seat.reconnecting and seat.connected and not seat.relegated
+    # Still waited on: the lock does not go through without them.
+    guess_all_remaining_except(room, g)
+    with pytest.raises(bsroom.Rejected, match="Waiting on 1"):
+        bsroom.lock(room)
+    bsroom.on_connect(room, g)
+    assert not room.seats[g].reconnecting
+
+
+def test_a_dropped_speaker_is_not_swapped_out():
+    room = started(6)
+    liar = room.panel.bullshitters[0]
+    bsroom.on_drop(room, liar)
+    assert liar in room.panel.bullshitters
+
+
+def guess_all_remaining_except(room, skip: str) -> None:
+    for seat in room.guessers():
+        if seat.id != skip and seat.pick is None:
+            bsroom.guess(room, seat.id, "A", free_wager(room, seat.id))

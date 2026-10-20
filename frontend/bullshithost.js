@@ -45,11 +45,14 @@
         : p.relegated ? "guessing only"
         : "";
       var done = s.phase === "lobby" ? p.submitted : p.committed;
-      return h("li", { class: "bs-roster__item" + (done ? " is-done" : "") + (p.connected ? "" : " is-away") },
+      return h("li", { class: "bs-roster__item" + (done ? " is-done" : "") +
+                         (p.connected && !p.reconnecting ? "" : " is-away") },
         h("span", { class: "bs-roster__dot", "aria-hidden": "true" }),
         h("span", { class: "bs-roster__name", text: p.name }),
-        tag || !p.connected
-          ? h("span", { class: "bs-roster__tag", text: p.connected ? tag : "away" }) : null);
+        tag || !p.connected || p.reconnecting
+          ? h("span", { class: "bs-roster__tag",
+                        text: p.reconnecting ? "reconnecting" : p.connected ? tag : "away" })
+          : null);
     }));
   }
 

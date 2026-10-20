@@ -20,7 +20,13 @@ The phases:
 The host presses every step. There are no timers.
 
 **Leaving never stalls the game** (the owner's rule, docs/BULLSHIT_QUIZ.md
-§0). Once a game has started, a player who goes offline keeps their seat and
+§0). A dropped connection is not leaving: phones drop it whenever the screen
+locks. `on_drop` only marks the seat *reconnecting*, which changes nothing
+about the game, and the server calls `on_disconnect` (the strict rule below)
+if they have not reopened their link within BS_GRACE_SECONDS. The room keeps
+no clock; the server owns that one.
+
+Once a game has started, a player who goes offline keeps their seat and
 their score but is *relegated*: a guesser for the rest of the game, never
 picked to bluff again, even after they come back. Concretely:
 
@@ -72,6 +78,7 @@ IN_ROUND = ("briefing", "open", "votes", "reveal")
 class Seat:
     player: Player
     connected: bool = False
+    reconnecting: bool = False            # socket dropped, inside the grace period
     relegated: bool = False               # went offline mid-game: guesser from now on
     total: int = 0
     used: set[int] = field(default_factory=set)
@@ -179,6 +186,7 @@ class BullshitRoom:
         for seat in self.seats.values():
             card = seat.player.card()
             card.update({"connected": seat.connected, "total": seat.total,
+                         "reconnecting": seat.reconnecting,
                          "relegated": seat.relegated})
             if self.phase == "lobby":
                 card["submitted"] = seat.player.has_question
@@ -291,13 +299,24 @@ def on_connect(room: BullshitRoom, player_id: str) -> None:
     seat = room.seats.get(player_id)
     if seat is not None:
         seat.connected = True
+        seat.reconnecting = False
+
+
+def on_drop(room: BullshitRoom, player_id: str) -> None:
+    """Their socket closed. Still present as far as the game is concerned:
+    still waited on, still eligible to bluff. Display only."""
+    seat = room.seats.get(player_id)
+    if seat is not None and seat.connected:
+        seat.reconnecting = True
 
 
 def on_disconnect(room: BullshitRoom, player_id: str) -> None:
+    """Gone: the grace period ran out (or, in tests, called directly)."""
     seat = room.seats.get(player_id)
     if seat is None:
         return
     seat.connected = False
+    seat.reconnecting = False
     if room.phase == "lobby":
         return
     seat.relegated = True
