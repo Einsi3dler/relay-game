@@ -15,7 +15,7 @@ These close the open decisions in section 11. Where this section and a later
 | Tied top vote counts | **Nobody wins the crowd** (the proposed default in section 11). |
 | Source of false options | **The author writes them** when submitting the question. The server tells each author how many options to write (2, 3 or 4), which fixes B for that question. |
 | Who runs the game | **A separate, non-playing host** behind a host key, like Guess Who. |
-| Roster | **Bullshit Quiz has its own roster** and its own invite links. Nothing mails it. |
+| Who plays (revised 21 October 2026) | **Players join through the site.** They sign up or sign in to a Game Night account and join with the host's code. No roster file, no email addresses, no invite links; nothing mails anybody. |
 | Players who leave (supersedes "pause" in section 11) | **The game never waits for them.** Once a game has started, going offline relegates a player for the rest of that game: they keep their seat and score, are never picked to bluff again (even after returning), and are never waited on as a guesser. Their question is skipped while they are away and stays queued; if they return it can still be played, and if every remaining question belongs to somebody offline, those are dropped and the game ends. |
 
 Taken as the proposed defaults: bullshitters lock their wager before
@@ -32,40 +32,38 @@ wagers. Otherwise the one speaker who never locks in is the truthful one.
 ## 0.1 Running a session
 
 Where things live: rules `backend/bsquiz.py`, room `backend/bsroom.py`,
-roster and questions `backend/bsroster.py`, web routes `backend/bsserver.py`,
+seats and questions `backend/bsroster.py`, web routes `backend/bsserver.py`,
 screens `frontend/bullshit*.{html,js,css}`.
 
-1. Put the players in `var/bullshit/roster.json` (gitignored, never commit it):
-   `{"participants": [{"email": "..."}, ...]}`. Each newcomer is given their
-   option count (2, 3 or 4) on import, from the roster's size.
-2. `python -m backend.bsroster import`, then `RELAY_BASE_URL=https://your.host
-   python -m backend.bsroster links` prints one personal link per player.
-   Hand them out yourself. **Nothing emails anybody**; see
-   docs/ROLL_CALL_DO_NOT_SEND.md. Running `links` again replaces every link.
-3. Set `RELAY_BULLSHIT_HOST_KEY` (the default is `dev`, in a public repo) and
-   open `/bullshithost`.
-4. Players open their link once. Signed out, they sign in or make a Game
-   Night account and come straight back; then **Claim my seat** ties the
-   invitation to their account. Their in-game name is their first name (plus
-   a last initial if two players share one). They write their question, and
-   the host lobby shows who has written. From then on the account is the
-   seat: signing in anywhere and opening `/bullshit` (or the hub card)
-   resumes it, and the link alone opens nothing. **Start the game** needs at least three
-   players and a question from every one of them; it fixes N and the order.
+1. Set `RELAY_BULLSHIT_HOST_KEY` (the default is `dev`, in a public repo) and
+   open `/bullshithost`. The lobby shows a **join code** and a link
+   (`/bullshit?code=K7QM`) with a Copy button.
+2. Share the link (or just the code) in the group chat.
+3. Players open it. Signed out, they sign up or sign in to Game Night like
+   on any website and come straight back; the code is filled in from the
+   link, and **Join** gives their account a seat. Their in-game name is their
+   first name (plus a last initial if two players share one), and each is
+   asked for 2, 3 or 4 options. They write their question; the lobby shows
+   who has written. The account is the seat: signing in anywhere and opening
+   `/bullshit` (or the hub card) resumes it.
+4. **Start the game** needs at least three players and a question from every
+   one of them; it fixes N and the order, and from then on the code lets
+   nobody else in.
 5. Each round the host presses: **Open the discussion** (once every speaker
    has committed), **Lock the votes** (once every guesser has), **Reveal the
    truth**, **Next round**. Nothing has a timer.
 6. Host tools, all on the host page:
-   - **Invitations** (collapsed; it shows email addresses, so do not open it
-     while screen-sharing): who has claimed and written, and **New link** for
-     somebody who lost theirs. Links are stored hashed, so a new link
-     replaces the old one; claimed seats need no link, just a sign-in.
+   - **Remove** on a player's chip in the lobby, for somebody who joined by
+     mistake. Their question goes too; they can join again with the code.
+   - **New game night**: everyone and every question cleared, and a new
+     code, so last week's link stops working. Not undoable.
    - **Mark gone** on any player's chip mid-game: the leaving rule, applied
      now instead of after the grace period. If they act again they count as
      back (still guessing only).
    - **Lock anyway** when a guesser is connected but not answering: they cast
      no vote that round and lose nothing.
    - **Undo** for 10 seconds after **Reset the room** (`BS_UNDO_SECONDS`).
+     Reset keeps everyone, their questions and the code.
    - **Round history** (collapsed, host only): every revealed round, with
      the truth, who bluffed and the vote split. Players never receive it;
      open it only when you are not screen-sharing.

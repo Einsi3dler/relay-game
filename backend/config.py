@@ -448,7 +448,7 @@ BS_OPTION_MAX = 60
 BS_EXPLANATION_MAX = 280      # the optional line shown on the reveal
 BS_NAME_MIN = 2
 BS_NAME_MAX = 18
-BS_TOKEN_BYTES = 24           # a player's personal link
 BS_GRACE_SECONDS = 30         # a dropped socket counts as "left" only after this:
                               # phones drop the connection when the screen locks
 BS_UNDO_SECONDS = 10          # how long the host can take back "Reset the room"
+BS_CODE_LENGTH = 4            # the join code the host shares in the group chat

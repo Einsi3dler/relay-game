@@ -1,8 +1,9 @@
 /* BULLSHIT QUIZ — the player's phone, from personal link to final score.
  *
- * The seat lives on the player's site account. `/bullshit/<token>` is the
- * invitation: opened once while signed in, it claims the seat, and from then
- * on plain `/bullshit` finds it from any device. Signed out, the page sends
+ * The seat lives on the player's site account. They sign up or sign in
+ * like on any website, open Bullshit Quiz with the host's join code
+ * (`/bullshit?code=K7QM` fills it in), and tap Join. From then on plain
+ * `/bullshit` finds their seat from any device. Signed out, the page sends
  * them to sign in or make an account and brings them straight back here.
  * Before the game it asks for their one question; during it, the snapshot says what
  * this player is this round (truthful, bullshitter or guesser) and this page
@@ -28,8 +29,9 @@
     '<path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" ' +
     'stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-  var token = decodeURIComponent((location.pathname.split("/bullshit/")[1] || "").split("/")[0]);
-  var storeKey = "bullshit.draft." + token.slice(0, 12);
+  var params = new URLSearchParams(location.search);
+  var codeFromLink = (params.get("code") || "").replace(/\s+/g, "").toUpperCase();
+  var storeKey = "bullshit.draft";
 
   var me = null;          // from /api/bullshit/me
   var live = null;        // latest snapshot
@@ -45,16 +47,12 @@
 
   var el = {
     chip: document.getElementById("me-chip"),
-    signinTitle: document.getElementById("signin-title"),
-    signinSub: document.getElementById("signin-sub"),
     signinGo: document.getElementById("signin-go"),
     signupGo: document.getElementById("signup-go"),
-    claimSub: document.getElementById("claim-sub"),
-    claimGo: document.getElementById("claim-go"),
-    claimNotMe: document.getElementById("claim-not-me"),
-    claimError: document.getElementById("claim-error"),
-    takenSub: document.getElementById("taken-sub"),
-    takenSwitch: document.getElementById("taken-switch"),
+    joinForm: document.getElementById("join-form"),
+    joinCode: document.getElementById("join-code"),
+    joinError: document.getElementById("join-error"),
+    joinSub: document.getElementById("join-sub"),
     sticker: document.getElementById("count-sticker"),
     question: document.getElementById("q-text"),
     qCount: document.getElementById("q-count"),
@@ -76,8 +74,7 @@
 
   function show(name) {
     stage = name;
-    ["loading", "nolink", "badlink", "signin", "claim", "taken", "noseat",
-     "write", "done", "late", "game"].forEach(function (s) {
+    ["loading", "signin", "join", "write", "done", "late", "game"].forEach(function (s) {
       document.getElementById("stage-" + s).hidden = s !== name;
     });
   }
@@ -109,6 +106,7 @@
           err.status = res.status;
           err.reason = typeof detail === "object" ? detail.reason : null;
           err.account = typeof detail === "object" ? detail.account : null;
+          err.locked = typeof detail === "object" ? !!detail.locked : false;
           throw err;
         }
         return data;
@@ -287,46 +285,44 @@
     }
   }
 
-  /* ------------------------------------------------------ sign in + claim -- */
+  /* ------------------------------------------------------- sign in + join -- */
 
   function backHere() {
-    return "?next=" + encodeURIComponent(location.pathname);
+    return "?next=" + encodeURIComponent(location.pathname + location.search);
   }
 
-  function showSignin(withLink) {
-    el.signinTitle.textContent = withLink ? "Claim your seat" : "Sign in to play";
-    el.signinSub.textContent = withLink
-      ? "Sign in, or make a Game Night account, and this invitation becomes your seat. After that you can pick it back up from any device."
-      : "Your seat lives on your Game Night account, so you can pick it back up from any device.";
+  function showSignin() {
     el.signinGo.href = "/login" + backHere();
     el.signupGo.href = "/signup" + backHere();
     show("signin");
   }
 
-  function signOutAndReturn() {
-    api("POST", "/api/auth/logout").catch(function () {}).then(function () {
-      location.href = "/login" + backHere();
-    });
+  function showJoin(note) {
+    if (codeFromLink && !el.joinCode.value) el.joinCode.value = codeFromLink;
+    if (note) el.joinSub.textContent = note;
+    el.joinError.textContent = "";
+    show("join");
+    if (!el.joinCode.value) el.joinCode.focus();
   }
 
-  el.claimGo.addEventListener("click", function () {
-    el.claimGo.disabled = true;
-    el.claimError.textContent = "";
-    api("POST", "/api/bullshit/claim", { token: token })
+  el.joinForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    var button = el.joinForm.querySelector("button");
+    button.disabled = true;
+    el.joinError.textContent = "";
+    api("POST", "/api/bullshit/join", { code: el.joinCode.value })
       .then(function (data) {
         me = data;
-        // The link has done its job. Plain /bullshit finds the seat from now on.
+        // The code has done its job. Plain /bullshit finds the seat from now on.
         history.replaceState(null, "", "/bullshit");
+        // A fresh socket every time: a socket is tied to the seat it opened with.
         startLive();
       })
       .catch(function (err) {
-        el.claimGo.disabled = false;
-        el.claimError.textContent = err.message;
-      });
+        el.joinError.textContent = err.message;
+      })
+      .then(function () { button.disabled = false; });
   });
-
-  el.claimNotMe.addEventListener("click", signOutAndReturn);
-  el.takenSwitch.addEventListener("click", signOutAndReturn);
 
   /* ---------------------------------------------------------------- game -- */
 
@@ -489,6 +485,12 @@
   /* -------------------------------------------------------------- render -- */
 
   function render() {
+    if (me && live && live.phase === "lobby" && !live.you) {
+      // The host took this seat out of the lobby. Joining again is allowed.
+      me = null;
+      showJoin("The host took you out of the lobby. Join again with the code if that was a mistake.");
+      return;
+    }
     if (!me) return;
     setChip();
     if (!live || live.phase === "lobby") {
@@ -547,6 +549,15 @@
       },
       onError: toast,
       onClosed: function (code) {
+        if (code === 4403) {
+          // Removed from the lobby, or a new game night began. Joining again
+          // opens a fresh socket for the new seat.
+          socket = null;
+          me = null;
+          live = null;
+          showJoin("You're not in the lobby any more. If that was a mistake, join again with the code.");
+          return;
+        }
         toast(code === 4001 ? "Your seat opened in another tab." : "Sign in again to rejoin.");
       }
     });
@@ -554,33 +565,20 @@
 
   /* ---------------------------------------------------------------- boot -- */
 
-  api("GET", "/api/bullshit/me" + (token ? "?token=" + encodeURIComponent(token) : ""))
+  api("GET", "/api/bullshit/me")
     .then(function (data) {
       me = data;
-      if (me.claimed) {
-        if (token) history.replaceState(null, "", "/bullshit");
-        startLive();
-        return;
-      }
-      if (me.locked) { show("late"); return; }
-      var who = me.account ? me.account.first_name + " (" + me.account.username + ")" : "you";
-      el.claimSub.textContent = "You're signed in as " + who +
-        ". Claim this invitation and it becomes your seat in the game.";
-      show("claim");
+      if (codeFromLink) history.replaceState(null, "", "/bullshit");
+      startLive();
     })
     .catch(function (err) {
-      if (err.reason === "signed_out") { showSignin(!!token); return; }
-      if (err.reason === "claimed_by_other") {
-        if (err.account) {
-          el.takenSub.textContent = "Another account already claimed this invitation. You're signed in as " +
-            err.account.username + ". If the seat is yours, sign in with the account that claimed it.";
-        }
-        show("taken");
+      if (err.reason === "signed_out") { showSignin(); return; }
+      if (err.reason === "not_joined") {
+        if (err.locked) { show("late"); return; }
+        showJoin();
         return;
       }
-      if (err.reason === "no_seat") { show("noseat"); return; }
-      if (err.reason === "bad_link" || err.status === 404) { show("badlink"); return; }
-      show("nolink");
+      showJoin();
       toast(err.message);
     });
 })();

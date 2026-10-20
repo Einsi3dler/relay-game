@@ -1,20 +1,15 @@
-"""BULLSHIT QUIZ cannot mail its roster, and its roster stays out of git.
+"""BULLSHIT QUIZ cannot send mail, and does not store email addresses.
 
-docs/ROLL_CALL_DO_NOT_SEND.md is the standing order, and it covers this
-game's roster as much as ROLL CALL's: nothing sends mail to a roster address
-until the repository owner says so. The guarantee is that no code path
-exists, so these check that none of the game's modules reaches the mailer,
-by source and in a clean interpreter.
-
-The privacy check derives its needles from `var/bullshit/roster.json` when it
-exists (it is gitignored and absent in CI) and scans every tracked file for
-them. It scans itself too, so nothing in here may be copied from the data.
+Players join through their site account with the host's join code; the
+game keeps no roster file and no addresses. These check that none of the
+game's modules reaches the mailer (by source and in a clean interpreter,
+the reasoning in docs/ROLL_CALL_DO_NOT_SEND.md), and that its store has no
+column an address could live in.
 """
 
 from __future__ import annotations
 
 import ast
-import json
 import subprocess
 import sys
 from pathlib import Path
@@ -23,7 +18,6 @@ import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 MODULES = ("bsquiz", "bsroster", "bsroom", "bsserver")
-ROSTER = REPO / "var" / "bullshit" / "roster.json"
 
 
 def _imports(path: Path) -> list[str]:
@@ -62,18 +56,9 @@ def test_importing_does_not_pull_in_the_mailer(module):
         "Read docs/ROLL_CALL_DO_NOT_SEND.md.")
 
 
-def test_no_tracked_file_carries_a_roster_address():
-    if not ROSTER.exists():
-        pytest.skip("no Bullshit Quiz roster on this machine")
-    people = json.loads(ROSTER.read_text(encoding="utf-8"))["participants"]
-    needles = {p["email"].strip().lower() for p in people if p.get("email")}
-    tracked = subprocess.run(["git", "ls-files"], cwd=REPO, capture_output=True,
-                             text=True, check=True).stdout.split()
-    leaks = []
-    for name in tracked:
-        try:
-            text = (REPO / name).read_text(encoding="utf-8").lower()
-        except (UnicodeDecodeError, FileNotFoundError, IsADirectoryError):
-            continue
-        leaks += [f"{name}: {n}" for n in needles if n in text]
-    assert not leaks, "roster addresses in tracked files:\n  " + "\n  ".join(leaks)
+def test_the_store_keeps_no_email_addresses():
+    from backend import bsroster
+    db = bsroster._conn()
+    for table in ("seat", "seat_question"):
+        columns = {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}
+        assert not any("mail" in c for c in columns), (table, columns)
