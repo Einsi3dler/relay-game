@@ -436,3 +436,16 @@ QUIZ_NAME_MIN = 2
 QUIZ_NAME_MAX = 18            # fits a card on a phone at two columns
 QUIZ_TOKEN_BYTES = 24         # a participant's personal link
 QUIZ_SAT_OUT = "__sat_out"    # what the subject of a question locks instead
+
+# --- BULLSHIT QUIZ (docs/BULLSHIT_QUIZ.md) ---------------------------------
+# Most of this game's numbers are not tunables: the wager range (1..N-1) and
+# the truthful reward (N or N // 2) are functions of the player count, and
+# live in backend/bsquiz.py as such. What is left is the shape of the room.
+BS_MIN_PLAYERS = 3            # an author, one bullshitter and one guesser
+BS_MAX_BULLSHITTERS = 3       # so a round shows 2, 3 or 4 options
+BS_QUESTION_MAX = 140
+BS_OPTION_MAX = 60
+BS_EXPLANATION_MAX = 280      # the optional line shown on the reveal
+BS_NAME_MIN = 2
+BS_NAME_MAX = 18
+BS_TOKEN_BYTES = 24           # a player's personal link
