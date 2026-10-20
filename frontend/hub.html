@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10062f">
+  <title>Game Night</title>
+  <meta name="description" content="Pick a game: The Relay, Guess Who or Bullshit Quiz.">
+  <script>
+    // Invite links predate this page and pointed at "/?match=CODE". Forward
+    // them before anything paints so they never flash the hub.
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get("match")) {
+        window.location.replace("/play" + window.location.search);
+      }
+    })();
+  </script>
+  <style>
+    /* A starter page, kept deliberately plain until the platform home is
+       designed. Everything is inline so it shares no styles with the Relay. */
+    :root {
+      --hub-bg: #10062f;
+      --hub-card: #1b0b4b;
+      --hub-line: rgba(255, 255, 255, 0.14);
+      --hub-ink: #ffffff;
+      --hub-muted: #b9b3d6;
+      --hub-yellow: #ffd21c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--hub-bg);
+      color: var(--hub-ink);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .hub { max-width: 960px; margin: 0 auto; padding: 56px 16px; }
+    .hub h1 { margin: 0 0 8px; font-size: clamp(2rem, 6vw, 3rem); }
+    .hub__sub { margin: 0 0 40px; color: var(--hub-muted); }
+    .hub__grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+    .hub-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 24px;
+      border: 1px solid var(--hub-line);
+      border-radius: 16px;
+      background: var(--hub-card);
+      color: inherit;
+      text-decoration: none;
+    }
+    .hub-card:hover, .hub-card:focus-visible { border-color: var(--hub-yellow); }
+    .hub-card--soon { opacity: 0.6; }
+    .hub-card--soon .hub-card__go { color: var(--hub-muted); }
+    .hub-card h2 { margin: 0; font-size: 1.4rem; }
+    .hub-card p { margin: 0; color: var(--hub-muted); line-height: 1.5; }
+    .hub-card__go { margin-top: auto; padding-top: 12px; color: var(--hub-yellow); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main class="hub">
+    <h1>Game Night</h1>
+    <p class="hub__sub">Pick a game.</p>
+
+    <div class="hub__grid">
+      <a class="hub-card" href="/relay">
+        <h2>The Relay</h2>
+        <p>Two teams race through hands-on mini-games. Your team only moves up when everyone is cleared.</p>
+        <span class="hub-card__go">Play The Relay</span>
+      </a>
+
+      <a class="hub-card" href="/quiz">
+        <h2>Guess Who</h2>
+        <p>A prompt lands on the big screen. Everyone guesses which person in the room it is about.</p>
+        <span class="hub-card__go">Join with your invite</span>
+      </a>
+
+      <div class="hub-card hub-card--soon">
+        <h2>Bullshit Quiz</h2>
+        <p>Being built right now.</p>
+        <span class="hub-card__go">Coming soon</span>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
