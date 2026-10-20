@@ -3,211 +3,194 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10062f">
-  <title>Your Relay account</title>
-  <meta name="description" content="Sign in to The Relay to keep your seat across devices, or create an account in under a minute.">
-  <link rel="stylesheet" href="/static/landing.css">
-  <link rel="stylesheet" href="/static/auth.css">
+  <meta name="theme-color" content="#6a3cf5">
+  <title>Your Game Night account</title>
+  <meta name="description" content="One account for every game on Game Night. Sign in, or make one in under a minute.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap">
+  <link rel="stylesheet" href="/static/toon.css">
+  <link rel="stylesheet" href="/static/site.css">
 </head>
-<body class="relay-page auth-page">
+<body class="bs bs--site">
 
-  <div class="rl-band auth-band">
-    <header class="rl-nav rl-shell">
-      <a class="rl-mark rl-mark--sm" href="/relay" aria-label="The Relay home">
-        <svg class="rl-mark__bolt" viewBox="0 0 24 32" aria-hidden="true" focusable="false">
-          <polygon points="15,0 0,19 9,19 7,32 24,12 14,12" fill="currentColor"/>
-        </svg>
-        <span class="rl-mark__word">RELAY</span>
-      </a>
-      <a class="rbtn rbtn--ghost rbtn--sm" href="/play">Play as guest</a>
-    </header>
+  <header class="bs-bar">
+    <a class="bs-logo" href="/" aria-label="Game Night home">
+      <span class="bs-logo__top">GAME</span>
+      <span class="bs-logo__bottom">NIGHT</span>
+    </a>
+    <a class="bs-chip bs-chip--link" href="/">All games</a>
+  </header>
 
-    <main class="auth-wrap" id="auth-wrap">
+  <main class="bs-main acct" id="auth-wrap">
 
-      <!-- Signed-in state. Also what /account shows. -->
-      <section class="auth-card" id="view-account" hidden>
-        <h1 class="auth-title">You are signed in</h1>
-        <p class="auth-lede" id="account-who"></p>
+    <!-- Signed in. Also what /account shows. -->
+    <section class="bs-stage" id="view-account" hidden>
+      <h1 class="bs-title">Your account</h1>
+      <p class="bs-sub" id="account-who"></p>
 
-        <div class="auth-banner" id="verify-banner" hidden>
-          <p><strong>Confirm your email.</strong> It is how you get back into
-            your account if you forget your password. You can keep playing
-            either way.</p>
-          <button class="rbtn rbtn--outline rbtn--sm" id="resend-verify" type="button">
+      <div class="bs-card">
+        <dl class="acct-facts" id="account-facts"></dl>
+        <div class="acct-banner" id="verify-banner" hidden>
+          <p><strong>Confirm your email</strong> so game-night news reaches you,
+            and so you can get back in if you forget your password.</p>
+          <button class="bs-btn bs-btn--ghost bs-btn--inline" id="resend-verify" type="button">
             Resend the link
           </button>
         </div>
+      </div>
 
-        <dl class="auth-facts" id="account-facts"></dl>
+      <!-- The face this account carries into a game. Saved as it is picked. -->
+      <div class="bs-card acct-faces">
+        <div class="acct-faces__head">
+          <span class="bs-label" id="face-label">Your face</span>
+          <button class="bs-btn bs-btn--ghost bs-btn--inline" id="face-shuffle" type="button">Shuffle</button>
+        </div>
+        <p class="acct-hint" id="face-hint">Pick the face other players see.</p>
+        <div class="acct-faces__grid" id="face-grid" role="radiogroup"
+             aria-labelledby="face-label"></div>
+      </div>
 
-        <!-- The face this account carries into a match. Saved as it is picked,
-             so there is no separate save button to forget to press. -->
-        <div class="auth-faces">
-          <div class="auth-faces__head">
-            <span class="auth-faces__label" id="face-label">Your face</span>
-            <button class="rbtn rbtn--outline rbtn--sm" id="face-shuffle" type="button">
-              Shuffle
-            </button>
+      <div class="acct-actions">
+        <a class="bs-btn bs-btn--go" href="/">Pick a game</a>
+        <button class="bs-btn bs-btn--ghost" id="logout" type="button">Sign out</button>
+      </div>
+    </section>
+
+    <!-- Sign in -->
+    <section class="bs-stage" id="view-login" hidden>
+      <h1 class="bs-title">Welcome back</h1>
+      <p class="bs-sub">Sign in and pick up where you left off, on any device.</p>
+      <form class="bs-card acct-form" id="form-login" novalidate>
+        <div class="acct-field">
+          <label class="bs-label" for="login-name">Username or email</label>
+          <input class="bs-field" id="login-name" name="login" type="text"
+                 autocomplete="username" autocapitalize="none" spellcheck="false"
+                 placeholder="grace_h" required>
+        </div>
+        <div class="acct-field">
+          <label class="bs-label" for="login-password">Password</label>
+          <div class="acct-password">
+            <input class="bs-field" id="login-password" name="password" type="password"
+                   autocomplete="current-password" placeholder="Your password" required>
+            <button class="acct-peek" type="button" data-peek="login-password">Show</button>
           </div>
-          <p class="auth-faces__hint" id="face-hint">
-            Pick the face other players see on the roster.
-          </p>
-          <div class="auth-faces__grid" id="face-grid" role="radiogroup"
-               aria-labelledby="face-label"></div>
         </div>
+        <button class="bs-btn bs-btn--go" type="submit">Sign in</button>
+      </form>
+      <p class="acct-or">or</p>
+      <button class="bs-btn bs-btn--ghost" id="want-magic" type="button">
+        Email me a sign-in link
+      </button>
+      <p class="acct-foot">
+        <a href="/forgot">Forgot your password?</a>
+        &middot;
+        <a href="/signup">Make an account</a>
+      </p>
+    </section>
 
-        <div class="auth-actions">
-          <a class="rbtn rbtn--primary" href="/play">Go to the game</a>
-          <button class="rbtn rbtn--outline" id="logout" type="button">Sign out</button>
-        </div>
-      </section>
-
-      <!-- Sign in -->
-      <section class="auth-card" id="view-login" hidden>
-        <h1 class="auth-title">Sign in</h1>
-        <p class="auth-lede">Your seat follows your account, on any device.</p>
-
-        <form id="form-login" novalidate>
-          <label for="login-email">Email</label>
-          <input id="login-email" name="email" type="email" autocomplete="email"
-                 inputmode="email" placeholder="you@example.com" required>
-
-          <label for="login-password">Password</label>
-          <input id="login-password" name="password" type="password"
-                 autocomplete="current-password" placeholder="Your password" required>
-
-          <button class="rbtn rbtn--primary auth-submit" type="submit">Sign in</button>
-        </form>
-
-        <p class="auth-or"><span>or</span></p>
-        <button class="rbtn rbtn--outline auth-submit" id="want-magic" type="button">
-          Email me a sign-in link
-        </button>
-
-        <p class="auth-foot">
-          <a href="/forgot">Forgot your password?</a>
-          <span aria-hidden="true">&middot;</span>
-          <a href="/signup">Create an account</a>
-        </p>
-      </section>
-
-      <!-- Register -->
-      <section class="auth-card" id="view-signup" hidden>
-        <h1 class="auth-title">Create your account</h1>
-        <p class="auth-lede">Takes a minute. You can play as a guest instead if
-          a match is already starting.</p>
-
-        <form id="form-signup" novalidate>
-          <div class="auth-row">
-            <div>
-              <label for="su-first">First name</label>
-              <input id="su-first" name="first_name" type="text"
-                     autocomplete="given-name" placeholder="Ada" required>
-            </div>
-            <div>
-              <label for="su-last">Last name</label>
-              <input id="su-last" name="last_name" type="text"
-                     autocomplete="family-name" placeholder="Lovelace" required>
-            </div>
+    <!-- Register -->
+    <section class="bs-stage" id="view-signup" hidden>
+      <h1 class="bs-title">Join Game Night</h1>
+      <p class="bs-sub">One account for every game here. Takes a minute.</p>
+      <form class="bs-card acct-form" id="form-signup" novalidate>
+        <div class="acct-row">
+          <div class="acct-field">
+            <label class="bs-label" for="su-first">First name</label>
+            <input class="bs-field" id="su-first" name="first_name" type="text"
+                   autocomplete="given-name" placeholder="Grace" required>
           </div>
-
-          <label for="su-email">Email</label>
-          <input id="su-email" name="email" type="email" autocomplete="email"
-                 inputmode="email" placeholder="you@example.com" required>
-
-          <label for="su-username">Username</label>
-          <input id="su-username" name="username" type="text"
-                 autocomplete="username" placeholder="ada_l" required>
-          <p class="auth-hint">This is the name other players see.</p>
-
-          <label for="su-password">Password</label>
-          <input id="su-password" name="password" type="password"
-                 autocomplete="new-password" placeholder="At least 8 characters" required>
-
-          <label for="su-confirm">Confirm password</label>
-          <input id="su-confirm" name="confirm_password" type="password"
-                 autocomplete="new-password" placeholder="Type it again" required>
-
-          <button class="rbtn rbtn--primary auth-submit" type="submit">Create account</button>
-        </form>
-
-        <p class="auth-foot">
-          Already have one? <a href="/login">Sign in</a>
-        </p>
-      </section>
-
-      <!-- Forgot password: reset, or a link straight in -->
-      <section class="auth-card" id="view-forgot" hidden>
-        <h1 class="auth-title">Trouble signing in</h1>
-        <p class="auth-lede">Tell us the address on the account and pick what
-          you want us to send.</p>
-
-        <form id="form-forgot" novalidate>
-          <label for="fg-email">Email</label>
-          <input id="fg-email" name="email" type="email" autocomplete="email"
-                 inputmode="email" placeholder="you@example.com" required>
-
-          <fieldset class="auth-choice">
-            <legend>What should we send?</legend>
-
-            <label class="auth-option">
-              <input type="radio" name="mode" value="reset" checked>
-              <span>
-                <strong>A password reset link</strong>
-                Choose a new password. Good if you want to fix this for good.
-              </span>
-            </label>
-
-            <label class="auth-option">
-              <input type="radio" name="mode" value="magic">
-              <span>
-                <strong>A sign-in link</strong>
-                One click and you are in, no new password to think up.
-              </span>
-            </label>
-          </fieldset>
-
-          <button class="rbtn rbtn--primary auth-submit" type="submit">Send it</button>
-        </form>
-
-        <p class="auth-foot"><a href="/login">Back to sign in</a></p>
-      </section>
-
-      <!-- Set a new password, reached from the emailed reset link -->
-      <section class="auth-card" id="view-reset" hidden>
-        <h1 class="auth-title">Choose a new password</h1>
-        <p class="auth-lede" id="reset-who"></p>
-
-        <form id="form-reset" novalidate>
-          <label for="rs-password">New password</label>
-          <input id="rs-password" name="password" type="password"
-                 autocomplete="new-password" placeholder="At least 8 characters" required>
-
-          <label for="rs-confirm">Confirm new password</label>
-          <input id="rs-confirm" name="confirm_password" type="password"
-                 autocomplete="new-password" placeholder="Type it again" required>
-
-          <button class="rbtn rbtn--primary auth-submit" type="submit">
-            Save and sign in
-          </button>
-        </form>
-      </section>
-
-      <!-- Where an emailed verify or magic link lands while its token posts -->
-      <section class="auth-card auth-card--centred" id="view-token" hidden>
-        <h1 class="auth-title" id="token-title">One moment</h1>
-        <p class="auth-lede" id="token-lede">Checking your link.</p>
-        <div class="auth-actions" id="token-actions" hidden>
-          <a class="rbtn rbtn--primary" href="/login">Go to sign in</a>
-          <a class="rbtn rbtn--outline" href="/forgot">Send a new link</a>
+          <div class="acct-field">
+            <label class="bs-label" for="su-last">Last name</label>
+            <input class="bs-field" id="su-last" name="last_name" type="text"
+                   autocomplete="family-name" placeholder="Hopper" required>
+          </div>
         </div>
-      </section>
+        <div class="acct-field">
+          <label class="bs-label" for="su-username">Username</label>
+          <input class="bs-field" id="su-username" name="username" type="text"
+                 autocomplete="username" autocapitalize="none" spellcheck="false"
+                 placeholder="grace_h" required>
+          <p class="acct-hint">What you sign in with. Letters, numbers, dashes and underscores.</p>
+        </div>
+        <div class="acct-field">
+          <label class="bs-label" for="su-email">Email <span class="acct-optional">optional</span></label>
+          <input class="bs-field" id="su-email" name="email" type="email" autocomplete="email"
+                 inputmode="email" placeholder="grace@example.com">
+          <p class="acct-hint">Only if you want to hear about upcoming game nights and new games. It also lets you reset a forgotten password.</p>
+        </div>
+        <div class="acct-field">
+          <label class="bs-label" for="su-password">Password</label>
+          <div class="acct-password">
+            <input class="bs-field" id="su-password" name="password" type="password"
+                   autocomplete="new-password" placeholder="At least 8 characters" required>
+            <button class="acct-peek" type="button" data-peek="su-password">Show</button>
+          </div>
+        </div>
+        <button class="bs-btn bs-btn--go" type="submit">Make my account</button>
+      </form>
+      <p class="acct-foot">Already have one? <a href="/login">Sign in</a></p>
+    </section>
 
-      <!-- Shared status line. Errors and confirmations both land here. -->
-      <p class="auth-note" id="auth-note" role="status" aria-live="polite" hidden></p>
+    <!-- Forgot password: reset, or a link straight in -->
+    <section class="bs-stage" id="view-forgot" hidden>
+      <h1 class="bs-title">Locked out?</h1>
+      <p class="bs-sub">If your account has an email, we can send you a way back in.</p>
+      <form class="bs-card acct-form" id="form-forgot" novalidate>
+        <div class="acct-field">
+          <label class="bs-label" for="fg-email">Email on your account</label>
+          <input class="bs-field" id="fg-email" name="email" type="email" autocomplete="email"
+                 inputmode="email" placeholder="grace@example.com" required>
+        </div>
+        <fieldset class="acct-choice">
+          <legend>What should we send?</legend>
+          <label class="acct-option">
+            <input type="radio" name="mode" value="reset" checked>
+            <span><strong>A password reset link</strong>Choose a new password.</span>
+          </label>
+          <label class="acct-option">
+            <input type="radio" name="mode" value="magic">
+            <span><strong>A sign-in link</strong>One tap and you're in.</span>
+          </label>
+        </fieldset>
+        <button class="bs-btn bs-btn--go" type="submit">Send it</button>
+      </form>
+      <p class="acct-foot">No email on your account? Ask the host to help you back in.<br>
+        <a href="/login">Back to sign in</a></p>
+    </section>
 
-    </main>
-  </div>
+    <!-- Set a new password, reached from the emailed reset link -->
+    <section class="bs-stage" id="view-reset" hidden>
+      <h1 class="bs-title">New password</h1>
+      <p class="bs-sub" id="reset-who"></p>
+      <form class="bs-card acct-form" id="form-reset" novalidate>
+        <div class="acct-field">
+          <label class="bs-label" for="rs-password">New password</label>
+          <input class="bs-field" id="rs-password" name="password" type="password"
+                 autocomplete="new-password" placeholder="At least 8 characters" required>
+        </div>
+        <div class="acct-field">
+          <label class="bs-label" for="rs-confirm">Type it again</label>
+          <input class="bs-field" id="rs-confirm" name="confirm_password" type="password"
+                 autocomplete="new-password" placeholder="Same again" required>
+        </div>
+        <button class="bs-btn bs-btn--go" type="submit">Save and sign in</button>
+      </form>
+    </section>
+
+    <!-- Where an emailed verify or magic link lands while its token posts -->
+    <section class="bs-stage" id="view-token" hidden>
+      <h1 class="bs-title" id="token-title">One moment</h1>
+      <p class="bs-sub" id="token-lede">Checking your link.</p>
+      <div class="acct-actions" id="token-actions" hidden>
+        <a class="bs-btn bs-btn--go" href="/login">Go to sign in</a>
+        <a class="bs-btn bs-btn--ghost" href="/forgot">Send a new link</a>
+      </div>
+    </section>
+
+    <!-- Shared status line. Errors and confirmations both land here. -->
+    <p class="acct-note" id="auth-note" role="status" aria-live="polite" hidden></p>
+  </main>
 
   <script src="/static/avatar.js"></script>
   <script src="/static/auth.js"></script>

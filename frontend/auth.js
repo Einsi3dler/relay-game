@@ -19,7 +19,7 @@
   // URL here would turn the sign-in page into an open redirect, which is how
   // a convincing phishing link gets to start at your own domain.
   var next = params.get("next") || "";
-  if (!/^\/[^/\\]/.test(next)) next = "/play";
+  if (!/^\/[^/\\]/.test(next) && next !== "/") next = "/";
 
   function $(id) { return document.getElementById(id); }
 
@@ -35,10 +35,12 @@
 
   function note(message, tone) {
     var el = $("auth-note");
-    el.textContent = message || "";
-    el.classList.remove("auth-note--bad", "auth-note--good");
-    if (tone) el.classList.add("auth-note--" + tone);
-    el.hidden = !message;
+    // Server messages are written lower-case to drop into a sentence.
+    var text = message ? message.charAt(0).toUpperCase() + message.slice(1) : "";
+    el.textContent = text;
+    el.classList.remove("is-bad", "is-good");
+    if (tone) el.classList.add("is-" + tone);
+    el.hidden = !text;
   }
 
   function clearNote() { note(""); }
@@ -119,7 +121,7 @@
       var parts = RelayAvatar.decode(code);
       var cell = document.createElement("button");
       cell.type = "button";
-      cell.className = "auth-face";
+      cell.className = "acct-face";
       cell.innerHTML = RelayAvatar.svg(parts);
       cell.setAttribute("role", "radio");
       var mine = code === faceChoice;
@@ -156,11 +158,13 @@
   function renderAccount(user) {
     show("view-account");
     $("account-who").textContent =
-      "Signed in as " + user.username + ".";
+      "Hi " + user.first_name + ". You're signed in as " + user.username + ".";
     $("account-facts").innerHTML = "";
     [["Name", user.first_name + " " + user.last_name],
      ["Username", user.username],
-     ["Email", user.email + (user.verified ? " (confirmed)" : " (not confirmed yet)")]
+     ["Email", user.email
+       ? user.email + (user.verified ? " (confirmed)" : " (not confirmed yet)")
+       : "None given"]
     ].forEach(function (pair) {
       var dt = document.createElement("dt");
       var dd = document.createElement("dd");
@@ -169,7 +173,7 @@
       $("account-facts").appendChild(dt);
       $("account-facts").appendChild(dd);
     });
-    $("verify-banner").hidden = !!user.verified;
+    $("verify-banner").hidden = !user.email || !!user.verified;
     initFaces(user);
   }
 
@@ -232,7 +236,7 @@
 
   onSubmit("form-login", function (data) {
     return post("/api/auth/login", {
-      email: data.get("email"),
+      login: data.get("login"),
       password: data.get("password")
     }).then(function () { go(next); });
   });
@@ -243,8 +247,7 @@
       last_name: data.get("last_name"),
       email: data.get("email"),
       username: data.get("username"),
-      password: data.get("password"),
-      confirm_password: data.get("confirm_password")
+      password: data.get("password")
     }).then(function () { go(next); });
   });
 
@@ -271,10 +274,10 @@
   var wantMagic = $("want-magic");
   if (wantMagic) {
     wantMagic.addEventListener("click", function () {
-      var email = ($("login-email").value || "").trim();
-      if (!email) {
-        note("Type your email address above first, then ask for the link.", "bad");
-        $("login-email").focus();
+      var email = ($("login-name").value || "").trim();
+      if (email.indexOf("@") < 0) {
+        note("Sign-in links go to the email on your account. Type that email above first.", "bad");
+        $("login-name").focus();
         return;
       }
       wantMagic.disabled = true;
@@ -318,6 +321,18 @@
     return;
   }
 
+  // Show/hide on password fields. The sign-up form asks for the password
+  // once, so seeing it is how you catch a typo.
+  Array.prototype.forEach.call(document.querySelectorAll("[data-peek]"), function (button) {
+    button.addEventListener("click", function () {
+      var input = $(button.getAttribute("data-peek"));
+      var hidden = input.type === "password";
+      input.type = hidden ? "text" : "password";
+      button.textContent = hidden ? "Hide" : "Show";
+      button.setAttribute("aria-pressed", hidden ? "true" : "false");
+    });
+  });
+
   if (path === "/reset") {
     startReset();
     return;
@@ -348,6 +363,6 @@
     // The account API is unreachable. Showing the sign-in form is the only
     // useful thing left, and guest play does not need any of this anyway.
     show(path === "/signup" ? "view-signup" : "view-login");
-    note("Could not reach the server. You can still play as a guest.", "bad");
+    note("Could not reach the server. Try again in a moment.", "bad");
   });
 })();

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10062f">
+  <meta name="theme-color" content="#6a3cf5">
   <title>Game Night</title>
   <meta name="description" content="Pick a game: The Relay, Guess Who or Bullshit Quiz.">
   <script>
@@ -16,74 +16,58 @@
       }
     })();
   </script>
-  <style>
-    /* A starter page, kept deliberately plain until the platform home is
-       designed. Everything is inline so it shares no styles with the Relay. */
-    :root {
-      --hub-bg: #10062f;
-      --hub-card: #1b0b4b;
-      --hub-line: rgba(255, 255, 255, 0.14);
-      --hub-ink: #ffffff;
-      --hub-muted: #b9b3d6;
-      --hub-yellow: #ffd21c;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: var(--hub-bg);
-      color: var(--hub-ink);
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    }
-    .hub { max-width: 960px; margin: 0 auto; padding: 56px 16px; }
-    .hub h1 { margin: 0 0 8px; font-size: clamp(2rem, 6vw, 3rem); }
-    .hub__sub { margin: 0 0 40px; color: var(--hub-muted); }
-    .hub__grid {
-      display: grid;
-      gap: 16px;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    }
-    .hub-card {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding: 24px;
-      border: 1px solid var(--hub-line);
-      border-radius: 16px;
-      background: var(--hub-card);
-      color: inherit;
-      text-decoration: none;
-    }
-    .hub-card:hover, .hub-card:focus-visible { border-color: var(--hub-yellow); }
-    .hub-card h2 { margin: 0; font-size: 1.4rem; }
-    .hub-card p { margin: 0; color: var(--hub-muted); line-height: 1.5; }
-    .hub-card__go { margin-top: auto; padding-top: 12px; color: var(--hub-yellow); font-weight: 600; }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap">
+  <link rel="stylesheet" href="/static/toon.css">
+  <link rel="stylesheet" href="/static/site.css">
 </head>
-<body>
-  <main class="hub">
-    <h1>Game Night</h1>
-    <p class="hub__sub">Pick a game.</p>
+<body class="bs bs--site">
 
-    <div class="hub__grid">
-      <a class="hub-card" href="/relay">
-        <h2>The Relay</h2>
-        <p>Two teams race through hands-on mini-games. Your team only moves up when everyone is cleared.</p>
-        <span class="hub-card__go">Play The Relay</span>
-      </a>
+  <header class="bs-bar">
+    <a class="bs-logo" href="/" aria-label="Game Night home">
+      <span class="bs-logo__top">GAME</span>
+      <span class="bs-logo__bottom">NIGHT</span>
+    </a>
+    <a class="bs-chip bs-chip--link" id="site-account" href="/login" hidden>Sign in</a>
+  </header>
 
-      <a class="hub-card" href="/quiz">
-        <h2>Guess Who</h2>
-        <p>A prompt lands on the big screen. Everyone guesses which person in the room it is about.</p>
-        <span class="hub-card__go">Join with your invite</span>
-      </a>
+  <main class="bs-main">
+    <section class="hub-hero">
+      <h1 class="bs-title">Pick a game</h1>
+      <p class="bs-sub">Grab your people, jump on the call, and pick what we're playing tonight.</p>
+    </section>
 
-      <a class="hub-card" href="/bullshit">
-        <h2>Bullshit Quiz</h2>
-        <p>Everyone writes one question. Speakers defend answers, some true and some bullshit, and the rest bet on who to believe.</p>
-        <span class="hub-card__go">Join with your invite</span>
-      </a>
-    </div>
+    <ul class="hub-games">
+      <li class="hub-game hub-game--yellow">
+        <a class="hub-game__hit" href="/relay">
+          <span class="hub-game__tag">Teams</span>
+          <h2 class="hub-game__name">The Relay</h2>
+          <p class="hub-game__blurb">Two teams race through hands-on mini-games. Your team only moves up when everyone is cleared.</p>
+          <span class="hub-game__go">Play The Relay</span>
+        </a>
+      </li>
+
+      <li class="hub-game hub-game--cyan">
+        <a class="hub-game__hit" href="/quiz">
+          <span class="hub-game__tag">Everyone</span>
+          <h2 class="hub-game__name">Guess Who</h2>
+          <p class="hub-game__blurb">A prompt lands on the big screen. Everyone guesses which person in the room it is about.</p>
+          <span class="hub-game__go">Join with your invite</span>
+        </a>
+      </li>
+
+      <li class="hub-game hub-game--pink">
+        <a class="hub-game__hit" href="/bullshit">
+          <span class="hub-game__tag">Everyone</span>
+          <h2 class="hub-game__name">Bullshit Quiz</h2>
+          <p class="hub-game__blurb">Everyone writes one question. Speakers defend answers, some true and some bullshit, and the rest bet on who to believe.</p>
+          <span class="hub-game__go">Join with your invite</span>
+        </a>
+      </li>
+    </ul>
   </main>
+
+  <script src="/static/site.js"></script>
 </body>
 </html>

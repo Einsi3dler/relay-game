@@ -1,0 +1,381 @@
+/* TOON — the site's house style: Game Night and every game on it.
+ *
+ * Cartoon on purpose: thick ink outlines, hard offset shadows instead of soft
+ * ones, flat saturated fills, and a press that pushes the button down into its
+ * own shadow. Every surface uses the same three tokens for that, so a new card
+ * gets the look by using --bs-line, --bs-shadow and --bs-radius, not by
+ * inventing its own border.
+ *
+ * It started as Bullshit Quiz's look, which is why the prefix is `bs-`: read
+ * it as "bold style". Pages opt in with `<body class="bs">`.
+ *
+ * Not loaded by The Relay. Its pages keep their own design (landing.css,
+ * style.css) until they are redesigned on purpose; nothing here may leak in.
+ */
+
+:root {
+  --bs-ink: #1a1033;
+  --bs-paper: #fffaf0;
+  --bs-field: #6a3cf5;
+  --bs-field-dot: #7d55ff;
+
+  --bs-yellow: #ffd21c;
+  --bs-cyan: #2fd3f0;
+  --bs-pink: #ff5c8a;
+  --bs-green: #45dc85;
+  --bs-orange: #ff9b21;
+
+  --bs-line: 4px solid var(--bs-ink);
+  --bs-shadow: 6px 6px 0 var(--bs-ink);
+  --bs-shadow-sm: 3px 3px 0 var(--bs-ink);
+  --bs-radius: 22px;
+
+  --bs-display: "Lilita One", "Arial Black", "Segoe UI Black", Impact, sans-serif;
+  --bs-body: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body.bs {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--bs-ink);
+  font-family: var(--bs-body);
+  font-weight: 800;
+  background-color: var(--bs-field);
+  /* Halftone dots: the comic-book field everything sits on. */
+  background-image: radial-gradient(var(--bs-field-dot) 22%, transparent 24%);
+  background-size: 22px 22px;
+}
+
+[hidden] { display: none !important; }
+
+/* ------------------------------------------------------------- top bar -- */
+
+.bs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 16px 4px;
+}
+
+.bs-logo {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 0.9;
+  text-decoration: none;
+  color: var(--bs-ink);
+  transform: rotate(-4deg);
+}
+
+.bs-logo__top,
+.bs-logo__bottom {
+  font-family: var(--bs-display);
+  padding: 4px 10px;
+  border: var(--bs-line);
+  box-shadow: var(--bs-shadow-sm);
+  border-radius: 10px;
+}
+
+.bs-logo__top { background: var(--bs-yellow); font-size: 1.5rem; }
+.bs-logo__bottom {
+  background: var(--bs-pink);
+  color: var(--bs-paper);
+  font-size: 1.1rem;
+  margin: -4px 0 0 18px;
+  -webkit-text-stroke: 1px var(--bs-ink);
+}
+
+.bs-chip {
+  padding: 8px 14px;
+  border: var(--bs-line);
+  border-radius: 999px;
+  background: var(--bs-paper);
+  box-shadow: var(--bs-shadow-sm);
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
+}
+
+/* --------------------------------------------------------------- stage -- */
+
+.bs-main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 16px 56px;
+}
+
+.bs-stage { animation: bs-pop 0.35s cubic-bezier(.2, 1.6, .4, 1) both; }
+
+.bs-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 12px;
+}
+
+.bs-title {
+  margin: 0;
+  font-family: var(--bs-display);
+  font-weight: 400;
+  font-size: clamp(2.2rem, 9vw, 3.2rem);
+  line-height: 1;
+  color: var(--bs-paper);
+  -webkit-text-stroke: 2px var(--bs-ink);
+  text-shadow: 4px 4px 0 var(--bs-ink);
+  letter-spacing: 0.5px;
+}
+
+.bs-title--center { text-align: center; }
+
+/* A title straight onto a card needs room for its own drop shadow. */
+.bs-title + .bs-card { margin-top: 20px; }
+
+.bs-sticker {
+  display: inline-block;
+  padding: 6px 12px;
+  border: var(--bs-line);
+  border-radius: 12px;
+  background: var(--bs-cyan);
+  box-shadow: var(--bs-shadow-sm);
+  font-family: var(--bs-display);
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  transform: rotate(5deg);
+}
+
+.bs-sub {
+  margin: 10px 0 22px;
+  color: var(--bs-paper);
+  font-size: 1.1rem;
+}
+
+.bs-sub--center { text-align: center; }
+
+.bs-hint {
+  margin: 26px 0 12px;
+  color: var(--bs-paper);
+  font-size: 1rem;
+}
+
+/* ---------------------------------------------------------------- card -- */
+
+.bs-card {
+  position: relative;
+  padding: 18px;
+  border: var(--bs-line);
+  border-radius: var(--bs-radius);
+  background: var(--bs-paper);
+  box-shadow: var(--bs-shadow);
+}
+
+.bs-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.bs-question {
+  display: block;
+  width: 100%;
+  resize: none;
+  border: 0;
+  background: transparent;
+  color: var(--bs-ink);
+  font-family: var(--bs-display);
+  font-size: clamp(1.4rem, 5.5vw, 1.8rem);
+  line-height: 1.2;
+}
+
+.bs-question:focus { outline: none; }
+.bs-card--question:focus-within { transform: rotate(-0.6deg); }
+
+.bs-question::placeholder,
+.bs-option__input::placeholder { color: rgba(26, 16, 51, 0.35); }
+
+.bs-count {
+  display: block;
+  text-align: right;
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------- buttons -- */
+
+.bs-btn {
+  display: block;
+  width: 100%;
+  margin-top: 30px;
+  padding: 18px 20px;
+  border: var(--bs-line);
+  border-radius: var(--bs-radius);
+  box-shadow: var(--bs-shadow);
+  font-family: var(--bs-display);
+  font-size: clamp(1.4rem, 6vw, 1.8rem);
+  letter-spacing: 0.5px;
+  color: var(--bs-ink);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.bs-btn--go { background: var(--bs-green); }
+.bs-btn--ghost { background: var(--bs-paper); font-size: 1.3rem; margin-top: 22px; }
+
+.bs-btn:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 8px 8px 0 var(--bs-ink); }
+.bs-btn:active:not(:disabled) { transform: translate(6px, 6px); box-shadow: 0 0 0 var(--bs-ink); }
+.bs-btn:focus-visible { outline: 4px solid var(--bs-yellow); outline-offset: 4px; }
+
+.bs-btn:disabled {
+  background: #cfc8e6;
+  color: rgba(26, 16, 51, 0.5);
+  cursor: not-allowed;
+}
+
+.bs-missing {
+  min-height: 1.4em;
+  margin: 14px 0 0;
+  text-align: center;
+  color: var(--bs-paper);
+  font-size: 1rem;
+}
+
+/* ---------------------------------------------------------- animation -- */
+
+@keyframes bs-pop {
+  from { opacity: 0; transform: scale(0.9) translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes bs-boing {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes bs-spin-in {
+  from { opacity: 0; transform: scale(0.3) rotate(-90deg); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ------------------------------------------------------------- forms -- */
+
+.bs-field {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border: var(--bs-line);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--bs-ink);
+  font-family: var(--bs-display);
+  font-size: 1.5rem;
+}
+
+.bs-field:focus { outline: 4px solid var(--bs-yellow); outline-offset: 2px; }
+
+.bs-error {
+  min-height: 1.2em;
+  margin: 10px 0 0;
+  color: #c4004a;
+  font-weight: 900;
+}
+
+.bs-card form .bs-btn,
+form.bs-card .bs-btn { margin-top: 18px; }
+
+.bs-optional {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  opacity: 0.6;
+}
+
+.bs-card--why { margin-top: 22px; }
+
+.bs-why {
+  display: block;
+  width: 100%;
+  resize: none;
+  border: 0;
+  background: transparent;
+  color: var(--bs-ink);
+  font-family: var(--bs-body);
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.bs-why:focus { outline: none; }
+
+/* ------------------------------------------------------------- toast -- */
+
+.bs-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  z-index: 10;
+  max-width: calc(100% - 32px);
+  padding: 12px 18px;
+  border: var(--bs-line);
+  border-radius: 14px;
+  background: var(--bs-yellow);
+  box-shadow: var(--bs-shadow-sm);
+  font-weight: 900;
+  transform: translateX(-50%);
+  animation: bs-pop 0.3s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+/* ------------------------------------------------------- leaderboard -- */
+
+.bs-board { margin-top: 22px; }
+
+.bs-board__list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: bs-rank;
+}
+
+.bs-board__list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 12px;
+  background: #fff;
+  counter-increment: bs-rank;
+}
+
+.bs-board__list li::before {
+  content: counter(bs-rank);
+  flex: none;
+  width: 1.6em;
+  font-family: var(--bs-display);
+  font-size: 1.2rem;
+}
+
+.bs-board__list li:first-child { background: var(--bs-yellow); }
+.bs-board__list li.is-you { box-shadow: var(--bs-shadow-sm); }
+
+.bs-board__name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.bs-board__total { font-family: var(--bs-display); font-size: 1.3rem; }
