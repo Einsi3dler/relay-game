@@ -193,9 +193,15 @@ def question(author="p0", decoys=("d1", "d2", "d3")) -> Question:
     return Question(author=author, prompt="?", answer="real", decoys=decoys)
 
 
+def deal(q, players, rng):
+    """Deal the way a fully online room would."""
+    b = bsquiz.panel_size(len(q.decoys), len(players) - 1, len(players) - 1)
+    return bsquiz.deal_panel(q, players, b, rng)
+
+
 def test_deal_panel_shape():
     players = [f"p{i}" for i in range(8)]
-    p = bsquiz.deal_panel(question(), players, random.Random(3))
+    p = deal(question(), players, random.Random(3))
 
     assert len(p.options) == 4
     assert [o.key for o in p.options] == ["A", "B", "C", "D"]
@@ -211,14 +217,14 @@ def test_deal_panel_shape():
 
 def test_deal_panel_caps_bullshitters_to_the_room():
     """Four players leave room for two bullshitters, even with three decoys."""
-    p = bsquiz.deal_panel(question(), ["p0", "p1", "p2", "p3"], random.Random(1))
+    p = deal(question(), ["p0", "p1", "p2", "p3"], random.Random(1))
     assert len(p.bullshitters) == 2
 
 
 def test_deal_panel_moves_the_truth_around():
     players = [f"p{i}" for i in range(10)]
     rng = random.Random(11)
-    keys = Counter(bsquiz.deal_panel(question(), players, rng).correct_key
+    keys = Counter(deal(question(), players, rng).correct_key
                    for _ in range(400))
     assert set(keys) == {"A", "B", "C", "D"}
 
@@ -231,7 +237,7 @@ def test_bluffing_can_repeat_and_is_not_equalised():
     for _ in range(50):
         appearances = Counter()
         for author in players:
-            for liar in bsquiz.deal_panel(question(author, ("x",)), players, rng).bullshitters:
+            for liar in deal(question(author, ("x",)), players, rng).bullshitters:
                 appearances[liar] += 1
         repeated |= max(appearances.values()) > 1
         never |= len(appearances) < len(players)
@@ -241,3 +247,25 @@ def test_bluffing_can_repeat_and_is_not_equalised():
 def test_winners_are_joint_on_a_tie():
     assert bsquiz.winners({"a": 5, "b": 9, "c": 9}) == ["b", "c"]
     assert bsquiz.winners({}) == []
+
+
+@pytest.mark.parametrize("decoys, candidates, online_others, expected", [
+    (3, 10, 10, 3),
+    (3, 1, 10, 1),      # only one player may bluff
+    (3, 10, 2, 1),      # one online guesser must remain
+    (1, 10, 10, 1),
+    (3, 0, 10, 0),
+    (3, 10, 1, 0),      # nobody left to guess
+])
+def test_panel_size(decoys, candidates, online_others, expected):
+    assert bsquiz.panel_size(decoys, candidates, online_others) == expected
+
+
+def test_deal_panel_only_picks_candidates():
+    q = question("p0")
+    rng = random.Random(8)
+    for _ in range(50):
+        p = bsquiz.deal_panel(q, ["p0", "p2", "p5"], 2, rng)
+        assert set(p.bullshitters) == {"p2", "p5"}
+    with pytest.raises(ValueError):
+        bsquiz.deal_panel(q, ["p0", "p2"], 2, rng)

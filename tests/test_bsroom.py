@@ -174,7 +174,7 @@ def test_the_host_sees_no_more_than_a_guesser():
     host = room.public(None, is_host=True)
     seen = room.public(guesser)
     for key in ("role", "committed", "your_wager", "your_pick", "used_wagers",
-                "your_total", "you"):
+                "your_total", "you", "relegated"):
         host.pop(key, None)
         seen.pop(key, None)
     host.pop("is_host")
@@ -313,15 +313,18 @@ def test_the_discussion_waits_for_every_speaker():
         bsroom.open_discussion(room)
 
 
-def test_locking_waits_for_every_guesser_even_if_away():
+def test_locking_does_not_wait_for_an_offline_guesser():
     room = started(6)
     brief(room)
     away = room.guessers()[0].id
     bsroom.on_disconnect(room, away)
     for seat in room.guessers()[1:]:
         bsroom.guess(room, seat.id, "A", 1)
-    with pytest.raises(bsroom.Rejected, match="Waiting on 1 guesser"):
-        bsroom.lock(room)
+    bsroom.lock(room)
+    # They cast no vote, spent nothing, and have no line this round.
+    assert away not in room.result.lines
+    assert room.seats[away].used == set()
+    assert sum(room.result.counts.values()) == len(room.guessers()) - 1
 
 
 def test_steps_out_of_order_are_refused():
@@ -359,3 +362,162 @@ def test_unregistered_players_get_no_seat():
                      display_name=None, has_question=False)
     room = bsroom.create_room([player(0), unnamed])
     assert list(room.seats) == ["p0"]
+
+
+# --- leaving the game -----------------------------------------------------
+
+def bullshitter_count(room) -> int:
+    return len(room.panel.bullshitters)
+
+
+def test_an_offline_guessers_earlier_vote_still_counts():
+    room = started(6)
+    brief(room)
+    g = room.guessers()[0].id
+    bsroom.guess(room, g, room.panel.correct_key, 2)
+    bsroom.on_disconnect(room, g)
+    guess_all_remaining(room)
+    bsroom.lock(room)
+    assert room.result.lines[g].delta == 2
+
+
+def test_a_returning_guesser_can_still_vote():
+    room = started(6)
+    brief(room)
+    g = room.guessers()[0].id
+    bsroom.on_disconnect(room, g)
+    bsroom.on_connect(room, g)
+    assert len(room.awaited_guessers()) == len(room.guessers())
+    bsroom.guess(room, g, "A", 1)
+
+
+def test_relegation_is_permanent_and_never_bluffs_again():
+    room = started(7, seed=12)
+    gone = room.guessers()[0].id
+    bsroom.on_disconnect(room, gone)
+    bsroom.on_connect(room, gone)
+    assert room.seats[gone].relegated
+    while room.phase not in ("final", "waiting"):
+        assert gone not in room.panel.bullshitters
+        play_round(room)
+        bsroom.next_round(room)
+    assert room.phase == "final"
+
+
+def test_offline_authors_question_is_skipped_then_played_on_return():
+    room = started(6, seed=3)
+    queued = room.pending[0]
+    bsroom.on_disconnect(room, queued)
+    play_round(room)
+    bsroom.next_round(room)
+    assert room.current != queued and queued in room.pending
+    bsroom.on_connect(room, queued)
+    authors = [room.current]
+    while room.phase != "final":
+        play_round(room)
+        bsroom.next_round(room)
+        if room.current:
+            authors.append(room.current)
+    assert queued in room.played and room.dropped == []
+
+
+def test_questions_from_players_who_never_return_are_dropped():
+    room = started(6, seed=4)
+    gone = [room.pending[0], room.pending[1]]
+    for g in gone:
+        bsroom.on_disconnect(room, g)
+    while room.phase != "final":
+        play_round(room)
+        bsroom.next_round(room)
+    assert sorted(room.dropped) == sorted(gone)
+    assert len(room.played) == 4
+    view = room.public(None, is_host=True)
+    assert view["rounds"] == 4 and view["dropped"] == 2
+
+
+def test_author_leaving_the_briefing_defers_and_refunds():
+    room = started(6, seed=5)
+    author = room.panel.author
+    liar = room.panel.bullshitters[0]
+    bsroom.bluff(room, liar, 3)
+    bsroom.on_disconnect(room, author)
+    assert room.pending[0] == author
+    assert room.panel.author != author
+    assert room.phase == "briefing"
+    assert 3 not in room.seats[liar].used
+
+
+def test_bullshitter_leaving_the_briefing_is_replaced():
+    room = started(7, seed=6)
+    liar = room.panel.bullshitters[0]
+    key = room.panel.option_of(liar).key
+    text = room.panel.option(key).text
+    bsroom.bluff(room, liar, 4)
+    bsroom.on_disconnect(room, liar)
+    assert liar not in room.panel.speakers
+    assert 4 not in room.seats[liar].used
+    taker = room.panel.option(key).speaker
+    assert room.panel.option(key).text == text
+    assert room.seats[taker].may_bluff and room.role_of(taker) == BULLSHITTER
+
+
+def test_bullshitter_leaving_with_nobody_to_take_over():
+    """Four players: author, two bullshitters, one guesser. A liar leaves;
+    the lone guesser cannot take over, so that option is removed."""
+    room = started(4, seed=1)
+    while bullshitter_count(room) < 2:
+        room = started(4, seed=room.rng.randint(0, 10**6))
+    liar = room.panel.bullshitters[0]
+    bsroom.on_disconnect(room, liar)
+    assert bullshitter_count(room) == 1
+    assert [o.key for o in room.panel.options] == ["A", "B"]
+
+
+def test_last_bullshitter_leaving_defers_the_question():
+    room = started(3, seed=2)       # author, one liar, one guesser
+    author = room.panel.author
+    liar = room.panel.bullshitters[0]
+    bsroom.on_disconnect(room, liar)
+    # Only two online now: nothing can be dealt, the host waits.
+    assert room.phase == "waiting"
+    assert author in room.pending
+    bsroom.on_connect(room, liar)
+    bsroom.next_round(room)
+    assert room.phase == "briefing"
+    assert liar not in room.panel.bullshitters     # relegated for good
+
+
+def test_speakers_leaving_after_the_discussion_opens_keep_the_round():
+    room = started(6, seed=7)
+    brief(room)
+    for speaker in room.panel.speakers:
+        bsroom.on_disconnect(room, speaker)
+    assert room.phase == "open"
+    guess_all_remaining(room)
+    bsroom.lock(room)
+    bsroom.reveal(room)
+    assert room.result.lines[room.panel.author].role == TRUTHFUL
+
+
+def test_offline_at_start_means_relegated():
+    room, qs = make_room(6)
+    bsroom.on_disconnect(room, "p5")
+    bsroom.start(room, qs)
+    assert room.seats["p5"].relegated
+    assert room.current != "p5"
+
+
+def test_start_needs_three_online():
+    room, qs = make_room(4)
+    bsroom.on_disconnect(room, "p0")
+    bsroom.on_disconnect(room, "p1")
+    with pytest.raises(bsroom.Rejected, match="online"):
+        bsroom.start(room, qs)
+
+
+def test_lobby_disconnects_do_not_relegate():
+    room, qs = make_room(5)
+    bsroom.on_disconnect(room, "p1")
+    bsroom.on_connect(room, "p1")
+    bsroom.start(room, qs)
+    assert not room.seats["p1"].relegated

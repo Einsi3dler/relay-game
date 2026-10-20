@@ -566,6 +566,15 @@ form.bs-card .bs-btn { margin-top: 18px; }
 .bs-role--bull { background: var(--bs-pink); color: var(--bs-paper); -webkit-text-stroke: 1px var(--bs-ink); }
 .bs-role--guess { background: var(--bs-cyan); }
 
+.bs-note {
+  margin: 4px 0 18px;
+  padding: 10px 14px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 14px;
+  background: var(--bs-yellow);
+  font-size: 0.95rem;
+}
+
 .bs-locked {
   margin: 26px 0 0;
   padding: 16px;

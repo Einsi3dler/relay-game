@@ -16,6 +16,7 @@ These close the open decisions in section 11. Where this section and a later
 | Source of false options | **The author writes them** when submitting the question. The server tells each author how many options to write (2, 3 or 4), which fixes B for that question. |
 | Who runs the game | **A separate, non-playing host** behind a host key, like Guess Who. |
 | Roster | **Bullshit Quiz has its own roster** and its own invite links. Nothing mails it. |
+| Players who leave (supersedes "pause" in section 11) | **The game never waits for them.** Once a game has started, going offline relegates a player for the rest of that game: they keep their seat and score, are never picked to bluff again (even after returning), and are never waited on as a guesser. Their question is skipped while they are away and stays queued; if they return it can still be played, and if every remaining question belongs to somebody offline, those are dropped and the game ends. |
 
 Taken as the proposed defaults: bullshitters lock their wager before
 discussion, guessers commit after it; the vote distribution is shown before
@@ -50,10 +51,24 @@ screens `frontend/bullshit*.{html,js,css}`.
    has committed), **Lock the votes** (once every guesser has), **Reveal the
    truth**, **Next round**. Nothing has a timer.
 
-Known gap, deliberately left open: a player who leaves for good stalls the
-round they owe a commitment in, because nothing is invented for them (section
-11). **Reset the room** returns to the lobby with every question kept, but
-scores are lost. A skip or forfeit rule needs the owner's decision first.
+Leaving mid-game (owner's rule, 21 October 2026). Going offline after the
+start relegates a player to guessing for the rest of the game. In detail:
+
+- An offline guesser is not waited on. A vote they locked before leaving
+  still counts; if they never voted, they score nothing and spend no wager.
+- If it is an offline player's question's turn, the next one is dealt and
+  theirs waits. When everything left is from offline players, those
+  questions are dropped and the game ends; the final screen says how many.
+- In the briefing (before the discussion opens), a bullshitter who leaves is
+  replaced by another player who may still bluff, or their option is removed
+  if nobody can take it; an author who leaves sends the question back to the
+  queue. Wagers locked in a round that does not happen are refunded.
+- After the discussion opens, the round carries on and commitments stand.
+- If too few players are online to deal anything, the host sees **Waiting
+  for players** and retries once people reopen their links.
+
+Reopening the personal link resumes the seat. Tying seats to accounts is
+planned but not built yet.
 
 ## 1. Read this first
 

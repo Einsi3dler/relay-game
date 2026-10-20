@@ -135,27 +135,43 @@ class Panel:
         return GUESSER
 
 
-def deal_panel(question: Question, players: list[str],
-               rng: random.Random) -> Panel:
-    """Pick the bullshitters and hand each a different decoy (handoff §5).
+def panel_size(decoys: int, candidates: int, online_others: int) -> int:
+    """How many bullshitters a round can have right now.
 
-    B is the number of decoys the author wrote, capped by what the room
-    allows. Anyone but the author may be picked, including somebody who
-    bluffed last round: repeat appearances are part of the game (§3).
+    Capped by the decoys the author wrote, by BS_MAX_BULLSHITTERS, by how many
+    players may bluff (`candidates`), and by leaving at least one online
+    guesser among the `online_others` (everyone online except the author).
+    Zero means the round cannot be dealt at the moment.
     """
-    others = [p for p in players if p != question.author]
-    b = min(len(question.decoys), max_bullshitters(len(players)))
-    if b < 1:
-        raise ValueError("not enough decoys or players for a round")
+    return max(0, min(decoys, config.BS_MAX_BULLSHITTERS, candidates, online_others - 1))
 
-    liars = rng.sample(others, b)
+
+def deal_panel(question: Question, candidates: list[str], b: int,
+               rng: random.Random) -> Panel:
+    """Pick `b` bullshitters from `candidates` and hand each a different decoy
+    (handoff §5).
+
+    Who is a candidate is the room's call, not a rule: the room excludes the
+    author and anybody who has dropped out of the game. Somebody who bluffed
+    last round is still a candidate, because repeat appearances are part of
+    the game (§3).
+    """
+    pool = [p for p in candidates if p != question.author]
+    if b < 1 or b > len(pool) or b > len(question.decoys):
+        raise ValueError("not enough decoys or candidates for a round")
+
+    liars = rng.sample(pool, b)
     decoys = rng.sample(list(question.decoys), b)
     entries = [(question.answer, question.author, True)]
     entries += [(text, liar, False) for text, liar in zip(decoys, liars)]
     rng.shuffle(entries)
+    return panel_from(question.author, entries)
 
+
+def panel_from(author: str, entries: list[tuple[str, str, bool]]) -> Panel:
+    """A panel from (text, speaker, correct) triples, keyed A.. in order."""
     return Panel(
-        author=question.author,
+        author=author,
         options=tuple(Option(key=OPTION_KEYS[i], text=text, speaker=who,
                              correct=correct)
                       for i, (text, who, correct) in enumerate(entries)),

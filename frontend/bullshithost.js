@@ -42,12 +42,14 @@
       var tag = s.phase === "lobby" ? (p.submitted ? "wrote it" : "writing")
         : p.speaker ? (p.committed ? "speaker, ready" : "speaker")
         : s.phase === "open" || s.phase === "votes" ? (p.committed ? "locked" : "thinking")
+        : p.relegated ? "guessing only"
         : "";
       var done = s.phase === "lobby" ? p.submitted : p.committed;
       return h("li", { class: "bs-roster__item" + (done ? " is-done" : "") + (p.connected ? "" : " is-away") },
         h("span", { class: "bs-roster__dot", "aria-hidden": "true" }),
         h("span", { class: "bs-roster__name", text: p.name }),
-        tag ? h("span", { class: "bs-roster__tag", text: p.connected ? tag : "away" }) : null);
+        tag || !p.connected
+          ? h("span", { class: "bs-roster__tag", text: p.connected ? tag : "away" }) : null);
     }));
   }
 
@@ -95,12 +97,26 @@
     return nodes;
   }
 
+  /* Too few players online to deal anything. Players drift back by
+     reopening their links; the host retries when they have. */
+  function waiting(s) {
+    return [
+      BS.title("Waiting for players"),
+      BS.sub("Not enough players are online to deal the next round. Ask people to reopen their links, then try again."),
+      roster(s),
+      bigButton("Try again", "next", true)
+    ];
+  }
+
   function final(s) {
     var names = (s.winners || []).map(function (id) { return BS.nameOf(s, id); });
     return [
       h("div", { class: "bs-burst", "aria-hidden": "true" }, h("span", { text: "GAME OVER" })),
       BS.title(names.length > 1 ? "Joint winners" : "The winner", true),
       BS.sub(names.join(" and ") || "Nobody", true),
+      s.dropped ? BS.sub(s.dropped + " question" + (s.dropped === 1 ? " was" : "s were") +
+        " dropped because " + (s.dropped === 1 ? "its author" : "their authors") +
+        " never came back.", true) : null,
       BS.leaderboard(s, "Final scores")
     ];
   }
@@ -115,8 +131,9 @@
 
   function render() {
     var s = live;
-    var nodes = s.phase === "lobby" ? lobby(s) : s.phase === "final" ? final(s) : round(s);
-    if (s.phase !== "lobby") {
+    var nodes = s.phase === "lobby" ? lobby(s) : s.phase === "final" ? final(s)
+      : s.phase === "waiting" ? waiting(s) : round(s);
+    if (s.phase !== "lobby" && s.phase !== "waiting") {
       nodes.unshift(h("div", { class: "bs-head" },
         h("span", { class: "bs-sticker", text: s.phase === "final" ? "Done" : "Round " + s.round + " of " + s.rounds })));
     }

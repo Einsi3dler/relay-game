@@ -293,6 +293,13 @@
     return h("div", { class: "bs-role bs-role--" + kind }, h("span", { text: text }));
   }
 
+  /* Why a player who dropped out earlier only ever guesses now. */
+  function relegatedNote(s) {
+    return s.relegated
+      ? h("p", { class: "bs-note", text: "You dropped out earlier, so you guess for the rest of this game. Your score still counts." })
+      : null;
+  }
+
   function lockedNote(text) {
     return h("p", { class: "bs-locked", text: text });
   }
@@ -332,6 +339,7 @@
     } else {
       nodes.push(banner("guess", "You're guessing"));
       nodes.push(BS.sub("The speakers are getting ready. Listen to them on the call, then pick who's telling the truth."));
+      nodes.push(relegatedNote(s));
       nodes.push(BS.questionCard(s), BS.optionTiles(s, {}));
     }
     nodes.push(BS.meter("Speakers ready", s.speakers_in, s.speakers));
@@ -347,6 +355,7 @@
         nodes.push(lockedNote("You picked " + s.your_pick + " with a wager of " + s.your_wager + "."));
       } else {
         nodes.push(BS.title("Who's telling the truth?"));
+        nodes.push(relegatedNote(s));
         nodes.push(BS.questionCard(s));
         nodes.push(BS.optionTiles(s, { selected: pickKey, onPick: function (k) { pickKey = k; render(); } }));
         nodes.push(h("p", { class: "bs-hint", text: "Your wager. Right adds it, wrong takes it away. Each number works once." }));
@@ -422,6 +431,11 @@
       : s.phase === "open" ? discussion(s)
       : s.phase === "votes" ? votes(s)
       : s.phase === "reveal" ? reveal(s)
+      : s.phase === "waiting" ? [
+          BS.title("Hang tight"),
+          BS.sub("Not enough players are online for the next round. The host will deal it once a few more are back."),
+          BS.leaderboard(s, "Scores")
+        ]
       : final(s);
     el.game.innerHTML = "";
     nodes.forEach(function (n) { if (n) el.game.appendChild(n); });
