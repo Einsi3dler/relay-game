@@ -156,9 +156,8 @@ def connect(client, match_id: str, player_id: str):
 def test_index_serves_hub(client):
     response = client.get("/")
     assert response.status_code == 200
-    for link in ('href="/relay"', 'href="/quiz"'):
+    for link in ('href="/relay"', 'href="/quiz"', 'href="/bullshit"'):
         assert link in response.text
-    assert "Bullshit Quiz" in response.text
 
 
 def test_relay_serves_landing(client):

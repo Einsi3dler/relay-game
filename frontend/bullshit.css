@@ -132,6 +132,9 @@ body.bs {
 
 .bs-title--center { text-align: center; }
 
+/* A title straight onto a card needs room for its own drop shadow. */
+.bs-title + .bs-card { margin-top: 20px; }
+
 .bs-sticker {
   display: inline-block;
   padding: 6px 12px;
@@ -469,4 +472,380 @@ body.bs {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* =====================================================================
+ * The game screens. Same tokens, same ink, same shadows as above.
+ * ===================================================================== */
+
+/* ------------------------------------------------------------- forms -- */
+
+.bs-field {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border: var(--bs-line);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--bs-ink);
+  font-family: var(--bs-display);
+  font-size: 1.5rem;
+}
+
+.bs-field:focus { outline: 4px solid var(--bs-yellow); outline-offset: 2px; }
+
+.bs-error {
+  min-height: 1.2em;
+  margin: 10px 0 0;
+  color: #c4004a;
+  font-weight: 900;
+}
+
+.bs-card form .bs-btn,
+form.bs-card .bs-btn { margin-top: 18px; }
+
+.bs-optional {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  opacity: 0.6;
+}
+
+.bs-card--why { margin-top: 22px; }
+
+.bs-why {
+  display: block;
+  width: 100%;
+  resize: none;
+  border: 0;
+  background: transparent;
+  color: var(--bs-ink);
+  font-family: var(--bs-body);
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.bs-why:focus { outline: none; }
+
+/* ------------------------------------------------------------- toast -- */
+
+.bs-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  z-index: 10;
+  max-width: calc(100% - 32px);
+  padding: 12px 18px;
+  border: var(--bs-line);
+  border-radius: 14px;
+  background: var(--bs-yellow);
+  box-shadow: var(--bs-shadow-sm);
+  font-weight: 900;
+  transform: translateX(-50%);
+  animation: bs-pop 0.3s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+/* -------------------------------------------------------- role banner -- */
+
+.bs-role {
+  display: inline-block;
+  margin: 10px 0 4px;
+  padding: 10px 18px;
+  border: var(--bs-line);
+  border-radius: 16px;
+  box-shadow: var(--bs-shadow);
+  font-family: var(--bs-display);
+  font-size: clamp(1.5rem, 7vw, 2.1rem);
+  line-height: 1.05;
+  transform: rotate(-2deg);
+  animation: bs-spin-in 0.5s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+.bs-role--truth { background: var(--bs-green); }
+.bs-role--bull { background: var(--bs-pink); color: var(--bs-paper); -webkit-text-stroke: 1px var(--bs-ink); }
+.bs-role--guess { background: var(--bs-cyan); }
+
+.bs-locked {
+  margin: 26px 0 0;
+  padding: 16px;
+  border: 4px dashed var(--bs-paper);
+  border-radius: var(--bs-radius);
+  color: var(--bs-paper);
+  font-size: 1.15rem;
+  text-align: center;
+}
+
+/* ------------------------------------------------------ prompt + note -- */
+
+.bs-card--prompt { margin-bottom: 18px; }
+
+.bs-prompt {
+  margin: 0;
+  font-family: var(--bs-display);
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.bs-card--note { margin-top: 18px; }
+.bs-card--note p { margin: 0; font-size: 1.05rem; }
+
+/* -------------------------------------------------------- game tiles -- */
+
+.bs-options--game .bs-option { position: relative; padding: 14px; }
+
+.bs-option--yellow { background: var(--bs-yellow); }
+.bs-option--cyan { background: var(--bs-cyan); }
+.bs-option--pink { background: var(--bs-pink); }
+.bs-option--orange { background: var(--bs-orange); }
+
+.bs-option__hit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: calc(100% + 28px);
+  margin: -14px;
+  padding: 14px;
+  border: 0;
+  border-radius: calc(var(--bs-radius) - 4px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bs-option__hit:focus-visible { outline: 4px solid var(--bs-paper); outline-offset: 4px; }
+
+.bs-option__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+}
+
+.bs-option__text {
+  font-family: var(--bs-display);
+  font-size: 1.35rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.bs-option__speaker {
+  font-size: 0.85rem;
+  font-weight: 900;
+  opacity: 0.75;
+}
+
+.bs-option__count {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 52px;
+  height: 52px;
+  padding: 0 8px;
+  border: var(--bs-line);
+  border-radius: 14px;
+  background: var(--bs-paper);
+  font-family: var(--bs-display);
+  font-size: 1.6rem;
+  animation: bs-boing 0.45s cubic-bezier(.2, 1.8, .4, 1) both;
+}
+
+.bs-option.is-picked,
+.bs-option.is-mine {
+  transform: rotate(-1deg) scale(1.02);
+  box-shadow: 0 0 0 4px var(--bs-paper), 8px 8px 0 4px var(--bs-ink);
+}
+
+.bs-options--game .bs-option.is-bull { filter: saturate(0.35); opacity: 0.85; }
+.bs-options--game .bs-option.is-true { background: var(--bs-green); transform: scale(1.03); }
+
+.bs-stamp {
+  position: absolute;
+  top: -14px;
+  right: 14px;
+  padding: 4px 10px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 8px;
+  background: var(--bs-paper);
+  font-family: var(--bs-display);
+  font-size: 1rem;
+  letter-spacing: 1px;
+  transform: rotate(6deg);
+  animation: bs-spin-in 0.5s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+.is-true .bs-stamp { background: var(--bs-ink); color: var(--bs-green); }
+.is-bull .bs-stamp { color: #c4004a; }
+
+/* ------------------------------------------------------------ wagers -- */
+
+.bs-wagers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+  gap: 10px;
+}
+
+.bs-wager {
+  height: 54px;
+  border: var(--bs-line);
+  border-radius: 14px;
+  background: var(--bs-paper);
+  box-shadow: var(--bs-shadow-sm);
+  color: var(--bs-ink);
+  font-family: var(--bs-display);
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.bs-wager:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--bs-ink); }
+.bs-wager:focus-visible { outline: 3px solid var(--bs-yellow); outline-offset: 2px; }
+
+.bs-wager.is-picked {
+  background: var(--bs-yellow);
+  transform: rotate(-4deg) scale(1.08);
+  animation: bs-boing 0.35s cubic-bezier(.2, 1.8, .4, 1);
+}
+
+.bs-wager.is-spent {
+  background: transparent;
+  border-color: rgba(255, 250, 240, 0.35);
+  box-shadow: none;
+  color: rgba(255, 250, 240, 0.4);
+  text-decoration: line-through 3px;
+  cursor: not-allowed;
+}
+
+/* ----------------------------------------------------------- reveal -- */
+
+.bs-card--verdict { margin: 12px 0 22px; }
+.bs-card--verdict p { margin: 0; }
+
+.bs-verdict__who {
+  font-family: var(--bs-display);
+  font-size: 1.45rem;
+  line-height: 1.2;
+}
+
+.bs-verdict__crowd { margin-top: 8px !important; font-size: 1.05rem; }
+
+.bs-verdict__why {
+  margin-top: 12px !important;
+  padding-top: 12px;
+  border-top: 3px dashed rgba(26, 16, 51, 0.25);
+  font-size: 1.05rem;
+  font-style: italic;
+}
+
+.bs-card--line { margin-top: 26px; text-align: center; }
+.bs-card--line.is-up { background: var(--bs-green); }
+.bs-card--line.is-down { background: var(--bs-pink); }
+
+.bs-line__delta {
+  margin: 0;
+  font-family: var(--bs-display);
+  font-size: clamp(3rem, 16vw, 4.5rem);
+  line-height: 1;
+  color: var(--bs-paper);
+  -webkit-text-stroke: 2px var(--bs-ink);
+  text-shadow: 4px 4px 0 var(--bs-ink);
+  animation: bs-boing 0.5s cubic-bezier(.2, 1.8, .4, 1) both;
+}
+
+.bs-line__parts { margin: 8px 0 0; font-size: 1.05rem; }
+
+/* ------------------------------------------------------- leaderboard -- */
+
+.bs-board { margin-top: 22px; }
+
+.bs-board__list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: bs-rank;
+}
+
+.bs-board__list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 12px;
+  background: #fff;
+  counter-increment: bs-rank;
+}
+
+.bs-board__list li::before {
+  content: counter(bs-rank);
+  flex: none;
+  width: 1.6em;
+  font-family: var(--bs-display);
+  font-size: 1.2rem;
+}
+
+.bs-board__list li:first-child { background: var(--bs-yellow); }
+.bs-board__list li.is-you { box-shadow: var(--bs-shadow-sm); }
+
+.bs-board__name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.bs-board__total { font-family: var(--bs-display); font-size: 1.3rem; }
+
+/* --------------------------------------------------------- host page -- */
+
+.bs--host .bs-main,
+.bs--host .bs-bar { max-width: 760px; }
+
+.bs-roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bs-roster__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 999px;
+  background: var(--bs-paper);
+  font-size: 0.95rem;
+}
+
+.bs-roster__item.is-done { background: var(--bs-green); }
+.bs-roster__item.is-away { opacity: 0.55; }
+
+/* Solid ink when connected, hollow when away: readable on the paper pill
+   and on the green "done" one alike. */
+.bs-roster__dot {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--bs-ink);
+  border-radius: 50%;
+  background: var(--bs-ink);
+}
+
+.is-away .bs-roster__dot { background: transparent; }
+
+.bs-roster__tag {
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.bs-btn--small {
+  width: auto;
+  margin: 40px auto 0;
+  padding: 10px 18px;
+  font-size: 1rem;
 }

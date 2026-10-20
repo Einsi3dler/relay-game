@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#6a3cf5">
+  <meta name="robots" content="noindex, nofollow">
   <title>Bullshit Quiz</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,29 +18,65 @@
       <span class="bs-logo__top">BULLSHIT</span>
       <span class="bs-logo__bottom">QUIZ</span>
     </a>
-    <span class="bs-chip" id="me-chip">Hi, you</span>
+    <span class="bs-chip" id="me-chip" hidden></span>
   </header>
 
   <main class="bs-main">
 
+    <!-- ----------------------------------------------------- loading --- -->
+    <section class="bs-stage" id="stage-loading">
+      <p class="bs-sub bs-sub--center">Finding your seat...</p>
+    </section>
+
+    <!-- ----------------------------------------------------- no link --- -->
+    <section class="bs-stage" id="stage-nolink" hidden>
+      <h1 class="bs-title">You need your link.</h1>
+      <p class="bs-sub">Open the personal link the host gave you. It is your seat in the game.</p>
+    </section>
+
+    <!-- ---------------------------------------------------- bad link --- -->
+    <section class="bs-stage" id="stage-badlink" hidden>
+      <h1 class="bs-title">That link does not work.</h1>
+      <p class="bs-sub">Ask the host for a fresh one. Links stop working when a new one is made.</p>
+    </section>
+
+    <!-- -------------------------------------------------------- name --- -->
+    <section class="bs-stage" id="stage-name" hidden>
+      <h1 class="bs-title">Who are you?</h1>
+      <p class="bs-sub">Use the name people on the call know you by.</p>
+      <form class="bs-card" id="name-form">
+        <label class="bs-label" for="name-input">Your name</label>
+        <input class="bs-field" id="name-input" type="text" maxlength="18"
+               autocomplete="nickname" required>
+        <p class="bs-error" id="name-error" aria-live="polite"></p>
+        <button class="bs-btn bs-btn--go" type="submit">That's me</button>
+      </form>
+    </section>
+
     <!-- ------------------------------------------------------- write --- -->
-    <section class="bs-stage" id="stage-write">
+    <section class="bs-stage" id="stage-write" hidden>
       <div class="bs-head">
         <h1 class="bs-title">Write a question</h1>
         <span class="bs-sticker" id="count-sticker">3 options</span>
       </div>
-      <p class="bs-sub">It goes into tonight's bank. Make it a good one.</p>
+      <p class="bs-sub">Pick something the others will not know. Then write the real answer and some convincing fakes.</p>
 
       <div class="bs-card bs-card--question">
         <label class="bs-label" for="q-text">Your question</label>
         <textarea id="q-text" class="bs-question" rows="3" maxlength="140"
-                  placeholder="What did Sam eat for breakfast every day in 2019?"></textarea>
+                  placeholder="What did I eat for breakfast every day in 2019?"></textarea>
         <span class="bs-count" id="q-count">0 / 140</span>
       </div>
 
       <p class="bs-hint">Fill in every option, then tap the tick on the real answer.</p>
 
       <ol class="bs-options" id="options"></ol>
+
+      <div class="bs-card bs-card--why">
+        <label class="bs-label" for="q-why">Why it's true <span class="bs-optional">optional, shown at the reveal</span></label>
+        <textarea id="q-why" class="bs-why" rows="2" maxlength="280"
+                  placeholder="It was the only thing in the fridge for a year."></textarea>
+      </div>
 
       <button class="bs-btn bs-btn--go" id="submit" type="button" disabled>
         Put it in the bank
@@ -60,22 +97,25 @@
         <ol class="bs-preview__opts" id="preview-opts"></ol>
       </div>
 
-      <div class="bs-card bs-card--meter">
-        <div class="bs-meter__row">
-          <span class="bs-label">Questions in</span>
-          <span class="bs-meter__num" id="meter-num">0 of 0</span>
-        </div>
-        <div class="bs-meter" role="progressbar" aria-label="Questions submitted"
-             aria-valuemin="0" id="meter">
-          <span class="bs-meter__fill" id="meter-fill"></span>
-        </div>
-      </div>
+      <div id="lobby-meter"></div>
 
       <button class="bs-btn bs-btn--ghost" id="edit" type="button">Change my question</button>
     </section>
 
+    <!-- ----------------------------------------------- started late --- -->
+    <section class="bs-stage" id="stage-late" hidden>
+      <h1 class="bs-title">The game has started.</h1>
+      <p class="bs-sub">It began before you picked a name, so there is no seat for you in this one. Catch the next game.</p>
+    </section>
+
+    <!-- -------------------------------------------------------- game --- -->
+    <section class="bs-stage" id="stage-game" hidden></section>
+
   </main>
 
+  <div class="bs-toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="/static/bullshit-common.js"></script>
   <script src="/static/bullshit.js"></script>
 </body>
 </html>

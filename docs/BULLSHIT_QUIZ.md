@@ -28,6 +28,33 @@ player confirms "ready" in the same beat as the bullshitters lock their
 wagers. Otherwise the one speaker who never locks in is the truthful one.
 (Guess Who learned this the hard way; see docs/QUIZ_ROLL_CALL.md section 2.)
 
+## 0.1 Running a session
+
+Where things live: rules `backend/bsquiz.py`, room `backend/bsroom.py`,
+roster and questions `backend/bsroster.py`, web routes `backend/bsserver.py`,
+screens `frontend/bullshit*.{html,js,css}`.
+
+1. Put the players in `var/bullshit/roster.json` (gitignored, never commit it):
+   `{"participants": [{"email": "..."}, ...]}`. Each newcomer is given their
+   option count (2, 3 or 4) on import, from the roster's size.
+2. `python -m backend.bsroster import`, then `RELAY_BASE_URL=https://your.host
+   python -m backend.bsroster links` prints one personal link per player.
+   Hand them out yourself. **Nothing emails anybody**; see
+   docs/ROLL_CALL_DO_NOT_SEND.md. Running `links` again replaces every link.
+3. Set `RELAY_BULLSHIT_HOST_KEY` (the default is `dev`, in a public repo) and
+   open `/bullshithost`.
+4. Players open their link, pick a name and write their question. The host
+   lobby shows who has written. **Start the game** needs at least three
+   players and a question from every one of them; it fixes N and the order.
+5. Each round the host presses: **Open the discussion** (once every speaker
+   has committed), **Lock the votes** (once every guesser has), **Reveal the
+   truth**, **Next round**. Nothing has a timer.
+
+Known gap, deliberately left open: a player who leaves for good stalls the
+round they owe a commitment in, because nothing is invented for them (section
+11). **Reset the room** returns to the lobby with every question kept, but
+scores are lost. A skip or forfeit rule needs the owner's decision first.
+
 ## 1. Read this first
 
 The core rules below reflect the creator's explanations and corrections. Details labelled **Proposed default** are suggestions for a first playable version, not previously agreed rules. Items labelled **Open decision** must remain explicit rather than being silently treated as settled.
