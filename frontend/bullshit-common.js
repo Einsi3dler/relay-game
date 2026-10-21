@@ -66,8 +66,9 @@
         }
       };
       socket.onclose = function (event) {
-        // 4404: unknown link. 4001: this seat opened somewhere newer.
-        if (event.code === 4404 || event.code === 4001) {
+        // 4404: no seat. 4001: this seat opened somewhere newer.
+        // 4403: the host took this seat away (removed, or a new game night).
+        if (event.code === 4404 || event.code === 4001 || event.code === 4403) {
           stopped = true;
           if (handlers.onClosed) handlers.onClosed(event.code);
           return;

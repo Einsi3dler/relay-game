@@ -11,11 +11,11 @@
  *   - Lock anyway: close the votes while a guesser is still thinking. They
  *     cast no vote; nothing is guessed for them.
  *   - Undo reset: for BS_UNDO_SECONDS after "Reset the room".
+ *   - Remove (lobby only) and New game night.
  *
- * The invitations panel is the one place email addresses appear. It is
- * fetched only when opened, never part of the snapshot, and it sits outside
- * the part of the page that redraws on every update, so it does not snap shut
- * (or lose a freshly made link) whenever somebody joins.
+ * Players join with the code shown in the lobby; there is no invite list.
+ * The round history panel sits outside the part of the page that redraws on
+ * every update, so it does not snap shut whenever somebody joins.
  *
  * No build step (see CLAUDE.md). Needs bullshit-common.js loaded first.
  */
@@ -25,7 +25,7 @@
   var h = BS.h;
   var root = document.getElementById("host");
   var toastEl = document.getElementById("toast");
-  var invitesEl = document.getElementById("invites");
+  var panelsEl = document.getElementById("panels");
   var socket = null;
   var live = null;
   var undoUntil = 0;          // client clock: when the Undo reset bar disappears
@@ -67,6 +67,18 @@
         : p.relegated ? "guessing only"
         : "";
       var done = s.phase === "lobby" ? p.submitted : p.committed;
+      var remove = s.phase === "lobby"
+        ? h("button", {
+            class: "bs-roster__gone", type: "button", text: "Remove",
+            "aria-label": "Remove " + p.name + " from the lobby",
+            onclick: function () {
+              if (window.confirm("Remove " + p.name + " from the lobby? Their question goes too. " +
+                                 "They can join again with the code.")) {
+                step("remove", { player: p.id });
+              }
+            }
+          })
+        : null;
       var gone = inGame && !p.relegated
         ? h("button", {
             class: "bs-roster__gone", type: "button", text: "Mark gone",
@@ -87,8 +99,34 @@
           ? h("span", { class: "bs-roster__tag",
                         text: p.reconnecting ? "reconnecting" : p.connected ? tag : "away" })
           : null,
-        gone);
+        gone, remove);
     }));
+  }
+
+  /* ----------------------------------------------------------- join code -- */
+
+  /* The code and link the host drops in the group chat. The code only lets
+     people in while the lobby is open. */
+  function joinCard(s) {
+    var link = location.origin + "/bullshit?code=" + s.code;
+    var copy = h("button", { class: "bs-btn bs-btn--inline", type: "button", text: "Copy link" });
+    copy.addEventListener("click", function () {
+      var done = function () { copy.textContent = "Copied"; };
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(link).then(done, function () { linkBox.select(); });
+      } else {
+        linkBox.select();
+      }
+    });
+    var linkBox = h("input", { class: "bs-field bs-joincard__link", type: "text", readonly: true,
+                               "aria-label": "Join link" });
+    linkBox.value = link;
+    return h("div", { class: "bs-card bs-joincard" },
+      h("span", { class: "bs-label", text: "Join code" }),
+      h("p", { class: "bs-joincard__code", text: s.code || "...." }),
+      h("p", { class: "bs-joincard__hint",
+               text: "Share this in the group chat. Players sign in to Game Night, enter the code, and write one question each." }),
+      h("div", { class: "bs-joincard__row" }, linkBox, copy));
   }
 
   /* -------------------------------------------------------------- phases -- */
@@ -101,7 +139,7 @@
       : "Everyone's question is in. " + s.registered + " players means " + s.registered + " rounds.";
     return [
       BS.title("The lobby"),
-      BS.sub("Players claim their seat from their own invite link and write one question each."),
+      joinCard(s),
       BS.meter("Questions in", s.submitted, s.registered),
       roster(s),
       bigButton("Start the game", "start", ready),
@@ -179,6 +217,17 @@
 
   /* ---------------------------------------------------------- reset/undo -- */
 
+  function newGameButton() {
+    return h("button", { class: "bs-btn bs-btn--ghost bs-btn--small", type: "button",
+      text: "New game night",
+      onclick: function () {
+        if (window.confirm("Start a new game night? Everyone is taken out and every question " +
+                           "is deleted, and there's a new join code. This can't be undone.")) {
+          step("new_game");
+        }
+      } });
+  }
+
   function resetButton() {
     return h("button", { class: "bs-btn bs-btn--ghost bs-btn--small", type: "button",
       text: "Reset the room",
@@ -198,21 +247,6 @@
 
   /* ---------------------------------------------------------- invitations -- */
 
-  function buildInvitesPanel() {
-    var list = h("div", { class: "bs-invites__list" },
-      h("p", { class: "bs-invites__hint", text: "Loading..." }));
-    var panel = h("details", { class: "bs-card bs-invites" },
-      h("summary", { class: "bs-invites__head" },
-        h("span", { class: "bs-label", text: "Invitations" }),
-        h("span", { class: "bs-invites__warn", text: "Shows email addresses. Don't open while screen-sharing." })),
-      list);
-    panel.addEventListener("toggle", function () { if (panel.open) loadInvites(list); });
-    invitesEl.appendChild(panel);
-    return { panel: panel, list: list };
-  }
-
-  var invites = buildInvitesPanel();
-
   /* Round history: host only, and collapsed, because the host may be sharing
      this screen on the call and players are not meant to see a running
      record of who bluffed when. Its open/closed state survives redraws for
@@ -225,7 +259,7 @@
         h("span", { class: "bs-label", text: "Round history" }),
         h("span", { class: "bs-invites__warn", text: "Host only. Don't open while screen-sharing." })),
       body);
-    invitesEl.appendChild(panel);
+    panelsEl.appendChild(panel);
     return { panel: panel, body: body };
   }
 
@@ -240,62 +274,6 @@
       text: "Rounds appear here as they are revealed." }));
   }
 
-  function loadInvites(list) {
-    fetch("/api/bullshit/host/invites", { credentials: "same-origin" })
-      .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
-      .then(function (data) { paintInvites(list, data.invites); })
-      .catch(function () {
-        list.innerHTML = "";
-        list.appendChild(h("p", { class: "bs-invites__hint", text: "Could not load the invitations." }));
-      });
-  }
-
-  function paintInvites(list, rows) {
-    list.innerHTML = "";
-    var claimed = rows.filter(function (r) { return r.claimed; }).length;
-    list.appendChild(h("p", { class: "bs-invites__hint",
-      text: claimed + " of " + rows.length + " claimed. A new link replaces the old one, " +
-            "so only send it to the person it is for." }));
-    list.appendChild(h("ul", { class: "bs-invites__rows" }, rows.map(function (r) {
-      var status = !r.claimed ? "Not claimed yet"
-        : r.has_question ? "Claimed, question in" : "Claimed, writing";
-      var slot = h("div", { class: "bs-invites__slot" });
-      var action = r.claimed ? null : h("button", {
-        class: "bs-btn bs-btn--inline bs-btn--ghost", type: "button", text: "New link",
-        onclick: function () {
-          if (!window.confirm("Make a new link for " + r.email + "? Their old link stops working.")) return;
-          fetch("/api/bullshit/host/invites/" + encodeURIComponent(r.id) + "/link",
-                { method: "POST", credentials: "same-origin" })
-            .then(function (res) { return res.json().then(function (d) { return res.ok ? d : Promise.reject(d); }); })
-            .then(function (data) { showLink(slot, data.link); })
-            .catch(function (err) { toast((err && err.detail) || "Could not make a link."); });
-        }
-      });
-      return h("li", { class: "bs-invites__row" + (r.claimed ? " is-claimed" : "") },
-        h("div", { class: "bs-invites__who" },
-          h("span", { class: "bs-invites__name", text: r.name || r.email }),
-          r.name ? h("span", { class: "bs-invites__email", text: r.email }) : null,
-          h("span", { class: "bs-invites__status", text: status })),
-        action, slot);
-    })));
-  }
-
-  function showLink(slot, link) {
-    slot.innerHTML = "";
-    var input = h("input", { class: "bs-field bs-invites__link", type: "text", readonly: true,
-                             "aria-label": "New invitation link" });
-    input.value = link;
-    var copy = h("button", { class: "bs-btn bs-btn--inline", type: "button", text: "Copy",
-      onclick: function () {
-        input.select();
-        var done = function () { copy.textContent = "Copied"; };
-        if (navigator.clipboard) navigator.clipboard.writeText(link).then(done, function () {});
-        else { try { document.execCommand("copy"); done(); } catch (e) { /* select is enough */ } }
-      } });
-    slot.appendChild(input);
-    slot.appendChild(copy);
-  }
-
   /* -------------------------------------------------------------- render -- */
 
   function render() {
@@ -307,7 +285,8 @@
         h("span", { class: "bs-sticker", text: s.phase === "final" ? "Done" : "Round " + s.round + " of " + s.rounds })));
     }
     nodes.unshift(undoBar());
-    nodes.push(resetButton());
+    nodes.push(h("div", { class: "bs-hostfoot" },
+      s.phase === "lobby" ? null : resetButton(), newGameButton()));
     root.innerHTML = "";
     nodes.forEach(function (n) { if (n) root.appendChild(n); });
   }
@@ -332,8 +311,6 @@
       live = state;
       render();
       if (moved) window.scrollTo(0, 0);
-      // Keep an open invitations panel current as people claim and write.
-      if (invites.panel.open && state.phase === "lobby") loadInvites(invites.list);
       paintHistory(state);
     },
     onError: toast,

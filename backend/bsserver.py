@@ -5,14 +5,17 @@ includes, so the shared app file gains two lines rather than two hundred. The
 rules are `backend/bsquiz.py`, the state machine `backend/bsroom.py`, the
 store `backend/bsroster.py`. This file only moves messages between them.
 
-One room at a time, like ROLL CALL: the roster is a single list of people.
+One room at a time. People join it the way they would any web game: sign up
+or sign in on the site, open Bullshit Quiz with the join code the host
+shares (`/bullshit?code=K7QM`), and their account gets a seat. The code only
+admits people while the lobby is open. No roster file, no email addresses,
+no invitation links.
 
-Two kinds of viewer. A player is whoever is signed in to the site account
-that claimed a seat: the personal link (`/bullshit/<token>`) is only used
-once, to claim it, so after that they resume from any device by signing in.
-The host proves it with the host key or the cookie that key earned, and the
-host page asks for that view explicitly (`?as=host`), because one browser
-can hold both a host cookie and a player's sign-in.
+Two kinds of viewer. A player is whoever is signed in to an account that
+holds a seat, so they resume from any device by signing in. The host proves
+it with the host key or the cookie that key earned, and the host page asks
+for that view explicitly (`?as=host`), because one browser can hold both a
+host cookie and a player's sign-in.
 The host never plays, and `bsroom.public` gives them no more than a guesser,
 because on a group call the host is the one most likely sharing a screen.
 
@@ -56,7 +59,7 @@ BLUFF = "bs_bluff"            # bullshitter: {wager}
 GUESS = "bs_guess"            # guesser: {option, wager}
 HOST = "bs_host"              # host: {action, player?}
 HOST_ACTIONS = ("start", "open", "lock", "lock_anyway", "reveal", "next",
-                "reset", "undo_reset", "drop")
+                "reset", "undo_reset", "drop", "remove", "new_game")
 
 router = APIRouter()
 
@@ -70,11 +73,8 @@ _undo: tuple[bsroom.BullshitRoom, float] | None = None   # the room a reset repl
 # --- the room -------------------------------------------------------------
 
 def startup() -> None:
-    """Open the store and import the roster if this machine has one. The
-    import is idempotent, so doing it on every boot is safe."""
+    """Open the store. Everybody in it joined through the site."""
     bsroster.connect()
-    with contextlib.suppress(FileNotFoundError):
-        bsroster.import_roster()
 
 
 def room() -> bsroom.BullshitRoom:
@@ -108,9 +108,21 @@ def reset_room() -> bsroom.BullshitRoom:
     global _room, _undo
     if _room is not None and _room.phase != "lobby":
         _undo = (_room, time.monotonic())
-    _room = bsroom.create_room(bsroster.all_players())
+    # Same code: people already have it in the group chat.
+    _room = bsroom.create_room(bsroster.all_players(),
+                               code=_room.code if _room is not None else None)
     for viewer in _sockets:
         bsroom.on_connect(_room, viewer)
+    return _room
+
+
+def new_game() -> bsroom.BullshitRoom:
+    """A new game night: every seat and question cleared, and a new code so
+    last week's link stops letting people in. Not undoable."""
+    global _room, _undo
+    bsroster.clear()
+    _undo = None
+    _room = bsroom.create_room([])
     return _room
 
 
@@ -136,7 +148,21 @@ def snapshot(current: bsroom.BullshitRoom, viewer: str) -> dict[str, Any]:
     state = current.public(None if is_host else viewer, is_host=is_host)
     if is_host:
         state["can_undo_reset"] = can_undo_reset()
+        state["code"] = current.code
     return {"type": STATE, "state": state}
+
+
+async def _kick_seatless() -> None:
+    """Close the socket of every player whose seat no longer exists (removed
+    from the lobby, or a new game night). A socket is tied to the seat it
+    opened with, so a player who joins again needs a fresh one; the page
+    sees CLOSE_KICKED, shows the join screen, and reconnects after joining."""
+    seats = {p.id for p in bsroster.all_players()}
+    for viewer in [v for v in _sockets if v != HOST_VIEWER and v not in seats]:
+        socket = _sockets.pop(viewer)
+        _cancel_grace(viewer)
+        with contextlib.suppress(Exception):
+            await socket.close(code=protocol.CLOSE_KICKED)
 
 
 async def _send(socket: WebSocket, payload: dict) -> None:
@@ -206,14 +232,8 @@ def _page(filename: str):
 # --- pages ----------------------------------------------------------------
 
 @router.get("/bullshit", response_model=None)
-async def player_page_without_link():
-    """Opened without a personal link: the page says to use the invitation."""
-    return _page("bullshit.html")
-
-
-@router.get("/bullshit/{token}", response_model=None)
-async def player_page(token: str):
-    """A player's personal link. The page reads the token from its own path."""
+async def player_page():
+    """The player page. `?code=` from the host's link pre-fills the join box."""
     return _page("bullshit.html")
 
 
@@ -239,10 +259,10 @@ async def host_login(request: Request):
     return _with_host_cookie(RedirectResponse(HOST_PATH, status_code=303))
 
 
-# --- REST: who am I, claiming a seat, my question ------------------------
+# --- REST: who am I, joining, my question --------------------------------
 
-class ClaimBody(BaseModel):
-    token: str
+class JoinBody(BaseModel):
+    code: str
 
 
 class QuestionBody(BaseModel):
@@ -269,7 +289,7 @@ def _me(person: bsroster.Player, user: accounts.User | None) -> dict[str, Any]:
     return {
         "id": person.id,
         "name": person.display_name,
-        "claimed": person.registered,
+        "joined": True,
         "account": _account(user),
         "option_count": person.option_count,
         "question": None if q is None else {
@@ -283,7 +303,8 @@ def _me(person: bsroster.Player, user: accounts.User | None) -> dict[str, Any]:
 def _refuse(status: int, detail: str, reason: str, user: accounts.User | None = None):
     """An error the page turns into a screen, so it carries a `reason`."""
     raise HTTPException(status_code=status, detail={
-        "message": detail, "reason": reason, "account": _account(user)})
+        "message": detail, "reason": reason, "account": _account(user),
+        "locked": room().phase != "lobby"})
 
 
 def _seat_for(user: accounts.User | None) -> bsroster.Player:
@@ -291,8 +312,7 @@ def _seat_for(user: accounts.User | None) -> bsroster.Player:
         _refuse(401, "Sign in to play.", "signed_out")
     person = bsroster.by_user(user.id)
     if person is None:
-        _refuse(404, "Your account has no seat in this game yet. Open your "
-                "invitation link once to claim it.", "no_seat", user)
+        _refuse(404, "You haven't joined this game yet.", "not_joined", user)
     return person
 
 
@@ -300,43 +320,29 @@ SESSION = Cookie(default=None, alias=config.SESSION_COOKIE)
 
 
 @router.get("/api/bullshit/me")
-async def me(token: str = "", relay_session: str | None = SESSION) -> dict:
-    """Who this is, from the invitation and the sign-in together.
-
-    With a link: the seat it opens, if it is unclaimed (the page offers to
-    claim it) or claimed by this account. Without one: this account's seat.
-    """
+async def me(relay_session: str | None = SESSION) -> dict:
+    """This account's seat, or why there isn't one (signed out, or not joined
+    yet, with whether the lobby is still open)."""
     user = signed_in(relay_session)
-    if not token:
-        return _me(_seat_for(user), user)
-    person = bsroster.by_token(token)
-    if person is None:
-        _refuse(404, "That link is not valid.", "bad_link", user)
-    if person.user_id and (user is None or user.id != person.user_id):
-        _refuse(403, "This invitation has already been claimed. Sign in with "
-                "the account that claimed it.", "claimed_by_other", user)
-    if not person.user_id and user is None:
-        _refuse(401, "Sign in or make an account to claim your seat.",
-                "signed_out")
-    return _me(person, user)
+    return _me(_seat_for(user), user)
 
 
-@router.post("/api/bullshit/claim")
-async def claim(body: ClaimBody, relay_session: str | None = SESSION) -> dict:
+@router.post("/api/bullshit/join")
+async def join(body: JoinBody, relay_session: str | None = SESSION) -> dict:
     user = signed_in(relay_session)
     if user is None:
-        _refuse(401, "Sign in to claim your seat.", "signed_out")
+        _refuse(401, "Sign in to join.", "signed_out")
     async with _lock:
         current = room()
-        person = bsroster.by_token(body.token)
-        if current.phase != "lobby" and not (person and person.user_id == user.id):
+        existing = bsroster.by_user(user.id)
+        if existing is not None:
+            return _me(existing, user)
+        if current.phase != "lobby":
             # The roster froze when the game started (handoff §3).
-            raise HTTPException(status_code=400, detail="The game has already started.")
-        try:
-            person = bsroster.claim(body.token, user.id, user.first_name,
-                                    user.last_name, user.username)
-        except bsroster.Refused as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(status_code=400, detail="This game has already started.")
+        if "".join(body.code.split()).upper() != current.code:
+            raise HTTPException(status_code=400, detail="That code doesn't match tonight's game.")
+        person = bsroster.join(user.id, user.first_name, user.last_name, user.username)
         bsroom.refresh(current, bsroster.all_players())
         await broadcast(current)
     return _me(person, user)
@@ -358,47 +364,6 @@ async def submit_question(body: QuestionBody,
         bsroom.refresh(current, bsroster.all_players())
         await broadcast(current)
     return _me(bsroster.by_id(person.id), user)
-
-
-# --- host: the invitations ------------------------------------------------
-# Separate from the snapshot on purpose: this carries email addresses, so the
-# host page fetches it only when the host opens the panel, and it is never
-# broadcast to anybody.
-
-def _require_host(cookie: str | None) -> None:
-    if not host_authorised(None, cookie):
-        raise HTTPException(status_code=401, detail="Host only.")
-
-
-@router.get("/api/bullshit/host/invites")
-async def host_invites(relay_bullshithost: str | None = Cookie(default=None)) -> dict:
-    _require_host(relay_bullshithost)
-    return {"invites": [
-        {"id": p.id, "email": p.email, "name": p.display_name,
-         "claimed": p.registered, "has_question": p.has_question,
-         "option_count": p.option_count}
-        for p in bsroster.all_players()
-    ]}
-
-
-@router.post("/api/bullshit/host/invites/{player_id}/link")
-async def host_new_link(player_id: str, request: Request,
-                        relay_bullshithost: str | None = Cookie(default=None)) -> dict:
-    """A fresh invitation link for one person. Links are stored hashed and
-    cannot be read back, so this mints a new one and the old one stops
-    working. Only useful before they have claimed the seat: after that, the
-    account is the seat and they just sign in."""
-    _require_host(relay_bullshithost)
-    person = bsroster.by_id(player_id)
-    if person is None:
-        raise HTTPException(status_code=404, detail="No such invitation.")
-    if person.registered:
-        raise HTTPException(status_code=400, detail=(
-            f"{person.display_name} has already claimed their seat. "
-            "They just need to sign in."))
-    raw = bsroster.reissue(player_id)
-    base = os.environ.get("RELAY_BASE_URL") or str(request.base_url)
-    return {"link": f"{base.rstrip('/')}{bsroster.LINK_PATH}{raw}"}
 
 
 # --- the socket -----------------------------------------------------------
@@ -427,6 +392,16 @@ def _host_step(current: bsroom.BullshitRoom, action: str,
         return reset_room()
     if action == "undo_reset":
         return undo_reset()
+    if action == "new_game":
+        return new_game()
+    if action == "remove":
+        if current.phase != "lobby":
+            raise bsroom.Rejected("Players can only be removed in the lobby. Use Mark gone during a game.")
+        if not isinstance(player, str) or player not in current.seats:
+            raise bsroom.Rejected("That player is not in this game.")
+        bsroster.remove(player)
+        bsroom.refresh(current, bsroster.all_players())
+        return current
     if action == "start":
         bsroom.refresh(current, bsroster.all_players())
         bsroom.start(current, bsroster.questions())
@@ -490,6 +465,8 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
                             raise bsroom.Rejected("Only the host can do that.")
                         current = _host_step(current, fields["action"],
                                              fields.get("player"))
+                        if fields["action"] in ("remove", "new_game"):
+                            await _kick_seatless()
                     elif kind in (READY, BLUFF, GUESS):
                         if person is None:
                             raise bsroom.Rejected("The host does not play.")

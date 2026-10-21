@@ -20,8 +20,8 @@ SECRET_EXPLANATION = "zebra-explanation-marker"
 
 
 def player(i: int) -> Player:
-    return Player(id=f"p{i}", email=f"p{i}@example.test", option_count=4,
-                  display_name=f"Player {i}", has_question=True, user_id=f"u{i}")
+    return Player(id=f"p{i}", user_id=f"u{i}", display_name=f"Player {i}",
+                  option_count=4, has_question=True)
 
 
 def questions_for(players: list[Player]) -> dict[str, bsquiz.Question]:
@@ -357,11 +357,17 @@ def test_roster_and_submissions_freeze_at_start():
         bsroom.can_submit(room)
 
 
-def test_unregistered_players_get_no_seat():
-    unnamed = Player(id="pX", email="x@example.test", option_count=2,
-                     display_name=None, has_question=False)
-    room = bsroom.create_room([player(0), unnamed])
-    assert list(room.seats) == ["p0"]
+def test_refresh_drops_removed_players_in_the_lobby():
+    room, _ = make_room(4)
+    bsroom.refresh(room, [player(i) for i in range(3)])
+    assert sorted(room.seats) == ["p0", "p1", "p2"]
+
+
+def test_rooms_get_a_readable_join_code():
+    room, _ = make_room(3)
+    assert len(room.code) == 4
+    assert not set(room.code) & set("01OI")
+    assert bsroom.create_room([], code="K7QM").code == "K7QM"
 
 
 # --- leaving the game -----------------------------------------------------

@@ -1,8 +1,8 @@
 """BULLSHIT QUIZ through the real app: REST, the host door and the socket.
 
 The room's rules are tested in tests/test_bsroom.py. These check the wiring:
-that an invitation is claimed by a signed-in account and the account is the
-seat from then on, the host key gates the host, every socket gets its own
+that a signed-in account joins with the host's code and is the seat from
+then on, the host key gates the host, every socket gets its own
 snapshot, and nothing secret rides along before a reveal.
 """
 
@@ -19,13 +19,12 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 import backend.main as server
-from backend import accounts, bsroster, bsserver, config
+from backend import accounts, bsroom, bsroster, bsserver, config
 
 
 @dataclass
 class Seated:
     person: bsroster.Player
-    raw: str                 # their invitation token
     web: TestClient          # a browser signed in as their account
 
 
@@ -38,18 +37,13 @@ def account(first: str = "Player"):
 
 
 @pytest.fixture
-def roster(tmp_path):
-    """Four invitations, unclaimed. Fresh store."""
+def fresh():
+    """An empty game store and a fresh room with a known code."""
     bsroster.close()
     bsroster.connect()
-    bsroster._fresh_tokens.clear()
-    path = tmp_path / "roster.json"
-    path.write_text(json.dumps({"participants": [
-        {"email": f"player{i}@example.test"} for i in range(4)]}))
-    bsroster.import_roster(path, rng=random.Random(1))
-    bsserver._room = None
+    bsserver._room = bsroom.create_room([], code="K7QM")
     bsserver._sockets.clear()
-    yield [(p, bsroster._fresh_tokens[p.id]) for p in bsroster.all_players()]
+    yield
     bsserver._room = None
     bsserver._sockets.clear()
     bsroster.close()
@@ -57,20 +51,21 @@ def roster(tmp_path):
 
 
 @pytest.fixture
-def players(roster):
-    """Every invitation claimed by its own signed-in account."""
-    out = []
-    for i, (person, raw) in enumerate(roster):
-        user, web = account(f"Player{i}")
-        bsroster.claim(raw, user.id, user.first_name, user.last_name, user.username)
-        out.append(Seated(bsroster.by_id(person.id), raw, web))
-    return out
-
-
-@pytest.fixture
-def client(roster):
+def client(fresh):
     with TestClient(server.app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def players(client):
+    """Four accounts, each joined with tonight's code."""
+    out = []
+    for i in range(4):
+        _, web = account(f"Player{i}")
+        response = web.post("/api/bullshit/join", json={"code": "K7QM"})
+        assert response.status_code == 200, response.text
+        out.append(Seated(bsroster.by_id(response.json()["id"]), web))
+    return out
 
 
 def write(seat: Seated, **overrides):
@@ -114,76 +109,65 @@ def reason(response) -> str:
 
 # --- pages ----------------------------------------------------------------
 
-def test_pages_serve(client, roster):
-    _, raw = roster[0]
+def test_pages_serve(client):
     assert client.get("/bullshit").status_code == 200
-    assert client.get(f"/bullshit/{raw}").status_code == 200
+    assert client.get("/bullshit?code=K7QM").status_code == 200
 
 
-# --- claiming a seat ------------------------------------------------------
+# --- joining --------------------------------------------------------------
 
-def test_signed_out_with_a_link_is_asked_to_sign_in(client, roster):
-    _, raw = roster[0]
-    response = client.get("/api/bullshit/me", params={"token": raw})
+def test_signed_out_is_asked_to_sign_in(client):
+    response = client.get("/api/bullshit/me")
     assert response.status_code == 401 and reason(response) == "signed_out"
+    assert client.post("/api/bullshit/join", json={"code": "K7QM"}).status_code == 401
 
 
-def test_a_bad_link_is_a_bad_link(client):
-    response = client.get("/api/bullshit/me", params={"token": "nope"})
-    assert response.status_code == 404 and reason(response) == "bad_link"
-
-
-def test_claim_names_the_seat_from_the_account(client, roster):
-    person, raw = roster[0]
-    user, web = account("Grace")
-    preview = web.get("/api/bullshit/me", params={"token": raw}).json()
-    assert preview["claimed"] is False and preview["account"]["first_name"] == "Grace"
-    claimed = web.post("/api/bullshit/claim", json={"token": raw})
-    assert claimed.status_code == 200
-    assert claimed.json()["name"] == "Grace" and claimed.json()["claimed"]
-    # Again is harmless.
-    assert web.post("/api/bullshit/claim", json={"token": raw}).status_code == 200
-    # And now the account finds its seat with no link at all.
-    assert web.get("/api/bullshit/me").json()["id"] == person.id
-
-
-def test_same_first_names_get_an_initial(client, roster):
-    (_, raw_a), (_, raw_b) = roster[0], roster[1]
-    _, web_a = account("Sam")
-    _, web_b = account("Sam")
-    assert web_a.post("/api/bullshit/claim", json={"token": raw_a}).json()["name"] == "Sam"
-    assert web_b.post("/api/bullshit/claim", json={"token": raw_b}).json()["name"] == "Sam T."
-
-
-def test_nobody_else_can_take_a_claimed_seat(client, roster):
-    _, raw = roster[0]
-    _, owner = account("Owner")
-    _, thief = account("Thief")
-    owner.post("/api/bullshit/claim", json={"token": raw})
-    peek = thief.get("/api/bullshit/me", params={"token": raw})
-    assert peek.status_code == 403 and reason(peek) == "claimed_by_other"
-    assert thief.post("/api/bullshit/claim", json={"token": raw}).status_code == 400
-    # Signed out, the link alone opens nothing either.
-    assert client.get("/api/bullshit/me", params={"token": raw}).status_code == 403
-
-
-def test_one_account_one_seat(client, roster):
-    (_, raw_a), (_, raw_b) = roster[0], roster[1]
-    _, web = account()
-    web.post("/api/bullshit/claim", json={"token": raw_a})
-    second = web.post("/api/bullshit/claim", json={"token": raw_b})
-    assert second.status_code == 400 and "already has a seat" in second.json()["detail"]
-
-
-def test_signed_in_without_a_seat(client, roster):
+def test_signed_in_but_not_joined(client):
     _, web = account()
     response = web.get("/api/bullshit/me")
-    assert response.status_code == 404 and reason(response) == "no_seat"
+    assert response.status_code == 404 and reason(response) == "not_joined"
+    assert response.json()["detail"]["locked"] is False
 
 
-def test_claiming_needs_a_sign_in(client, roster):
-    _, raw = roster[0]
-    assert client.post("/api/bullshit/claim", json={"token": raw}).status_code == 401
+def test_join_with_the_code(client):
+    _, web = account("Grace")
+    joined = web.post("/api/bullshit/join", json={"code": " k7qm "})
+    assert joined.status_code == 200 and joined.json()["name"] == "Grace"
+    assert web.get("/api/bullshit/me").json()["id"] == joined.json()["id"]
+    # Again is harmless.
+    assert web.post("/api/bullshit/join", json={"code": "K7QM"}).json()["id"] == joined.json()["id"]
+
+
+def test_a_wrong_code_is_refused(client):
+    _, web = account()
+    response = web.post("/api/bullshit/join", json={"code": "NOPE"})
+    assert response.status_code == 400 and "doesn't match" in response.json()["detail"]
+    assert bsroster.all_players() == []
+
+
+def test_nobody_joins_after_the_start(client, players):
+    for seat in players:
+        assert write(seat).status_code == 200
+    with ExitStack() as stack:
+        host_client(client)
+        host = stack.enter_context(client.websocket_connect("/ws/bullshit?as=host"))
+        for seat in players:
+            stack.enter_context(seat.web.websocket_connect("/ws/bullshit"))
+        host.send_json({"type": bsserver.HOST, "action": "start"})
+        until(host, lambda v: v["phase"] == "briefing")
+        _, late = account()
+        response = late.post("/api/bullshit/join", json={"code": "K7QM"})
+        assert response.status_code == 400 and "already started" in response.json()["detail"]
+        me = late.get("/api/bullshit/me")
+        assert reason(me) == "not_joined" and me.json()["detail"]["locked"] is True
+
+
+def test_only_the_host_sees_the_code(client, players):
+    host_client(client)
+    with client.websocket_connect("/ws/bullshit?as=host") as host:
+        assert state(host)["code"] == "K7QM"
+    with players[0].web.websocket_connect("/ws/bullshit") as ws:
+        assert "code" not in state(ws)
 
 
 # --- questions ------------------------------------------------------------
@@ -204,7 +188,7 @@ def test_write_and_rewrite_a_question(client, players):
 
 def test_writing_needs_a_seat(client, players):
     _, stranger = account()
-    assert write(Seated(players[0].person, "", stranger)).status_code == 404
+    assert write(Seated(players[0].person, stranger)).status_code == 404
 
 
 def test_the_option_count_is_enforced(client, players):
@@ -225,12 +209,6 @@ def test_a_socket_without_a_sign_in_or_key_is_closed(client):
         with pytest.raises(WebSocketDisconnect):
             with client.websocket_connect(url) as ws:
                 ws.receive_json()
-
-
-def test_a_link_alone_does_not_open_the_socket(client, players):
-    with pytest.raises(WebSocketDisconnect):
-        with client.websocket_connect(f"/ws/bullshit?token={players[0].raw}") as ws:
-            ws.receive_json()
 
 
 def test_a_player_cannot_drive_the_host_steps(client, players):
@@ -342,7 +320,7 @@ def test_staying_away_past_the_grace_period_relegates(client, players, monkeypat
         assert not seat.connected and seat.relegated
 
 
-# --- host: undo reset and the invitations ---------------------------------
+# --- host: undo reset, mark gone, remove, new game -----------------------
 
 def _host_action(host, action, **extra):
     host.send_json({"type": bsserver.HOST, "action": action, **extra})
@@ -409,28 +387,53 @@ def test_acting_after_being_marked_gone_counts_as_back(client, players):
         assert seat.connected and seat.relegated
 
 
-def test_invites_are_host_only_and_list_everyone(client, roster):
-    assert client.get("/api/bullshit/host/invites").status_code == 401
+def test_host_removes_a_player_in_the_lobby(client, players):
     host_client(client)
-    invites = client.get("/api/bullshit/host/invites").json()["invites"]
-    assert len(invites) == 4 and not any(i["claimed"] for i in invites)
-    assert all(i["email"].endswith("@example.test") for i in invites)
+    with client.websocket_connect("/ws/bullshit?as=host") as host:
+        state(host)
+        gone = players[0].person.id
+        _host_action(host, "remove", player=gone)
+        view = until(host, lambda v: all(p["id"] != gone for p in v["players"]))
+        assert len(view["players"]) == 3
+    assert bsroster.by_id(gone) is None
+    # They can come back with the code.
+    assert players[0].web.post("/api/bullshit/join", json={"code": "K7QM"}).status_code == 200
 
 
-def test_new_link_replaces_the_old_one(client, roster):
-    person, old = roster[0]
+def test_remove_is_lobby_only(client, players):
+    with ExitStack() as stack:
+        host, _ = _started_with_sockets(client, players, stack)
+        _host_action(host, "remove", player=players[0].person.id)
+        msg = host.receive_json()
+        while msg["type"] != "error":
+            msg = host.receive_json()
+        assert "Mark gone" in msg["error"]
+
+
+def test_new_game_night_clears_everyone_and_changes_the_code(client, players):
     host_client(client)
-    link = client.post(f"/api/bullshit/host/invites/{person.id}/link").json()["link"]
-    new = link.rsplit("/", 1)[1]
-    assert bsroster.by_token(old) is None
-    assert bsroster.by_token(new).id == person.id
+    with client.websocket_connect("/ws/bullshit?as=host") as host:
+        state(host)
+        _host_action(host, "new_game")
+        view = until(host, lambda v: v["players"] == [])
+        assert view["code"] != "K7QM" and view["can_undo_reset"] is False
+    assert bsroster.all_players() == []
+    old = players[0].web.post("/api/bullshit/join", json={"code": "K7QM"})
+    assert old.status_code == 400
 
 
-def test_no_new_link_for_a_claimed_seat(client, players):
-    host_client(client)
-    response = client.post(f"/api/bullshit/host/invites/{players[0].person.id}/link")
-    assert response.status_code == 400 and "sign in" in response.json()["detail"]
-
-
-def test_a_player_cannot_see_the_invites(client, players):
-    assert players[0].web.get("/api/bullshit/host/invites").status_code == 401
+def test_a_removed_player_is_disconnected_so_they_can_rejoin(client, players):
+    # Host and player on one client, so both sockets share one event loop the
+    # way they do on the real server; a TestClient outside `with` gives each
+    # socket its own loop, and a close across loops never completes.
+    with players[0].web as web:
+        host_client(web)
+        with web.websocket_connect("/ws/bullshit?as=host") as host:
+            state(host)
+            with web.websocket_connect("/ws/bullshit") as ws:
+                state(ws)
+                _host_action(host, "remove", player=players[0].person.id)
+                with pytest.raises(WebSocketDisconnect) as closed:
+                    while True:
+                        ws.receive_json()
+                assert closed.value.code == 4403

@@ -111,6 +111,7 @@ class Rejected(Exception):
 @dataclass
 class BullshitRoom:
     id: str
+    code: str = ""                                     # what players type to join
     seats: dict[str, Seat] = field(default_factory=dict)
     phase: str = "lobby"
     n: int = 0                                         # fixed at start
@@ -277,8 +278,17 @@ def _line(line: bsquiz.Line) -> dict[str, Any]:
 
 # --- lifecycle ------------------------------------------------------------
 
-def create_room(players: list[Player], rng: random.Random | None = None) -> BullshitRoom:
-    room = BullshitRoom(id=secrets.token_hex(4))
+# Read off a phone in a group chat and typed on another: no 0/O or 1/I.
+CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def new_code() -> str:
+    return "".join(secrets.choice(CODE_ALPHABET) for _ in range(config.BS_CODE_LENGTH))
+
+
+def create_room(players: list[Player], rng: random.Random | None = None,
+                code: str | None = None) -> BullshitRoom:
+    room = BullshitRoom(id=secrets.token_hex(4), code=code or new_code())
     if rng is not None:
         room.rng = rng
     refresh(room, players)
@@ -286,10 +296,13 @@ def create_room(players: list[Player], rng: random.Random | None = None) -> Bull
 
 
 def refresh(room: BullshitRoom, players: list[Player]) -> None:
-    """Pick up registrations and new questions. Lobby only: once the game
-    starts the roster and N are fixed (handoff §3)."""
+    """Pick up who has joined (or been removed) and new questions. Lobby only:
+    once the game starts the roster and N are fixed (handoff §3)."""
     if room.phase != "lobby":
         return
+    present = {person.id for person in players}
+    for gone in [pid for pid in room.seats if pid not in present]:
+        del room.seats[gone]
     for person in players:
         if not person.registered:
             continue

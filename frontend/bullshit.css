@@ -606,7 +606,7 @@
   animation: bs-pop 0.3s cubic-bezier(.2, 1.6, .4, 1) both;
 }
 
-/* ----------------------------------------------------------- invitations -- */
+/* ------------------------------------------------------- host panels -- */
 
 .bs-main--tail { padding-top: 0; }
 
@@ -624,32 +624,37 @@
 .bs-invites__head .bs-label::before { content: "+ "; }
 .bs-invites[open] .bs-invites__head .bs-label::before { content: "- "; }
 .bs-invites__warn { font-size: 0.8rem; opacity: 0.7; }
-
 .bs-invites__hint { margin: 14px 0 10px; font-size: 0.9rem; }
 
-.bs-invites__rows { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+/* ------------------------------------------------------------- join code -- */
 
-.bs-invites__row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px 12px;
-  align-items: center;
-  padding: 10px 12px;
-  border: 3px solid var(--bs-ink);
-  border-radius: 12px;
-  background: #fff;
+.bs-joincard { margin: 6px 0 20px; display: grid; gap: 6px; }
+
+.bs-joincard__code {
+  margin: 0;
+  font-family: var(--bs-display);
+  font-size: clamp(3rem, 14vw, 4.5rem);
+  letter-spacing: 0.18em;
+  line-height: 1;
+  color: var(--bs-ink);
 }
 
-.bs-invites__row.is-claimed { background: var(--bs-paper); }
+.bs-joincard__hint { margin: 0; font-size: 0.95rem; }
+.bs-joincard__row { display: flex; gap: 10px; margin-top: 6px; }
+.bs-joincard__link { flex: 1; min-width: 0; font-family: var(--bs-body); font-size: 0.9rem; padding: 8px 10px; }
 
-.bs-invites__who { display: grid; min-width: 0; }
-.bs-invites__name { font-family: var(--bs-display); font-size: 1.1rem; overflow-wrap: anywhere; }
-.bs-invites__email, .bs-invites__status { font-size: 0.8rem; overflow-wrap: anywhere; }
-.bs-invites__status { opacity: 0.7; }
+.bs-hostfoot { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 30px; }
+.bs-hostfoot .bs-btn--small { margin: 0; }
 
-.bs-invites__slot { grid-column: 1 / -1; display: flex; gap: 8px; }
-.bs-invites__slot:empty { display: none; }
-.bs-invites__link { flex: 1; min-width: 0; font-family: var(--bs-body); font-size: 0.85rem; padding: 8px 10px; }
+/* ------------------------------------------------------------- join form -- */
+
+.bs-join { display: grid; gap: 8px; }
+.bs-join__code {
+  font-size: 2.2rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-align: center;
+}
 
 /* The host's round history panel: the history list without its own card. */
 .bs-roundlog { margin-top: 18px; }

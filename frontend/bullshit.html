@@ -32,52 +32,28 @@
       <p class="bs-sub bs-sub--center">Finding your seat...</p>
     </section>
 
-    <!-- ----------------------------------------------------- no link --- -->
-    <section class="bs-stage" id="stage-nolink" hidden>
-      <h1 class="bs-title">You need your link.</h1>
-      <p class="bs-sub">Open the personal link the host gave you. It is your seat in the game.</p>
-    </section>
-
-    <!-- ---------------------------------------------------- bad link --- -->
-    <section class="bs-stage" id="stage-badlink" hidden>
-      <h1 class="bs-title">That link does not work.</h1>
-      <p class="bs-sub">Ask the host for a fresh one. Links stop working when a new one is made.</p>
-    </section>
-
     <!-- ---------------------------------------------------- sign in --- -->
     <section class="bs-stage" id="stage-signin" hidden>
-      <h1 class="bs-title" id="signin-title">Sign in to play</h1>
-      <p class="bs-sub" id="signin-sub">Your seat lives on your Game Night account, so you can pick it back up from any device.</p>
+      <h1 class="bs-title">Sign in to play</h1>
+      <p class="bs-sub">Bullshit Quiz runs on your Game Night account, so you can pick your seat back up from any device.</p>
       <div class="bs-card bs-card--actions">
         <a class="bs-btn bs-btn--go" id="signin-go" href="/login">Sign in</a>
         <a class="bs-btn bs-btn--ghost" id="signup-go" href="/signup">Make an account</a>
       </div>
     </section>
 
-    <!-- ------------------------------------------------------ claim --- -->
-    <section class="bs-stage" id="stage-claim" hidden>
-      <h1 class="bs-title">This seat is yours</h1>
-      <p class="bs-sub" id="claim-sub"></p>
-      <div class="bs-card bs-card--actions">
-        <button class="bs-btn bs-btn--go" id="claim-go" type="button">Claim my seat</button>
-        <button class="bs-btn bs-btn--ghost" id="claim-not-me" type="button">Not you? Sign out</button>
-      </div>
-      <p class="bs-missing" id="claim-error" aria-live="polite"></p>
-    </section>
-
-    <!-- --------------------------------------------- claimed elsewhere --- -->
-    <section class="bs-stage" id="stage-taken" hidden>
-      <h1 class="bs-title">Already claimed</h1>
-      <p class="bs-sub" id="taken-sub">Somebody's account already claimed this invitation. If that was you, sign in with that account.</p>
-      <div class="bs-card bs-card--actions">
-        <button class="bs-btn bs-btn--go" id="taken-switch" type="button">Sign in as someone else</button>
-      </div>
-    </section>
-
-    <!-- ----------------------------------------------------- no seat --- -->
-    <section class="bs-stage" id="stage-noseat" hidden>
-      <h1 class="bs-title">No seat yet</h1>
-      <p class="bs-sub" id="noseat-sub">Your account isn't in this game yet. Open the invitation link the host gave you, once, to claim your seat.</p>
+    <!-- ------------------------------------------------------- join --- -->
+    <section class="bs-stage" id="stage-join" hidden>
+      <h1 class="bs-title">Join tonight's game</h1>
+      <p class="bs-sub" id="join-sub">Type the code the host shared in the group chat.</p>
+      <form class="bs-card bs-join" id="join-form">
+        <label class="bs-label" for="join-code">Join code</label>
+        <input class="bs-field bs-join__code" id="join-code" name="code" type="text"
+               maxlength="8" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" placeholder="K7QM" required>
+        <p class="bs-error" id="join-error" aria-live="polite"></p>
+        <button class="bs-btn bs-btn--go" type="submit">Join</button>
+      </form>
     </section>
 
     <!-- ------------------------------------------------------- write --- -->
@@ -132,7 +108,7 @@
     <!-- ----------------------------------------------- started late --- -->
     <section class="bs-stage" id="stage-late" hidden>
       <h1 class="bs-title">The game has started.</h1>
-      <p class="bs-sub">It began before this seat was claimed, so there is no place for you in this one. Catch the next game.</p>
+      <p class="bs-sub">It started before you joined, so there's no seat for you in this one. Catch the next game night.</p>
     </section>
 
     <!-- -------------------------------------------------------- game --- -->
