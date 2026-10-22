@@ -1,7 +1,7 @@
 # Bullshit Quiz perks
 
-Status: **design draft for review**, 23 October 2026. Card text and point
-values are provisional until a playtest.
+Status: **design, accepted by the owner on 23 October 2026**. Not built yet.
+Card text and point values are provisional until a playtest.
 
 This document says what each perk does: who may play it, when, who sees it,
 and exactly how it changes scores. It does not yet say how players get perks,
@@ -12,15 +12,23 @@ section 6 lists what it has to settle. The base game is
 The 30 perks are the owner's list. Where this draft adds a rule the list did
 not state, or changes one, section 7 says so.
 
+## 0. Decisions settled by the owner (23 October 2026)
+
+| Question | Decision |
+| --- | --- |
+| How many perks a round | **No cap.** Any player may play any perk whenever its own rules allow, several in one round included. Section 5 says how they stack. |
+| When guessers lock | **After the talking.** The Discussion runs on a timer and the ballot stays shut until it ends, so the floor perks reach everybody. Blind Faith is the only way to lock earlier. For this one step it replaces the base game's "no timers". |
+| The rules section 7 adds to the list | **Accepted.** |
+
 ## 1. Ground rules for every perk
 
 1. **Single use.** Playing a perk spends it. A perk cancelled by Objection! or
    redirected by Not My Problem is still spent. A perk the server refuses (a
    second Kingmaker in the same round, say) is not.
-2. **One perk per player per round.** Assumed here; the system step confirms
-   it. The round includes its reveal, so Damage Control and Pickpocket are a
-   player's perk for that round. Objection! and Not My Problem are reactions
-   and do not count. Perks other people play on you never count.
+2. **No cap on perks.** Any player may play any perk its rules allow, and
+   several in one round. The one limit across perks: a player plays the same
+   perk at most once a round, a Counterfeit copy included, so two Double or
+   Nothings do not make four times. Section 5 says how the rest stack.
 3. **No perk gives away the truth or a role early.** The truthful player has no
    wager, so a perk only a wager holder can play (Insurance Fraud, Double or
    Nothing) would out a speaker as a bullshitter if it were announced. Those
@@ -40,8 +48,8 @@ not state, or changes one, section 7 says so.
    nomination worth zero either way.
 7. **Speaking perks happen on the call.** The app announces them and shows a
    20-second countdown on every screen; the host runs and polices them. The
-   app does not listen to the call. Nothing advances a round by itself: the
-   host still paces every step.
+   app does not listen to the call. Apart from the discussion timer opening
+   the ballot, the host still paces every step.
 8. **Scores may go negative**, as in the base game. No perk adds a floor.
 
 ## 2. Words used below
@@ -51,12 +59,13 @@ not state, or changes one, section 7 says so.
 | Window | Room phase | What is happening |
 | --- | --- | --- |
 | Briefing | `briefing` | Speakers have their roles, bullshitters lock their wagers, the truthful player confirms. Guessers can see the question and options. |
-| Discussion | `open` | The talking on the call. Guessers lock an answer and a wager. |
+| Discussion | `open`, timer running | The talking on the call, on a timer. The ballot is shut, so guessers cannot lock yet. Floor perks happen here. |
+| Ballot | `open`, timer ended | Guessers lock an answer and a wager. |
 | Headcount | `votes` | Votes are locked and the count per option is on screen. The truth is still hidden. |
 | Reveal | `reveal` | Truth, roles and scores. Lasts until the host presses **Next round**. |
 
-"Before the votes lock" means any time in the Briefing or Discussion, until
-the host presses **Lock the votes**.
+"Before the votes lock" means any time in the Briefing, Discussion or
+Ballot, until the host presses **Lock the votes**.
 
 **Seen by.** *Secret*: the owner only (and the host, where noted) until the
 reveal. *Public*: on every screen the moment it is played.
@@ -94,8 +103,8 @@ every other option with fewer.
 | Lone Wolf | guesser | before the votes lock | secret | +10 for being the only one right |
 | I Call Bullshit | guesser | before the votes lock | secret | +5 or −5 on a speaker bluffing |
 | Read the Room | guesser | Briefing | secret | vote last, after seeing the counts |
-| Inside Information | guesser | Discussion, before you lock | secret | see one locked guesser's answer |
-| The Audit | anyone | Discussion | public | show one locked guesser's answer and wager to all |
+| Inside Information | guesser | Ballot, before you lock | secret | see one locked guesser's answer |
+| The Audit | anyone | Ballot | public | show one locked guesser's answer and wager to all |
 | Silver Tongue | speaker | before the votes lock | secret | +1 per person on your answer |
 | Victory Lap | speaker | before the votes lock | secret | +10 for outright first |
 | Target Audience | speaker | Briefing | secret | +5 if your chosen guesser picks you |
@@ -103,14 +112,14 @@ every other option with fewer.
 | False Witness | speaker | Briefing | secret (recruit and host told) | a guesser speaks up for your answer |
 | The Hot Seat | anyone | Discussion | public | 20 seconds of your questions to one speaker |
 | The Mute Button | anyone | Discussion, after opening statements | public | one speaker silent for 20 seconds |
-| The Last Word | anyone | Discussion | public | 20 seconds just before the lock |
+| The Last Word | anyone | Discussion | public | 20 seconds just before the ballot opens |
 | Forbidden Words | anyone | Briefing or Discussion | public | three banned words, −2 per slip |
 | Blackmail | anyone | before the target locks | public | target bets their highest number left |
 | Blood Pact | guesser | before either of you locks | public | both right: double; either wrong: both lose |
 | Pickpocket | anyone | Reveal | public | take 3 from a wrong guesser |
 | Kingmaker | anyone | Headcount | public | settle a tie at the top |
 | Doppelgänger | guesser | before the votes lock | secret | take another player's plain score |
-| Hostile Takeover | guesser | before you lock | secret, announced at the reveal | right answer: swap totals with someone |
+| Hostile Takeover | guesser | before you lock, not in the last round | secret, announced at the reveal | right answer: swap totals with someone |
 | Objection! | anyone | when a floor perk is announced | public | cancel it |
 | Not My Problem | the target | when a perk lands on you | like the perk | send it to someone else |
 | Counterfeit | as the copy | as the copy | as the copy | play a perk someone else already revealed |
@@ -131,7 +140,7 @@ These change your own wager.
 
 - **Who:** anyone with a wager this round: a guesser or a bullshitter.
 - **When:** before you lock your wager. For a bullshitter that is the
-  Briefing; for a guesser, the Briefing or Discussion.
+  Briefing; for a guesser, any time until they lock.
 - **Seen by:** secret.
 - **Effect:** a lost wager costs ⌈L / 2⌉, where L is the loss after any
   multiplier. Losing 7 costs 4; losing 8 costs 4. A won wager is untouched,
@@ -170,9 +179,9 @@ These change your own wager.
 
 - **Who:** guesser, in a round with at least three options (section 7).
 - **When:** in the Briefing. It is the only way a guesser can lock before the
-  Discussion opens.
+  ballot opens.
 - **Seen by:** secret. The guesser's "committed" tick stays hidden until the
-  Discussion opens, or the early tick would give it away.
+  ballot opens, or the early tick would give it away.
 - **Effect:** right: +3w. Wrong: −w.
 - Once locked it is like any other locked answer: Inside Information and The
   Audit can see it, and Blackmail and Blood Pact can no longer reach it.
@@ -258,7 +267,7 @@ purpose and only as far as stated. None of them shows which answer is true.
 > know.
 
 - **Who:** a guesser who has not locked. **Target:** a guesser who has.
-- **When:** Discussion.
+- **When:** Ballot.
 - **Seen by:** secret.
 - **Effect:** you see the target's main answer, not their wager or any
   backup. Their answer stays locked.
@@ -269,7 +278,7 @@ purpose and only as far as stated. None of them shows which answer is true.
 > still open.
 
 - **Who:** anyone. **Target:** a guesser who has locked.
-- **When:** Discussion.
+- **When:** Ballot.
 - **Seen by:** public.
 - **Effect:** the target's main answer and wager are shown to the whole room.
   Nothing changes; the room decides what to make of it.
@@ -358,11 +367,11 @@ the app shows the countdown.
 
 #### The Last Word · `last_word`
 
-> Take 20 seconds, uninterrupted, right before the votes lock.
+> Take 20 seconds, uninterrupted, right before voting opens.
 
 - **Who:** anyone.
-- **When:** claimed during the Discussion. It runs as the last thing before
-  the host locks the votes. Several run in the order claimed.
+- **When:** claimed during the Discussion. It runs when the discussion timer
+  ends, before the ballot opens. Several run in the order claimed.
 - **Effect:** 20 seconds to defend, endorse or dismantle. Nobody else talks.
 
 #### Forbidden Words · `forbidden_words`
@@ -456,7 +465,8 @@ the app shows the countdown.
 > with them after this round.
 
 - **Who:** guesser. **Target:** any other player.
-- **When:** before you lock.
+- **When:** before you lock, in any round except the last one the game
+  plays.
 - **Seen by:** secret until the reveal, where it is announced before it
   happens.
 - **Effect:** the round is scored as normal first. Then, if your main answer
@@ -464,7 +474,8 @@ the app shows the countdown.
   points included. If you were wrong, nothing happens beyond your lost wager.
 - The target gets a moment at the reveal to answer with Not My Problem.
 - Several in one round run in the order they were played.
-- The strongest perk on the list by a distance; see section 7.
+- The strongest perk on the list by a distance, which is why the last round
+  is off limits (section 7).
 
 ### 4.7 Counters
 
@@ -478,7 +489,6 @@ the app shows the countdown.
 - **Seen by:** public.
 - **Effect:** the floor perk does not happen and is still spent. Objection!
   cannot be objected to, and it touches no other kind of perk.
-- A reaction: it does not use up your perk for the round.
 
 #### Not My Problem · `not_my_problem`
 
@@ -497,7 +507,6 @@ the app shows the countdown.
 - A perk can be redirected once; its new target cannot pass it on.
 - Secret perks the target never hears about (Ride or Die, Inside
   Information, Doppelgänger and the rest) cannot be redirected.
-- A reaction: it does not use up your perk for the round.
 
 #### Counterfeit · `counterfeit`
 
@@ -512,7 +521,7 @@ the app shows the countdown.
 - It cannot copy Counterfeit. It can copy a perk revealed earlier in the same
   round: a second Pickpocket in the same reveal, for instance.
 - It counts as the copied perk for every "at most one" rule (one Blackmail
-  per target, the first Kingmaker wins).
+  per target, the first Kingmaker wins, the same perk once a round).
 
 ## 5. Scoring order
 
@@ -526,12 +535,13 @@ added to totals at the Reveal exactly once (§12). Reveal-time perks follow.
 4. **Wager perks**, for each player with a wager, in this order:
    1. Success. A guesser in a Blood Pact succeeds only if both are right.
    2. Multipliers. Double or Nothing ×2 on gain and loss; Blind Faith ×3 on
-      gain; Blood Pact ×2 on gain. When two apply (a pact target who also
-      played Double or Nothing), they multiply.
+      gain; Blood Pact ×2 on gain. When several apply, they multiply:
+      Double or Nothing with Blind Faith pays six times the wager and loses
+      two times.
    3. Insurance Fraud. A loss becomes ⌈loss / 2⌉.
    4. Backup Plan. Main answer wrong, backup right: the wager part is 0.
 5. **Doppelgänger** replaces the result of steps 3 and 4 with the target's
-   plain score.
+   plain score, so your own wager perks do nothing that round.
 6. **Side points** add on: Silver Tongue, Victory Lap, Target Audience,
    Honourable Mention, Lone Wolf, Ride or Die, I Know Your Judgement Is
    Terrible, I Call Bullshit, Forbidden Words fines.
@@ -557,7 +567,7 @@ options and nine guessers.
 | Ben | bullshitter | B, 7 | Victory Lap | 4 + 7 = +11 | none: a Kingmaker win, not outright | **+11** |
 | Cleo | bullshitter | C, 5 | Insurance Fraud | 1 − 5 = −4 | loss of 5 becomes 3 | **−2** |
 | Gus | guesser | A, 3 | Kingmaker | +3 | | **+3** |
-| Hana | guesser | B, 6 | Double or Nothing | −6 | doubled | **−12** |
+| Hana | guesser | B, 6 | Double or Nothing, Insurance Fraud | −6 | doubled to 12, then halved to 6 | **−6** |
 | Ivo | guesser | A, 9 | Blood Pact with Jas | +9 | Jas was wrong, so Ivo loses | **−9** |
 | Jas | guesser | C, 4 | (in Ivo's pact) | −4 | | **−4** |
 | Kim | guesser | B, 2, backup A | Backup Plan | −2 | backup right: 0 | **0** |
@@ -576,7 +586,6 @@ What these rules lean on that the next step has to decide:
 - **How players get perks**, how many they hold, and whether anybody can see
   another player's hand. If everyone can see you hold Not My Problem, nobody
   will target you.
-- **The one-perk-per-round cap** assumed in section 1.
 - **Role luck.** Everyone is truthful exactly once, but bluffing turns are
   random and can be zero (§3). A speaker perk is guaranteed one chance per
   game, and Insurance Fraud or Double or Nothing as a bullshitter may never
@@ -585,10 +594,11 @@ What these rules lean on that the next step has to decide:
   guesser, so Backup Plan, Blind Faith, Lone Wolf and every perk aimed at
   "another guesser" can never be played. With four players there are at most
   two guessers.
-- **When guessers lock.** Today a guesser can lock the moment the Discussion
-  opens. The Last Word, The Mute Button and The Hot Seat matter only to people
-  still deciding, so if most lock early those perks lose their point. One
-  option is a host step that opens the ballot after the talking.
+- **The discussion timer** (section 0). Its length: proposed 60 seconds per
+  speaker, so two to four minutes, in `backend/config.py`. Whether the host
+  can open the ballot early or add time: proposed both. Floor perks run
+  inside the timer rather than stopping it, except The Last Word, which runs
+  after it.
 - **New beats in a round,** all host-paced: a late vote for Read the Room
   before the lock; a pause at the Headcount for Kingmaker; a short pause
   after each public perk for Objection! and Not My Problem; time in the
@@ -604,13 +614,14 @@ What these rules lean on that the next step has to decide:
 
 ## 7. Where this draft changes or adds to the list
 
-For the owner to confirm or overturn.
+Accepted by the owner on 23 October 2026.
 
 | Perk | The list says | This draft | Why |
 | --- | --- | --- | --- |
 | Blind Faith | any round, three times the wager | rounds with three or four options only, still three times | A blind pick at three times the wager averages +1 wager in a two-option round with no skill involved. With three options it averages +⅓ of a wager; with four it breaks even. |
 | Doppelgänger | any player may use it | guessers only | In a two-option round the bullshitter knows the other speaker is truthful, so copying them is a guaranteed N or floor(N / 2). |
-| Hostile Takeover | as written | unchanged, but flagged | It can move more points than the rest of the game put together; played in the final round by whoever is last, it decides the winner. Make it the rarest perk in the system step, or bar it from the final round. |
+| Hostile Takeover | any round | not in the game's last round | It can move more points than the rest of the game put together. In the last round whoever is bottom could take first place with one right answer, and nobody would have a round left to answer it. |
+| Every perk | not stated | a player plays the same perk at most once a round | Otherwise two copies of Double or Nothing make four times the wager, and two Lone Wolfs pay 20. |
 | Counterfeit | copy a perk when it is revealed | choose which revealed perk to copy when you play it | Same spirit, and no reaction window is needed at the moment of a reveal. |
 | Read the Room | everyone else locks first | several players share one late window | Two Read the Room players would otherwise wait on each other forever. |
 | Forbidden Words | −2 per slip | −2 per slip, capped at −10; words cannot come from the target's own answer | Keeps it a joke rather than a 30-point swing decided by the host's ears, and the target must be able to say their answer. |
@@ -622,4 +633,4 @@ For the owner to confirm or overturn.
 | Objection! | speaking perks | the four floor perks only, and it cannot be objected to | No Objection chains. |
 | Not My Problem | any perk that targets you | perks you are told about, once per perk, following that perk's own target rules | You cannot react to a perk you never hear about, and redirects cannot ping-pong. |
 | Insurance Fraud, Double or Nothing | visibility not stated | secret | Only a wager holder can play them, so announcing one from a speaker would out a bullshitter. |
-| Ride or Die, I Know Your Judgement Is Terrible, I Call Bullshit | "another guesser", "as a guesser" | guessers only, as written | Worth confirming: the truthful player always knows the answer, and so does a bullshitter in a two-option round. |
+| Ride or Die, I Know Your Judgement Is Terrible, I Call Bullshit | "another guesser", "as a guesser" | guessers only, as written | The truthful player always knows the answer, and so does a bullshitter in a two-option round. |
