@@ -12,6 +12,12 @@
  *     cast no vote; nothing is guessed for them.
  *   - Undo reset: for BS_UNDO_SECONDS after "Reset the room".
  *   - Remove (lobby only) and New game night.
+ *   - The talking clock: +30 s, End the talking, and Done for a floor perk
+ *     that has said its piece. A Forbidden Words slip counter per speaker.
+ *
+ * Perks show here as the room sees them: public ones when played, secret
+ * ones at the reveal. The one exception is False Witness, which the host
+ * referees, so it sits in a folded host-only panel like the round history.
  *
  * Players join with the code shown in the lobby; there is no invite list.
  * The round history panel sits outside the part of the page that redraws on
@@ -162,8 +168,26 @@
         text: s.speakers_in === s.speakers
           ? "Every speaker is ready."
           : "Speakers are reading their roles. If one has stopped responding, use Mark gone below." }));
+    } else if (s.phase === "open" && !(s.talk && s.talk.ballot)) {
+      nodes.unshift(BS.talkCard(s));
+      var floor = BS.floorCard(s);
+      if (floor) {
+        nodes.unshift(floor);
+        nodes.splice(1, 0, h("button", { class: "bs-btn bs-btn--ghost bs-btn--small bs-btn--floor",
+          type: "button", text: "Done, next", onclick: function () { step("floor_done"); } }));
+      }
+      nodes.push(h("div", { class: "bs-hostclock" },
+        h("button", { class: "bs-btn bs-btn--ghost", type: "button", text: "+30 s",
+                      onclick: function () { step("extend"); } }),
+        h("button", { class: "bs-btn bs-btn--go", type: "button",
+                      text: s.talk && s.talk.left <= 0 ? "Waiting on Last Words" : "End the talking",
+                      disabled: !!(s.talk && s.talk.left <= 0),
+                      onclick: function () { step("end_talk"); } })));
+      nodes.push(h("p", { class: "bs-missing",
+        text: "Let the speakers make their case. Voting opens when the clock runs out, or when you end the talking." }));
     } else if (s.phase === "open") {
       var waitingOn = s.guessers - s.guessers_in;
+      nodes.unshift(BS.talkCard(s));
       nodes.push(BS.meter("Guesses in", s.guessers_in, s.guessers));
       nodes.push(bigButton("Lock the votes", "lock", waitingOn === 0));
       if (waitingOn > 0) {
@@ -180,13 +204,21 @@
         }));
       }
       nodes.push(h("p", { class: "bs-missing",
-        text: "Let the speakers make their case on the call." }));
+        text: "Voting is open. Lock once everyone is in." }));
     } else if (s.phase === "votes") {
+      if ((s.tied || []).length) {
+        nodes.push(h("p", { class: "bs-missing",
+          text: "A tie at the top. Anyone holding Kingmaker can settle it now, before you reveal." }));
+      }
       nodes.push(bigButton("Reveal the truth", "reveal", true));
     } else if (s.phase === "reveal") {
       nodes.push(BS.leaderboard(s, "Scores"));
       nodes.push(bigButton(s.round >= s.rounds ? "Final scores" : "Next round", "next", true));
     }
+    nodes.push(BS.perkFeed(s, {
+      title: s.phase === "reveal" ? "Every perk this round" : "Perks this round",
+      onSlip: function (id, delta) { step("slip", { play: id, step: delta }); }
+    }));
     nodes.push(roster(s));
     return nodes;
   }
@@ -265,6 +297,32 @@
 
   var roundlog = buildHistoryPanel();
 
+  /* False Witness: who recruited whom. Host only and folded, for the same
+     reason as the history: the host may be sharing this screen. */
+  function buildSecretsPanel() {
+    var body = h("div", { class: "bs-roundlog__body" });
+    var panel = h("details", { class: "bs-card bs-invites bs-roundlog" },
+      h("summary", { class: "bs-invites__head" },
+        h("span", { class: "bs-label", text: "Secret perks to referee" }),
+        h("span", { class: "bs-invites__warn", text: "Host only. Don't open while screen-sharing." })),
+      body);
+    panelsEl.insertBefore(panel, panelsEl.firstChild);
+    return { panel: panel, body: body };
+  }
+
+  var secrets = buildSecretsPanel();
+
+  function paintSecrets(s) {
+    var list = s.host_secrets || [];
+    secrets.panel.hidden = !list.length;
+    secrets.body.innerHTML = "";
+    list.forEach(function (p) {
+      secrets.body.appendChild(h("p", { class: "bs-invites__hint",
+        text: "False Witness: " + BS.nameOf(s, p.by) + " recruited " + BS.nameOf(s, p.target) +
+              " to say a few words for option " + p.option + " during the talking." }));
+    });
+  }
+
   function paintHistory(s) {
     var count = (s.history || []).length;
     roundlog.panel.hidden = s.phase === "lobby";
@@ -296,7 +354,14 @@
     if (before.phase !== after.phase) {
       if (after.phase === "reveal") BS.play("stamp");
       if (after.phase === "final") BS.play("fanfare");
+      return;
     }
+    var had = {};
+    (before.perks || []).forEach(function (p) { had[p.id] = p.status; });
+    (after.perks || []).forEach(function (p) {
+      if (!(p.id in had)) BS.play("pop");
+      else if (had[p.id] !== "running" && p.status === "running") BS.play("stamp");
+    });
   }
 
   socket = BS.connect("as=host", {
@@ -312,6 +377,7 @@
       render();
       if (moved) window.scrollTo(0, 0);
       paintHistory(state);
+      paintSecrets(state);
     },
     onError: toast,
     onClosed: function (code) {

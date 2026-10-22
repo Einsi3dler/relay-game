@@ -659,3 +659,281 @@
 /* The host's round history panel: the history list without its own card. */
 .bs-roundlog { margin-top: 18px; }
 .bs-roundlog .bs-history { margin-top: 14px; padding: 0; border: 0; box-shadow: none; background: none; }
+
+/* =====================================================================
+ * Perks and the talking clock (docs/BULLSHIT_QUIZ_PERKS.md).
+ * ===================================================================== */
+
+/* -------------------------------------------------------------- clocks -- */
+
+.bs-clock {
+  display: inline-block;
+  min-width: 3.2em;
+  font-family: var(--bs-display);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.bs-clock--talk {
+  padding: 4px 12px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 12px;
+  background: var(--bs-yellow);
+  font-size: 1.6rem;
+  line-height: 1.1;
+}
+
+.bs-clock--big {
+  display: block;
+  margin: 6px auto 0;
+  font-size: clamp(3rem, 16vw, 4.5rem);
+  line-height: 1;
+  color: var(--bs-paper);
+  -webkit-text-stroke: 2px var(--bs-ink);
+  text-shadow: 4px 4px 0 var(--bs-ink);
+}
+
+.bs-talk { margin: 4px 0 18px; }
+.bs-talk.is-open { background: var(--bs-green); }
+.bs-talk__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bs-talk__row .bs-label { margin: 0; }
+.bs-talk__note { margin: 8px 0 0; font-size: 0.98rem; }
+
+/* The floor perk running now: the loudest thing on the screen. */
+.bs-floor {
+  margin: 4px 0 18px;
+  padding: 18px;
+  border: var(--bs-line);
+  border-radius: var(--bs-radius);
+  background: var(--bs-orange);
+  box-shadow: var(--bs-shadow);
+  text-align: center;
+  transform: rotate(-1deg);
+  animation: bs-spin-in 0.45s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+.bs-floor__name {
+  display: inline-block;
+  padding: 4px 12px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 10px;
+  background: var(--bs-paper);
+  font-family: var(--bs-display);
+  font-size: 1.25rem;
+  transform: rotate(-3deg);
+}
+
+.bs-floor__line { margin: 12px 0 0; font-size: 1.1rem; font-weight: 900; }
+
+/* --------------------------------------------------------------- perks -- */
+
+.bs-perk {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 16px 16px 14px;
+  border: var(--bs-line);
+  border-radius: 18px;
+  box-shadow: var(--bs-shadow-sm);
+  color: var(--bs-ink);
+  font: inherit;
+  text-align: left;
+}
+
+.bs-perk--yellow { background: var(--bs-yellow); }
+.bs-perk--cyan { background: var(--bs-cyan); }
+.bs-perk--orange { background: var(--bs-orange); }
+.bs-perk--pink { background: var(--bs-pink); }
+.bs-perk--paper { background: #fff; }
+
+.bs-perk__tag {
+  position: absolute;
+  top: -12px;
+  right: 12px;
+  padding: 2px 8px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 8px;
+  background: var(--bs-paper);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transform: rotate(4deg);
+}
+
+.bs-perk__name {
+  display: block;
+  margin: 0;
+  font-family: var(--bs-display);
+  font-size: 1.45rem;
+  line-height: 1.1;
+}
+
+.bs-perk__text { display: block; margin: 6px 0 0; font-size: 0.98rem; line-height: 1.35; }
+
+.bs-perk.is-used { filter: grayscale(1); opacity: 0.55; }
+.bs-perk.is-copy { margin-top: 14px; }
+
+/* The offers: three cards to tap, one to keep. */
+.bs-offers { display: grid; gap: 18px; margin: 16px 0 6px; }
+
+.bs-offer {
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  animation: bs-pop 0.35s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+.bs-offer:nth-child(2) { animation-delay: 0.06s; }
+.bs-offer:nth-child(3) { animation-delay: 0.12s; }
+.bs-offer:hover { transform: rotate(-0.6deg) translate(-1px, -1px); }
+.bs-offer:focus-visible { outline: 4px solid var(--bs-ink); outline-offset: 3px; }
+
+.bs-offer.is-picked {
+  transform: rotate(-1.5deg) scale(1.03);
+  outline: 4px solid var(--bs-ink);
+  outline-offset: 4px;
+  box-shadow: var(--bs-shadow);
+}
+
+.bs-offers.has-pick .bs-offer:not(.is-picked) { opacity: 0.55; }
+
+/* Your perk, at the foot of the screen (or pinned up top when a reaction
+   can only happen right now). */
+.bs-dock { margin: 22px 0; }
+.bs-dock.is-urgent { margin-top: 4px; background: var(--bs-yellow); animation: bs-boing 0.45s cubic-bezier(.2, 1.8, .4, 1) both; }
+
+.bs-dock__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.bs-dock__head .bs-label { margin: 0; }
+
+.bs-dock__state {
+  padding: 2px 10px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 999px;
+  background: #e8e2f5;
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.bs-dock__state.is-ready { background: var(--bs-green); }
+
+.bs-dock__why { margin: 14px 0 0; font-size: 0.98rem; }
+.bs-dock__ask { margin: 18px 0 8px; font-weight: 900; }
+.bs-dock__row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 18px; }
+.bs-dock__row .bs-btn { margin-top: 0; }
+.bs-dock__row .bs-btn--go { flex: 1 1 220px; }
+.bs-dock__react + .bs-dock__react { margin-top: 18px; padding-top: 14px; border-top: 3px dashed rgba(26, 16, 51, 0.2); }
+.bs-dock .bs-wagers .bs-wager.is-spent { border-color: rgba(26, 16, 51, 0.25); color: rgba(26, 16, 51, 0.35); }
+
+/* Pick a person or an option for a perk. */
+.bs-pickchips { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.bs-pickchip {
+  max-width: 100%;
+  padding: 8px 14px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--bs-shadow-sm);
+  color: var(--bs-ink);
+  font-family: var(--bs-body);
+  font-weight: 900;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.bs-pickchip--yellow { background: var(--bs-yellow); }
+.bs-pickchip--cyan { background: var(--bs-cyan); }
+.bs-pickchip--pink { background: var(--bs-pink); }
+.bs-pickchip--orange { background: var(--bs-orange); }
+.bs-pickchip:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--bs-ink); }
+.bs-pickchip:focus-visible { outline: 3px solid var(--bs-ink); outline-offset: 2px; }
+.bs-pickchip.is-picked { background: var(--bs-ink); color: var(--bs-paper); transform: rotate(-2deg); }
+
+.bs-words { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.bs-word__box { min-width: 0; padding: 10px; font-size: 1rem; }
+
+/* ---------------------------------------------------------------- feed -- */
+
+.bs-feed { margin: 22px 0; }
+.bs-feed__list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+
+.bs-feed__item {
+  padding: 10px 12px 10px 16px;
+  border: 3px solid var(--bs-ink);
+  border-left-width: 12px;
+  border-radius: 14px;
+  background: #fff;
+  animation: bs-pop 0.3s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+.bs-feed__item--yellow { border-left-color: #e0b400; }
+.bs-feed__item--cyan { border-left-color: #12a9c4; }
+.bs-feed__item--orange { border-left-color: #e07c00; }
+.bs-feed__item--pink { border-left-color: #e0336a; }
+.bs-feed__item--paper { border-left-color: var(--bs-ink); }
+.bs-feed__item.is-you { background: var(--bs-yellow); }
+.bs-feed__item.is-off { opacity: 0.6; text-decoration: line-through 2px; }
+
+.bs-feed__name { font-family: var(--bs-display); font-size: 1.15rem; }
+.bs-feed__what { margin: 2px 0 0; font-size: 0.98rem; overflow-wrap: anywhere; }
+.bs-feed__status { margin: 6px 0 0; font-size: 0.9rem; font-weight: 900; }
+.bs-feed__when .bs-clock { min-width: 0; }
+.bs-feed__words { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+
+.bs-word {
+  padding: 2px 10px;
+  border: 2px solid var(--bs-ink);
+  border-radius: 8px;
+  background: var(--bs-pink);
+  color: var(--bs-paper);
+  font-weight: 900;
+  text-decoration: line-through 2px var(--bs-ink);
+}
+
+.bs-feed__tools { display: flex; gap: 8px; margin-top: 8px; }
+.bs-btn--quiet { background: var(--bs-paper); }
+
+/* --------------------------------------------------------------- alert -- */
+
+/* A perk aimed at you. */
+.bs-alert {
+  margin: 4px 0 18px;
+  padding: 14px 16px;
+  border: var(--bs-line);
+  border-radius: 18px;
+  background: var(--bs-pink);
+  box-shadow: var(--bs-shadow);
+  color: var(--bs-ink);
+  transform: rotate(-0.8deg);
+  animation: bs-boing 0.45s cubic-bezier(.2, 1.8, .4, 1) both;
+}
+
+.bs-alert.is-coming { background: var(--bs-yellow); }
+
+.bs-alert__name {
+  display: inline-block;
+  padding: 2px 10px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 8px;
+  background: var(--bs-paper);
+  font-family: var(--bs-display);
+  font-size: 1.1rem;
+}
+
+.bs-alert__text { margin: 8px 0 0; font-weight: 900; font-size: 1.02rem; }
+.bs-alert__when { margin: 6px 0 0; font-size: 0.9rem; }
+
+/* ---------------------------------------------------------- host clock -- */
+
+.bs-hostclock { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; margin-top: 22px; }
+.bs-hostclock .bs-btn { margin-top: 0; }
+.bs-btn--floor { display: block; margin: -6px auto 18px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bs-floor, .bs-offer, .bs-dock.is-urgent, .bs-feed__item, .bs-alert { animation: none; }
+}

@@ -45,6 +45,16 @@
   var pickWager = null;
   var bluffWager = null;
 
+  // Your perk: the offer you're eyeing, whether its form is open, and what
+  // is chosen in it so far. Cleared with the rest when the round moves.
+  var offerPick = null;
+  var perkOpen = false;
+  var perkSel = { target: null, option: null, wager: null, copy: null, play: null };
+  // The three Forbidden Words boxes are built once, so a redraw caused by
+  // somebody else never steals the cursor mid-word (see render).
+  var wordBoxes = null;
+  var redrawLater = false;
+
   var el = {
     chip: document.getElementById("me-chip"),
     signinGo: document.getElementById("signin-go"),
@@ -345,8 +355,265 @@
     return h("p", { class: "bs-locked", text: text });
   }
 
-  function briefing(s) {
+  function who(s, id) {
+    return id === s.you ? "you" : BS.nameOf(s, id);
+  }
+
+  function myPlay(s, perk) {
+    return (s.perks || []).filter(function (p) { return p.by === s.you && p.perk === perk; })[0];
+  }
+
+  /* ------------------------------------------------------------- perks -- */
+
+  /* Perks that have landed on you, or are about to: what they mean for you.
+     Once the truth is out, only what is still about to land matters. */
+  function aimedAtYou(s) {
+    var showing = s.phase === "reveal" ? ["pending"] : ["pending", "queued", "live"];
+    return (s.perks || []).filter(function (p) {
+      return p.target === s.you && p.by !== s.you &&
+             showing.indexOf(p.status) !== -1 && p.ref === undefined;
+    }).map(function (p) {
+      var by = BS.nameOf(s, p.by);
+      var text = {
+        blackmail: by + " is blackmailing you: your wager is your highest number left" +
+                   (s.forced_wager ? ", " + s.forced_wager + "." : "."),
+        blood_pact: by + " has bound you in a Blood Pact. Both right: double your wager. Either wrong: you both lose it.",
+        false_witness: by + " recruited you. While the clock runs, say a few words for option " + p.option +
+                       ". Keep it secret until the reveal. You still vote however you like.",
+        hot_seat: by + " is putting you in the Hot Seat: 20 seconds of their questions.",
+        mute_button: by + " is muting you for 20 seconds.",
+        forbidden_words: "Don't say " + (p.words || []).join(", ") + ". Every slip costs you 2 points.",
+        the_audit: by + " is auditing you: your answer and wager go on every screen.",
+        pickpocket: by + " is picking your pocket for 3 points.",
+        hostile_takeover: by + " is taking over your score: you swap totals."
+      }[p.perk];
+      if (!text) return null;
+      var dodge = s.perk && s.perk.id === "not_my_problem" && !s.perk.used && p.status !== "live"
+        ? " Not My Problem can send it on, below." : "";
+      return h("div", { class: "bs-alert" + (p.status === "live" ? "" : " is-coming") },
+        h("span", { class: "bs-alert__name", text: p.name }),
+        h("p", { class: "bs-alert__text", text: text + dodge }),
+        p.status === "pending"
+          ? h("p", { class: "bs-alert__when" }, "Lands in ", BS.clock(p.lands_in))
+          : null);
+    });
+  }
+
+  /* Your hand: the three offers until you keep one, then your perk, and a
+     form to play it when the rules allow. */
+  function perkDock(s) {
+    var perk = s.perk;
+    if (!perk) return null;
+    if (perk.offers) return offersDock(perk.offers);
+    var nodes = [
+      h("div", { class: "bs-dock__head" },
+        h("span", { class: "bs-label", text: "Your perk" }),
+        h("span", { class: "bs-dock__state" + (perk.ready && !perk.used ? " is-ready" : ""),
+                    text: perk.used ? "Used" : perk.ready ? "Ready" : "Not now" })),
+      BS.perkCard(perk, perk.used ? "is-used" : null)
+    ];
+    if (perk.used) {
+      nodes.push(h("p", { class: "bs-dock__why", text: "Spent. Everyone gets one perk a game." }));
+    } else if (perk.id === "counterfeit") {
+      nodes = nodes.concat(copyForm(s, perk));
+    } else if (perk.reactions) {
+      nodes = nodes.concat(reactionForm(s, perk, null));
+    } else {
+      nodes = nodes.concat(playForm(s, perk, null));
+    }
+    return h("section", { class: "bs-card bs-dock" + (urgent(s) ? " is-urgent" : ""),
+                          "aria-label": "Your perk" }, nodes);
+  }
+
+  /* A reaction is only any use inside someone else's window: pin it up top. */
+  function urgent(s) {
+    var perk = s.perk;
+    if (!perk || perk.used || !perk.ready) return false;
+    var copies = perk.copies || [];
+    return !!((perk.reactions && perk.reactions.length) ||
+      copies.some(function (c) { return c.reactions && c.reactions.length; }) ||
+      (s.phase === "votes"));
+  }
+
+  function offersDock(offers) {
+    var chosen = offers.filter(function (o) { return o.id === offerPick; })[0];
+    return h("section", { class: "bs-card bs-dock bs-dock--offers", "aria-label": "Pick your perk" },
+      h("span", { class: "bs-label", text: "Pick your perk" }),
+      h("p", { class: "bs-dock__why", text: "Keep one for the whole game. Nobody else sees which. You can pick any time." }),
+      h("div", { class: "bs-offers" + (chosen ? " has-pick" : "") }, offers.map(function (perk) {
+        var picked = offerPick === perk.id;
+        return h("button", {
+          class: "bs-perk bs-offer bs-perk--" + BS.familyColour(perk.family) + (picked ? " is-picked" : ""),
+          type: "button", "aria-pressed": picked ? "true" : "false",
+          onclick: function () { offerPick = perk.id; render(); }
+        },
+          h("span", { class: "bs-perk__tag", text: perk.public ? "Public" : "Secret" }),
+          h("span", { class: "bs-perk__name", text: perk.name }),
+          h("span", { class: "bs-perk__text", text: perk.text }));
+      })),
+      h("button", { class: "bs-btn bs-btn--go", type: "button", disabled: !chosen,
+                    text: chosen ? "Keep " + chosen.name : "Tap one to keep it",
+                    onclick: function () { send({ type: "bs_pick", perk: offerPick }); } }));
+  }
+
+  function ask(text) {
+    return h("p", { class: "bs-dock__ask", text: text });
+  }
+
+  function chips(s, ids, selected, onPick) {
+    return h("div", { class: "bs-pickchips", role: "group" }, ids.map(function (id) {
+      return h("button", { class: "bs-pickchip" + (selected === id ? " is-picked" : ""), type: "button",
+                           "aria-pressed": selected === id ? "true" : "false",
+                           text: BS.nameOf(s, id),
+                           onclick: function () { onPick(id); } });
+    }));
+  }
+
+  function letterChips(s, keys, selected, onPick) {
+    var colours = { A: "yellow", B: "cyan", C: "pink", D: "orange" };
+    return h("div", { class: "bs-pickchips", role: "group" }, keys.map(function (key) {
+      var opt = s.question.options.filter(function (o) { return o.key === key; })[0];
+      return h("button", { class: "bs-pickchip bs-pickchip--" + colours[key] + (selected === key ? " is-picked" : ""),
+                           type: "button", "aria-pressed": selected === key ? "true" : "false",
+                           text: key + (opt ? ": " + opt.text : ""),
+                           onclick: function () { onPick(key); } });
+    }));
+  }
+
+  function words() {
+    if (!wordBoxes) {
+      wordBoxes = [0, 1, 2].map(function (i) {
+        var box = h("input", { class: "bs-field bs-word__box", type: "text", maxlength: "20",
+                               autocomplete: "off", autocapitalize: "none", spellcheck: "false",
+                               "aria-label": "Forbidden word " + (i + 1),
+                               placeholder: ["because", "honestly", "remember"][i] });
+        box.addEventListener("input", function () { paintPlayButton(); });
+        box.addEventListener("blur", function () {
+          // Late enough that a tap on the Play button lands before the redraw.
+          setTimeout(function () { if (redrawLater && !typingWords()) render(); }, 250);
+        });
+        return box;
+      });
+    }
+    return h("div", { class: "bs-words" }, wordBoxes);
+  }
+
+  function wordValues() {
+    return wordBoxes ? wordBoxes.map(function (b) { return b.value.trim(); }) : [];
+  }
+
+  function typingWords() {
+    return !!wordBoxes && wordBoxes.indexOf(document.activeElement) !== -1;
+  }
+
+  var playButton = null;
+  var playReady = null;
+
+  function paintPlayButton() {
+    if (!playButton || !playReady) return;
+    var ok = playReady();
+    playButton.disabled = !ok;
+  }
+
+  /* The form for a perk that targets, names an option, takes a wager or
+     takes words. `aff` is what the server says is possible right now. */
+  function playForm(s, aff, copyId) {
+    if (!aff.ready) return [h("p", { class: "bs-dock__why", text: aff.why || "Not right now." })];
+    if (!perkOpen) {
+      return [h("button", { class: "bs-btn bs-btn--go", type: "button",
+                            text: "Use " + aff.name,
+                            onclick: function () { perkOpen = true; render(); } })];
+    }
+    var needs = aff.needs;
+    var wantsTarget = ["guesser", "speaker", "player", "words"].indexOf(needs) !== -1;
+    var wantsOption = needs === "option" || needs === "answer";
     var nodes = [];
+    if (wantsTarget) {
+      nodes.push(ask({ guesser: "Which guesser?", speaker: "Which speaker?", words: "Which speaker?",
+                       player: "Which player?" }[needs]));
+      nodes.push(chips(s, aff.targets, perkSel.target, function (id) { perkSel.target = id; render(); }));
+    }
+    if (wantsOption) {
+      nodes.push(ask(aff.id === "backup_plan" ? "Your backup answer" :
+                     aff.id === "kingmaker" ? "Which tied answer wins the crowd?" : "Your answer"));
+      nodes.push(letterChips(s, aff.options, perkSel.option, function (k) { perkSel.option = k; render(); }));
+    }
+    if (needs === "answer") {
+      nodes.push(ask(s.forced_wager ? "Your wager is forced to " + s.forced_wager + "." : "Your wager"));
+      if (!s.forced_wager) {
+        nodes.push(BS.wagerPicker(s.wager_max, s.used_wagers, perkSel.wager,
+                                  function (n) { perkSel.wager = n; render(); }));
+      }
+    }
+    if (needs === "words") {
+      nodes.push(ask("Three words they can't say"));
+      nodes.push(words());
+    }
+    playReady = function () {
+      return (!wantsTarget || !!perkSel.target) && (!wantsOption || !!perkSel.option) &&
+        (needs !== "answer" || !!perkSel.wager || !!s.forced_wager) &&
+        (needs !== "words" || wordValues().every(function (w) { return w; }));
+    };
+    playButton = h("button", {
+      class: "bs-btn bs-btn--go", type: "button",
+      text: "Play " + aff.name + (perkSel.target ? " on " + BS.nameOf(s, perkSel.target) : ""),
+      onclick: function () {
+        if (!playReady()) return;
+        send({ type: "bs_perk", target: perkSel.target, option: perkSel.option,
+               wager: s.forced_wager || perkSel.wager, words: needs === "words" ? wordValues() : null,
+               copy: copyId });
+      }
+    });
+    paintPlayButton();
+    nodes.push(h("div", { class: "bs-dock__row" }, playButton,
+      h("button", { class: "bs-btn bs-btn--ghost bs-btn--inline", type: "button", text: "Not yet",
+                    onclick: function () { perkOpen = false; render(); } })));
+    return nodes;
+  }
+
+  function reactionForm(s, aff, copyId) {
+    if (!aff.ready) return [h("p", { class: "bs-dock__why", text: aff.why || "Not right now." })];
+    return aff.reactions.map(function (r) {
+      if (aff.id === "objection") {
+        return h("button", { class: "bs-btn bs-btn--go", type: "button",
+                             text: "Object to " + r.name + " from " + who(s, r.by),
+                             onclick: function () { send({ type: "bs_perk", play: r.play, copy: copyId }); } });
+      }
+      var mine = perkSel.play === r.play ? perkSel.target : null;
+      return h("div", { class: "bs-dock__react" },
+        ask(r.name + " from " + BS.nameOf(s, r.by) + ". Send it to:"),
+        chips(s, r.targets, mine, function (id) { perkSel.play = r.play; perkSel.target = id; render(); }),
+        h("button", { class: "bs-btn bs-btn--go", type: "button", disabled: !mine,
+                      text: mine ? "Send it to " + BS.nameOf(s, mine) : "Pick who gets it",
+                      onclick: function () {
+                        send({ type: "bs_perk", play: r.play, target: mine, copy: copyId });
+                      } }));
+    });
+  }
+
+  /* Counterfeit: choose which revealed perk to copy, then play it. */
+  function copyForm(s, perk) {
+    var copies = perk.copies || [];
+    if (!copies.length) return [h("p", { class: "bs-dock__why", text: perk.why || "Nothing to copy yet." })];
+    var nodes = [ask("Copy which perk?"),
+      h("div", { class: "bs-pickchips", role: "group" }, copies.map(function (c) {
+        return h("button", { class: "bs-pickchip" + (perkSel.copy === c.id ? " is-picked" : ""),
+                             type: "button", text: c.name + (c.ready ? "" : " (not now)"),
+                             onclick: function () { perkSel.copy = c.id; perkOpen = false; render(); } });
+      }))];
+    var chosen = copies.filter(function (c) { return c.id === perkSel.copy; })[0];
+    if (chosen) {
+      nodes.push(BS.perkCard(chosen, "is-copy"));
+      nodes = nodes.concat(chosen.reactions ? reactionForm(s, chosen, chosen.id)
+                                            : playForm(s, chosen, chosen.id));
+    }
+    return nodes;
+  }
+
+  /* ------------------------------------------------------------ phases -- */
+
+  function briefing(s) {
+    var nodes = aimedAtYou(s);
     if (s.role === "truthful") {
       nodes.push(banner("truth", "You're telling the truth"));
       nodes.push(BS.sub("Option " + s.your_option + " is your real answer. Get ready to defend it on the call. Nobody knows it's yours."));
@@ -379,37 +646,74 @@
       }
     } else {
       nodes.push(banner("guess", "You're guessing"));
-      nodes.push(BS.sub("The speakers are getting ready. Listen to them on the call, then pick who's telling the truth."));
-      nodes.push(relegatedNote(s));
-      nodes.push(BS.questionCard(s), BS.optionTiles(s, {}));
+      if (s.committed) {
+        nodes.push(BS.sub("Blind Faith: you're locked in before anyone has spoken. Now see if you were right."));
+        nodes.push(BS.questionCard(s), BS.optionTiles(s, { selected: s.your_pick }));
+        nodes.push(lockedNote("You picked " + s.your_pick + " with a wager of " + s.your_wager + "."));
+      } else {
+        nodes.push(BS.sub("The speakers are getting ready. Listen to them on the call. Voting opens when the talking stops."));
+        nodes.push(relegatedNote(s));
+        nodes.push(BS.questionCard(s), BS.optionTiles(s, {}));
+      }
     }
+    nodes.push(perkDock(s));
+    nodes.push(BS.perkFeed(s));
     nodes.push(BS.meter("Speakers ready", s.speakers_in, s.speakers));
     return nodes;
   }
 
-  function discussion(s) {
+  function ballot(s) {
     var nodes = [];
+    var reading = s.read_the_room;
+    if (reading && reading.waiting > 0) {
+      nodes.push(BS.title("Reading the room"));
+      nodes.push(BS.sub("You vote last. Waiting on " + reading.waiting + " more guesser" +
+                        (reading.waiting === 1 ? "." : "s.")));
+      nodes.push(BS.questionCard(s), BS.optionTiles(s, {}));
+      return nodes;
+    }
+    var backup = myPlay(s, "backup_plan");
+    nodes.push(BS.title("Who's telling the truth?"));
+    nodes.push(relegatedNote(s));
+    if (reading) nodes.push(BS.sub("Everyone else is in. Here's how they split. You still don't know which is true."));
+    nodes.push(BS.questionCard(s));
+    nodes.push(BS.optionTiles(s, { selected: pickKey, counts: reading ? reading.counts : null,
+                                   onPick: function (k) { pickKey = k; render(); } }));
+    if (backup) nodes.push(h("p", { class: "bs-note", text: "Your backup is " + backup.option + ". Pick a different main answer." }));
+    if (s.forced_wager) {
+      pickWager = s.forced_wager;
+      nodes.push(h("p", { class: "bs-note", text: "Blackmailed: your wager is your highest number left, " + s.forced_wager + "." }));
+    } else {
+      nodes.push(h("p", { class: "bs-hint", text: "Your wager. Right adds it, wrong takes it away. Each number works once." }));
+      nodes.push(BS.wagerPicker(s.wager_max, s.used_wagers, pickWager, function (n) {
+        pickWager = n; render();
+      }));
+    }
+    var ready = pickKey !== null && pickWager !== null;
+    nodes.push(h("button", {
+      class: "bs-btn bs-btn--go", type: "button", disabled: !ready,
+      text: ready ? "Lock in " + pickKey + " for " + pickWager
+        : pickKey === null ? "Pick an answer" : "Pick a wager",
+      onclick: function () { send({ type: "bs_guess", option: pickKey, wager: pickWager }); }
+    }));
+    return nodes;
+  }
+
+  function discussion(s) {
+    var nodes = [BS.floorCard(s), BS.talkCard(s)].concat(aimedAtYou(s));
+    if (urgent(s)) nodes.push(perkDock(s));
     if (s.role === "guesser") {
       if (s.committed) {
         nodes.push(BS.title("Locked in"));
         nodes.push(BS.questionCard(s), BS.optionTiles(s, { selected: s.your_pick }));
         nodes.push(lockedNote("You picked " + s.your_pick + " with a wager of " + s.your_wager + "."));
-      } else {
-        nodes.push(BS.title("Who's telling the truth?"));
+      } else if (!s.talk || !s.talk.ballot) {
+        nodes.push(BS.title("Listen first"));
         nodes.push(relegatedNote(s));
-        nodes.push(BS.questionCard(s));
-        nodes.push(BS.optionTiles(s, { selected: pickKey, onPick: function (k) { pickKey = k; render(); } }));
-        nodes.push(h("p", { class: "bs-hint", text: "Your wager. Right adds it, wrong takes it away. Each number works once." }));
-        nodes.push(BS.wagerPicker(s.wager_max, s.used_wagers, pickWager, function (n) {
-          pickWager = n; render();
-        }));
-        var ready = pickKey !== null && pickWager !== null;
-        nodes.push(h("button", {
-          class: "bs-btn bs-btn--go", type: "button", disabled: !ready,
-          text: ready ? "Lock in " + pickKey + " for " + pickWager
-            : pickKey === null ? "Pick an answer" : "Pick a wager",
-          onclick: function () { send({ type: "bs_guess", option: pickKey, wager: pickWager }); }
-        }));
+        nodes.push(BS.sub("Grill the speakers on the call. Voting opens when the talking stops."));
+        nodes.push(BS.questionCard(s), BS.optionTiles(s, {}));
+      } else {
+        nodes = nodes.concat(ballot(s));
       }
     } else {
       nodes.push(banner(s.role === "truthful" ? "truth" : "bull", "Defend it on the call"));
@@ -418,16 +722,22 @@
         : "Convince them option " + s.your_option + " is the truth. It isn't. Your wager: " + s.your_wager + "."));
       nodes.push(BS.questionCard(s), BS.optionTiles(s, { mine: s.your_option }));
     }
-    nodes.push(BS.meter("Guesses in", s.guessers_in, s.guessers));
+    if (!urgent(s)) nodes.push(perkDock(s));
+    nodes.push(BS.perkFeed(s));
+    if (s.talk && s.talk.ballot) nodes.push(BS.meter("Guesses in", s.guessers_in, s.guessers));
     return nodes;
   }
 
   function votes(s) {
+    var tied = (s.tied || []).length;
     return [
       BS.title("The votes are in"),
-      BS.sub("That's how the crowd split. The host reveals the truth next."),
+      BS.sub(tied ? "A tie at the top. Unless a Kingmaker settles it, nobody wins the crowd. The host reveals the truth next."
+                  : "That's how the crowd split. The host reveals the truth next."),
+      perkDock(s),
       BS.questionCard(s),
-      BS.optionTiles(s, { counts: s.counts, mine: s.your_option, selected: s.your_pick })
+      BS.optionTiles(s, { counts: s.counts, mine: s.your_option, selected: s.your_pick }),
+      BS.perkFeed(s)
     ];
   }
 
@@ -440,12 +750,15 @@
       BS.optionTiles(s, { truth: s.truth.key, counts: s.counts,
                           mine: s.your_option, selected: s.your_pick })
     ];
+    nodes = nodes.concat(aimedAtYou(s));
     if (line) {
       nodes.push(h("div", { class: "bs-card bs-card--line" + (line.delta >= 0 ? " is-up" : " is-down") },
         h("span", { class: "bs-label", text: "Your round" }),
         h("p", { class: "bs-line__delta", text: BS.signed(line.delta) }),
         h("p", { class: "bs-line__parts", text: BS.lineParts(line).join(", ") })));
     }
+    nodes.push(perkDock(s));
+    nodes.push(BS.perkFeed(s, { title: "Every perk this round" }));
     nodes.push(BS.leaderboard(s, "Scores"));
     return nodes;
   }
@@ -467,7 +780,17 @@
     if (key !== roundKey) {
       roundKey = key;
       pickKey = pickWager = bluffWager = null;
+      perkOpen = false;
+      perkSel = { target: null, option: null, wager: null, copy: null, play: null };
+      if (wordBoxes) wordBoxes.forEach(function (b) { b.value = ""; });
     }
+    if (typingWords()) {
+      // Somebody else's move would rebuild the form under the cursor.
+      // Clocks keep ticking on their own; redraw once they leave the box.
+      redrawLater = true;
+      return;
+    }
+    redrawLater = false;
     var nodes = s.phase === "briefing" ? briefing(s)
       : s.phase === "open" ? discussion(s)
       : s.phase === "votes" ? votes(s)
@@ -475,6 +798,7 @@
       : s.phase === "waiting" ? [
           BS.title("Hang tight"),
           BS.sub("Not enough players are online for the next round. The host will deal it once a few more are back."),
+          perkDock(s),
           BS.leaderboard(s, "Scores")
         ]
       : final(s);
@@ -516,9 +840,9 @@
   function cue(before, after) {
     if (!before || after.phase === "lobby") return;
     var moved = before.phase !== after.phase || before.round !== after.round;
+    perkCue(before, after, moved);
     if (moved) {
-      var mustAct = (after.phase === "briefing" && (after.role === "truthful" || after.role === "bullshitter")) ||
-                    (after.phase === "open" && after.role === "guesser");
+      var mustAct = after.phase === "briefing" && (after.role === "truthful" || after.role === "bullshitter");
       if (mustAct && !after.committed) { BS.play("turn"); BS.buzz(); }
       if (after.phase === "reveal") {
         BS.play("stamp");
@@ -531,6 +855,23 @@
       return;
     }
     if (!before.committed && after.committed) BS.play("pop");
+    var opened = after.talk && after.talk.ballot && !(before.talk && before.talk.ballot);
+    if (opened && after.role === "guesser" && !after.committed) { BS.play("turn"); BS.buzz(); }
+  }
+
+  /* A perk announced: a pop for everyone, a buzz if it is aimed at you. */
+  function perkCue(before, after, moved) {
+    var had = {};
+    if (!moved) (before.perks || []).forEach(function (p) { had[p.id] = p.status; });
+    (after.perks || []).forEach(function (p) {
+      if (moved && after.phase === "reveal") return;
+      if (!(p.id in had) && p.by !== after.you) {
+        if (p.target === after.you) { BS.play("turn"); BS.buzz([80, 40, 80, 40, 80]); }
+        else BS.play("pop");
+      } else if (had[p.id] !== "running" && p.status === "running") {
+        BS.play("stamp");
+      }
+    });
   }
 
   function startLive() {

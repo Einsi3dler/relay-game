@@ -192,6 +192,7 @@
     var won = t.winner === null ? "Nobody won the crowd: it was a tie at the top."
       : t.winner === t.key ? nameOf(state, t.author) + " won the crowd with the truth."
       : nameOf(state, speakerOf(state, t.winner)) + " won the crowd with pure bullshit.";
+    if (t.winner !== null && (state.tied || []).length) won += " A Kingmaker settled the tie.";
     return h("div", { class: "bs-card bs-card--verdict" },
       h("p", { class: "bs-verdict__who",
                text: "The truth was " + t.key + ". " + nameOf(state, t.author) + " wrote this one." }),
@@ -204,19 +205,199 @@
     return o ? o.speaker : null;
   }
 
-  /* "Fooled 3 (+3), lost an 8 wager (-8) = -5", as parts. */
-  function lineParts(line, n) {
+  /* "Fooled 3 (+3), lost an 8 wager (-8), Silver Tongue (+3)", as parts.
+     Each perk that touched the line is its own part, even one worth 0. */
+  function lineParts(line) {
     if (!line) return [];
+    var out;
     if (line.role === "truthful") {
-      return [line.won ? "Your truth won the crowd" : "The crowd went elsewhere",
-              "worth " + line.delta];
+      var reward = line.delta - perkTotal(line);
+      out = [line.won ? "Your truth won the crowd" : "The crowd went elsewhere",
+             "worth " + reward];
+    } else if (line.role === "bullshitter") {
+      out = ["Fooled " + line.fooled + " (" + signed(line.fooled) + ")",
+             (line.won ? "won" : "lost") + " your " + line.wager + " wager (" +
+             signed(line.won ? line.wager : -line.wager) + ")"];
+    } else if (line.option === null) {
+      out = ["No vote this round"];
+    } else {
+      out = [(line.won ? "Right" : "Wrong") + " with a " + line.wager + " wager"];
     }
-    if (line.role === "bullshitter") {
-      return ["Fooled " + line.fooled + " (" + signed(line.fooled) + ")",
-              (line.won ? "won" : "lost") + " your " + line.wager + " wager (" +
-              signed(line.won ? line.wager : -line.wager) + ")"];
+    (line.parts || []).forEach(function (part) {
+      out.push(part[0] + " (" + signed(part[1]) + ")");
+    });
+    return out;
+  }
+
+  function perkTotal(line) {
+    return (line.parts || []).reduce(function (sum, part) { return sum + part[1]; }, 0);
+  }
+
+  /* -------------------------------------------------------------- clocks -- */
+
+  /* Countdowns arrive as seconds left when the snapshot was made. Each turns
+     into an end time on this device's clock, and one timer repaints them
+     all, so the seconds tick down without the server sending anything. The
+     server still decides when time is up. */
+  function clock(seconds, extra) {
+    var node = h("span", { class: "bs-clock" + (extra ? " " + extra : ""),
+                           role: "timer" });
+    node.setAttribute("data-ends", String(Date.now() + Math.max(0, seconds || 0) * 1000));
+    paintClock(node);
+    return node;
+  }
+
+  function paintClock(node) {
+    var left = Math.max(0, Math.ceil((Number(node.getAttribute("data-ends")) - Date.now()) / 1000));
+    node.textContent = Math.floor(left / 60) + ":" + ("0" + (left % 60)).slice(-2);
+  }
+
+  setInterval(function () {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-ends]"), paintClock);
+  }, 250);
+
+  /* The talking clock: openings, then the open floor, then any Last Words,
+     then the ballot. */
+  function talkCard(state) {
+    var t = state.talk;
+    if (!t) return null;
+    if (t.ballot) {
+      return h("div", { class: "bs-card bs-talk is-open" },
+        h("span", { class: "bs-label", text: "Voting is open" }),
+        h("p", { class: "bs-talk__note", text: "The talking is over. Guessers lock in an answer and a wager." }));
     }
-    return [(line.won ? "Right" : "Wrong") + " with a " + line.wager + " wager"];
+    var stage = t.left <= 0 ? ["Last words", null, "A Last Word has the floor. Voting opens after it."]
+      : t.openings_left > 0 ? ["Openings", t.openings_left, "Each speaker makes their case. Voting opens when the talking stops."]
+      : ["Open floor", t.left, "Questions, challenges, accusations. Voting opens when the clock runs out."];
+    return h("div", { class: "bs-card bs-talk" },
+      h("div", { class: "bs-talk__row" },
+        h("span", { class: "bs-label", text: stage[0] }),
+        stage[1] === null ? null : clock(stage[1], "bs-clock--talk")),
+      h("p", { class: "bs-talk__note", text: stage[2] }));
+  }
+
+  /* ---------------------------------------------------------------- perks -- */
+
+  var FAMILY = { wager: "yellow", side: "cyan", info: "cyan", speaker: "orange",
+                 floor: "orange", power: "pink", counter: "paper" };
+
+  function familyColour(family) { return FAMILY[family] || "paper"; }
+
+  /* A perk as a card: the family sticker, the name, the card text. */
+  function perkCard(perk, extra) {
+    return h("div", { class: "bs-perk bs-perk--" + familyColour(perk.family) + (extra ? " " + extra : "") },
+      h("span", { class: "bs-perk__tag", text: perk.public ? "Public" : "Secret" }),
+      h("p", { class: "bs-perk__name", text: perk.name }),
+      h("p", { class: "bs-perk__text", text: perk.text }));
+  }
+
+  /* The floor perk running right now, big, with its clock. */
+  function floorCard(state) {
+    var p = (state.perks || []).filter(function (x) { return x.status === "running"; })[0];
+    if (!p) return null;
+    var who = function (id) { return id === state.you ? "you" : nameOf(state, id); };
+    var line = p.perk === "hot_seat"
+      ? cap(who(p.by)) + " " + (p.by === state.you ? "ask" : "asks") + " " + who(p.target) + ". Only " +
+        (p.target === state.you ? "you answer" : "they answer") + ", and nobody jumps in."
+      : p.perk === "mute_button"
+        ? cap(who(p.target)) + " " + (p.target === state.you ? "are" : "is") + " muted. No talking until the clock runs out."
+        : cap(who(p.by)) + " " + (p.by === state.you ? "have" : "has") + " the last word. Nobody else talks.";
+    return h("div", { class: "bs-floor" },
+      h("span", { class: "bs-floor__name", text: p.name }),
+      h("p", { class: "bs-floor__line", text: line }),
+      clock(p.ends_in, "bs-clock--big"));
+  }
+
+  function cap(text) { return text.charAt(0).toUpperCase() + text.slice(1); }
+
+  /* One sentence for a play, from the viewer's side: "You" and "you" where
+     it is theirs or aimed at them. */
+  function describe(state, p) {
+    var by = p.by === state.you ? "You" : nameOf(state, p.by);
+    var on = !p.target ? "" : p.target === state.you ? "you" : nameOf(state, p.target);
+    var opt = p.option ? "option " + p.option : "";
+    var whose = !p.target ? "" : p.target === state.you ? "your" : nameOf(state, p.target) + "'s";
+    switch (p.perk) {
+      case "hot_seat": return by + " put" + (by === "You" ? "" : "s") + " " + on + " in the Hot Seat.";
+      case "mute_button": return by + " mute" + (by === "You" ? "" : "s") + " " + on + ".";
+      case "last_word": return by + " claim" + (by === "You" ? "" : "s") + " the Last Word.";
+      case "forbidden_words": return by + " ban" + (by === "You" ? "" : "s") + " three words for " + on + ".";
+      case "blackmail": return by + " blackmail" + (by === "You" ? "" : "s") + " " + on + " into betting " +
+                                (p.target === state.you ? "your" : "their") + " highest number.";
+      case "blood_pact": return by + " bind" + (by === "You" ? "" : "s") + " " + on + " in a Blood Pact.";
+      case "the_audit": return by + " audit" + (by === "You" ? "" : "s") + " " + on + ".";
+      case "pickpocket": return by + " pick" + (by === "You" ? "" : "s") + " " + whose + " pocket.";
+      case "kingmaker": return by + " crown" + (by === "You" ? "" : "s") + " " + opt + " the winner of the tie.";
+      case "hostile_takeover": return by + " went after " + whose + " score.";
+      case "false_witness": return by + " recruited " + on + " to speak up for " + opt + ".";
+      case "objection": return by + " objected!";
+      case "not_my_problem": return by + " sent it on to " + on + ".";
+      case "damage_control": return by + " clawed back part of a lost wager.";
+      case "doppelganger": return by + " copied " + whose + " score.";
+      case "backup_plan": return by + " kept " + opt + " as a backup.";
+      case "blind_faith": return by + " locked " + opt + " before anyone spoke.";
+      default:
+        return by + (on ? " picked " + on : " played it") + (opt ? ", " + opt : "") + ".";
+    }
+  }
+
+  function status(state, p) {
+    if (p.status === "cancelled") return "Cancelled by Objection!";
+    if (p.status === "pending") {
+      return h("span", { class: "bs-feed__when" },
+        p.perk === "hostile_takeover" ? "Swaps in " : "Lands in ", clock(p.lands_in));
+    }
+    if (p.status === "queued") {
+      return p.perk === "last_word" ? "Runs when the talking stops." : "Waiting for the floor.";
+    }
+    if (p.perk === "hostile_takeover" && p.status === "done") {
+      return p.swapped ? "Scores swapped." : "No swap: wrong answer.";
+    }
+    if (p.perk === "the_audit" && p.exposed) {
+      return "Locked " + p.exposed.option + " with a " + p.exposed.wager + ".";
+    }
+    if (p.perk === "inside_information" && p.seen) return "They locked " + p.seen + ".";
+    if (p.perk === "forbidden_words" && p.status === "live") {
+      return "Slips so far: " + p.slips + ".";
+    }
+    if (p.status === "live" && (p.perk === "blackmail" || p.perk === "blood_pact")) {
+      return p.perk === "blackmail" ? "In force." : "Bound until the reveal.";
+    }
+    return null;
+  }
+
+  /* This round's perks the viewer may see: announcements while it runs,
+     everything at the reveal. `opts.onSlip(id, step)` adds the host's slip
+     buttons to live Forbidden Words. */
+  function perkFeed(state, opts) {
+    var o = opts || {};
+    var plays = (state.perks || []).filter(function (p) { return p.status !== "running"; });
+    if (!plays.length) return null;
+    return h("div", { class: "bs-card bs-feed" },
+      h("span", { class: "bs-label", text: o.title || "Perks this round" }),
+      h("ol", { class: "bs-feed__list" }, plays.map(function (p) {
+        var said = status(state, p);
+        var words = p.words
+          ? h("p", { class: "bs-feed__words" }, p.words.map(function (w) {
+              return h("span", { class: "bs-word", text: w });
+            }))
+          : null;
+        var slips = o.onSlip && p.perk === "forbidden_words" && p.status === "live"
+          ? h("div", { class: "bs-feed__tools" },
+              h("button", { class: "bs-btn bs-btn--inline", type: "button", text: "Slip +1",
+                            onclick: function () { o.onSlip(p.id, 1); } }),
+              h("button", { class: "bs-btn bs-btn--inline bs-btn--quiet", type: "button", text: "Undo",
+                            onclick: function () { o.onSlip(p.id, -1); } }))
+          : null;
+        return h("li", { class: "bs-feed__item bs-feed__item--" + familyColour(p.family) +
+                           (p.target === state.you && state.you ? " is-you" : "") +
+                           (p.status === "cancelled" ? " is-off" : "") },
+          h("span", { class: "bs-feed__name", text: p.name + (p.counterfeit ? " (Counterfeit)" : "") }),
+          h("p", { class: "bs-feed__what", text: describe(state, p) }),
+          words,
+          said ? h("p", { class: "bs-feed__status" }, said) : null,
+          slips);
+      })));
   }
 
   /* ------------------------------------------------------------- history -- */
@@ -349,6 +530,8 @@
     optionTiles: optionTiles, wagerPicker: wagerPicker, meter: meter,
     leaderboard: leaderboard, title: title, sub: sub, questionCard: questionCard,
     verdict: verdict, lineParts: lineParts, history: history,
-    play: play, buzz: buzz, muteButton: muteButton
+    play: play, buzz: buzz, muteButton: muteButton,
+    clock: clock, talkCard: talkCard, floorCard: floorCard, perkCard: perkCard,
+    perkFeed: perkFeed, describe: describe, familyColour: familyColour
   };
 })(window);
