@@ -33,7 +33,8 @@ wagers. Otherwise the one speaker who never locks in is the truthful one.
 
 Where things live: rules `backend/bsquiz.py`, room `backend/bsroom.py`,
 seats and questions `backend/bsroster.py`, web routes `backend/bsserver.py`,
-screens `frontend/bullshit*.{html,js,css}`.
+screens `frontend/bullshit*.{html,js,css}`. Perks, still a design draft:
+`docs/BULLSHIT_QUIZ_PERKS.md`.
 
 1. Set `RELAY_BULLSHIT_HOST_KEY` (the default is `dev`, in a public repo) and
    open `/bullshithost`. The lobby shows a **join code** and a link
