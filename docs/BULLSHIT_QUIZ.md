@@ -16,6 +16,8 @@ These close the open decisions in section 11. Where this section and a later
 | Source of false options | **The author writes them** when submitting the question. The server tells each author how many options to write (2, 3 or 4), which fixes B for that question. |
 | Who runs the game | **A separate, non-playing host** behind a host key, like Guess Who. |
 | Who plays (revised 21 October 2026) | **Players join through the site.** They sign up or sign in to a Game Night account and join with the host's code. No roster file, no email addresses, no invite links; nothing mails anybody. |
+| Perks (23 October 2026) | **One per player for the game**, kept from three offered at the start. The full design and how they are played: [BULLSHIT_QUIZ_PERKS.md](BULLSHIT_QUIZ_PERKS.md). |
+| The discussion clock (23 October 2026, supersedes "no timers" for this step) | **Guessers vote after the talking.** The discussion runs on a clock (`BS_TALK_SECONDS_PER_SPEAKER`, 60 s per speaker) and the ballot opens when it runs out, so the speaking perks reach everybody. |
 | Players who leave (supersedes "pause" in section 11) | **The game never waits for them.** Once a game has started, going offline relegates a player for the rest of that game: they keep their seat and score, are never picked to bluff again (even after returning), and are never waited on as a guesser. Their question is skipped while they are away and stays queued; if they return it can still be played, and if every remaining question belongs to somebody offline, those are dropped and the game ends. |
 
 Taken as the proposed defaults: bullshitters lock their wager before
@@ -33,7 +35,7 @@ wagers. Otherwise the one speaker who never locks in is the truthful one.
 
 Where things live: rules `backend/bsquiz.py`, room `backend/bsroom.py`,
 seats and questions `backend/bsroster.py`, web routes `backend/bsserver.py`,
-screens `frontend/bullshit*.{html,js,css}`. Perks, still a design draft:
+screens `frontend/bullshit*.{html,js,css}`, perks `backend/bsperks.py` and
 `docs/BULLSHIT_QUIZ_PERKS.md`.
 
 1. Set `RELAY_BULLSHIT_HOST_KEY` (the default is `dev`, in a public repo) and
@@ -52,7 +54,10 @@ screens `frontend/bullshit*.{html,js,css}`. Perks, still a design draft:
    nobody else in.
 5. Each round the host presses: **Open the discussion** (once every speaker
    has committed), **Lock the votes** (once every guesser has), **Reveal the
-   truth**, **Next round**. Nothing has a timer.
+   truth**, **Next round**. One thing runs on its own: the discussion clock.
+   Guessers can't vote until it runs out (or the host presses **End the
+   talking**) and any Last Words have been said. When the game starts, every
+   player is offered three perks on their phone and keeps one for the game.
 6. Host tools, all on the host page:
    - **Remove** on a player's chip in the lobby, for somebody who joined by
      mistake. Their question goes too; they can join again with the code.
@@ -68,6 +73,12 @@ screens `frontend/bullshit*.{html,js,css}`. Perks, still a design draft:
    - **Round history** (collapsed, host only): every revealed round, with
      the truth, who bluffed and the vote split. Players never receive it;
      open it only when you are not screen-sharing.
+   - **+30 s** and **End the talking** on the discussion clock, and **Done,
+     next** to cut a running Hot Seat, Mute Button or Last Word short.
+   - **Slip +1** (and **Undo**) on each Forbidden Words, every time the
+     speaker says one.
+   - **Secret perks to referee** (collapsed, host only): who False Witness
+     recruited, so you can hold them to it.
    Players get sounds and a buzz when it is their turn, and a mute button.
 
 Leaving mid-game (owner's rule, 21 October 2026). Going offline after the

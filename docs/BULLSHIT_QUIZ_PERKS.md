@@ -1,13 +1,14 @@
 # Bullshit Quiz perks
 
-Status: **design, accepted by the owner on 23 October 2026**. Not built yet.
-Card text and point values are provisional until a playtest.
+Status: **accepted by the owner and built, 23 October 2026.** Card text and
+point values are provisional until a playtest.
 
-This document says what each perk does: who may play it, when, who sees it,
-and exactly how it changes scores. It does not yet say how players get perks,
-how many they hold, or what the screens look like. That is the next step, and
-section 6 lists what it has to settle. The base game is
-[BULLSHIT_QUIZ.md](BULLSHIT_QUIZ.md); "§7" and the like refer to its sections.
+This document says what each perk does (who may play it, when, who sees it,
+and exactly how it changes scores) and how players get and use them
+(section 6). The base game is [BULLSHIT_QUIZ.md](BULLSHIT_QUIZ.md); "§7" and
+the like refer to its sections. The code is `backend/bsperks.py` (the
+catalogue and the scoring) and `backend/bsroom.py` (who may play what, when,
+and who sees it).
 
 The 30 perks are the owner's list. Where this draft adds a rule the list did
 not state, or changes one, section 7 says so.
@@ -16,8 +17,9 @@ not state, or changes one, section 7 says so.
 
 | Question | Decision |
 | --- | --- |
-| How many perks a round | **No cap.** Any player may play any perk whenever its own rules allow, several in one round included. Section 5 says how they stack. |
-| When guessers lock | **After the talking.** The Discussion runs on a timer and the ballot stays shut until it ends, so the floor perks reach everybody. Blind Faith is the only way to lock earlier. For this one step it replaces the base game's "no timers". |
+| How many perks | **One per player, for the whole game.** Whoever holds a perk may play it whenever its rules allow, and any number of players may play theirs in the same round. Nobody can stack two of their own. |
+| How players get it | Offered three at the start, picked to suit the table size; they keep one, any time they like, and nobody else sees which (section 6). |
+| When guessers lock | **After the talking.** The Discussion runs on a clock and the ballot stays shut until it ends, so the floor perks reach everybody. Blind Faith is the only way to lock earlier. For this one step it replaces the base game's "no timers". |
 | The rules section 7 adds to the list | **Accepted.** |
 
 ## 1. Ground rules for every perk
@@ -25,10 +27,10 @@ not state, or changes one, section 7 says so.
 1. **Single use.** Playing a perk spends it. A perk cancelled by Objection! or
    redirected by Not My Problem is still spent. A perk the server refuses (a
    second Kingmaker in the same round, say) is not.
-2. **No cap on perks.** Any player may play any perk its rules allow, and
-   several in one round. The one limit across perks: a player plays the same
-   perk at most once a round, a Counterfeit copy included, so two Double or
-   Nothings do not make four times. Section 5 says how the rest stack.
+2. **One perk each, for the game.** Any number of players may play theirs in
+   the same round, as far as each perk's rules allow. Since nobody holds two,
+   the only time two perks meet on one player is when somebody else's lands
+   on them (section 5 says how they combine).
 3. **No perk gives away the truth or a role early.** The truthful player has no
    wager, so a perk only a wager holder can play (Insurance Fraud, Double or
    Nothing) would out a speaker as a bullshitter if it were announced. Those
@@ -361,8 +363,8 @@ the app shows the countdown.
 > opening case.
 
 - **Who:** anyone. **Target:** a speaker.
-- **When:** Discussion, after every speaker has had a first chance to explain.
-  The host marks that moment.
+- **When:** Discussion, after every speaker has had a first chance to explain:
+  the openings, the clock's first 30 seconds per speaker.
 - **Effect:** the target may not speak for 20 seconds.
 
 #### The Last Word · `last_word`
@@ -521,7 +523,7 @@ the app shows the countdown.
 - It cannot copy Counterfeit. It can copy a perk revealed earlier in the same
   round: a second Pickpocket in the same reveal, for instance.
 - It counts as the copied perk for every "at most one" rule (one Blackmail
-  per target, the first Kingmaker wins, the same perk once a round).
+  per target, the first Kingmaker wins).
 
 ## 5. Scoring order
 
@@ -535,9 +537,8 @@ added to totals at the Reveal exactly once (§12). Reveal-time perks follow.
 4. **Wager perks**, for each player with a wager, in this order:
    1. Success. A guesser in a Blood Pact succeeds only if both are right.
    2. Multipliers. Double or Nothing ×2 on gain and loss; Blind Faith ×3 on
-      gain; Blood Pact ×2 on gain. When several apply, they multiply:
-      Double or Nothing with Blind Faith pays six times the wager and loses
-      two times.
+      gain; Blood Pact ×2 on gain. Two can only meet when a Blood Pact lands
+      on somebody who played Double or Nothing; then they multiply.
    3. Insurance Fraud. A loss becomes ⌈loss / 2⌉.
    4. Backup Plan. Main answer wrong, backup right: the wager part is 0.
 5. **Doppelgänger** replaces the result of steps 3 and 4 with the target's
@@ -567,7 +568,7 @@ options and nine guessers.
 | Ben | bullshitter | B, 7 | Victory Lap | 4 + 7 = +11 | none: a Kingmaker win, not outright | **+11** |
 | Cleo | bullshitter | C, 5 | Insurance Fraud | 1 − 5 = −4 | loss of 5 becomes 3 | **−2** |
 | Gus | guesser | A, 3 | Kingmaker | +3 | | **+3** |
-| Hana | guesser | B, 6 | Double or Nothing, Insurance Fraud | −6 | doubled to 12, then halved to 6 | **−6** |
+| Hana | guesser | B, 6 | Double or Nothing | −6 | doubled | **−12** |
 | Ivo | guesser | A, 9 | Blood Pact with Jas | +9 | Jas was wrong, so Ivo loses | **−9** |
 | Jas | guesser | C, 4 | (in Ivo's pact) | −4 | | **−4** |
 | Kim | guesser | B, 2, backup A | Backup Plan | −2 | backup right: 0 | **0** |
@@ -579,38 +580,51 @@ options and nine guessers.
 Max could have answered Pia with Not My Problem and sent the Pickpocket back:
 she guessed wrong too, so she qualifies as a target.
 
-## 6. For the system design (the next step)
+## 6. How players get and use perks
 
-What these rules lean on that the next step has to decide:
+**Getting one.** When the host starts the game, every player is offered
+BS_PERK_OFFERS (three) perks and keeps one, from their phone, any time they
+like. The offers come off a shuffled deck so every perk turns up about as
+often as every other, and a perk that could never be played at this table is
+never offered: Lone Wolf needs five players, the "another guesser" perks
+four, Backup Plan and Blind Faith a question with three or more options. A
+player who never picks simply has no perk.
 
-- **How players get perks**, how many they hold, and whether anybody can see
-  another player's hand. If everyone can see you hold Not My Problem, nobody
-  will target you.
-- **Role luck.** Everyone is truthful exactly once, but bluffing turns are
-  random and can be zero (§3). A speaker perk is guaranteed one chance per
-  game, and Insurance Fraud or Double or Nothing as a bullshitter may never
-  get one. A hand of speaker perks can be dead weight.
-- **Small games.** With three players every round has two options and one
-  guesser, so Backup Plan, Blind Faith, Lone Wolf and every perk aimed at
-  "another guesser" can never be played. With four players there are at most
-  two guessers.
-- **The discussion timer** (section 0). Its length: proposed 60 seconds per
-  speaker, so two to four minutes, in `backend/config.py`. Whether the host
-  can open the ballot early or add time: proposed both. Floor perks run
-  inside the timer rather than stopping it, except The Last Word, which runs
-  after it.
-- **New beats in a round,** all host-paced: a late vote for Read the Room
-  before the lock; a pause at the Headcount for Kingmaker; a short pause
-  after each public perk for Objection! and Not My Problem; time in the
-  Reveal for Damage Control, Pickpocket and Hostile Takeover redirects; the
-  host marking "opening statements done" for The Mute Button; a slip tally
-  for Forbidden Words.
-- **The host screen is often screen-shared.** False Witness, the one secret
-  perk the host must see, belongs in a host-only panel like Round history,
-  never on the main host view.
-- **Small leaks.** A Blind Faith guesser's committed tick during the
-  Briefing (section 4.1). Any "perks in play" counter that a bullshitter's
-  secret perk could raise but the truthful player's could not.
+**Hidden hands.** Nobody, the host included, sees what anybody else holds or
+picked. Players learn about a perk when it is played (public ones) or at the
+reveal (secret ones).
+
+**The round, as it now runs.**
+
+| Beat | What happens | Perks that live here |
+| --- | --- | --- |
+| Briefing | Speakers commit, as before. Guessers can't vote yet. | Blind Faith, Read the Room, Target Audience, False Witness, wager perks for bullshitters |
+| Openings | The clock starts: 30 seconds per speaker. | Hot Seat, Last Word claims, Forbidden Words, side bets |
+| Open floor | The rest of the clock: 60 seconds per speaker in all. | The Mute Button joins the above |
+| Last Words | Any claimed Last Words, one at a time. | Objection! still cancels a queued one |
+| Ballot | Opens when the clock is out and the floor is clear. Guessers lock. | Inside Information, The Audit, Read the Room's late vote |
+| Headcount | The split per option, truth hidden. | Kingmaker on a tie |
+| Reveal | Truth, scores, and every perk this round. | Damage Control, Pickpocket, Hostile Takeover's swap |
+
+**Reaction windows.** A perk that lands on somebody waits BS_REACTION_SECONDS
+(8) before it takes effect, with a countdown on every screen that can see
+it. That is the time for Objection! and Not My Problem, which a holder sees
+pinned to the top of their phone. Floor perks then run one at a time for
+BS_FLOOR_SECONDS (20).
+
+**The host's tools.** +30 s and End the talking on the clock; Done, next to
+cut a floor perk short; a slip counter on each Forbidden Words; and a folded
+"Secret perks to referee" panel for False Witness, host only, like the round
+history.
+
+**Leaks closed.** A guesser's lock stays dark until the ballot opens, so a
+Blind Faith lock can't be spotted. Wager perks stay secret, so they can't
+out a bullshitter. Nothing counts perks in play.
+
+**Known limits.** Role luck still applies: everyone speaks truthfully once,
+but bluffing turns are random, so a speaker perk is only guaranteed one
+chance. The clock lengths and point values are first guesses for the
+playtest; they all live in `backend/config.py`.
 
 ## 7. Where this draft changes or adds to the list
 
@@ -621,7 +635,6 @@ Accepted by the owner on 23 October 2026.
 | Blind Faith | any round, three times the wager | rounds with three or four options only, still three times | A blind pick at three times the wager averages +1 wager in a two-option round with no skill involved. With three options it averages +⅓ of a wager; with four it breaks even. |
 | Doppelgänger | any player may use it | guessers only | In a two-option round the bullshitter knows the other speaker is truthful, so copying them is a guaranteed N or floor(N / 2). |
 | Hostile Takeover | any round | not in the game's last round | It can move more points than the rest of the game put together. In the last round whoever is bottom could take first place with one right answer, and nobody would have a round left to answer it. |
-| Every perk | not stated | a player plays the same perk at most once a round | Otherwise two copies of Double or Nothing make four times the wager, and two Lone Wolfs pay 20. |
 | Counterfeit | copy a perk when it is revealed | choose which revealed perk to copy when you play it | Same spirit, and no reaction window is needed at the moment of a reveal. |
 | Read the Room | everyone else locks first | several players share one late window | Two Read the Room players would otherwise wait on each other forever. |
 | Forbidden Words | −2 per slip | −2 per slip, capped at −10; words cannot come from the target's own answer | Keeps it a joke rather than a 30-point swing decided by the host's ears, and the target must be able to say their answer. |
