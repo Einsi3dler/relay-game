@@ -57,9 +57,13 @@ STATE = "bs_state"
 READY = "bs_ready"            # truthful player, in the briefing
 BLUFF = "bs_bluff"            # bullshitter: {wager}
 GUESS = "bs_guess"            # guesser: {option, wager}
-HOST = "bs_host"              # host: {action, player?}
+PICK = "bs_pick"              # any player, once: {perk} from their offers
+PERK = "bs_perk"              # play your perk: {target?, option?, wager?, words?, play?, copy?}
+HOST = "bs_host"              # host: {action, player?, play?, step?}
 HOST_ACTIONS = ("start", "open", "lock", "lock_anyway", "reveal", "next",
-                "reset", "undo_reset", "drop", "remove", "new_game")
+                "reset", "undo_reset", "drop", "remove", "new_game",
+                "extend", "end_talk", "floor_done", "slip")
+PERK_FIELDS = ("target", "option", "wager", "words", "play", "copy")
 
 router = APIRouter()
 
@@ -68,6 +72,7 @@ _lock = asyncio.Lock()
 _sockets: dict[str, WebSocket] = {}
 _grace: dict[str, asyncio.Task] = {}      # viewer -> pending "they left" check
 _undo: tuple[bsroom.BullshitRoom, float] | None = None   # the room a reset replaced
+_ticker: asyncio.Task | None = None       # lets the room's clocks run out
 
 
 # --- the room -------------------------------------------------------------
@@ -94,6 +99,25 @@ async def _leave_after_grace(player_id: str) -> None:
         current = room()
         bsroom.on_disconnect(current, player_id)
         await broadcast(current)
+
+
+async def _tick_forever() -> None:
+    """The discussion clock, floor perks and reaction windows all run out on
+    their own; this is what notices. Broadcasts only when something moved."""
+    while True:
+        await asyncio.sleep(config.BS_TICK_SECONDS)
+        async with _lock:
+            current = room()
+            if bsroom.tick(current, time.monotonic()):
+                await broadcast(current)
+
+
+def _ensure_ticker() -> None:
+    """Started by the first socket, on whichever event loop is serving it."""
+    global _ticker
+    loop = asyncio.get_running_loop()
+    if _ticker is None or _ticker.done() or _ticker.get_loop() is not loop:
+        _ticker = loop.create_task(_tick_forever())
 
 
 def _cancel_grace(player_id: str) -> None:
@@ -378,16 +402,23 @@ def _parse(raw: Any) -> tuple[str, dict[str, Any]] | str:
         return kind, {"wager": raw.get("wager")}
     if kind == GUESS:
         return kind, {"option": raw.get("option"), "wager": raw.get("wager")}
+    if kind == PICK:
+        return kind, {"perk": raw.get("perk")}
+    if kind == PERK:
+        return kind, {key: raw.get(key) for key in PERK_FIELDS}
     if kind == HOST:
         action = raw.get("action")
         if action not in HOST_ACTIONS:
             return "Unknown host action."
-        return kind, {"action": action, "player": raw.get("player")}
+        return kind, {"action": action, "player": raw.get("player"),
+                      "play": raw.get("play"), "step": raw.get("step", 1)}
     return "Unknown message type."
 
 
 def _host_step(current: bsroom.BullshitRoom, action: str,
-               player: object = None) -> bsroom.BullshitRoom:
+               fields: dict[str, Any] | None = None) -> bsroom.BullshitRoom:
+    fields = fields or {}
+    player = fields.get("player")
     if action == "reset":
         return reset_room()
     if action == "undo_reset":
@@ -412,6 +443,14 @@ def _host_step(current: bsroom.BullshitRoom, action: str,
         bsroom.mark_gone(current, player)
     elif action == "lock_anyway":
         bsroom.lock(current, force=True)
+    elif action == "extend":
+        bsroom.extend_talk(current)
+    elif action == "end_talk":
+        bsroom.end_talk(current)
+    elif action == "floor_done":
+        bsroom.floor_done(current)
+    elif action == "slip":
+        bsroom.slip(current, fields.get("play"), fields.get("step", 1))
     else:
         {"open": bsroom.open_discussion, "lock": bsroom.lock,
          "reveal": bsroom.reveal, "next": bsroom.next_round}[action](current)
@@ -435,6 +474,7 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
             return
     viewer = person.id if person is not None else HOST_VIEWER
     _cancel_grace(viewer)
+    _ensure_ticker()
 
     old = _sockets.get(viewer)
     _sockets[viewer] = socket        # publish first, or the old one's finally
@@ -463,11 +503,10 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
                     if kind == HOST:
                         if viewer != HOST_VIEWER:
                             raise bsroom.Rejected("Only the host can do that.")
-                        current = _host_step(current, fields["action"],
-                                             fields.get("player"))
+                        current = _host_step(current, fields["action"], fields)
                         if fields["action"] in ("remove", "new_game"):
                             await _kick_seatless()
-                    elif kind in (READY, BLUFF, GUESS):
+                    elif kind in (READY, BLUFF, GUESS, PICK, PERK):
                         if person is None:
                             raise bsroom.Rejected("The host does not play.")
                         seat = current.seats.get(person.id)
@@ -480,6 +519,10 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
                             bsroom.ready(current, person.id)
                         elif kind == BLUFF:
                             bsroom.bluff(current, person.id, fields["wager"])
+                        elif kind == PICK:
+                            bsroom.pick_perk(current, person.id, fields["perk"])
+                        elif kind == PERK:
+                            bsroom.play_perk(current, person.id, fields)
                         else:
                             bsroom.guess(current, person.id, fields["option"],
                                          fields["wager"])

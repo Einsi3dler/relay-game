@@ -55,13 +55,15 @@ def free_wager(room, seat_id: str) -> int:
 
 
 def brief(room) -> None:
-    """Every speaker commits, then the host opens the discussion."""
+    """Every speaker commits, the host opens the discussion, and the talking
+    ends so the ballot opens."""
     for seat in room.speakers():
         if room.role_of(seat.id) == TRUTHFUL:
             bsroom.ready(room, seat.id)
         else:
             bsroom.bluff(room, seat.id, free_wager(room, seat.id))
     bsroom.open_discussion(room)
+    bsroom.end_talk(room)
 
 
 def guess_all(room, key: str | None = None) -> None:
@@ -171,10 +173,12 @@ def test_the_host_sees_no_more_than_a_guesser():
     room = started(6, seed=4)
     brief(room)
     guesser = room.guessers()[0].id
-    host = room.public(None, is_host=True)
-    seen = room.public(guesser)
+    host = room.public(None, is_host=True, now=0)
+    seen = room.public(guesser, now=0)
+    # history and host_secrets are the host's by design; perk is the
+    # guesser's own hand.
     for key in ("role", "committed", "your_wager", "your_pick", "used_wagers",
-                "your_total", "you", "relegated", "history"):
+                "your_total", "you", "relegated", "history", "host_secrets", "perk"):
         host.pop(key, None)
         seen.pop(key, None)
     host.pop("is_host")

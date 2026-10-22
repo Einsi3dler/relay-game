@@ -258,7 +258,10 @@ def test_a_full_round_over_sockets(client, players):
                 socks[pid].send_json({"type": bsserver.BLUFF, "wager": 1})
         until(host, lambda v: v.get("speakers_in") == v.get("speakers"))
         host.send_json({"type": bsserver.HOST, "action": "open"})
-        until(host, lambda v: v["phase"] == "open")
+        talking = until(host, lambda v: v["phase"] == "open")
+        assert talking["talk"]["ballot"] is False
+        host.send_json({"type": bsserver.HOST, "action": "end_talk"})
+        until(host, lambda v: v.get("talk", {}).get("ballot"))
 
         for pid, view in views.items():
             if view["role"] == "guesser":
@@ -380,6 +383,8 @@ def test_acting_after_being_marked_gone_counts_as_back(client, players):
         until(host, lambda v: v.get("speakers_in") == v.get("speakers"))
         _host_action(host, "open")
         until(host, lambda v: v["phase"] == "open")
+        _host_action(host, "end_talk")
+        until(host, lambda v: v.get("talk", {}).get("ballot"))
         socks[guesser].send_json({"type": bsserver.GUESS, "option": "A", "wager": 1})
         until(host, lambda v: any(p["id"] == guesser and p["connected"]
                                   for p in v["players"]))
