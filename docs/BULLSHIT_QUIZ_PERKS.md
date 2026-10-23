@@ -17,8 +17,8 @@ not state, or changes one, section 7 says so.
 
 | Question | Decision |
 | --- | --- |
-| How many perks | **One per player, for the whole game.** Whoever holds a perk may play it whenever its rules allow, and any number of players may play theirs in the same round. Nobody can stack two of their own. |
-| How players get it | Offered three at the start, picked to suit the table size; they keep one, any time they like, and nobody else sees which (section 6). |
+| How many perks | **One per player, for the whole game, and no two the same.** Whoever holds a perk may play it whenever its rules allow, and any number of players may play theirs in the same round. Nobody can stack two of their own. |
+| How players get it | **A draft before the quiz** (section 6): a random order, revealed before the first pick; 15 seconds a pick; players may trade places, swapping positions and one wager card each. Running out of time gets a random perk. Who holds what is public. |
 | When guessers lock | **After the talking.** The Discussion runs on a clock and the ballot stays shut until it ends, so the floor perks reach everybody. Blind Faith is the only way to lock earlier. For this one step it replaces the base game's "no timers". |
 | The rules section 7 adds to the list | **Accepted.** |
 
@@ -582,17 +582,54 @@ she guessed wrong too, so she qualifies as a target.
 
 ## 6. How players get and use perks
 
-**Getting one.** When the host starts the game, every player is offered
-BS_PERK_OFFERS (three) perks and keeps one, from their phone, any time they
-like. The offers come off a shuffled deck so every perk turns up about as
-often as every other, and a perk that could never be played at this table is
-never offered: Lone Wolf needs five players, the "another guesser" perks
-four, Backup Plan and Blind Faith a question with three or more options. A
-player who never picks simply has no perk.
+**The draft.** Pressing **Start the game** freezes the roster, deals
+everybody their wager cards and opens the draft (`backend/bsdraft.py`). It
+runs in three stages:
 
-**Hidden hands.** Nobody, the host included, sees what anybody else holds or
-picked. Players learn about a perk when it is played (public ones) or at the
-reveal (secret ones).
+1. **Trading.** The order is shuffled once and shown to everybody, with the
+   perks on offer. Nobody picks yet. Players haggle on the call and make
+   offers on their phones (below).
+2. **Picking.** The host presses **Start the picks**. Whoever is first gets
+   BS_DRAFT_PICK_SECONDS (15) on a server clock to tap a perk and take it;
+   then the next place in the current order is up, with a fresh clock. A
+   turn that runs out gets a random perk from what is left. Reloading or
+   switching phones never restarts the clock, and every turn has its own id,
+   so a late tap from the last turn cannot land on this one.
+3. **Done.** Everybody has a different perk. The host presses **Start the
+   quiz** and round one is dealt.
+
+The pool leaves out perks that could never be played at this table: Lone
+Wolf needs five players, the "another guesser" perks four, Backup Plan and
+Blind Faith a question with three or more options. If that would leave
+fewer perks than players, the whole catalogue goes in. There are 30 perks,
+so a game takes at most 30 players.
+
+**Trading places.** An offer names the other player, one of your wager
+cards and one of theirs. Accepting it does two things together: the two
+swap places in the order *and* swap those two cards. Each side's terms are
+spelled out first: "Give your 1 card, receive Divine's 19 card, and move
+from pick 1 to pick 6." Only the person it was made to can accept or
+decline it, and whoever made it can withdraw it while it is open. Before
+accepting, the server checks the offer is still open, nobody involved has
+picked yet, both still hold the places and cards it names, and both places
+can still be traded. If any of that fails, nothing happens. Once one trade
+goes through, every other open offer involving either player expires,
+because it was made against the old order. Before the picks start every
+place can be traded; once they start, the place on the clock is locked
+(so nobody argues about its clock), and trading carries on among the places
+still to come. A player has at most BS_DRAFT_MAX_OFFERS (5) offers open.
+
+**Wager cards.** Everybody starts with one card for each value 1..N-1, each
+with its own id. Trading moves cards, it never spends them, so after the
+handoff's example Divine holds two 1s and no 19 and Ada two 19s and no 1;
+each still has N-1 cards for N-1 wagering turns. A wager spends one of your
+unspent cards of that value, so a doubled value can be bet twice.
+
+**Who holds what is public.** The draft happens in the open, so everybody
+knows who drafted which perk, and the screens keep a "Who holds what"
+panel during the quiz. What stays secret is *when and on whom* a secret
+perk is played: it shows as used only once the table could know it (a
+public perk when played, a secret one at its round's reveal).
 
 **The round, as it now runs.**
 
@@ -618,8 +655,10 @@ cut a floor perk short; a slip counter on each Forbidden Words; and a folded
 history.
 
 **Leaks closed.** A guesser's lock stays dark until the ballot opens, so a
-Blind Faith lock can't be spotted. Wager perks stay secret, so they can't
-out a bullshitter. Nothing counts perks in play.
+Blind Faith lock can't be spotted. Wager perks stay secret when played, so
+they can't out a bullshitter; knowing that somebody *holds* Insurance Fraud
+says nothing about whether they are bluffing this round. Nothing counts
+perks in play.
 
 **Known limits.** Role luck still applies: everyone speaks truthfully once,
 but bluffing turns are random, so a speaker perk is only guaranteed one

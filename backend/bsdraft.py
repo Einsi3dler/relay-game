@@ -268,6 +268,7 @@ def public_view(draft: Draft, now: float) -> dict[str, Any]:
         "current": draft.current,
         "turn": draft.turn,
         "left": max(0.0, draft.deadline - now) if draft.deadline is not None else None,
+        "pick_seconds": config.BS_DRAFT_PICK_SECONDS,
         "available": list(draft.available),
         "picks": dict(draft.picks),
         "hands": {p: [{"id": c.id, "value": c.value} for c in sorted(cards, key=lambda c: c.value)]

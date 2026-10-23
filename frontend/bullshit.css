@@ -937,3 +937,118 @@
 @media (prefers-reduced-motion: reduce) {
   .bs-floor, .bs-offer, .bs-dock.is-urgent, .bs-feed__item, .bs-alert { animation: none; }
 }
+
+/* =====================================================================
+ * The perk draft (backend/bsdraft.py).
+ * ===================================================================== */
+
+.bs-wager { display: grid; place-items: center; }
+.bs-wager.is-shown { cursor: default; }
+
+/* Your turn: loud, with its clock. */
+.bs-draftturn {
+  margin: 18px 0;
+  padding: 18px;
+  border: var(--bs-line);
+  border-radius: var(--bs-radius);
+  background: var(--bs-yellow);
+  box-shadow: var(--bs-shadow);
+  text-align: center;
+  transform: rotate(-1deg);
+  animation: bs-spin-in 0.45s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+.bs-draftturn__label { font-family: var(--bs-display); font-size: clamp(1.8rem, 8vw, 2.4rem); line-height: 1; }
+.bs-draftturn__note { margin: 10px 0 0; font-weight: 900; }
+.bs-draftturn__take { position: sticky; bottom: 12px; z-index: 2; }
+
+.bs-draftme { margin: 4px 0 18px; }
+.bs-draftme__pos { margin: 0; font-family: var(--bs-display); font-size: 1.6rem; }
+
+/* The picking order. */
+.bs-order { margin: 18px 0; }
+.bs-order__list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+
+.bs-order__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 8px 10px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.bs-order__row.is-active { background: var(--bs-yellow); transform: rotate(-0.6deg); }
+.bs-order__row.is-done { background: #ece7f7; }
+.bs-order__row.is-you { box-shadow: var(--bs-shadow-sm); }
+
+.bs-order__pos {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 10px;
+  background: var(--bs-cyan);
+  font-family: var(--bs-display);
+  font-size: 1.15rem;
+}
+
+.bs-order__name { flex: 1 1 auto; min-width: 0; font-weight: 900; overflow-wrap: anywhere; }
+.bs-order__perk { font-size: 0.9rem; font-weight: 900; }
+.bs-order__perk.is-clock .bs-clock { min-width: 0; }
+.bs-order__trade { margin-left: auto; }
+
+/* What's left to draft. */
+.bs-pool { display: grid; gap: 14px; margin: 8px 0 18px; }
+.bs-pool__perk { padding: 12px 14px 10px; }
+.bs-pool__perk .bs-perk__name { font-size: 1.2rem; }
+.bs-pool__perk .bs-perk__text { font-size: 0.92rem; }
+
+/* Your cards, and trades. */
+.bs-hand { margin: 18px 0; }
+.bs-hand .bs-wager, .bs-tradebuild .bs-wager { height: 46px; font-size: 1.2rem; }
+.bs-tradebuild { margin: 4px 0 18px; background: var(--bs-yellow); }
+.bs-tradebuild .bs-wager.is-picked { background: var(--bs-ink); color: var(--bs-paper); }
+.bs-tradebuild__terms { margin: 16px 0 0; font-weight: 900; font-size: 1.05rem; }
+
+.bs-offers-in { margin: 4px 0 18px; }
+.bs-tradelist { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+
+.bs-tradelist__item {
+  padding: 12px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.bs-tradelist__item.is-incoming { background: var(--bs-yellow); animation: bs-boing 0.45s cubic-bezier(.2, 1.8, .4, 1) both; }
+.bs-tradelist__item.is-settled { opacity: 0.7; }
+.bs-tradelist__who { font-family: var(--bs-display); font-size: 1.1rem; }
+.bs-tradelist__terms { margin: 4px 0 0; font-weight: 900; }
+.bs-tradelist__status { margin: 8px 0 0; font-size: 0.92rem; }
+.bs-tradelist .bs-dock__row { margin-top: 12px; }
+
+.bs-draftlog { margin: 18px 0; }
+.bs-draftlog__list { display: grid; gap: 6px; margin: 0; padding: 0 0 0 18px; font-size: 0.95rem; }
+
+/* Who holds what, during the quiz. */
+.bs-table { margin: 22px 0; }
+.bs-table__head { cursor: pointer; list-style: none; }
+.bs-table__head::-webkit-details-marker { display: none; }
+.bs-table__head .bs-label { margin: 0; }
+.bs-table__head .bs-label::before { content: "+ "; }
+.bs-table[open] .bs-table__head .bs-label::before { content: "- "; }
+.bs-table__list { display: grid; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
+.bs-table__list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 10px; border: 2px solid var(--bs-ink); border-radius: 10px; background: #fff; }
+.bs-table__list li.is-spent { opacity: 0.55; }
+.bs-table__name { font-weight: 900; }
+.bs-table__perk { text-align: right; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bs-draftturn, .bs-tradelist__item.is-incoming { animation: none; }
+}
+.bs-poolpanel .bs-pool { margin: 14px 0 0; }

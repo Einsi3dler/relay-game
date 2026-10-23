@@ -42,14 +42,18 @@
   // Choices in progress this round, cleared when the round or phase moves.
   var roundKey = "";
   var pickKey = null;
-  var pickWager = null;
+  var pickWager = null;     // wager cards: {id, value}
   var bluffWager = null;
 
-  // Your perk: the offer you're eyeing, whether its form is open, and what
-  // is chosen in it so far. Cleared with the rest when the round moves.
-  var offerPick = null;
+  // Your perk: whether its form is open, and what is chosen in it so far.
+  // Cleared with the rest when the round moves.
   var perkOpen = false;
   var perkSel = { target: null, option: null, wager: null, copy: null, play: null };
+
+  // The draft: the perk you're eyeing on your turn, and a trade being put
+  // together ({ with, give, take } as player and card ids).
+  var draftChoice = null;
+  var trade = null;
   // The three Forbidden Words boxes are built once, so a redraw caused by
   // somebody else never steals the cursor mid-word (see render).
   var wordBoxes = null;
@@ -404,7 +408,6 @@
   function perkDock(s) {
     var perk = s.perk;
     if (!perk) return null;
-    if (perk.offers) return offersDock(perk.offers);
     var nodes = [
       h("div", { class: "bs-dock__head" },
         h("span", { class: "bs-label", text: "Your perk" }),
@@ -433,27 +436,6 @@
     return !!((perk.reactions && perk.reactions.length) ||
       copies.some(function (c) { return c.reactions && c.reactions.length; }) ||
       (s.phase === "votes"));
-  }
-
-  function offersDock(offers) {
-    var chosen = offers.filter(function (o) { return o.id === offerPick; })[0];
-    return h("section", { class: "bs-card bs-dock bs-dock--offers", "aria-label": "Pick your perk" },
-      h("span", { class: "bs-label", text: "Pick your perk" }),
-      h("p", { class: "bs-dock__why", text: "Keep one for the whole game. Nobody else sees which. You can pick any time." }),
-      h("div", { class: "bs-offers" + (chosen ? " has-pick" : "") }, offers.map(function (perk) {
-        var picked = offerPick === perk.id;
-        return h("button", {
-          class: "bs-perk bs-offer bs-perk--" + BS.familyColour(perk.family) + (picked ? " is-picked" : ""),
-          type: "button", "aria-pressed": picked ? "true" : "false",
-          onclick: function () { offerPick = perk.id; render(); }
-        },
-          h("span", { class: "bs-perk__tag", text: perk.public ? "Public" : "Secret" }),
-          h("span", { class: "bs-perk__name", text: perk.name }),
-          h("span", { class: "bs-perk__text", text: perk.text }));
-      })),
-      h("button", { class: "bs-btn bs-btn--go", type: "button", disabled: !chosen,
-                    text: chosen ? "Keep " + chosen.name : "Tap one to keep it",
-                    onclick: function () { send({ type: "bs_pick", perk: offerPick }); } }));
   }
 
   function ask(text) {
@@ -541,8 +523,8 @@
     if (needs === "answer") {
       nodes.push(ask(s.forced_wager ? "Your wager is forced to " + s.forced_wager + "." : "Your wager"));
       if (!s.forced_wager) {
-        nodes.push(BS.wagerPicker(s.wager_max, s.used_wagers, perkSel.wager,
-                                  function (n) { perkSel.wager = n; render(); }));
+        nodes.push(BS.wagerPicker(s.cards, perkSel.wager && perkSel.wager.id,
+                                  function (c) { perkSel.wager = c; render(); }));
       }
     }
     if (needs === "words") {
@@ -560,7 +542,8 @@
       onclick: function () {
         if (!playReady()) return;
         send({ type: "bs_perk", target: perkSel.target, option: perkSel.option,
-               wager: s.forced_wager || perkSel.wager, words: needs === "words" ? wordValues() : null,
+               wager: s.forced_wager || (perkSel.wager && perkSel.wager.value),
+               words: needs === "words" ? wordValues() : null,
                copy: copyId });
       }
     });
@@ -610,6 +593,152 @@
     return nodes;
   }
 
+  /* ----------------------------------------------------------- the draft -- */
+
+  var draftTurn = 0;
+
+  function draftScreen(s) {
+    var d = s.draft;
+    if (d.turn !== draftTurn) { draftTurn = d.turn; draftChoice = null; }
+    var mine = d.order.indexOf(s.you);
+    var myPerk = d.picks[s.you];
+    var myTurn = d.stage === "picking" && d.order[d.current] === s.you;
+    var nodes = [BS.title("The draft")];
+
+    if (myTurn) {
+      var chosen = draftChoice && d.available.indexOf(draftChoice) !== -1 ? draftChoice : null;
+      nodes.push(h("div", { class: "bs-draftturn" },
+        h("span", { class: "bs-draftturn__label", text: "Your pick!" }),
+        BS.clock(d.left, "bs-clock--big"),
+        h("p", { class: "bs-draftturn__note",
+                 text: "Tap a perk, then take it. If the clock runs out you get one at random." })));
+      nodes.push(BS.draftPool(s, { selected: chosen, onPick: function (id) { draftChoice = id; render(); } }));
+      nodes.push(h("button", { class: "bs-btn bs-btn--go bs-draftturn__take", type: "button",
+        disabled: !chosen, text: chosen ? "Take " + BS.perkName(s, chosen) : "Tap a perk first",
+        onclick: function () { send({ type: "bs_draft_pick", perk: chosen, turn: d.turn }); } }));
+      nodes.push(BS.draftOrder(s));
+      return nodes;
+    }
+
+    var active = d.stage === "picking" ? d.order[d.current] : null;
+    nodes.push(BS.sub(
+      d.stage === "trading"
+        ? "Here's the picking order. Until the host starts the picks, you can trade places: you swap positions and one wager card each."
+        : d.stage === "picking"
+          ? BS.nameOf(s, active) + " is picking. Players still waiting can keep trading places."
+          : "Every perk is taken. The host starts the quiz next."));
+
+    var canTrade = !myPerk && (d.stage === "trading" || (d.stage === "picking" && mine > d.current));
+    if (myPerk) {
+      nodes.push(h("div", { class: "bs-card bs-draftme" },
+        h("span", { class: "bs-label", text: "Your perk for the game" }),
+        BS.perkCard(s.perk_cards[myPerk])));
+    } else {
+      nodes.push(h("div", { class: "bs-card bs-draftme" },
+        h("span", { class: "bs-label", text: "Your place" }),
+        h("p", { class: "bs-draftme__pos", text: "You pick " + BS.ordinal(mine + 1) + " of " + d.order.length + "." })));
+    }
+    nodes.push(offersCard(s));
+    if (trade && canTrade) nodes.push(tradeBuilder(s));
+    else trade = null;
+    nodes.push(BS.draftOrder(s, { onTrade: canTrade ? function (id) {
+      trade = { with: id, give: null, take: null }; render();
+    } : null }));
+    nodes.push(h("div", { class: "bs-card bs-hand" },
+      h("span", { class: "bs-label", text: "Your wager cards" }),
+      BS.wagerPicker(s.cards, null, null)));
+    if (d.stage !== "complete") {
+      // Folded while you wait: thirty cards is a long scroll on a phone.
+      var pool = h("details", { class: "bs-card bs-table bs-poolpanel" },
+        h("summary", { class: "bs-table__head" },
+          h("span", { class: "bs-label", text: "Perks left (" + d.available.length + ")" })),
+        BS.draftPool(s));
+      pool.open = poolOpen;
+      pool.addEventListener("toggle", function () { poolOpen = pool.open; });
+      nodes.push(pool);
+    }
+    nodes.push(BS.draftLog(s));
+    return nodes;
+  }
+
+  var poolOpen = false;
+
+  function pickWord(position) { return "pick " + (position + 1); }
+
+  /* Your trade offers, both ways, in plain terms. */
+  function offersCard(s) {
+    var offers = s.draft_offers || [];
+    if (!offers.length) return null;
+    return h("div", { class: "bs-card bs-offers-in" },
+      h("span", { class: "bs-label", text: "Trade offers" }),
+      h("ul", { class: "bs-tradelist" }, offers.map(function (o) {
+        var incoming = o.to === s.you;
+        var other = BS.nameOf(s, incoming ? o.from : o.to);
+        var terms = incoming
+          ? "Give your " + o.take.value + " card, receive " + other + "'s " + o.give.value +
+            " card, and move from " + pickWord(o.to_position) + " to " + pickWord(o.from_position) + "."
+          : "You offered " + other + " your " + o.give.value + " card for their " + o.take.value +
+            " card, to move from " + pickWord(o.from_position) + " to " + pickWord(o.to_position) + ".";
+        var settled = {
+          accepted: "Done. You've swapped places.",
+          declined: incoming ? "You declined." : other + " declined.",
+          cancelled: incoming ? other + " withdrew it." : "You withdrew it.",
+          expired: "Expired: the order moved on."
+        }[o.status];
+        var tools = o.status !== "pending" ? h("p", { class: "bs-tradelist__status", text: settled })
+          : incoming
+            ? h("div", { class: "bs-dock__row" },
+                h("button", { class: "bs-btn bs-btn--go", type: "button", text: "Accept",
+                              onclick: function () { send({ type: "bs_respond", offer: o.id, answer: "accept" }); } }),
+                h("button", { class: "bs-btn bs-btn--ghost bs-btn--inline", type: "button", text: "Decline",
+                              onclick: function () { send({ type: "bs_respond", offer: o.id, answer: "decline" }); } }))
+            : h("div", { class: "bs-dock__row" },
+                h("span", { class: "bs-tradelist__status", text: "Waiting for " + other + "." }),
+                h("button", { class: "bs-btn bs-btn--ghost bs-btn--inline", type: "button", text: "Withdraw",
+                              onclick: function () { send({ type: "bs_respond", offer: o.id, answer: "cancel" }); } }));
+        return h("li", { class: "bs-tradelist__item" + (incoming && o.status === "pending" ? " is-incoming" : "") +
+                           (o.status !== "pending" ? " is-settled" : "") },
+          h("span", { class: "bs-tradelist__who", text: incoming ? "From " + other : "To " + other }),
+          h("p", { class: "bs-tradelist__terms", text: terms }),
+          tools);
+      })));
+  }
+
+  /* Put an offer together: your card, their card, and the places it swaps. */
+  function tradeBuilder(s) {
+    var d = s.draft;
+    var them = trade.with;
+    var myPos = d.order.indexOf(s.you);
+    var theirPos = d.order.indexOf(them);
+    var name = BS.nameOf(s, them);
+    var mine = d.hands[s.you] || [];
+    var theirs = d.hands[them] || [];
+    var give = mine.filter(function (c) { return c.id === trade.give; })[0];
+    var take = theirs.filter(function (c) { return c.id === trade.take; })[0];
+    return h("div", { class: "bs-card bs-tradebuild" },
+      h("span", { class: "bs-label", text: "Trade places with " + name }),
+      h("p", { class: "bs-dock__why", text: "You pick " + BS.ordinal(myPos + 1) + ", " + name +
+                                            " picks " + BS.ordinal(theirPos + 1) + "." }),
+      ask("You give"),
+      BS.wagerPicker(mine, trade.give, function (c) { trade.give = c.id; render(); }),
+      ask("You ask for"),
+      BS.wagerPicker(theirs, trade.take, function (c) { trade.take = c.id; render(); }),
+      give && take
+        ? h("p", { class: "bs-tradebuild__terms", text: "Give your " + give.value + " card, receive " + name +
+            "'s " + take.value + " card, and move from " + pickWord(myPos) + " to " + pickWord(theirPos) + "." })
+        : null,
+      h("div", { class: "bs-dock__row" },
+        h("button", { class: "bs-btn bs-btn--go", type: "button", disabled: !(give && take),
+                      text: give && take ? "Send the offer" : "Pick both cards",
+                      onclick: function () {
+                        send({ type: "bs_offer", to: them, give: give.id, take: take.id });
+                        trade = null;
+                        render();
+                      } }),
+        h("button", { class: "bs-btn bs-btn--ghost bs-btn--inline", type: "button", text: "Never mind",
+                      onclick: function () { trade = null; render(); } })));
+  }
+
   /* ------------------------------------------------------------ phases -- */
 
   function briefing(s) {
@@ -635,13 +764,13 @@
         nodes.push(lockedNote("Wager locked: " + s.your_wager + ". Now get your story straight."));
       } else {
         nodes.push(h("p", { class: "bs-hint", text: "Your wager. Each number works once per game." }));
-        nodes.push(BS.wagerPicker(s.wager_max, s.used_wagers, bluffWager, function (n) {
-          bluffWager = n; render();
+        nodes.push(BS.wagerPicker(s.cards, bluffWager && bluffWager.id, function (c) {
+          bluffWager = c; render();
         }));
         nodes.push(h("button", {
           class: "bs-btn bs-btn--go", type: "button", disabled: bluffWager === null,
-          text: bluffWager === null ? "Pick a wager" : "Lock my " + bluffWager,
-          onclick: function () { send({ type: "bs_bluff", wager: bluffWager }); }
+          text: bluffWager === null ? "Pick a wager" : "Lock my " + bluffWager.value,
+          onclick: function () { send({ type: "bs_bluff", wager: bluffWager.value }); }
         }));
       }
     } else {
@@ -681,20 +810,20 @@
                                    onPick: function (k) { pickKey = k; render(); } }));
     if (backup) nodes.push(h("p", { class: "bs-note", text: "Your backup is " + backup.option + ". Pick a different main answer." }));
     if (s.forced_wager) {
-      pickWager = s.forced_wager;
+      pickWager = { id: null, value: s.forced_wager };
       nodes.push(h("p", { class: "bs-note", text: "Blackmailed: your wager is your highest number left, " + s.forced_wager + "." }));
     } else {
       nodes.push(h("p", { class: "bs-hint", text: "Your wager. Right adds it, wrong takes it away. Each number works once." }));
-      nodes.push(BS.wagerPicker(s.wager_max, s.used_wagers, pickWager, function (n) {
-        pickWager = n; render();
+      nodes.push(BS.wagerPicker(s.cards, pickWager && pickWager.id, function (c) {
+        pickWager = c; render();
       }));
     }
     var ready = pickKey !== null && pickWager !== null;
     nodes.push(h("button", {
       class: "bs-btn bs-btn--go", type: "button", disabled: !ready,
-      text: ready ? "Lock in " + pickKey + " for " + pickWager
+      text: ready ? "Lock in " + pickKey + " for " + pickWager.value
         : pickKey === null ? "Pick an answer" : "Pick a wager",
-      onclick: function () { send({ type: "bs_guess", option: pickKey, wager: pickWager }); }
+      onclick: function () { send({ type: "bs_guess", option: pickKey, wager: pickWager.value }); }
     }));
     return nodes;
   }
@@ -791,7 +920,8 @@
       return;
     }
     redrawLater = false;
-    var nodes = s.phase === "briefing" ? briefing(s)
+    var nodes = s.phase === "draft" ? draftScreen(s)
+      : s.phase === "briefing" ? briefing(s)
       : s.phase === "open" ? discussion(s)
       : s.phase === "votes" ? votes(s)
       : s.phase === "reveal" ? reveal(s)
@@ -802,6 +932,7 @@
           BS.leaderboard(s, "Scores")
         ]
       : final(s);
+    if (s.phase !== "draft" && s.phase !== "final") nodes.push(BS.tablePerks(s));
     el.game.innerHTML = "";
     nodes.forEach(function (n) { if (n) el.game.appendChild(n); });
   }
@@ -855,6 +986,17 @@
       return;
     }
     if (!before.committed && after.committed) BS.play("pop");
+    if (after.phase === "draft" && after.draft) {
+      var d = after.draft;
+      var mineNow = d.stage === "picking" && d.order[d.current] === after.you;
+      var mineBefore = before.draft && before.draft.stage === "picking" &&
+                       before.draft.order[before.draft.current] === after.you;
+      if (mineNow && !mineBefore) { BS.play("turn"); BS.buzz([80, 40, 80, 40, 80]); }
+      var had = (before.draft_offers || []).map(function (o) { return o.id; });
+      (after.draft_offers || []).forEach(function (o) {
+        if (o.to === after.you && o.status === "pending" && had.indexOf(o.id) === -1) { BS.play("pop"); BS.buzz(); }
+      });
+    }
     var opened = after.talk && after.talk.ballot && !(before.talk && before.talk.ballot);
     if (opened && after.role === "guesser" && !after.committed) { BS.play("turn"); BS.buzz(); }
   }

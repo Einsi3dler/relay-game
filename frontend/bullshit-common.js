@@ -125,25 +125,27 @@
     return list;
   }
 
-  /* Chips 1..max. Spent numbers are crossed out and cannot be picked. */
-  function wagerPicker(max, used, selected, onPick) {
-    var spent = {};
-    (used || []).forEach(function (n) { spent[n] = true; });
+  /* Your wager cards, one chip each. After a draft trade a hand can hold two
+     19s, so they are cards, not numbers: both show. Spent ones are crossed
+     out. `selected` is a card id; `onPick` gets the card. */
+  function wagerPicker(cards, selected, onPick) {
     var grid = h("div", { class: "bs-wagers", role: "group", "aria-label": "Your wager" });
-    for (var n = 1; n <= max; n++) {
-      (function (value) {
-        grid.appendChild(h("button", {
-          class: "bs-wager" + (spent[value] ? " is-spent" : "") +
-                 (selected === value ? " is-picked" : ""),
-          type: "button",
-          disabled: spent[value] ? true : null,
-          "aria-pressed": selected === value ? "true" : "false",
-          "aria-label": spent[value] ? value + ", already used" : "Wager " + value,
-          text: String(value),
-          onclick: function () { onPick(value); }
-        }));
-      })(n);
-    }
+    (cards || []).forEach(function (card) {
+      var cls = "bs-wager" + (card.spent ? " is-spent" : "") + (selected === card.id ? " is-picked" : "");
+      if (!onPick) {
+        grid.appendChild(h("span", { class: cls + " is-shown", text: String(card.value) }));
+        return;
+      }
+      grid.appendChild(h("button", {
+        class: cls,
+        type: "button",
+        disabled: card.spent ? true : null,
+        "aria-pressed": selected === card.id ? "true" : "false",
+        "aria-label": card.spent ? card.value + ", already used" : "Wager " + card.value,
+        text: String(card.value),
+        onclick: function () { onPick(card); }
+      }));
+    });
     return grid;
   }
 
@@ -310,6 +312,101 @@
 
   function cap(text) { return text.charAt(0).toUpperCase() + text.slice(1); }
 
+  function ordinal(n) {
+    var tail = n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th";
+    return n + tail;
+  }
+
+  /* ---------------------------------------------------------------- draft -- */
+
+  function perkName(state, id) {
+    var card = (state.perk_cards || {})[id];
+    return card ? card.name : id;
+  }
+
+  /* The picking order: who is on the clock, who has picked what. `opts.you`
+     marks the viewer; `opts.onTrade(id)` adds a Trade button to the places
+     still open to trading. */
+  function draftOrder(state, opts) {
+    var o = opts || {};
+    var d = state.draft;
+    return h("div", { class: "bs-card bs-order" },
+      h("span", { class: "bs-label", text: "Picking order" }),
+      h("ol", { class: "bs-order__list" }, d.order.map(function (id, i) {
+        var picked = d.picks[id];
+        var active = d.stage === "picking" && i === d.current;
+        var tradable = !picked && (d.stage === "trading" || (d.stage === "picking" && i > d.current));
+        return h("li", { class: "bs-order__row" + (active ? " is-active" : "") +
+                         (picked ? " is-done" : "") + (id === state.you ? " is-you" : "") },
+          h("span", { class: "bs-order__pos", text: String(i + 1) }),
+          h("span", { class: "bs-order__name", text: nameOf(state, id) + (id === state.you ? " (you)" : "") }),
+          picked ? h("span", { class: "bs-order__perk", text: perkName(state, picked) })
+            : active ? h("span", { class: "bs-order__perk is-clock" }, "Picking ", clock(d.left))
+            : null,
+          o.onTrade && tradable && id !== state.you
+            ? h("button", { class: "bs-btn bs-btn--inline bs-order__trade", type: "button",
+                            text: "Trade", onclick: function () { o.onTrade(id); } })
+            : null);
+      })));
+  }
+
+  /* What is left to draft. `opts.selected` / `opts.onPick` make it a choice. */
+  function draftPool(state, opts) {
+    var o = opts || {};
+    var d = state.draft;
+    var cards = d.available.map(function (id) { return (state.perk_cards || {})[id]; })
+      .filter(Boolean);
+    return h("div", { class: "bs-pool" + (o.onPick ? " is-choosing" : "") },
+      cards.map(function (perk) {
+        var picked = o.selected === perk.id;
+        var tag = h("span", { class: "bs-perk__tag", text: perk.public ? "Public" : "Secret" });
+        var name = h("span", { class: "bs-perk__name", text: perk.name });
+        var text = h("span", { class: "bs-perk__text", text: perk.text });
+        var cls = "bs-perk bs-pool__perk bs-perk--" + familyColour(perk.family) + (picked ? " is-picked" : "");
+        return o.onPick
+          ? h("button", { class: cls + " bs-offer", type: "button", "aria-pressed": picked ? "true" : "false",
+                          onclick: function () { o.onPick(perk.id); } }, tag, name, text)
+          : h("div", { class: cls }, tag, name, text);
+      }));
+  }
+
+  /* The last few things that happened in the draft. */
+  function draftLog(state) {
+    var log = (state.draft.log || []).slice().reverse();
+    if (!log.length) return null;
+    var name = function (id) { return id === state.you ? "You" : nameOf(state, id); };
+    return h("div", { class: "bs-card bs-draftlog" },
+      h("span", { class: "bs-label", text: "Latest" }),
+      h("ul", { class: "bs-draftlog__list" }, log.map(function (e) {
+        var text = e.kind === "trade"
+          ? name(e.a) + " and " + name(e.b) + " swapped places: " + name(e.a) + " now " +
+            (e.a === state.you ? "pick " : "picks ") + ordinal(e.a_to + 1) + ", " + name(e.b) + " " +
+            ordinal(e.b_to + 1) + ". A " + e.a_gave + " card went for a " + e.b_gave + "."
+          : e.auto
+            ? name(e.player) + " ran out of time and got " + perkName(state, e.perk) + "."
+            : name(e.player) + " took " + perkName(state, e.perk) + ".";
+        return h("li", { text: text });
+      })));
+  }
+
+  /* Who holds what, once the draft is done: public, like the draft itself.
+     A perk shows as spent once the table knows it was played. */
+  var tableOpen = false;
+  function tablePerks(state) {
+    var rows = (state.players || []).filter(function (p) { return p.perk; });
+    if (!rows.length) return null;
+    var panel = h("details", { class: "bs-card bs-table" },
+      h("summary", { class: "bs-table__head" }, h("span", { class: "bs-label", text: "Who holds what" })),
+      h("ul", { class: "bs-table__list" }, rows.map(function (p) {
+        return h("li", { class: p.perk_spent ? "is-spent" : null },
+          h("span", { class: "bs-table__name", text: p.name + (p.id === state.you ? " (you)" : "") }),
+          h("span", { class: "bs-table__perk", text: perkName(state, p.perk) + (p.perk_spent ? ", used" : "") }));
+      })));
+    panel.open = tableOpen;
+    panel.addEventListener("toggle", function () { tableOpen = panel.open; });
+    return panel;
+  }
+
   /* One sentence for a play, from the viewer's side: "You" and "you" where
      it is theirs or aimed at them. */
   function describe(state, p) {
@@ -360,7 +457,8 @@
     if (p.perk === "forbidden_words" && p.status === "live") {
       return "Slips so far: " + p.slips + ".";
     }
-    if (p.status === "live" && (p.perk === "blackmail" || p.perk === "blood_pact")) {
+    if (p.status === "live" && state.phase !== "reveal" &&
+        (p.perk === "blackmail" || p.perk === "blood_pact")) {
       return p.perk === "blackmail" ? "In force." : "Bound until the reveal.";
     }
     return null;
@@ -532,6 +630,8 @@
     verdict: verdict, lineParts: lineParts, history: history,
     play: play, buzz: buzz, muteButton: muteButton,
     clock: clock, talkCard: talkCard, floorCard: floorCard, perkCard: perkCard,
-    perkFeed: perkFeed, describe: describe, familyColour: familyColour
+    perkFeed: perkFeed, describe: describe, familyColour: familyColour,
+    ordinal: ordinal, perkName: perkName, draftOrder: draftOrder, draftPool: draftPool,
+    draftLog: draftLog, tablePerks: tablePerks
   };
 })(window);

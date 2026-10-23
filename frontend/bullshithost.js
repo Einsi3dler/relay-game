@@ -142,7 +142,8 @@
     var hint = s.registered < 3 ? "You need at least 3 players."
       : !ready ? "Waiting on " + (s.registered - s.submitted) + " more question" +
                  (s.registered - s.submitted === 1 ? "." : "s.")
-      : "Everyone's question is in. " + s.registered + " players means " + s.registered + " rounds.";
+      : "Everyone's question is in. " + s.registered + " players means " + s.registered +
+        " rounds. Starting opens the perk draft.";
     return [
       BS.title("The lobby"),
       joinCard(s),
@@ -219,6 +220,35 @@
       title: s.phase === "reveal" ? "Every perk this round" : "Perks this round",
       onSlip: function (id, delta) { step("slip", { play: id, step: delta }); }
     }));
+    nodes.push(roster(s));
+    return nodes;
+  }
+
+  /* The perk draft: the order, whose turn it is, what is left. The host
+     starts the picks and, once every perk is taken, the quiz. */
+  function draft(s) {
+    var d = s.draft;
+    var active = d.stage === "picking" ? d.order[d.current] : null;
+    var nodes = [BS.title("The perk draft")];
+    if (d.stage === "trading") {
+      nodes.push(BS.sub("Players can trade places now: they swap positions and a wager card each. Start the picks when the haggling's done."));
+      nodes.push(bigButton("Start the picks", "draft_go", true));
+    } else if (d.stage === "picking") {
+      nodes.push(h("div", { class: "bs-draftturn" },
+        h("span", { class: "bs-draftturn__label", text: BS.nameOf(s, active) + " is picking" }),
+        BS.clock(d.left, "bs-clock--big"),
+        h("p", { class: "bs-draftturn__note",
+                 text: "Each pick gets " + d.pick_seconds + " seconds. Out of time means a random perk." })));
+    } else {
+      nodes.push(BS.sub("Every perk is taken. Who holds what is public from here on."));
+      nodes.push(bigButton("Start the quiz", "begin", true));
+    }
+    nodes.push(BS.draftOrder(s));
+    if (d.stage !== "complete") {
+      nodes.push(h("p", { class: "bs-hint", text: "Perks left (" + d.available.length + ")" }));
+      nodes.push(BS.draftPool(s));
+    }
+    nodes.push(BS.draftLog(s));
     nodes.push(roster(s));
     return nodes;
   }
@@ -337,11 +367,13 @@
   function render() {
     var s = live;
     var nodes = s.phase === "lobby" ? lobby(s) : s.phase === "final" ? final(s)
-      : s.phase === "waiting" ? waiting(s) : round(s);
+      : s.phase === "waiting" ? waiting(s) : s.phase === "draft" ? draft(s) : round(s);
     if (s.phase !== "lobby" && s.phase !== "waiting") {
       nodes.unshift(h("div", { class: "bs-head" },
-        h("span", { class: "bs-sticker", text: s.phase === "final" ? "Done" : "Round " + s.round + " of " + s.rounds })));
+        h("span", { class: "bs-sticker", text: s.phase === "final" ? "Done"
+          : s.phase === "draft" ? "Draft" : "Round " + s.round + " of " + s.rounds })));
     }
+    if (s.phase !== "lobby" && s.phase !== "draft" && s.phase !== "final") nodes.push(BS.tablePerks(s));
     nodes.unshift(undoBar());
     nodes.push(h("div", { class: "bs-hostfoot" },
       s.phase === "lobby" ? null : resetButton(), newGameButton()));
