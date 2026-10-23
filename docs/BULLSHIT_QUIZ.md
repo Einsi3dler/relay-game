@@ -16,6 +16,9 @@ These close the open decisions in section 11. Where this section and a later
 | Source of false options | **The author writes them** when submitting the question. The server tells each author how many options to write (2, 3 or 4), which fixes B for that question. |
 | Who runs the game | **A separate, non-playing host** behind a host key, like Guess Who. |
 | Who plays (revised 21 October 2026) | **Players join through the site.** They sign up or sign in to a Game Night account and join with the host's code. No roster file, no email addresses, no invite links; nothing mails anybody. |
+| Perks (23 October 2026) | **One unique perk per player for the game, chosen in a draft before the quiz.** A random order, 15 seconds a pick, and players can trade places by swapping positions and one wager card each. At most 30 players, one per perk. The full design: [BULLSHIT_QUIZ_PERKS.md](BULLSHIT_QUIZ_PERKS.md). |
+| Wager cards (23 October 2026, refines "single-use") | **Wagers are cards, not numbers.** Everybody starts with one card per value 1..N-1; draft trades move cards, so a hand can hold two 19s and no 1. Each wagering turn spends one card, and everybody still has N-1 of them. |
+| The discussion clock (23 October 2026, supersedes "no timers" for this step) | **Guessers vote after the talking.** The discussion runs on a clock (`BS_TALK_SECONDS_PER_SPEAKER`, 60 s per speaker) and the ballot opens when it runs out, so the speaking perks reach everybody. |
 | Players who leave (supersedes "pause" in section 11) | **The game never waits for them.** Once a game has started, going offline relegates a player for the rest of that game: they keep their seat and score, are never picked to bluff again (even after returning), and are never waited on as a guesser. Their question is skipped while they are away and stays queued; if they return it can still be played, and if every remaining question belongs to somebody offline, those are dropped and the game ends. |
 
 Taken as the proposed defaults: bullshitters lock their wager before
@@ -33,7 +36,8 @@ wagers. Otherwise the one speaker who never locks in is the truthful one.
 
 Where things live: rules `backend/bsquiz.py`, room `backend/bsroom.py`,
 seats and questions `backend/bsroster.py`, web routes `backend/bsserver.py`,
-screens `frontend/bullshit*.{html,js,css}`.
+screens `frontend/bullshit*.{html,js,css}`, perks `backend/bsperks.py` and
+`docs/BULLSHIT_QUIZ_PERKS.md`.
 
 1. Set `RELAY_BULLSHIT_HOST_KEY` (the default is `dev`, in a public repo) and
    open `/bullshithost`. The lobby shows a **join code** and a link
@@ -48,10 +52,15 @@ screens `frontend/bullshit*.{html,js,css}`.
    `/bullshit` (or the hub card) resumes it.
 4. **Start the game** needs at least three players and a question from every
    one of them; it fixes N and the order, and from then on the code lets
-   nobody else in.
+   nobody else in. It opens the **perk draft**: everybody sees the picking
+   order and can trade places; press **Start the picks** when the haggling
+   is done (each pick then gets 15 seconds), and **Start the quiz** once
+   every perk is taken.
 5. Each round the host presses: **Open the discussion** (once every speaker
    has committed), **Lock the votes** (once every guesser has), **Reveal the
-   truth**, **Next round**. Nothing has a timer.
+   truth**, **Next round**. One thing runs on its own: the discussion clock.
+   Guessers can't vote until it runs out (or the host presses **End the
+   talking**) and any Last Words have been said.
 6. Host tools, all on the host page:
    - **Remove** on a player's chip in the lobby, for somebody who joined by
      mistake. Their question goes too; they can join again with the code.
@@ -67,6 +76,12 @@ screens `frontend/bullshit*.{html,js,css}`.
    - **Round history** (collapsed, host only): every revealed round, with
      the truth, who bluffed and the vote split. Players never receive it;
      open it only when you are not screen-sharing.
+   - **+30 s** and **End the talking** on the discussion clock, and **Done,
+     next** to cut a running Hot Seat, Mute Button or Last Word short.
+   - **Slip +1** (and **Undo**) on each Forbidden Words, every time the
+     speaker says one.
+   - **Secret perks to referee** (collapsed, host only): who False Witness
+     recruited, so you can hold them to it.
    Players get sounds and a buzz when it is their turn, and a mute button.
 
 Leaving mid-game (owner's rule, 21 October 2026). Going offline after the

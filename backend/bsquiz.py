@@ -7,9 +7,11 @@ every decision that is a rule rather than plumbing. The design is
 
 Policies the handoff left open, as settled by the game's owner:
 
-  * **Wager numbers are single-use.** Each player starts with 1..N-1 and spends
-    one on every wagering turn, win or lose. With exactly N-1 wagering turns
-    each, everybody spends every number once, so *when* to bet big is the game.
+  * **Wager numbers are single-use cards.** Each player starts with a deck of
+    cards 1..N-1 and spends one on every wagering turn, win or lose. With
+    exactly N-1 wagering turns each, everybody spends every card once, so
+    *when* to bet big is the game. The perk draft lets players trade cards,
+    so a hand can end up holding two 19s and no 1 (backend/bsdraft.py).
   * **A tie at the top means nobody wins the crowd.** The truthful player gets
     N // 2 and every bullshitter loses their wager, keeping their points per
     person fooled. Guessers are scored on the correct answer regardless.
@@ -54,7 +56,7 @@ def option_count_for(n: int, rng: random.Random) -> int:
 
 
 def wager_values(n: int) -> range:
-    """Every legal wager: whole numbers 1..N-1 (handoff §6)."""
+    """The deck every player starts with: whole numbers 1..N-1 (handoff §6)."""
     return range(1, n)
 
 
@@ -62,14 +64,13 @@ def truthful_reward(n: int, won_crowd: bool) -> int:
     return n if won_crowd else n // 2
 
 
-def wager_problem(n: int, wager: object, used: set[int]) -> str | None:
-    """Why this wager is not allowed, or None if it is."""
+def wager_problem(wager: object, left: list[int]) -> str | None:
+    """Why this wager is not allowed, or None if it is. `left` is the values
+    of the player's unspent cards, duplicates and all."""
     if isinstance(wager, bool) or not isinstance(wager, int):
         return "A wager is a whole number."
-    if wager not in wager_values(n):
-        return f"Wager between 1 and {n - 1}."
-    if wager in used:
-        return f"You have already used {wager}."
+    if wager not in left:
+        return f"You have no {wager} card left."
     return None
 
 
@@ -189,19 +190,43 @@ def vote_counts(panel: Panel, guesses: dict[str, tuple[str, int]]) -> dict[str, 
     return counts
 
 
-def crowd_winner(counts: dict[str, int]) -> str | None:
+def tied_top(counts: dict[str, int]) -> list[str]:
+    """The options sharing the top count, when more than one does and the top
+    is above zero. What a Kingmaker may choose between."""
+    if not counts:
+        return []
+    top = max(counts.values())
+    leaders = [key for key, votes in counts.items() if votes == top]
+    return leaders if top > 0 and len(leaders) > 1 else []
+
+
+def crowd_winner(counts: dict[str, int], kingmaker: str | None = None) -> str | None:
     """The option with more votes than every other, or None.
 
     Policy: an outright lead is required, so a tie at the top (including
-    nobody voting at all) means no speaker wins the crowd.
+    nobody voting at all) means no speaker wins the crowd, unless a Kingmaker
+    perk chose one of the tied options (backend/bsperks.py).
     """
     if not counts:
         return None
     top = max(counts.values())
     leaders = [key for key, votes in counts.items() if votes == top]
-    if top <= 0 or len(leaders) != 1:
+    if top <= 0:
         return None
-    return leaders[0]
+    if len(leaders) == 1:
+        return leaders[0]
+    return kingmaker if kingmaker in leaders else None
+
+
+def outright_second(counts: dict[str, int]) -> str | None:
+    """The option with at least one vote, exactly one option above it and
+    every other below it. Honourable Mention pays on this."""
+    for key, votes in counts.items():
+        above = sum(1 for k, v in counts.items() if k != key and v > votes)
+        level = sum(1 for k, v in counts.items() if k != key and v == votes)
+        if votes >= 1 and above == 1 and level == 0:
+            return key
+    return None
 
 
 @dataclass(frozen=True)
@@ -215,6 +240,8 @@ class Line:
     fooled: int = 0         # bullshitters only: guessers who picked their option
     won: bool = False       # guessers: picked the truth. speakers: won the crowd
     delta: int = 0
+    stake: int = 0          # the wager's part of delta: +w, -w, or what perks made it
+    parts: tuple[tuple[str, int], ...] = ()   # perk effects, as (perk name, points)
 
 
 @dataclass(frozen=True)
@@ -226,15 +253,18 @@ class RoundResult:
 
 def score_round(n: int, panel: Panel,
                 guesses: dict[str, tuple[str, int]],
-                bluffs: dict[str, int]) -> RoundResult:
-    """Score one locked round.
+                bluffs: dict[str, int],
+                kingmaker: str | None = None) -> RoundResult:
+    """Score one locked round: the plain §7 formulas, no perks.
 
     `guesses` maps each guesser to (option key, wager); `bluffs` maps each
     bullshitter to their wager. Both are assumed already validated by the
     room: this function applies the formulas, it does not police moves.
+    `kingmaker` is the option a Kingmaker crowned, if any; it only matters
+    when the top is tied. Perks are layered on by `backend/bsperks.py`.
     """
     counts = vote_counts(panel, guesses)
-    winner = crowd_winner(counts)
+    winner = crowd_winner(counts, kingmaker)
     correct = panel.correct_key
     lines: dict[str, Line] = {}
 
@@ -250,17 +280,19 @@ def score_round(n: int, panel: Panel,
         wager = bluffs[option.speaker]
         fooled = counts[option.key]
         won = winner == option.key
+        stake = wager if won else -wager
         lines[option.speaker] = Line(
             player=option.speaker, role=BULLSHITTER, option=option.key,
             wager=wager, fooled=fooled, won=won,
-            delta=fooled + (wager if won else -wager),
+            delta=fooled + stake, stake=stake,
         )
 
     for player, (key, wager) in guesses.items():
         right = key == correct
+        stake = wager if right else -wager
         lines[player] = Line(
             player=player, role=GUESSER, option=key, wager=wager,
-            won=right, delta=wager if right else -wager,
+            won=right, delta=stake, stake=stake,
         )
 
     return RoundResult(counts=counts, winner=winner, lines=lines)

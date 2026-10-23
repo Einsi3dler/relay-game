@@ -41,7 +41,7 @@ from fastapi import (APIRouter, Cookie, HTTPException, Query, Request, WebSocket
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
-from backend import accounts, bsroom, bsroster, config, devgate, protocol
+from backend import accounts, bsdraft, bsperks, bsroom, bsroster, config, devgate, protocol
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -57,9 +57,16 @@ STATE = "bs_state"
 READY = "bs_ready"            # truthful player, in the briefing
 BLUFF = "bs_bluff"            # bullshitter: {wager}
 GUESS = "bs_guess"            # guesser: {option, wager}
-HOST = "bs_host"              # host: {action, player?}
-HOST_ACTIONS = ("start", "open", "lock", "lock_anyway", "reveal", "next",
-                "reset", "undo_reset", "drop", "remove", "new_game")
+OFFER = "bs_offer"            # draft: {to, give, take} card ids, to swap places
+RESPOND = "bs_respond"        # draft: {offer, answer: accept | decline | cancel}
+DRAFT_PICK = "bs_draft_pick"  # draft: {perk, turn}, the active player only
+PERK = "bs_perk"              # play your perk: {target?, option?, wager?, words?, play?, copy?}
+HOST = "bs_host"              # host: {action, player?, play?, step?}
+HOST_ACTIONS = ("start", "draft_go", "begin", "open", "lock", "lock_anyway", "reveal",
+                "next", "reset", "undo_reset", "drop", "remove", "new_game",
+                "extend", "end_talk", "floor_done", "slip")
+PLAYER_MOVES = (READY, BLUFF, GUESS, OFFER, RESPOND, DRAFT_PICK, PERK)
+PERK_FIELDS = ("target", "option", "wager", "words", "play", "copy")
 
 router = APIRouter()
 
@@ -68,6 +75,7 @@ _lock = asyncio.Lock()
 _sockets: dict[str, WebSocket] = {}
 _grace: dict[str, asyncio.Task] = {}      # viewer -> pending "they left" check
 _undo: tuple[bsroom.BullshitRoom, float] | None = None   # the room a reset replaced
+_ticker: asyncio.Task | None = None       # lets the room's clocks run out
 
 
 # --- the room -------------------------------------------------------------
@@ -94,6 +102,25 @@ async def _leave_after_grace(player_id: str) -> None:
         current = room()
         bsroom.on_disconnect(current, player_id)
         await broadcast(current)
+
+
+async def _tick_forever() -> None:
+    """The discussion clock, floor perks and reaction windows all run out on
+    their own; this is what notices. Broadcasts only when something moved."""
+    while True:
+        await asyncio.sleep(config.BS_TICK_SECONDS)
+        async with _lock:
+            current = room()
+            if bsroom.tick(current, time.monotonic()):
+                await broadcast(current)
+
+
+def _ensure_ticker() -> None:
+    """Started by the first socket, on whichever event loop is serving it."""
+    global _ticker
+    loop = asyncio.get_running_loop()
+    if _ticker is None or _ticker.done() or _ticker.get_loop() is not loop:
+        _ticker = loop.create_task(_tick_forever())
 
 
 def _cancel_grace(player_id: str) -> None:
@@ -340,6 +367,9 @@ async def join(body: JoinBody, relay_session: str | None = SESSION) -> dict:
         if current.phase != "lobby":
             # The roster froze when the game started (handoff §3).
             raise HTTPException(status_code=400, detail="This game has already started.")
+        if len(current.seats) >= len(bsperks.PERKS):
+            # Everybody drafts a different perk, so there is one seat per perk.
+            raise HTTPException(status_code=400, detail="This game is full.")
         if "".join(body.code.split()).upper() != current.code:
             raise HTTPException(status_code=400, detail="That code doesn't match tonight's game.")
         person = bsroster.join(user.id, user.first_name, user.last_name, user.username)
@@ -378,16 +408,27 @@ def _parse(raw: Any) -> tuple[str, dict[str, Any]] | str:
         return kind, {"wager": raw.get("wager")}
     if kind == GUESS:
         return kind, {"option": raw.get("option"), "wager": raw.get("wager")}
+    if kind == OFFER:
+        return kind, {"to": raw.get("to"), "give": raw.get("give"), "take": raw.get("take")}
+    if kind == RESPOND:
+        return kind, {"offer": raw.get("offer"), "answer": raw.get("answer")}
+    if kind == DRAFT_PICK:
+        return kind, {"perk": raw.get("perk"), "turn": raw.get("turn")}
+    if kind == PERK:
+        return kind, {key: raw.get(key) for key in PERK_FIELDS}
     if kind == HOST:
         action = raw.get("action")
         if action not in HOST_ACTIONS:
             return "Unknown host action."
-        return kind, {"action": action, "player": raw.get("player")}
+        return kind, {"action": action, "player": raw.get("player"),
+                      "play": raw.get("play"), "step": raw.get("step", 1)}
     return "Unknown message type."
 
 
 def _host_step(current: bsroom.BullshitRoom, action: str,
-               player: object = None) -> bsroom.BullshitRoom:
+               fields: dict[str, Any] | None = None) -> bsroom.BullshitRoom:
+    fields = fields or {}
+    player = fields.get("player")
     if action == "reset":
         return reset_room()
     if action == "undo_reset":
@@ -412,6 +453,18 @@ def _host_step(current: bsroom.BullshitRoom, action: str,
         bsroom.mark_gone(current, player)
     elif action == "lock_anyway":
         bsroom.lock(current, force=True)
+    elif action == "draft_go":
+        bsroom.draft_go(current)
+    elif action == "begin":
+        bsroom.begin_quiz(current)
+    elif action == "extend":
+        bsroom.extend_talk(current)
+    elif action == "end_talk":
+        bsroom.end_talk(current)
+    elif action == "floor_done":
+        bsroom.floor_done(current)
+    elif action == "slip":
+        bsroom.slip(current, fields.get("play"), fields.get("step", 1))
     else:
         {"open": bsroom.open_discussion, "lock": bsroom.lock,
          "reveal": bsroom.reveal, "next": bsroom.next_round}[action](current)
@@ -435,6 +488,7 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
             return
     viewer = person.id if person is not None else HOST_VIEWER
     _cancel_grace(viewer)
+    _ensure_ticker()
 
     old = _sockets.get(viewer)
     _sockets[viewer] = socket        # publish first, or the old one's finally
@@ -463,11 +517,10 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
                     if kind == HOST:
                         if viewer != HOST_VIEWER:
                             raise bsroom.Rejected("Only the host can do that.")
-                        current = _host_step(current, fields["action"],
-                                             fields.get("player"))
+                        current = _host_step(current, fields["action"], fields)
                         if fields["action"] in ("remove", "new_game"):
                             await _kick_seatless()
-                    elif kind in (READY, BLUFF, GUESS):
+                    elif kind in PLAYER_MOVES:
                         if person is None:
                             raise bsroom.Rejected("The host does not play.")
                         seat = current.seats.get(person.id)
@@ -480,13 +533,24 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
                             bsroom.ready(current, person.id)
                         elif kind == BLUFF:
                             bsroom.bluff(current, person.id, fields["wager"])
+                        elif kind == OFFER:
+                            bsroom.draft_offer(current, person.id, fields["to"],
+                                               fields["give"], fields["take"])
+                        elif kind == RESPOND:
+                            bsroom.draft_respond(current, person.id, fields["offer"],
+                                                 fields["answer"])
+                        elif kind == DRAFT_PICK:
+                            bsroom.draft_pick(current, person.id, fields["perk"],
+                                              fields["turn"])
+                        elif kind == PERK:
+                            bsroom.play_perk(current, person.id, fields)
                         else:
                             bsroom.guess(current, person.id, fields["option"],
                                          fields["wager"])
                     else:                       # request_state / heartbeat
                         await _send(socket, snapshot(current, viewer))
                         continue
-                except bsroom.Rejected as exc:
+                except (bsroom.Rejected, bsdraft.Refused) as exc:
                     await _send(socket, protocol.error_message(str(exc)))
                     continue
                 await broadcast(current)

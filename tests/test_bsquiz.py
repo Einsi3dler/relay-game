@@ -142,30 +142,34 @@ def test_wager_range_uses_total_players():
     assert list(bsquiz.wager_values(5)) == [1, 2, 3, 4]
 
 
-@pytest.mark.parametrize("wager, used, ok", [
-    (1, set(), True),
-    (14, set(), True),
-    (0, set(), False),
-    (15, set(), False),
-    (7, {7}, False),
-    (7, {6, 8}, True),
-    (3.0, set(), False),
-    (True, set(), False),
-    ("3", set(), False),
+FULL = list(range(1, 15))
+
+
+@pytest.mark.parametrize("wager, left, ok", [
+    (1, FULL, True),
+    (14, FULL, True),
+    (0, FULL, False),
+    (15, FULL, False),
+    (7, [6, 8], False),
+    (7, [6, 7, 8], True),
+    (19, [19, 19], True),           # two 19s after a draft trade
+    (3.0, FULL, False),
+    (True, FULL, False),
+    ("3", FULL, False),
 ])
-def test_wager_problem(wager, used, ok):
-    assert (bsquiz.wager_problem(15, wager, used) is None) is ok
+def test_wager_problem(wager, left, ok):
+    assert (bsquiz.wager_problem(wager, left) is None) is ok
 
 
 def test_single_use_wagers_last_exactly_the_game():
-    """N-1 wagering turns and N-1 numbers: everybody spends each once."""
+    """N-1 wagering turns and N-1 cards: everybody spends each once."""
     n = 6
-    used: set[int] = set()
+    left = list(bsquiz.wager_values(n))
     for w in bsquiz.wager_values(n):
-        assert bsquiz.wager_problem(n, w, used) is None
-        used.add(w)
-    assert len(used) == n - 1
-    assert all(bsquiz.wager_problem(n, w, used) for w in range(1, n))
+        assert bsquiz.wager_problem(w, left) is None
+        left.remove(w)
+    assert left == []
+    assert all(bsquiz.wager_problem(w, left) for w in range(1, n))
 
 
 # --- sizes and dealing ----------------------------------------------------

@@ -452,3 +452,31 @@ BS_GRACE_SECONDS = 30         # a dropped socket counts as "left" only after thi
                               # phones drop the connection when the screen locks
 BS_UNDO_SECONDS = 10          # how long the host can take back "Reset the room"
 BS_CODE_LENGTH = 4            # the join code the host shares in the group chat
+
+# The discussion runs on a clock and the ballot stays shut until it ends, so
+# the speaking perks reach everybody (docs/BULLSHIT_QUIZ_PERKS.md §0).
+BS_TALK_SECONDS_PER_SPEAKER = 60      # two to four minutes a round
+BS_OPENING_SECONDS_PER_SPEAKER = 30   # the openings: no Mute Button yet
+BS_TALK_EXTEND_SECONDS = 30           # the host's "+30 s"
+BS_TICK_SECONDS = 0.5                 # how often the server checks the clocks
+
+# Perks (docs/BULLSHIT_QUIZ_PERKS.md). One unique perk per player for the
+# game, chosen in a draft before the quiz. Values are provisional until a
+# playtest.
+BS_DRAFT_PICK_SECONDS = 15            # each player's turn to pick
+BS_DRAFT_MAX_OFFERS = 5               # open trade offers one player may have out
+BS_FLOOR_SECONDS = 20                 # Hot Seat, Mute Button, Last Word
+BS_REACTION_SECONDS = 8               # time to answer with Objection! or Not My Problem
+BS_FORBIDDEN_MAX_SLIPS = 5            # Forbidden Words stops costing after this many
+BS_PERK_POINTS = {
+    "ride_or_die": 5,
+    "terrible_judgement": 5,
+    "lone_wolf": 10,
+    "call_bullshit": 5,
+    "victory_lap": 10,
+    "target_audience": 5,
+    "honourable_mention": 5,
+    "damage_control": 5,      # the most it wins back
+    "pickpocket": 3,
+    "forbidden_words": 2,     # per slip
+}

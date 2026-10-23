@@ -107,6 +107,22 @@ def reason(response) -> str:
     return response.json()["detail"]["reason"]
 
 
+def run_draft(host, socks) -> dict:
+    """Start the picks, have whoever is on the clock take the first perk
+    left, and start the quiz. Returns the host's first briefing view."""
+    host.send_json({"type": bsserver.HOST, "action": "draft_go"})
+    view = until(host, lambda v: v.get("draft") and v["draft"]["stage"] != "trading")
+    while view["draft"]["stage"] == "picking":
+        draft = view["draft"]
+        active = draft["order"][draft["current"]]
+        socks[active].send_json({"type": bsserver.DRAFT_PICK, "perk": draft["available"][0],
+                                 "turn": draft["turn"]})
+        view = until(host, lambda v, t=draft["turn"]: (v["draft"]["turn"] != t
+                                                       or v["draft"]["stage"] == "complete"))
+    host.send_json({"type": bsserver.HOST, "action": "begin"})
+    return until(host, lambda v: v["phase"] == "briefing")
+
+
 # --- pages ----------------------------------------------------------------
 
 def test_pages_serve(client):
@@ -154,7 +170,7 @@ def test_nobody_joins_after_the_start(client, players):
         for seat in players:
             stack.enter_context(seat.web.websocket_connect("/ws/bullshit"))
         host.send_json({"type": bsserver.HOST, "action": "start"})
-        until(host, lambda v: v["phase"] == "briefing")
+        until(host, lambda v: v["phase"] == "draft")       # the roster froze at the start
         _, late = account()
         response = late.post("/api/bullshit/join", json={"code": "K7QM"})
         assert response.status_code == 400 and "already started" in response.json()["detail"]
@@ -236,8 +252,11 @@ def test_a_full_round_over_sockets(client, players):
                  for seat in players}
 
         host.send_json({"type": bsserver.HOST, "action": "start"})
-        hv = until(host, lambda v: v["phase"] == "briefing")
+        drafting = until(host, lambda v: v["phase"] == "draft")
+        assert sorted(drafting["draft"]["order"]) == sorted(socks)
+        hv = run_draft(host, socks)
         assert hv["rounds"] == 4
+        assert all(p["perk"] for p in hv["players"])
         views = {pid: until(ws, lambda v: v["phase"] == "briefing")
                  for pid, ws in socks.items()}
 
@@ -258,7 +277,10 @@ def test_a_full_round_over_sockets(client, players):
                 socks[pid].send_json({"type": bsserver.BLUFF, "wager": 1})
         until(host, lambda v: v.get("speakers_in") == v.get("speakers"))
         host.send_json({"type": bsserver.HOST, "action": "open"})
-        until(host, lambda v: v["phase"] == "open")
+        talking = until(host, lambda v: v["phase"] == "open")
+        assert talking["talk"]["ballot"] is False
+        host.send_json({"type": bsserver.HOST, "action": "end_talk"})
+        until(host, lambda v: v.get("talk", {}).get("ballot"))
 
         for pid, view in views.items():
             if view["role"] == "guesser":
@@ -288,8 +310,31 @@ def _started_with_sockets(client, players, stack):
                  seat.web.websocket_connect("/ws/bullshit"))
              for seat in players}
     host.send_json({"type": bsserver.HOST, "action": "start"})
-    until(host, lambda v: v["phase"] == "briefing")
+    until(host, lambda v: v["phase"] == "draft")
+    run_draft(host, socks)
     return host, socks
+
+
+def test_a_draft_trade_over_sockets(client, players):
+    for seat in players:
+        assert write(seat).status_code == 200
+    host_client(client)
+    with ExitStack() as stack:
+        host = stack.enter_context(client.websocket_connect("/ws/bullshit?as=host"))
+        socks = {seat.person.id: stack.enter_context(seat.web.websocket_connect("/ws/bullshit"))
+                 for seat in players}
+        host.send_json({"type": bsserver.HOST, "action": "start"})
+        order = until(host, lambda v: v["phase"] == "draft")["draft"]["order"]
+        first, last = order[0], order[-1]
+        socks[last].send_json({"type": bsserver.OFFER, "to": first,
+                               "give": f"{last}-card-3", "take": f"{first}-card-1"})
+        offers = until(socks[first], lambda v: v.get("draft_offers"))["draft_offers"]
+        assert offers[0]["from"] == last and offers[0]["status"] == "pending"
+        socks[first].send_json({"type": bsserver.RESPOND, "offer": offers[0]["id"],
+                                "answer": "accept"})
+        after = until(host, lambda v: v["draft"]["order"][0] == last)
+        assert after["draft"]["order"][-1] == first
+        assert [c["value"] for c in after["draft"]["hands"][first]].count(3) == 2
 
 
 def test_reconnecting_inside_the_grace_period_changes_nothing(client, players, monkeypatch):
@@ -380,6 +425,8 @@ def test_acting_after_being_marked_gone_counts_as_back(client, players):
         until(host, lambda v: v.get("speakers_in") == v.get("speakers"))
         _host_action(host, "open")
         until(host, lambda v: v["phase"] == "open")
+        _host_action(host, "end_talk")
+        until(host, lambda v: v.get("talk", {}).get("ballot"))
         socks[guesser].send_json({"type": bsserver.GUESS, "option": "A", "wager": 1})
         until(host, lambda v: any(p["id"] == guesser and p["connected"]
                                   for p in v["players"]))
