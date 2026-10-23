@@ -7,9 +7,11 @@ every decision that is a rule rather than plumbing. The design is
 
 Policies the handoff left open, as settled by the game's owner:
 
-  * **Wager numbers are single-use.** Each player starts with 1..N-1 and spends
-    one on every wagering turn, win or lose. With exactly N-1 wagering turns
-    each, everybody spends every number once, so *when* to bet big is the game.
+  * **Wager numbers are single-use cards.** Each player starts with a deck of
+    cards 1..N-1 and spends one on every wagering turn, win or lose. With
+    exactly N-1 wagering turns each, everybody spends every card once, so
+    *when* to bet big is the game. The perk draft lets players trade cards,
+    so a hand can end up holding two 19s and no 1 (backend/bsdraft.py).
   * **A tie at the top means nobody wins the crowd.** The truthful player gets
     N // 2 and every bullshitter loses their wager, keeping their points per
     person fooled. Guessers are scored on the correct answer regardless.
@@ -54,7 +56,7 @@ def option_count_for(n: int, rng: random.Random) -> int:
 
 
 def wager_values(n: int) -> range:
-    """Every legal wager: whole numbers 1..N-1 (handoff §6)."""
+    """The deck every player starts with: whole numbers 1..N-1 (handoff §6)."""
     return range(1, n)
 
 
@@ -62,14 +64,13 @@ def truthful_reward(n: int, won_crowd: bool) -> int:
     return n if won_crowd else n // 2
 
 
-def wager_problem(n: int, wager: object, used: set[int]) -> str | None:
-    """Why this wager is not allowed, or None if it is."""
+def wager_problem(wager: object, left: list[int]) -> str | None:
+    """Why this wager is not allowed, or None if it is. `left` is the values
+    of the player's unspent cards, duplicates and all."""
     if isinstance(wager, bool) or not isinstance(wager, int):
         return "A wager is a whole number."
-    if wager not in wager_values(n):
-        return f"Wager between 1 and {n - 1}."
-    if wager in used:
-        return f"You have already used {wager}."
+    if wager not in left:
+        return f"You have no {wager} card left."
     return None
 
 

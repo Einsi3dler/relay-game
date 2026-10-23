@@ -9,6 +9,8 @@ may see.
 The phases:
 
     lobby     players register and write their question; nothing is dealt
+    draft     the roster is frozen and everybody picks one unique perk, in a
+              shuffled order they can trade places in (backend/bsdraft.py)
     briefing  a question is up and its panel dealt. Each speaker privately
               learns their role. Bullshitters lock a wager; the truthful
               player confirms "ready" in the same beat (see below)
@@ -20,13 +22,14 @@ The phases:
     waiting   too few players online to deal the next round; the host retries
     final     no playable question left: the standings and the winner(s)
 
-The host presses every step except one: the discussion clock opening the
-ballot (docs/BULLSHIT_QUIZ_PERKS.md §0). The room keeps no clock of its own.
-Everything time-based takes `now` from the caller, and the server calls
-`tick` a couple of times a second to let clocks and reaction windows run out.
+The host presses every step except two: a draft turn running out, and the
+discussion clock opening the ballot (docs/BULLSHIT_QUIZ_PERKS.md §0). The
+room keeps no clock of its own. Everything time-based takes `now` from the
+caller, and the server calls `tick` a couple of times a second to let
+clocks and reaction windows run out.
 
-**Perks.** At the start every player is offered BS_PERK_OFFERS perks and
-picks one, any time they like, for the whole game. Playing it spends it.
+**Perks.** Every player drafts one unique perk before the quiz, and who
+holds what is public from then on. Playing it spends it.
 Who may play what and when is `_check` below; what perks do to the points is
 `bsperks.score`. A perk that lands on somebody else gets a reaction window
 (BS_REACTION_SECONDS) for Objection! and Not My Problem before it takes
@@ -69,9 +72,11 @@ Three rules here look like details and are not:
     first (docs/QUIZ_ROLL_CALL.md §2).
   * **A guesser's lock stays dark until the ballot opens.** Only Blind Faith
     can lock earlier, so an early tick would announce it.
-  * **A commitment is final, and spends its wager number at once.** Wagers
-    are single-use, so a number taken back and reused would be a second
-    commitment in disguise. The only refund is a round that never happened.
+  * **A commitment is final, and spends its wager card at once.** Cards are
+    single-use, so one taken back and reused would be a second commitment in
+    disguise. The only refund is a round that never happened. A hand is a
+    list of cards, not a set of numbers: after a draft trade it can hold two
+    of the same value.
 """
 
 from __future__ import annotations
@@ -82,11 +87,12 @@ import time
 from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
-from backend import bsperks, bsquiz, config
+from backend import bsdraft, bsperks, bsquiz, config
+from backend.bsdraft import WagerCard
 from backend.bsquiz import BULLSHITTER, GUESSER, TRUTHFUL
 from backend.bsroster import Player
 
-PHASES = ("lobby", "briefing", "open", "votes", "reveal", "waiting", "final")
+PHASES = ("lobby", "draft", "briefing", "open", "votes", "reveal", "waiting", "final")
 IN_ROUND = ("briefing", "open", "votes", "reveal")
 BEFORE_LOCK = ("briefing", "open")
 
@@ -105,12 +111,10 @@ class Seat:
     reconnecting: bool = False            # socket dropped, inside the grace period
     relegated: bool = False               # went offline mid-game: guesser from now on
     total: int = 0
-    used: set[int] = field(default_factory=set)
     ready: bool = False                   # truthful: confirmed in the briefing
     bluff: int | None = None              # bullshitter: their wager
     pick: tuple[str, int] | None = None   # guesser: (option key, wager)
-    offers: list[str] = field(default_factory=list)   # perks dealt at the start
-    perk: str | None = None               # the one they picked, for the whole game
+    perk: str | None = None               # drafted, for the whole game
     perk_used: bool = False
 
     @property
@@ -171,6 +175,8 @@ class BullshitRoom:
     panel: bsquiz.Panel | None = None
     result: bsquiz.RoundResult | None = None
     history: list[dict[str, Any]] = field(default_factory=list)  # revealed rounds only
+    hands: dict[str, list[WagerCard]] = field(default_factory=dict)  # wager cards, by player
+    draft: bsdraft.Draft | None = None
     plays: list[Play] = field(default_factory=list)    # perks played this round
     revealed: list[tuple[str, str]] = field(default_factory=list)  # (by, perk) from past rounds
     next_play: int = 1
@@ -236,6 +242,22 @@ class BullshitRoom:
     def standings(self) -> list[Seat]:
         return sorted(self.seats.values(), key=lambda s: (-s.total, s.name.lower()))
 
+    def hand(self, player_id: str) -> list[WagerCard]:
+        return self.hands.get(player_id, [])
+
+    def left(self, player_id: str) -> list[int]:
+        """The values of a player's unspent cards, duplicates and all."""
+        return sorted(c.value for c in self.hand(player_id) if not c.spent)
+
+    def perk_known_spent(self, seat: Seat) -> bool:
+        """Spent, as far as the table knows: a public perk once it is played,
+        a secret one only once its round is revealed."""
+        if not seat.perk_used:
+            return False
+        if any(by == seat.id for by, _ in self.revealed):
+            return True
+        return any(p.by == seat.id and _visible(self, p, None) for p in self.plays)
+
     def live_plays(self, perk: str | None = None) -> list[Play]:
         """This round's plays still standing (not objected to), optionally of
         one perk."""
@@ -266,7 +288,10 @@ class BullshitRoom:
                          "relegated": seat.relegated})
             if self.phase == "lobby":
                 card["submitted"] = seat.player.has_question
-            elif live_round:
+            else:
+                card["perk"] = seat.perk
+                card["perk_spent"] = self.perk_known_spent(seat)
+            if live_round:
                 card["speaker"] = seat.id in speaking
                 card["committed"] = self.shows_committed(seat)
             if self.phase == "reveal" and self.result:
@@ -289,6 +314,11 @@ class BullshitRoom:
         if self.phase == "lobby":
             view["submitted"] = sum(1 for s in self.seats.values() if s.player.has_question)
             view["registered"] = len(self.seats)
+        if self.phase != "lobby":
+            # Who holds what is public from the draft on (docs/BULLSHIT_QUIZ_PERKS.md §6).
+            view["perk_cards"] = {pid: _card(pid) for pid in bsperks.PERK}
+        if self.phase == "draft" and self.draft is not None:
+            view["draft"] = bsdraft.public_view(self.draft, now)
 
         q = self.question()
         if q is not None and self.panel and self.phase in IN_ROUND:
@@ -336,8 +366,11 @@ class BullshitRoom:
 
         if me is not None:
             view["your_total"] = me.total
-            view["used_wagers"] = sorted(me.used)
+            view["cards"] = [{"id": c.id, "value": c.value, "spent": c.spent}
+                             for c in sorted(self.hand(me.id), key=lambda c: (c.value, c.id))]
             view["relegated"] = me.relegated
+            if self.phase == "draft" and self.draft is not None:
+                view["draft_offers"] = bsdraft.offers_for(self.draft, me.id)
             role = self.role_of(me.id) if self.phase in IN_ROUND else None
             if role is not None:
                 view["role"] = role
@@ -359,7 +392,7 @@ class BullshitRoom:
                         view["read_the_room"] = {"waiting": waiting}
                         if self.ballot and waiting == 0:
                             view["read_the_room"]["counts"] = _counts_without_readers(self)
-            if self.phase != "lobby" and self.phase != "final":
+            if self.phase not in ("lobby", "draft", "final") and me.perk is not None:
                 view["perk"] = _my_perk(self, me, now)
 
         if self.phase == "final":
@@ -435,10 +468,8 @@ def _play_view(room: BullshitRoom, play: Play, viewer: str | None,
 
 
 def _my_perk(room: BullshitRoom, seat: Seat, now: float) -> dict[str, Any]:
-    """Your hand: the offers until you pick, then your perk and whether,
-    on whom and with what you could play it right now."""
-    if seat.perk is None:
-        return {"offers": [_card(p) for p in seat.offers]}
+    """Your perk, and whether, on whom and with what you could play it right
+    now."""
     view = {**_card(seat.perk), "used": seat.perk_used}
     if seat.perk_used or room.phase not in IN_ROUND:
         return view
@@ -470,7 +501,7 @@ def _forced_wager(room: BullshitRoom, seat: Seat) -> int | None:
     """A blackmailed guesser's wager: their highest number left."""
     if not any(p.target == seat.id for p in room.live_plays("blackmail")):
         return None
-    left = [w for w in bsquiz.wager_values(room.n) if w not in seat.used]
+    left = room.left(seat.id)
     return max(left) if left else None
 
 
@@ -769,8 +800,9 @@ def can_submit(room: BullshitRoom) -> None:
 
 
 def start(room: BullshitRoom, questions: dict[str, bsquiz.Question]) -> None:
-    """Freeze the roster, fix N and the order, deal everybody their perk
-    offers, and deal the first round.
+    """Freeze the roster, fix N and the question order, deal everybody their
+    wager cards, and open the perk draft. The first round is dealt when the
+    host starts the quiz after it (`begin_quiz`).
 
     Anybody seated but offline at this moment starts relegated, and their
     question waits for them like any other absent author's.
@@ -784,6 +816,9 @@ def start(room: BullshitRoom, questions: dict[str, bsquiz.Question]) -> None:
         raise Rejected("Still waiting on a question from " + ", ".join(sorted(missing)) + ".")
     if sum(1 for s in room.seats.values() if s.connected) < config.BS_MIN_PLAYERS:
         raise Rejected(f"At least {config.BS_MIN_PLAYERS} players need to be online to start.")
+    if len(room.seats) > len(bsperks.PERKS):
+        raise Rejected(f"The perk draft has {len(bsperks.PERKS)} perks, so a game takes "
+                       f"at most {len(bsperks.PERKS)} players.")
 
     room.n = len(room.seats)
     room.questions = {pid: questions[pid] for pid in room.seats}
@@ -794,29 +829,63 @@ def start(room: BullshitRoom, questions: dict[str, bsquiz.Question]) -> None:
     room.revealed = []
     most = max(1 + min(len(q.decoys), bsquiz.max_bullshitters(room.n))
                for q in room.questions.values())
-    pool = [p.id for p in bsperks.available(room.n, most)]
-    offers = bsperks.deal_offers(list(room.seats), pool, room.rng)
+    room.hands = bsdraft.deal_hands(list(room.seats), room.n)
+    room.draft = bsdraft.new_draft(list(room.seats), room.hands,
+                                   bsperks.draft_pool(room.n, most), room.rng)
     for seat in room.seats.values():
         seat.total = 0
-        seat.used = set()
         seat.relegated = not seat.connected
-        seat.offers = offers[seat.id]
         seat.perk = None
         seat.perk_used = False
         seat.clear_round()
+    room.phase = "draft"
+
+
+# --- the draft ------------------------------------------------------------
+
+def _drafting(room: BullshitRoom) -> bsdraft.Draft:
+    if room.phase != "draft" or room.draft is None:
+        raise Rejected("The perk draft is over.")
+    return room.draft
+
+
+def _sync_picks(room: BullshitRoom) -> None:
+    for player_id, perk in room.draft.picks.items():
+        room.seats[player_id].perk = perk
+
+
+def draft_offer(room: BullshitRoom, player_id: str, to: object, give: object,
+                take: object) -> None:
+    _seat(room, player_id)
+    bsdraft.propose(_drafting(room), player_id, to, give, take)
+
+
+def draft_respond(room: BullshitRoom, player_id: str, offer: object, answer: object) -> None:
+    _seat(room, player_id)
+    bsdraft.respond(_drafting(room), player_id, offer, answer)
+
+
+def draft_go(room: BullshitRoom, now: float | None = None) -> None:
+    """The host starts the picks: the first player's clock starts."""
+    now = time.monotonic() if now is None else now
+    bsdraft.start_picking(_drafting(room), now)
+
+
+def draft_pick(room: BullshitRoom, player_id: str, perk: object, turn: object,
+               now: float | None = None) -> None:
+    now = time.monotonic() if now is None else now
+    _seat(room, player_id)
+    bsdraft.pick(_drafting(room), player_id, perk, turn, now)
+    _sync_picks(room)
+
+
+def begin_quiz(room: BullshitRoom) -> None:
+    """The host starts the quiz once every perk is drafted."""
+    draft = _drafting(room)
+    if draft.stage != bsdraft.COMPLETE:
+        raise Rejected("Finish the draft first.")
+    _sync_picks(room)
     _deal_next(room)
-
-
-def pick_perk(room: BullshitRoom, player_id: str, perk: object) -> None:
-    """Keep one of your offers for the rest of the game. Any time, once."""
-    seat = _seat(room, player_id)
-    if room.phase in ("lobby", "final"):
-        raise Rejected("Perks are picked once the game is on.")
-    if seat.perk is not None:
-        raise Rejected("You've already picked your perk.")
-    if not isinstance(perk, str) or perk not in seat.offers:
-        raise Rejected("Pick one of the perks you were offered.")
-    seat.perk = perk
 
 
 # --- dealing --------------------------------------------------------------
@@ -872,13 +941,13 @@ def _refund_plays(room: BullshitRoom, which: Callable[[Play], bool]) -> None:
         if play.id in gone:
             room.seats[play.by].perk_used = False
             if play.perk == "blind_faith":
-                _unpick(room.seats[play.by])
+                _unpick(room, room.seats[play.by])
     room.plays = [p for p in room.plays if p.id not in gone]
 
 
-def _unpick(seat: Seat) -> None:
+def _unpick(room: BullshitRoom, seat: Seat) -> None:
     if seat.pick is not None:
-        seat.used.discard(seat.pick[1])
+        _unspend(room, seat, seat.pick[1])
         seat.pick = None
 
 
@@ -888,9 +957,8 @@ def _refund_round(room: BullshitRoom) -> None:
     _refund_plays(room, lambda play: True)
     for seat in room.seats.values():
         if seat.bluff is not None:
-            seat.used.discard(seat.bluff)
-        if seat.pick is not None:
-            seat.used.discard(seat.pick[1])
+            _unspend(room, seat, seat.bluff)
+        _unpick(room, seat)
         seat.clear_round()
 
 
@@ -911,7 +979,7 @@ def _replace_bullshitter(room: BullshitRoom, gone: Seat) -> None:
     every Blind Faith lock and Backup Plan if an option disappears, because
     the options are lettered afresh."""
     if gone.bluff is not None:
-        gone.used.discard(gone.bluff)
+        _unspend(room, gone, gone.bluff)
     gone.clear_round()
 
     speakers = set(room.panel.speakers)
@@ -923,7 +991,7 @@ def _replace_bullshitter(room: BullshitRoom, gone: Seat) -> None:
     if takers and online_guessers - 1 >= 1:
         taker = room.rng.choice(takers)
         _refund_plays(room, lambda p: {p.by, p.target} & {gone.id, taker})
-        _unpick(room.seats[taker])
+        _unpick(room, room.seats[taker])
         entries = [(t, taker if who == gone.id else who, c) for t, who, c in entries]
     elif len(room.panel.bullshitters) > 1:
         _refund_plays(room, lambda p: gone.id in (p.by, p.target) or p.option is not None
@@ -945,11 +1013,20 @@ def _seat(room: BullshitRoom, player_id: str) -> Seat:
 
 
 def _spend(room: BullshitRoom, seat: Seat, wager: object) -> int:
-    problem = bsquiz.wager_problem(room.n, wager, seat.used)
+    """Spend one of the seat's unspent cards of this value. Two cards of the
+    same value in one hand are interchangeable, so any will do."""
+    problem = bsquiz.wager_problem(wager, room.left(seat.id))
     if problem:
         raise Rejected(problem)
-    seat.used.add(wager)            # type: ignore[arg-type]
+    card = next(c for c in room.hand(seat.id) if c.value == wager and not c.spent)
+    card.spent = True
     return wager                    # type: ignore[return-value]
+
+
+def _unspend(room: BullshitRoom, seat: Seat, value: int) -> None:
+    card = next((c for c in room.hand(seat.id) if c.value == value and c.spent), None)
+    if card is not None:
+        card.spent = False
 
 
 def ready(room: BullshitRoom, player_id: str) -> None:
@@ -1133,6 +1210,11 @@ def tick(room: BullshitRoom, now: float | None = None) -> bool:
     anything changed, so the server knows to broadcast."""
     now = time.monotonic() if now is None else now
     changed = False
+    if room.phase == "draft" and room.draft is not None:
+        if bsdraft.tick(room.draft, now, room.rng):
+            _sync_picks(room)
+            return True
+        return False
     for play in room.plays:
         if play.status == PENDING and play.settles_at is not None and now >= play.settles_at:
             _land(room, play)

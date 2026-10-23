@@ -7,9 +7,6 @@ tests/test_bsroom_perks.py.
 
 from __future__ import annotations
 
-import random
-from collections import Counter
-
 import pytest
 
 from backend import bsperks, bsquiz, config
@@ -48,29 +45,24 @@ def test_wager_perks_a_bluffer_could_play_are_secret():
         assert bsperks.PERK[pid].public is False
 
 
-# --- the offers -----------------------------------------------------------
+# --- the draft pool -------------------------------------------------------
 
-def test_small_games_are_never_offered_perks_they_cannot_play():
-    three = {p.id for p in bsperks.available(3, 2)}
+def test_small_games_never_draft_perks_they_cannot_play():
+    three = set(bsperks.draft_pool(3, 2))
     assert "lone_wolf" not in three and "backup_plan" not in three
     assert "ride_or_die" not in three and "kingmaker" not in three
     assert "insurance_fraud" in three
-    assert "blind_faith" not in {p.id for p in bsperks.available(8, 2)}
-    assert len(bsperks.available(20, 4)) == 30
+    assert "blind_faith" not in bsperks.draft_pool(8, 2)
+    assert len(bsperks.draft_pool(20, 4)) == 30
 
 
-def test_offers_are_distinct_and_spread_evenly():
-    pool = [p.id for p in bsperks.available(20, 4)]
-    players = [f"p{i}" for i in range(20)]
-    offers = bsperks.deal_offers(players, pool, random.Random(3))
-    assert all(len(set(hand)) == config.BS_PERK_OFFERS for hand in offers.values())
-    seen = Counter(card for hand in offers.values() for card in hand)
-    assert max(seen.values()) - min(seen.values()) <= 2
-
-
-def test_offers_from_a_tiny_pool():
-    offers = bsperks.deal_offers(["a", "b"], ["x", "y"], random.Random(1))
-    assert all(sorted(hand) == ["x", "y"] for hand in offers.values())
+def test_the_pool_always_has_a_perk_for_everybody():
+    # 29 players whose questions all have two options: the playable 28 are
+    # not enough, so the whole catalogue goes in.
+    assert len(bsperks.draft_pool(29, 2)) == 30
+    for n in range(3, 31):
+        for most in (2, 3, 4):
+            assert len(bsperks.draft_pool(n, most)) >= n
 
 
 # --- forbidden words ------------------------------------------------------

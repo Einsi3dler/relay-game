@@ -43,15 +43,30 @@ def make_room(n: int = 6, seed: int = 1):
     return room, questions_for(players)
 
 
+def draft_everyone(room) -> None:
+    """Run the perk draft straight through: each player takes the first perk
+    left. The draft itself is tested in tests/test_bsdraft.py."""
+    bsroom.draft_go(room, now=0)
+    while room.draft.stage == "picking":
+        player = room.draft.active()
+        bsroom.draft_pick(room, player, room.draft.available[0], room.draft.turn, now=0)
+
+
 def started(n: int = 6, seed: int = 1):
+    """A game past its draft, at round one's briefing."""
     room, qs = make_room(n, seed)
     bsroom.start(room, qs)
+    draft_everyone(room)
+    bsroom.begin_quiz(room)
     return room
 
 
 def free_wager(room, seat_id: str) -> int:
-    seat = room.seats[seat_id]
-    return min(w for w in bsquiz.wager_values(room.n) if w not in seat.used)
+    return min(room.left(seat_id))
+
+
+def spent(room, seat_id: str) -> list[int]:
+    return sorted(c.value for c in room.hand(seat_id) if c.spent)
 
 
 def brief(room) -> None:
@@ -99,7 +114,7 @@ def test_every_wager_number_is_spent_exactly_once():
         play_round(room)
         bsroom.next_round(room)
     for seat in room.seats.values():
-        assert seat.used == set(range(1, room.n))
+        assert spent(room, seat.id) == list(range(1, room.n))
 
 
 def test_totals_are_the_sum_of_round_lines():
@@ -177,7 +192,7 @@ def test_the_host_sees_no_more_than_a_guesser():
     seen = room.public(guesser, now=0)
     # history and host_secrets are the host's by design; perk is the
     # guesser's own hand.
-    for key in ("role", "committed", "your_wager", "your_pick", "used_wagers",
+    for key in ("role", "committed", "your_wager", "your_pick", "cards",
                 "your_total", "you", "relegated", "history", "host_secrets", "perk"):
         host.pop(key, None)
         seen.pop(key, None)
@@ -265,7 +280,7 @@ def test_a_commitment_is_final_and_spends_its_number():
     bsroom.guess(room, g, "A", 3)
     with pytest.raises(bsroom.Rejected):
         bsroom.guess(room, g, "B", 4)
-    assert room.seats[g].used == {3}
+    assert spent(room, g) == [3]
 
 
 def test_a_spent_number_cannot_be_used_again_later():
@@ -279,11 +294,11 @@ def test_a_spent_number_cannot_be_used_again_later():
     bsroom.next_round(room)
     role = room.role_of(g)
     if role == BULLSHITTER:
-        with pytest.raises(bsroom.Rejected, match="already used 5"):
+        with pytest.raises(bsroom.Rejected, match="no 5 card left"):
             bsroom.bluff(room, g, 5)
     elif role == GUESSER:
         brief(room)
-        with pytest.raises(bsroom.Rejected, match="already used 5"):
+        with pytest.raises(bsroom.Rejected, match="no 5 card left"):
             bsroom.guess(room, g, "A", 5)
 
 
@@ -327,7 +342,7 @@ def test_locking_does_not_wait_for_an_offline_guesser():
     bsroom.lock(room)
     # They cast no vote, spent nothing, and have no line this round.
     assert away not in room.result.lines
-    assert room.seats[away].used == set()
+    assert spent(room, away) == []
     assert sum(room.result.counts.values()) == len(room.guessers()) - 1
 
 
@@ -454,7 +469,7 @@ def test_author_leaving_the_briefing_defers_and_refunds():
     assert room.pending[0] == author
     assert room.panel.author != author
     assert room.phase == "briefing"
-    assert 3 not in room.seats[liar].used
+    assert 3 not in spent(room, liar)
 
 
 def test_bullshitter_leaving_the_briefing_is_replaced():
@@ -465,7 +480,7 @@ def test_bullshitter_leaving_the_briefing_is_replaced():
     bsroom.bluff(room, liar, 4)
     bsroom.on_disconnect(room, liar)
     assert liar not in room.panel.speakers
-    assert 4 not in room.seats[liar].used
+    assert 4 not in spent(room, liar)
     taker = room.panel.option(key).speaker
     assert room.panel.option(key).text == text
     assert room.seats[taker].may_bluff and room.role_of(taker) == BULLSHITTER
@@ -514,6 +529,8 @@ def test_offline_at_start_means_relegated():
     bsroom.on_disconnect(room, "p5")
     bsroom.start(room, qs)
     assert room.seats["p5"].relegated
+    draft_everyone(room)
+    bsroom.begin_quiz(room)
     assert room.current != "p5"
 
 
@@ -627,7 +644,7 @@ def test_lock_anyway_gives_a_stalled_guesser_no_vote():
         bsroom.lock(room)
     bsroom.lock(room, force=True)
     assert stalled not in room.result.lines
-    assert room.seats[stalled].used == set()
+    assert spent(room, stalled) == []
 
 
 def test_mark_gone_applies_the_leaving_rule_now():

@@ -41,7 +41,7 @@ from fastapi import (APIRouter, Cookie, HTTPException, Query, Request, WebSocket
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
-from backend import accounts, bsroom, bsroster, config, devgate, protocol
+from backend import accounts, bsdraft, bsperks, bsroom, bsroster, config, devgate, protocol
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -57,12 +57,15 @@ STATE = "bs_state"
 READY = "bs_ready"            # truthful player, in the briefing
 BLUFF = "bs_bluff"            # bullshitter: {wager}
 GUESS = "bs_guess"            # guesser: {option, wager}
-PICK = "bs_pick"              # any player, once: {perk} from their offers
+OFFER = "bs_offer"            # draft: {to, give, take} card ids, to swap places
+RESPOND = "bs_respond"        # draft: {offer, answer: accept | decline | cancel}
+DRAFT_PICK = "bs_draft_pick"  # draft: {perk, turn}, the active player only
 PERK = "bs_perk"              # play your perk: {target?, option?, wager?, words?, play?, copy?}
 HOST = "bs_host"              # host: {action, player?, play?, step?}
-HOST_ACTIONS = ("start", "open", "lock", "lock_anyway", "reveal", "next",
-                "reset", "undo_reset", "drop", "remove", "new_game",
+HOST_ACTIONS = ("start", "draft_go", "begin", "open", "lock", "lock_anyway", "reveal",
+                "next", "reset", "undo_reset", "drop", "remove", "new_game",
                 "extend", "end_talk", "floor_done", "slip")
+PLAYER_MOVES = (READY, BLUFF, GUESS, OFFER, RESPOND, DRAFT_PICK, PERK)
 PERK_FIELDS = ("target", "option", "wager", "words", "play", "copy")
 
 router = APIRouter()
@@ -364,6 +367,9 @@ async def join(body: JoinBody, relay_session: str | None = SESSION) -> dict:
         if current.phase != "lobby":
             # The roster froze when the game started (handoff §3).
             raise HTTPException(status_code=400, detail="This game has already started.")
+        if len(current.seats) >= len(bsperks.PERKS):
+            # Everybody drafts a different perk, so there is one seat per perk.
+            raise HTTPException(status_code=400, detail="This game is full.")
         if "".join(body.code.split()).upper() != current.code:
             raise HTTPException(status_code=400, detail="That code doesn't match tonight's game.")
         person = bsroster.join(user.id, user.first_name, user.last_name, user.username)
@@ -402,8 +408,12 @@ def _parse(raw: Any) -> tuple[str, dict[str, Any]] | str:
         return kind, {"wager": raw.get("wager")}
     if kind == GUESS:
         return kind, {"option": raw.get("option"), "wager": raw.get("wager")}
-    if kind == PICK:
-        return kind, {"perk": raw.get("perk")}
+    if kind == OFFER:
+        return kind, {"to": raw.get("to"), "give": raw.get("give"), "take": raw.get("take")}
+    if kind == RESPOND:
+        return kind, {"offer": raw.get("offer"), "answer": raw.get("answer")}
+    if kind == DRAFT_PICK:
+        return kind, {"perk": raw.get("perk"), "turn": raw.get("turn")}
     if kind == PERK:
         return kind, {key: raw.get(key) for key in PERK_FIELDS}
     if kind == HOST:
@@ -443,6 +453,10 @@ def _host_step(current: bsroom.BullshitRoom, action: str,
         bsroom.mark_gone(current, player)
     elif action == "lock_anyway":
         bsroom.lock(current, force=True)
+    elif action == "draft_go":
+        bsroom.draft_go(current)
+    elif action == "begin":
+        bsroom.begin_quiz(current)
     elif action == "extend":
         bsroom.extend_talk(current)
     elif action == "end_talk":
@@ -506,7 +520,7 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
                         current = _host_step(current, fields["action"], fields)
                         if fields["action"] in ("remove", "new_game"):
                             await _kick_seatless()
-                    elif kind in (READY, BLUFF, GUESS, PICK, PERK):
+                    elif kind in PLAYER_MOVES:
                         if person is None:
                             raise bsroom.Rejected("The host does not play.")
                         seat = current.seats.get(person.id)
@@ -519,8 +533,15 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
                             bsroom.ready(current, person.id)
                         elif kind == BLUFF:
                             bsroom.bluff(current, person.id, fields["wager"])
-                        elif kind == PICK:
-                            bsroom.pick_perk(current, person.id, fields["perk"])
+                        elif kind == OFFER:
+                            bsroom.draft_offer(current, person.id, fields["to"],
+                                               fields["give"], fields["take"])
+                        elif kind == RESPOND:
+                            bsroom.draft_respond(current, person.id, fields["offer"],
+                                                 fields["answer"])
+                        elif kind == DRAFT_PICK:
+                            bsroom.draft_pick(current, person.id, fields["perk"],
+                                              fields["turn"])
                         elif kind == PERK:
                             bsroom.play_perk(current, person.id, fields)
                         else:
@@ -529,7 +550,7 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
                     else:                       # request_state / heartbeat
                         await _send(socket, snapshot(current, viewer))
                         continue
-                except bsroom.Rejected as exc:
+                except (bsroom.Rejected, bsdraft.Refused) as exc:
                     await _send(socket, protocol.error_message(str(exc)))
                     continue
                 await broadcast(current)

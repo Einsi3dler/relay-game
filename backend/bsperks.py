@@ -6,10 +6,11 @@ these sit on top of. Who may play what and when is the room's business
 is locked, how the perks played in it change everybody's points. The design,
 with every rule and the reason for it, is `docs/BULLSHIT_QUIZ_PERKS.md`.
 
-Each player gets exactly one perk for the whole game, picked from
-BS_PERK_OFFERS dealt at the start. So nobody ever stacks two of their own;
-the only time two perks meet on one player is when somebody else's lands on
-them (a Blood Pact on a player who also doubled, say).
+Each player gets exactly one perk for the whole game, and no two players
+the same one: they choose in a draft before the quiz (`backend/bsdraft.py`).
+So nobody ever stacks two of their own; the only time two perks meet on one
+player is when somebody else's lands on them (a Blood Pact on a player who
+also doubled, say), or a Counterfeit copies one.
 
 Card text is what players read, so it follows the house rule for copy: no
 em dashes (tests/test_bsperks.py checks).
@@ -18,7 +19,6 @@ em dashes (tests/test_bsperks.py checks).
 from __future__ import annotations
 
 import math
-import random
 import re
 from dataclasses import dataclass, replace
 
@@ -197,35 +197,20 @@ FORBIDDEN_WORD_MAX = 20
 _WORD = re.compile(r"^[^\W\d_]+(?:['’-][^\W\d_]+)*$")
 
 
-# --- the offers -----------------------------------------------------------
+# --- the draft pool -------------------------------------------------------
 
 def available(n: int, most_options: int) -> list[Perk]:
     """Every perk that could ever be played in a game of `n` players whose
     biggest round shows `most_options` options. A perk nobody could use is
-    never offered (section 6 of the design: small games)."""
+    left out of the draft (docs/BULLSHIT_QUIZ_PERKS.md §6: small games)."""
     return [p for p in PERKS if n >= p.min_players and most_options >= p.min_options]
 
 
-def deal_offers(players: list[str], pool: list[str], rng: random.Random,
-                k: int | None = None) -> dict[str, list[str]]:
-    """`k` different perks for each player, dealt off a shuffled deck of the
-    pool and reshuffled when it runs out, so every perk is offered about as
-    often as every other."""
-    k = config.BS_PERK_OFFERS if k is None else k
-    size = min(k, len(pool))
-    deck: list[str] = []
-    offers: dict[str, list[str]] = {}
-    for player in players:
-        hand: list[str] = []
-        while len(hand) < size:
-            if not deck:
-                deck = list(pool)
-                rng.shuffle(deck)
-            card = deck.pop()
-            if card not in hand:
-                hand.append(card)
-        offers[player] = hand
-    return offers
+def draft_pool(n: int, most_options: int) -> list[str]:
+    """The perks to draft from: the playable ones, or all of them if that
+    would leave somebody without one. Every player needs a different perk."""
+    playable = [p.id for p in available(n, most_options)]
+    return playable if len(playable) >= n else [p.id for p in PERKS]
 
 
 # --- small rules ----------------------------------------------------------

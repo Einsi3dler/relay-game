@@ -23,7 +23,6 @@ FLOOR = config.BS_FLOOR_SECONDS
 def give(room, seat_id: str, perk: str) -> None:
     """Hand somebody a perk directly, skipping the offers."""
     seat = room.seats[seat_id]
-    seat.offers = [perk]
     seat.perk = perk
     seat.perk_used = False
 
@@ -61,35 +60,37 @@ def blob(view) -> str:
     return json.dumps(view)
 
 
-# --- offers and picking ---------------------------------------------------
+def played(view) -> str:
+    """The plays a viewer can see. Who *holds* each perk is public after the
+    draft; what must stay hidden is a secret perk being played."""
+    return json.dumps(view.get("perks", []))
 
-def test_everybody_is_offered_three_different_perks_at_the_start():
+
+# --- holding and spending -------------------------------------------------
+
+def test_everybody_drafted_a_different_perk():
     room = started(8)
-    for seat in room.seats.values():
-        assert len(set(seat.offers)) == config.BS_PERK_OFFERS
-        assert seat.perk is None
+    perks = [seat.perk for seat in room.seats.values()]
+    assert None not in perks and len(set(perks)) == len(perks)
 
 
-def test_pick_one_of_your_offers_once():
-    room = started(6)
-    seat = next(iter(room.seats.values()))
-    with pytest.raises(bsroom.Rejected):
-        bsroom.pick_perk(room, seat.id, "not_a_perk")
-    bsroom.pick_perk(room, seat.id, seat.offers[1])
-    assert seat.perk == seat.offers[1]
-    with pytest.raises(bsroom.Rejected, match="already"):
-        bsroom.pick_perk(room, seat.id, seat.offers[0])
-
-
-def test_your_hand_is_yours_alone():
-    room = started(6)
-    a, b = list(room.seats)[:2]
-    mine = room.public(a)["perk"]
-    assert [o["id"] for o in mine["offers"]] == room.seats[a].offers
-    assert "offers" not in blob(room.public(None, is_host=True))
-    for offer in room.seats[a].offers:
-        if offer not in room.seats[b].offers:
-            assert f'"{offer}"' not in blob(room.public(b))
+def test_who_holds_what_is_public_but_when_it_is_played_is_not():
+    room = started(6, seed=3)
+    g = ids(room, GUESSER)[0]
+    give(room, g, "call_bullshit")
+    other = next(s for s in room.seats if s != g)
+    card = next(c for c in room.public(other, now=0)["players"] if c["id"] == g)
+    assert card["perk"] == "call_bullshit" and card["perk_spent"] is False
+    bsroom.play_perk(room, g, {"target": room.panel.author}, now=0)
+    card = next(c for c in room.public(other, now=0)["players"] if c["id"] == g)
+    assert card["perk_spent"] is False                  # secret until the reveal
+    assert next(c for c in room.public(g, now=0)["players"] if c["id"] == g)["perk_spent"] is False
+    to_ballot(room)
+    guess_rest(room)
+    bsroom.lock(room)
+    bsroom.reveal(room)
+    card = next(c for c in room.public(other, now=0)["players"] if c["id"] == g)
+    assert card["perk_spent"] is True
 
 
 def test_a_perk_is_spent_once():
@@ -157,8 +158,10 @@ def test_a_bluffers_wager_perk_is_seen_by_nobody_else():
     bsroom.play_perk(room, liar, {}, now=0)
     for viewer in [*(s for s in room.seats if s != liar), None]:
         view = room.public(viewer, is_host=viewer is None, now=0)
-        assert "insurance_fraud" not in blob(view)
-    assert "insurance_fraud" in blob(room.public(liar, now=0))
+        assert "insurance_fraud" not in played(view)
+        card = next(c for c in view["players"] if c["id"] == liar)
+        assert card["perk_spent"] is False
+    assert "insurance_fraud" in played(room.public(liar, now=0))
 
 
 def test_perks_never_carry_the_truth_before_the_reveal():
@@ -198,7 +201,7 @@ def test_false_witness_is_told_to_the_recruit_and_the_host_only():
     give(room, speaker, "false_witness")
     bsroom.play_perk(room, speaker, {"target": recruit}, now=0)
     assert "false_witness" in blob(room.public(recruit, now=0)["perks"])
-    assert "false_witness" not in blob(room.public(outsider, now=0))
+    assert "false_witness" not in played(room.public(outsider, now=0))
     host = room.public(None, is_host=True, now=0)
     assert host["host_secrets"] and "false_witness" not in blob(host["perks"])
 
@@ -212,7 +215,7 @@ def test_everything_comes_out_at_the_reveal():
     guess_rest(room)
     bsroom.lock(room)
     other = next(s for s in room.seats if s != g)
-    assert "call_bullshit" not in blob(room.public(other, now=0))
+    assert "call_bullshit" not in played(room.public(other, now=0))
     bsroom.reveal(room)
     assert "call_bullshit" in blob(room.public(other, now=0)["perks"])
 
@@ -293,7 +296,7 @@ def test_blackmail_forces_the_highest_number_left():
     room = started(6, seed=4)
     g1, g2 = ids(room, GUESSER)[:2]
     give(room, g1, "blackmail")
-    room.seats[g2].used = {room.n - 1}
+    next(c for c in room.hand(g2) if c.value == room.n - 1).spent = True
     bsroom.play_perk(room, g1, {"target": g2}, now=0)
     assert room.public(g2, now=0)["forced_wager"] == room.n - 2
     to_ballot(room, now=WINDOW)
@@ -372,7 +375,7 @@ def test_inside_information_sees_one_locked_answer():
     bsroom.play_perk(room, spy, {"target": mark}, now=0)
     mine = [p for p in room.public(spy, now=0)["perks"] if p["perk"] == "inside_information"]
     assert mine[0]["seen"] == "B"
-    assert "inside_information" not in blob(room.public(mark, now=0))
+    assert "inside_information" not in played(room.public(mark, now=0))
 
 
 def test_the_audit_shows_a_locked_vote_to_everyone_after_its_window():
@@ -448,7 +451,7 @@ def test_hostile_takeover_swaps_totals_after_a_right_answer():
     mark = room.panel.author
     give(room, raider, "hostile_takeover")
     bsroom.play_perk(room, raider, {"target": mark}, now=0)
-    assert "hostile_takeover" not in blob(room.public(mark, now=0))
+    assert "hostile_takeover" not in played(room.public(mark, now=0))
     to_ballot(room)
     guess_rest(room)
     bsroom.lock(room)
@@ -487,13 +490,13 @@ def test_counterfeit_copies_a_revealed_perk():
     bsroom.lock(room)
     bsroom.reveal(room)
     bsroom.next_round(room)
-    copier = room.seats[g2]
-    if room.role_of(g2) != GUESSER:
-        pytest.skip("the copier is speaking this round")
-    copies = room.public(g2, now=0)["perk"]["copies"]
+    # Whoever guesses this round, other than the player who used it first.
+    copier = next(s for s in ids(room, GUESSER) if s != g1)
+    give(room, copier, "counterfeit")
+    copies = room.public(copier, now=0)["perk"]["copies"]
     assert [c["id"] for c in copies] == ["call_bullshit"]
-    bsroom.play_perk(room, g2, {"copy": "call_bullshit", "target": room.panel.author}, now=0)
-    assert copier.perk_used and room.plays[-1].counterfeit
+    bsroom.play_perk(room, copier, {"copy": "call_bullshit", "target": room.panel.author}, now=0)
+    assert room.seats[copier].perk_used and room.plays[-1].counterfeit
 
 
 # --- refunds --------------------------------------------------------------
@@ -503,9 +506,9 @@ def test_a_round_that_never_happens_hands_perks_back():
     g = ids(room, GUESSER)[0]
     give(room, g, "blind_faith")
     bsroom.play_perk(room, g, {"option": "A", "wager": 4}, now=0)
-    assert room.seats[g].perk_used and 4 in room.seats[g].used
+    assert room.seats[g].perk_used and 4 not in room.left(g)
     bsroom.on_disconnect(room, room.panel.author)
-    assert not room.seats[g].perk_used and 4 not in room.seats[g].used
+    assert not room.seats[g].perk_used and 4 in room.left(g)
     assert room.plays == []
 
 
@@ -534,8 +537,7 @@ def test_reveal_lines_carry_perk_parts():
     assert ["Double or Nothing", 3] in card["line"]["parts"]
 
 
-def test_perks_are_offered_only_if_playable_at_this_size():
+def test_a_small_game_only_drafts_perks_it_can_play():
     room = started(3)
     for seat in room.seats.values():
-        for perk in seat.offers:
-            assert bsperks.PERK[perk].min_players <= 3
+        assert bsperks.PERK[seat.perk].min_players <= 3

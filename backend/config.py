@@ -460,9 +460,11 @@ BS_OPENING_SECONDS_PER_SPEAKER = 30   # the openings: no Mute Button yet
 BS_TALK_EXTEND_SECONDS = 30           # the host's "+30 s"
 BS_TICK_SECONDS = 0.5                 # how often the server checks the clocks
 
-# Perks (docs/BULLSHIT_QUIZ_PERKS.md). One per player per game, picked from
-# BS_PERK_OFFERS at the start. Point values are provisional until a playtest.
-BS_PERK_OFFERS = 3
+# Perks (docs/BULLSHIT_QUIZ_PERKS.md). One unique perk per player for the
+# game, chosen in a draft before the quiz. Values are provisional until a
+# playtest.
+BS_DRAFT_PICK_SECONDS = 15            # each player's turn to pick
+BS_DRAFT_MAX_OFFERS = 5               # open trade offers one player may have out
 BS_FLOOR_SECONDS = 20                 # Hot Seat, Mute Button, Last Word
 BS_REACTION_SECONDS = 8               # time to answer with Objection! or Not My Problem
 BS_FORBIDDEN_MAX_SLIPS = 5            # Forbidden Words stops costing after this many
