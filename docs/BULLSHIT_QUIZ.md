@@ -18,9 +18,10 @@ wins.
 | Who runs the game | **A separate, non-playing host** behind a host key, like Guess Who. |
 | Who plays (revised 21 October 2026) | **Players join through the site.** They sign up or sign in to a Game Night account and join with the host's code. No roster file, no email addresses, no invite links; nothing mails anybody. |
 | Perks (23 October 2026) | **One unique perk per player for the game, chosen in a draft before the quiz.** A random order, 15 seconds a pick, and players can trade places by swapping positions and one wager card each. At most 30 players, one per perk. The full design: [BULLSHIT_QUIZ_PERKS.md](BULLSHIT_QUIZ_PERKS.md). |
-| Wager cards (23 October 2026, refines "single-use") | **Wagers are cards, not numbers.** Everybody starts with one card per value 1..N-1; draft trades move cards, so a hand can hold two 19s and no 1. Each wagering turn spends one card, and everybody still has N-1 of them. |
+| Wager cards (23 October 2026, refines "single-use"; hand size revised 27 October) | **Wagers are cards, not numbers.** Everybody starts with one card per round, spread evenly from 1 to N-1 (`bsquiz.wager_hand`; with N-1 rounds that is exactly one card per value). Draft trades move cards, so a hand can hold two 19s and no 1. Each wagering turn spends one card, so nobody runs out, and whoever is truthful in some rounds ends with cards to spare. |
 | The discussion clock (23 October 2026, supersedes "no timers" for this step) | **Guessers vote after the talking.** The discussion runs on a clock (`BS_TALK_SECONDS_PER_SPEAKER`, 60 s per speaker) and the ballot opens when it runs out, so the speaking perks reach everybody. |
 | Players who leave (supersedes "pause" in section 11) | **The game never waits for them.** Once a game has started, going offline relegates a player for the rest of that game: they keep their seat and score, are never picked to bluff again (even after returning), and are never waited on as a guesser. Their question is skipped while they are away and stays queued; if they return it can still be played, and if every remaining question belongs to somebody offline, those are dropped and the game ends. |
+| The question bank (27 October 2026, supersedes "one question each" and "everyone truthful once") | **Everybody writes three questions, the host reviews them blind, and a draw fills the rounds.** Before sharing the link the host sets how many rounds the night has. Each player writes `BS_QUESTIONS_PER_PLAYER` (3) questions, each asked for 2, 3 or 4 options. The host reads every one without its author, may tidy the wording or the options (same number of options; the author sees the tidied version, since they defend it), and tags each **Fascinating**, **Mid ground**, **Bland** or **Leave out**. At the start `bsquiz.plan_rounds` fills the rounds with a weighted draw: better tags are likelier, an author's second and third pick less likely, Leave out never. Nobody is promised a turn, so nobody can work out who must be truthful from who hasn't been yet. The night opens and closes on its best questions, and the finale gets the biggest panel. Weights are provisional (`BS_TAG_WEIGHTS`, `BS_REPEAT_WEIGHTS`). |
 
 The handoff's proposed defaults were taken for everything else:
 
@@ -34,9 +35,11 @@ The handoff's proposed defaults were taken for everything else:
   on at all ("Players who leave" in the table).
 - **A final tie** gives joint winners.
 - **Lobby and panel size.** At least three players (`BS_MIN_PLAYERS`). Each
-  author is asked for 2, 3 or 4 options, with equal chance, when they join;
-  the deal uses fewer if the room is too small or too few players are online.
-- **Question order** is shuffled when the host starts the game.
+  question asks for 2, 3 or 4 options, with equal chance, drawn when its
+  author joins; the deal uses fewer if the room is too small or too few
+  players are online.
+- **Which questions, and in what order**: the question bank's draw (the row
+  above), made when the host starts the game.
 - **Pacing.** The host presses every step except two: a draft pick running
   out, and the discussion clock opening the ballot.
 
@@ -53,28 +56,39 @@ screens `frontend/bullshit*.{html,js,css}`, perks `backend/bsperks.py` and
 `docs/BULLSHIT_QUIZ_PERKS.md`.
 
 1. Set `RELAY_BULLSHIT_HOST_KEY` (the default is `dev`, in a public repo) and
-   open `/bullshithost`. The lobby shows a **join code** and a link
-   (`/bullshit?code=K7QM`) with a Copy button.
-2. Share the link (or just the code) in the group chat.
+   open `/bullshithost`. Set **Rounds tonight** first. The lobby shows a
+   **join code** and a link (`/bullshit?code=K7QM`) with a Copy button.
+2. Share the link (or just the code) in the group chat. It can go out a day
+   early: the code, the round count and every question are saved, so a
+   restart overnight changes nothing. Only **New game night** makes a new
+   code.
 3. Players open it. Signed out, they sign up or sign in to Game Night like
    on any website and come straight back; the code is filled in from the
    link, and **Join** gives their account a seat. Their in-game name is their
-   first name (plus a last initial if two players share one), and each is
-   asked for 2, 3 or 4 options. They write their question; the lobby shows
-   who has written. The account is the seat: signing in anywhere and opening
-   `/bullshit` (or the hub card) resumes it.
-4. **Start the game** needs at least three players and a question from every
-   one of them; it fixes N and the order, and from then on the code lets
+   first name (plus a last initial if two players share one). They write
+   three questions, each with its own option count (2, 3 or 4); the lobby
+   shows how many each has written. The account is the seat: signing in
+   anywhere and opening `/bullshit` (or the hub card) resumes it.
+4. **Review the bank**, under the lobby: open **Review the questions**. It
+   is folded because every answer is in it, so not while screen-sharing,
+   and it never shows who wrote what. Tag every question; **Edit** tidies the
+   wording or the options. An author who changes a question you already
+   tagged sends it back to review. While people are still writing, a new
+   question appearing just as a name ticks over can give its author away,
+   so do the review once everyone is done.
+5. **Start the game** needs at least three players, every question from
+   every one of them, and every question tagged. It draws tonight's
+   questions and their order, fixes N, and from then on the code lets
    nobody else in. It opens the **perk draft**: everybody sees the picking
    order and can trade places; press **Start the picks** when the haggling
    is done (each pick then gets 15 seconds), and **Start the quiz** once
    every perk is taken.
-5. Each round the host presses: **Open the discussion** (once every speaker
+6. Each round the host presses: **Open the discussion** (once every speaker
    has committed), **Lock the votes** (once every guesser has), **Reveal the
    truth**, **Next round**. One thing runs on its own: the discussion clock.
    Guessers can't vote until it runs out (or the host presses **End the
    talking**) and any Last Words have been said.
-6. Host tools, all on the host page:
+7. Host tools, all on the host page:
    - **Remove** on a player's chip in the lobby, for somebody who joined by
      mistake. Their question goes too; they can join again with the code.
    - **New game night**: everyone and every question cleared, and a new
@@ -141,14 +155,15 @@ The intended experience includes changing numbers of answer options, unpredictab
 
 Let **N** be the total number of registered players in the game. Count every player, including the truthful player and all bullshitters. N is not the number of audience members in a particular round.
 
-- There are exactly **N questions and N rounds**.
-- Every player contributes exactly one question.
-- Every player's question is used exactly once.
-- Every player is the truthful player exactly once.
-- Every other turn is a wagering turn, either as a guesser or as a bullshitter.
-- Each player therefore has **N − 1 wagering turns**.
+The original handoff had exactly N questions and N rounds, one truthful turn each. The question bank (section 0, 27 October 2026) replaced that:
 
-For example, 20 players means 20 questions, one truthful turn per player, and 19 wagering turns per player.
+- The host sets the number of rounds, **R**, before the night (`BS_ROUNDS_DEFAULT` is 12, at most `BS_ROUNDS_MAX`).
+- Every player writes three questions. R of them are played, or every playable one if there are fewer. Each is played at most once.
+- A player is the truthful player once for each of their questions played: possibly several times, possibly never.
+- Every other turn is a wagering turn, either as a guesser or as a bullshitter.
+- Each player starts with **R wager cards**, so there is one for every turn even for somebody who is never truthful.
+
+For example, 20 players and 20 rounds: most players are truthful once, roughly one in five twice and one in five never, and each starts with 20 cards from 1 to 19.
 
 Bluffing assignments can repeat across rounds. There is no guaranteed equal number of bluffing appearances. Random selection may give a player several appearances, one appearance, or none. Preserve this variability.
 
@@ -274,7 +289,7 @@ Scores are awarded or deducted independently. A bullshitter does not receive the
 
 ## 8. Round flow
 
-1. **Select the next unused question.** Its author becomes the truthful player. Every submitted question must appear once during the game.
+1. **Select the next planned question.** Its author becomes the truthful player. Tonight's questions and their order are drawn at the start (section 0, the question bank).
 2. **Select the bluffing panel.** Randomly choose the number of bullshitters, select that many distinct eligible players, and assign their incorrect options.
 3. **Deliver private role information.** Each speaker learns their own role and assigned answer. Other players must not receive the answer key or hidden author identity.
 4. **Present the question and options.** Show which player is defending each option without revealing who is truthful.
@@ -282,7 +297,7 @@ Scores are awarded or deducted independently. A bullshitter does not receive the
 6. **Collect commitments.** Every guesser submits one answer and one wager. Every bullshitter submits one wager attached to their assigned option. The truthful player submits neither.
 7. **Lock the round.** Finalize all valid votes and wagers before displaying results. Resolve any missing submissions under the agreed operational policy.
 8. **Reveal and score.** Show the correct answer, the truthful player, the bullshitters, each option's vote count, and each player's score change. Update the leaderboard once.
-9. **Advance or finish.** Continue to the next unused question, or show the final results after N completed rounds.
+9. **Advance or finish.** Continue to the next unused question, or show the final results after the last planned round.
 
 **Settled: commitment timing** (section 0). Bullshitters lock their wagers in the briefing, after they see their assigned answers and before the discussion opens; the truthful player confirms "ready" at the same moment. Guessers decide their answer and wager after the discussion.
 
@@ -361,7 +376,7 @@ N stays fixed. A disconnect is not a reason to recalculate everyone's wager cap 
 
 ### Other operational defaults
 
-**Settled** (section 0): scores start at zero and may go negative; bullshitters lock before the discussion and guessers after it; the question order is shuffled when the game starts; each author is asked for 2, 3 or 4 options with equal chance; the lobby needs at least three players; and the discussion runs on a clock.
+**Settled** (section 0): scores start at zero and may go negative; bullshitters lock before the discussion and guessers after it; which questions are played, and in what order, is the question bank's draw (section 0); each question asks for 2, 3 or 4 options with equal chance; the lobby needs at least three players; and the discussion runs on a clock.
 
 ## 12. Minimum information to retain
 
@@ -378,7 +393,7 @@ Record enough detail to show a bullshitter's result as separate components, such
 
 ## 13. Acceptance checklist
 
-- A game with N players schedules exactly N questions and gives each player exactly one truthful turn.
+- A game plays the rounds the host set (or every playable question, if fewer), each question at most once, and promises nobody a truthful turn.
 - Every player has a wagering role in every round except their own truthful round.
 - Every round has one correct answer and one distinct incorrect option per selected bullshitter.
 - Repeated bluffing appearances are allowed; equal bluffing turns are not enforced.
@@ -392,5 +407,5 @@ Record enough detail to show a bullshitter's result as separate components, such
 - The correct answer, author identity, hidden roles, and pending commitments are not exposed prematurely.
 - Worked examples A, B, and C produce the stated outcomes.
 - Ties and incomplete rounds use an explicit selected policy rather than accidental implementation behavior.
-- Score changes are applied once per completed round, and the final winner is determined after all N rounds.
+- Score changes are applied once per completed round, and the final winner is determined after the last round.
 
