@@ -18,6 +18,12 @@ for that view explicitly (`?as=host`), because one browser can hold both a
 host cookie and a player's sign-in.
 The host never plays, and `bsroom.public` gives them no more than a guesser,
 because on a group call the host is the one most likely sharing a screen.
+The one exception is the lobby, before anything is dealt: the host reviews
+the question bank there (`bsroster.review`), every answer included but no
+author, and the page keeps it folded. From the start on it is gone.
+
+The join code and the number of rounds are saved (bsroster settings), so a
+link shared the day before still works after an overnight restart.
 
 **The default host key is "dev", in a public repository.** Set
 `RELAY_BULLSHIT_HOST_KEY` before running a session with real people.
@@ -64,7 +70,10 @@ PERK = "bs_perk"              # play your perk: {target?, option?, wager?, words
 HOST = "bs_host"              # host: {action, player?, play?, step?}
 HOST_ACTIONS = ("start", "draft_go", "begin", "open", "lock", "lock_anyway", "reveal",
                 "next", "reset", "undo_reset", "drop", "remove", "new_game",
-                "extend", "end_talk", "floor_done", "slip")
+                "extend", "end_talk", "floor_done", "slip",
+                "rounds", "tag", "edit")        # the lobby: the night and its questions
+HOST_FIELDS = ("player", "play", "rounds", "question", "tag",
+               "prompt", "answer", "decoys", "explanation")
 PLAYER_MOVES = (READY, BLUFF, GUESS, OFFER, RESPOND, DRAFT_PICK, PERK)
 PERK_FIELDS = ("target", "option", "wager", "words", "play", "copy")
 
@@ -88,8 +97,17 @@ def startup() -> None:
 def room() -> bsroom.BullshitRoom:
     global _room
     if _room is None:
-        _room = bsroom.create_room(bsroster.all_players())
+        _room = bsroom.create_room(bsroster.all_players(), code=_saved_code())
     return _room
+
+
+def _saved_code() -> str:
+    """Tonight's join code, made and saved the first time it is needed."""
+    code = bsroster.setting(bsroster.CODE)
+    if not code:
+        code = bsroom.new_code()
+        bsroster.set_setting(bsroster.CODE, code)
+    return code
 
 
 async def _leave_after_grace(player_id: str) -> None:
@@ -149,7 +167,9 @@ def new_game() -> bsroom.BullshitRoom:
     global _room, _undo
     bsroster.clear()
     _undo = None
-    _room = bsroom.create_room([])
+    code = bsroom.new_code()
+    bsroster.set_setting(bsroster.CODE, code)
+    _room = bsroom.create_room([], code=code)
     return _room
 
 
@@ -176,6 +196,13 @@ def snapshot(current: bsroom.BullshitRoom, viewer: str) -> dict[str, Any]:
     if is_host:
         state["can_undo_reset"] = can_undo_reset()
         state["code"] = current.code
+    if current.phase == "lobby":
+        if is_host:
+            state["review"] = bsroster.review()
+            state["rounds_target"] = bsroster.rounds()
+        elif viewer in current.seats:
+            # Their own, so the page shows the host's tidying as it happens.
+            state["mine"] = _slots(current.seats[viewer].player)
     return {"type": STATE, "state": state}
 
 
@@ -293,6 +320,7 @@ class JoinBody(BaseModel):
 
 
 class QuestionBody(BaseModel):
+    slot: int = 0
     prompt: str
     answer: str
     decoys: list[str]
@@ -309,20 +337,30 @@ def _account(user: accounts.User | None) -> dict[str, Any] | None:
         "first_name": user.first_name, "username": user.username}
 
 
+def _slots(person: bsroster.Player) -> list[dict[str, Any]]:
+    """Their questions, one entry per slot, written or not. Never the tag."""
+    written = bsroster.mine(person.id)
+    slots = []
+    for slot, count in enumerate(person.option_counts):
+        mine = written.get(slot)
+        entry: dict[str, Any] = {"slot": slot, "option_count": count, "written": mine is not None}
+        if mine is not None:
+            q = mine.question
+            entry.update({"prompt": q.prompt, "answer": q.answer, "decoys": list(q.decoys),
+                          "explanation": q.explanation, "edited": mine.host_edited})
+        slots.append(entry)
+    return slots
+
+
 def _me(person: bsroster.Player, user: accounts.User | None) -> dict[str, Any]:
     """What the player's own page may know before the game: themselves and
-    their own question. Never anybody else's."""
-    q = bsroster.my_question(person.id)
+    their own questions. Never anybody else's."""
     return {
         "id": person.id,
         "name": person.display_name,
         "joined": True,
         "account": _account(user),
-        "option_count": person.option_count,
-        "question": None if q is None else {
-            "prompt": q.prompt, "answer": q.answer,
-            "decoys": list(q.decoys), "explanation": q.explanation,
-        },
+        "questions": _slots(person),
         "locked": room().phase != "lobby",
     }
 
@@ -387,7 +425,7 @@ async def submit_question(body: QuestionBody,
         current = room()
         try:
             bsroom.can_submit(current)
-            bsroster.submit_question(person.id, body.prompt, body.answer,
+            bsroster.submit_question(person.id, body.slot, body.prompt, body.answer,
                                      body.decoys, body.explanation)
         except (bsroom.Rejected, bsroster.Refused) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -420,8 +458,9 @@ def _parse(raw: Any) -> tuple[str, dict[str, Any]] | str:
         action = raw.get("action")
         if action not in HOST_ACTIONS:
             return "Unknown host action."
-        return kind, {"action": action, "player": raw.get("player"),
-                      "play": raw.get("play"), "step": raw.get("step", 1)}
+        fields = {key: raw.get(key) for key in HOST_FIELDS}
+        fields.update({"action": action, "step": raw.get("step", 1)})
+        return kind, fields
     return "Unknown message type."
 
 
@@ -443,9 +482,20 @@ def _host_step(current: bsroom.BullshitRoom, action: str,
         bsroster.remove(player)
         bsroom.refresh(current, bsroster.all_players())
         return current
+    if action in ("rounds", "tag", "edit"):
+        bsroom.can_submit(current)
+        if action == "rounds":
+            bsroster.set_rounds(fields.get("rounds"))
+        elif action == "tag":
+            bsroster.set_tag(fields.get("question"), fields.get("tag"))
+        else:
+            bsroster.host_edit(fields.get("question"), fields.get("prompt"),
+                               fields.get("answer"), fields.get("decoys"),
+                               fields.get("explanation") or "")
+        return current
     if action == "start":
         bsroom.refresh(current, bsroster.all_players())
-        bsroom.start(current, bsroster.questions())
+        bsroom.start(current, bsroster.questions(), bsroster.rounds())
     elif action == "drop":
         if not isinstance(player, str):
             raise bsroom.Rejected("Say which player.")
@@ -550,7 +600,7 @@ async def socket_endpoint(socket: WebSocket, host_key: str = "", as_: str = Quer
                     else:                       # request_state / heartbeat
                         await _send(socket, snapshot(current, viewer))
                         continue
-                except (bsroom.Rejected, bsdraft.Refused) as exc:
+                except (bsroom.Rejected, bsdraft.Refused, bsroster.Refused) as exc:
                     await _send(socket, protocol.error_message(str(exc)))
                     continue
                 await broadcast(current)

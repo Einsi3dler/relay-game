@@ -98,9 +98,11 @@ class Draft:
         return next((c for c in self.hands.get(player, []) if c.id == card_id), None)
 
 
-def deal_hands(players: list[str], n: int) -> dict[str, list[WagerCard]]:
-    """One card per value 1..N-1 for everybody, each with its own id."""
-    return {p: [WagerCard(f"{p}-card-{v}", v) for v in range(1, n)] for p in players}
+def deal_hands(players: list[str], values: list[int]) -> dict[str, list[WagerCard]]:
+    """The same hand for everybody (bsquiz.wager_hand), each card with its own
+    id. A hand can hold two of a value, so the id counts cards, not values."""
+    return {p: [WagerCard(f"{p}-card-{i}", v) for i, v in enumerate(values, 1)]
+            for p in players}
 
 
 def new_draft(players: list[str], hands: dict[str, list[WagerCard]], pool: list[str],

@@ -25,7 +25,7 @@ TURN = config.BS_DRAFT_PICK_SECONDS
 
 def draft(n: int = 20, players: list[str] | None = None, seed: int = 1) -> bsdraft.Draft:
     players = players or PLAYERS
-    hands = bsdraft.deal_hands(players, n)
+    hands = bsdraft.deal_hands(players, list(range(1, n)))
     pool = [p.id for p in bsperks.PERKS][:max(len(players), len(POOL))]
     return bsdraft.new_draft(players, hands, pool, random.Random(seed))
 
@@ -47,7 +47,7 @@ def values(d, player):
 # --- setting up -----------------------------------------------------------
 
 def test_everybody_starts_with_one_card_per_value_each_with_its_own_id():
-    hands = bsdraft.deal_hands(PLAYERS, 20)
+    hands = bsdraft.deal_hands(PLAYERS, list(range(1, 20)))
     for player, cards in hands.items():
         assert [c.value for c in cards] == list(range(1, 20))
     ids = [c.id for cards in hands.values() for c in cards]
@@ -68,7 +68,7 @@ def test_the_order_is_one_shuffle_of_everybody():
 
 def test_a_perk_for_everybody_or_no_draft():
     with pytest.raises(Refused, match="at most 2"):
-        bsdraft.new_draft(PLAYERS, bsdraft.deal_hands(PLAYERS, 4), ["a", "b"], random.Random(1))
+        bsdraft.new_draft(PLAYERS, bsdraft.deal_hands(PLAYERS, [1, 2, 3]), ["a", "b"], random.Random(1))
 
 
 # --- trading --------------------------------------------------------------
@@ -284,10 +284,10 @@ def test_the_public_view_shows_duplicate_cards():
 
 def test_the_game_opens_with_the_draft_and_the_host_starts_the_quiz():
     room, qs = make_room(5)
-    bsroom.start(room, qs)
+    bsroom.start(room, qs, 7)
     assert room.phase == "draft" and room.panel is None
     view = room.public("p0", now=0)
-    assert view["draft"]["stage"] == "trading" and len(view["cards"]) == 4
+    assert view["draft"]["stage"] == "trading" and len(view["cards"]) == 7    # one per round
     with pytest.raises(bsroom.Rejected, match="Finish the draft"):
         bsroom.begin_quiz(room)
     draft_everyone(room)
@@ -298,7 +298,7 @@ def test_the_game_opens_with_the_draft_and_the_host_starts_the_quiz():
 
 def test_the_room_runs_out_a_draft_turn_on_its_own():
     room, qs = make_room(4)
-    bsroom.start(room, qs)
+    bsroom.start(room, qs, len(room.seats))
     bsroom.draft_go(room, now=0)
     first = room.draft.active()
     assert bsroom.tick(room, now=TURN)
@@ -307,7 +307,7 @@ def test_the_room_runs_out_a_draft_turn_on_its_own():
 
 def test_a_traded_duplicate_can_be_wagered_twice():
     room, qs = make_room(4)
-    bsroom.start(room, qs)
+    bsroom.start(room, qs, 3)                 # three rounds: cards 1, 2 and 3
     d = room.draft
     a, b = d.order[0], d.order[1]
     bsroom.draft_offer(room, b, a, f"{b}-card-3", f"{a}-card-1")
@@ -322,15 +322,19 @@ def test_a_traded_duplicate_can_be_wagered_twice():
         _spend(room, seat, 3)
 
 
-def test_a_full_game_after_a_draft_spends_every_card():
+def test_a_full_game_after_a_draft_spends_a_card_every_wagering_turn():
+    """One card per round, one spent per round you wager in: whoever was
+    truthful keeps one card for each of those rounds, and nobody runs out."""
     room = started(5, seed=4)
     while room.phase != "final":
         play_round(room)
         bsroom.next_round(room)
-    assert all(room.left(pid) == [] for pid in room.seats)
+    truthful = Counter(entry["author"] for entry in room.history)
+    assert len(room.history) == room.rounds
+    assert all(len(room.left(pid)) == truthful[pid] for pid in room.seats)
 
 
 def test_more_players_than_perks_cannot_start():
     room, qs = make_room(len(bsperks.PERKS) + 1)
     with pytest.raises(bsroom.Rejected, match="at most"):
-        bsroom.start(room, qs)
+        bsroom.start(room, qs, len(room.seats))

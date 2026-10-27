@@ -7,11 +7,14 @@ every decision that is a rule rather than plumbing. The design is
 
 Policies the handoff left open, as settled by the game's owner:
 
-  * **Wager numbers are single-use cards.** Each player starts with a deck of
-    cards 1..N-1 and spends one on every wagering turn, win or lose. With
-    exactly N-1 wagering turns each, everybody spends every card once, so
-    *when* to bet big is the game. The perk draft lets players trade cards,
-    so a hand can end up holding two 19s and no 1 (backend/bsdraft.py).
+  * **Wager numbers are single-use cards.** Each player starts with one card
+    per round, spread evenly over 1..N-1 (`wager_hand`), and spends one on
+    every wagering turn, win or lose, so *when* to bet big is the game. The
+    perk draft lets players trade cards, so a hand can end up holding two
+    19s and no 1 (backend/bsdraft.py).
+  * **Which questions are played is a draw, not a rota** (`plan_rounds`).
+    Everybody writes several, the host tags them blind, and nobody is
+    promised a turn as the truthful player.
   * **A tie at the top means nobody wins the crowd.** The truthful player gets
     N // 2 and every bullshitter loses their wager, keeping their points per
     person fooled. Guessers are scored on the correct answer regardless.
@@ -55,9 +58,19 @@ def option_count_for(n: int, rng: random.Random) -> int:
     return 1 + rng.randint(1, top)
 
 
-def wager_values(n: int) -> range:
-    """The deck every player starts with: whole numbers 1..N-1 (handoff §6)."""
-    return range(1, n)
+def wager_hand(n: int, rounds: int) -> list[int]:
+    """The wager cards every player starts with (handoff §6): one per round,
+    so even somebody who is never truthful has a card for every turn, spread
+    evenly from 1 to N-1. With N-1 rounds that is exactly 1..N-1, one of
+    each, the hand of the one-question game."""
+    top = max(1, n - 1)
+    if rounds <= 0:
+        return []
+    if rounds == 1:
+        return [top]
+    span = rounds - 1
+    # 1 + (top - 1) * i / span, rounded half up, in whole numbers.
+    return [1 + (2 * (top - 1) * i + span) // (2 * span) for i in range(rounds)]
 
 
 def truthful_reward(n: int, won_crowd: bool) -> int:
@@ -74,25 +87,81 @@ def wager_problem(wager: object, left: list[int]) -> str | None:
     return None
 
 
-# --- the schedule ---------------------------------------------------------
-
-def schedule(authors: list[str], rng: random.Random) -> list[str]:
-    """The order questions are played in: every author exactly once."""
-    order = list(authors)
-    rng.shuffle(order)
-    return order
-
-
 # --- one round ------------------------------------------------------------
 
 @dataclass(frozen=True)
 class Question:
-    """What an author submitted. `decoys` are the wrong answers they wrote."""
+    """What an author submitted. `decoys` are the wrong answers they wrote.
+    `id` is the question's own (an author writes several) and `tag` is the
+    host's review: one of BS_TAGS, or empty until reviewed."""
     author: str
     prompt: str
     answer: str
     decoys: tuple[str, ...]
     explanation: str = ""
+    id: str = ""
+    tag: str = ""
+
+
+# --- which questions are played -------------------------------------------
+
+def plan_rounds(questions: list[Question], rounds: int,
+                rng: random.Random) -> list[Question]:
+    """Tonight's questions, in the order they are played (docs/BULLSHIT_QUIZ.md §0).
+
+    Everybody wrote several and the host tagged each one without knowing
+    whose it is. This fills `rounds` slots, or as many as there are playable
+    questions:
+
+      * Better questions are likelier. Each pick is a weighted draw: the
+        tag's weight (BS_TAG_WEIGHTS) times a falling weight for an author
+        already picked (BS_REPEAT_WEIGHTS), so a great writer gets more turns
+        but nobody runs away with the night. Bland ones end up as filler.
+      * Nobody is guaranteed a question. That is the point: with no
+        "everyone once", nobody can work out who must be truthful from who
+        hasn't been yet.
+      * An arc: the finale is the strongest question with the most options,
+        the opener another strong one, and bland ones are spread out between
+        them rather than bunched.
+    """
+    pool = [q for q in questions if q.tag in config.BS_TAG_WEIGHTS]
+    repeat = config.BS_REPEAT_WEIGHTS
+    picked: list[Question] = []
+    per_author: dict[str, int] = {}
+    while pool and len(picked) < rounds:
+        weights = [config.BS_TAG_WEIGHTS[q.tag]
+                   * repeat[min(per_author.get(q.author, 0), len(repeat) - 1)]
+                   for q in pool]
+        choice = rng.choices(pool, weights=weights)[0]
+        pool.remove(choice)
+        picked.append(choice)
+        per_author[choice.author] = per_author.get(choice.author, 0) + 1
+    return _arc(picked, rng)
+
+
+def _rank(question: Question) -> int:
+    """0 for the best tag, then 1, 2: BS_TAG_WEIGHTS is listed best first."""
+    return list(config.BS_TAG_WEIGHTS).index(question.tag)
+
+
+def _arc(picked: list[Question], rng: random.Random) -> list[Question]:
+    if len(picked) < 2:
+        return list(picked)
+    rest = list(picked)
+    rng.shuffle(rest)                  # so every tie below is broken at random
+    best = min(_rank(q) for q in rest)
+    finale = max((q for q in rest if _rank(q) == best), key=lambda q: len(q.decoys))
+    rest.remove(finale)
+    best = min(_rank(q) for q in rest)
+    opener = next(q for q in rest if _rank(q) == best)
+    rest.remove(opener)
+    bland = [q for q in rest if q.tag == "bland"]
+    middle = [q for q in rest if q.tag != "bland"]
+    others = len(middle)
+    for i, q in enumerate(bland):
+        # Evenly through the others, counting the ones already placed.
+        middle.insert((i + 1) * (others + 1) // (len(bland) + 1) + i, q)
+    return [opener] + middle + [finale]
 
 
 @dataclass(frozen=True)

@@ -453,6 +453,17 @@ BS_GRACE_SECONDS = 30         # a dropped socket counts as "left" only after thi
 BS_UNDO_SECONDS = 10          # how long the host can take back "Reset the room"
 BS_CODE_LENGTH = 4            # the join code the host shares in the group chat
 
+# The question bank (docs/BULLSHIT_QUIZ.md §0, 27 October 2026). Everybody
+# writes a few questions; the host tags every one, blind to who wrote it, and
+# sets how many rounds the night has; bsquiz.plan_rounds fills them. The
+# weights are provisional until a playtest.
+BS_QUESTIONS_PER_PLAYER = 3
+BS_ROUNDS_DEFAULT = 12
+BS_ROUNDS_MAX = 90            # every question a full room of 30 could write
+BS_TAGS = ("fascinating", "mid", "bland", "out")   # "out" is never played
+BS_TAG_WEIGHTS = {"fascinating": 9, "mid": 3, "bland": 1}   # best first
+BS_REPEAT_WEIGHTS = (1.0, 0.5, 0.2)   # an author's first, second, third pick
+
 # The discussion runs on a clock and the ballot stays shut until it ends, so
 # the speaking perks reach everybody (docs/BULLSHIT_QUIZ_PERKS.md §0).
 BS_TALK_SECONDS_PER_SPEAKER = 60      # two to four minutes a round

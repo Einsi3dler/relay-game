@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import random
 from collections import Counter
+from dataclasses import replace
 
 import pytest
 
@@ -75,7 +76,7 @@ def test_example_b_the_truth_wins_without_a_majority():
 def test_example_c_odd_counts_round_down(n, win, lose, cap):
     assert bsquiz.truthful_reward(n, True) == win
     assert bsquiz.truthful_reward(n, False) == lose
-    assert max(bsquiz.wager_values(n)) == cap
+    assert max(bsquiz.wager_hand(n, 12)) == cap
 
 
 # --- crowd victory --------------------------------------------------------
@@ -139,7 +140,27 @@ def test_lines_carry_roles():
 # --- wagers ---------------------------------------------------------------
 
 def test_wager_range_uses_total_players():
-    assert list(bsquiz.wager_values(5)) == [1, 2, 3, 4]
+    assert bsquiz.wager_hand(5, 4) == [1, 2, 3, 4]
+
+
+@pytest.mark.parametrize("n, rounds", [(3, 1), (3, 7), (6, 5), (10, 15), (20, 10), (30, 90)])
+def test_a_hand_is_one_card_per_round_from_1_to_n_minus_1(n, rounds):
+    hand = bsquiz.wager_hand(n, rounds)
+    assert len(hand) == rounds
+    assert hand == sorted(hand)
+    assert max(hand) == n - 1
+    assert min(hand) == (1 if rounds > 1 else n - 1)
+
+
+def test_n_minus_1_rounds_is_the_one_question_hand():
+    for n in range(3, 31):
+        assert bsquiz.wager_hand(n, n - 1) == list(range(1, n))
+
+
+def test_a_long_night_repeats_values_evenly():
+    assert bsquiz.wager_hand(10, 15) == [1, 2, 2, 3, 3, 4, 4, 5, 6, 6, 7, 7, 8, 8, 9]
+    assert bsquiz.wager_hand(20, 10) == [1, 3, 5, 7, 9, 11, 13, 15, 17, 19]
+    assert bsquiz.wager_hand(5, 0) == []
 
 
 FULL = list(range(1, 15))
@@ -162,10 +183,10 @@ def test_wager_problem(wager, left, ok):
 
 
 def test_single_use_wagers_last_exactly_the_game():
-    """N-1 wagering turns and N-1 cards: everybody spends each once."""
+    """One card per round: a player who wagers every round spends each once."""
     n = 6
-    left = list(bsquiz.wager_values(n))
-    for w in bsquiz.wager_values(n):
+    left = bsquiz.wager_hand(n, n - 1)
+    for w in bsquiz.wager_hand(n, n - 1):
         assert bsquiz.wager_problem(w, left) is None
         left.remove(w)
     assert left == []
@@ -187,10 +208,88 @@ def test_option_count_stays_in_range():
         bsquiz.option_count_for(2, rng)
 
 
-def test_schedule_uses_every_author_once():
-    authors = [f"p{i}" for i in range(12)]
-    order = bsquiz.schedule(authors, random.Random(7))
-    assert sorted(order) == sorted(authors)
+# --- the plan: which questions tonight plays -------------------------------
+
+def bank(players: int, tags=("fascinating", "mid", "bland"), decoys=3) -> list[Question]:
+    """Every player writes one question per tag in `tags`."""
+    return [Question(author=f"p{p}", prompt=f"Q{p}-{i}?", answer="real",
+                     decoys=tuple(f"d{k}" for k in range(decoys)),
+                     id=f"q{p}-{i}", tag=tag)
+            for p in range(players) for i, tag in enumerate(tags)]
+
+
+def test_the_plan_fills_the_rounds_asked_for():
+    plan = bsquiz.plan_rounds(bank(10), 12, random.Random(1))
+    assert len(plan) == 12
+    assert len({q.id for q in plan}) == 12
+
+
+def test_the_plan_never_plays_a_question_left_out():
+    questions = bank(6, tags=("out", "mid", "out"))
+    for seed in range(30):
+        plan = bsquiz.plan_rounds(questions, 20, random.Random(seed))
+        assert len(plan) == 6                      # only the playable ones, and all of them
+        assert all(q.tag == "mid" for q in plan)
+
+
+def test_untagged_questions_are_never_played():
+    questions = [replace(q, tag="") for q in bank(4)]
+    assert bsquiz.plan_rounds(questions, 5, random.Random(1)) == []
+
+
+def test_better_questions_are_played_more():
+    picks = Counter()
+    for seed in range(300):
+        picks.update(q.tag for q in bsquiz.plan_rounds(bank(10), 10, random.Random(seed)))
+    assert picks["fascinating"] > picks["mid"] > picks["bland"]
+    assert picks["bland"] < picks["fascinating"] / 5
+
+
+def test_nobody_is_promised_a_question():
+    """No "everyone once": with as many rounds as players, somebody is left
+    out on most nights and somebody plays twice."""
+    skipped = doubled = 0
+    for seed in range(200):
+        authors = Counter(q.author for q in bsquiz.plan_rounds(bank(10), 10, random.Random(seed)))
+        skipped += len(authors) < 10
+        doubled += max(authors.values()) > 1
+    assert skipped > 100 and doubled > 100
+
+
+def test_nobody_runs_away_with_the_night():
+    """A second and third pick get less likely, so turns stay spread."""
+    most = Counter()
+    for seed in range(200):
+        authors = Counter(q.author for q in bsquiz.plan_rounds(bank(10), 10, random.Random(seed)))
+        most[max(authors.values())] += 1
+    assert most[3] < 20
+
+
+def test_the_night_opens_and_closes_on_its_best_questions():
+    questions = bank(8, tags=("fascinating", "mid", "bland"))
+    questions = [replace(q, decoys=q.decoys[:1]) if q.author != "p3" or q.tag != "fascinating"
+                 else q for q in questions]
+    for seed in range(40):
+        plan = bsquiz.plan_rounds(questions, 14, random.Random(seed))
+        assert plan[0].tag == "fascinating" and plan[-1].tag == "fascinating"
+        biggest = max(len(q.decoys) for q in plan if q.tag == "fascinating")
+        assert len(plan[-1].decoys) == biggest
+
+
+def test_bland_questions_are_spread_out():
+    questions = bank(4, tags=("fascinating", "fascinating", "bland")) + \
+        [Question(author="p9", prompt="?", answer="r", decoys=("d",), id=f"x{i}", tag="mid")
+         for i in range(4)]
+    plan = bsquiz.plan_rounds(questions, len(questions), random.Random(3))
+    tags = [q.tag for q in plan]
+    assert tags.count("bland") == 4
+    assert not any(a == b == "bland" for a, b in zip(tags, tags[1:]))
+
+
+def test_the_plan_is_reproducible_from_its_seed():
+    one = [q.id for q in bsquiz.plan_rounds(bank(9), 11, random.Random(5))]
+    two = [q.id for q in bsquiz.plan_rounds(bank(9), 11, random.Random(5))]
+    assert one == two
 
 
 def question(author="p0", decoys=("d1", "d2", "d3")) -> Question:
