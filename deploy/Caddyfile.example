@@ -1,0 +1,14 @@
+# The Relay behind Caddy: HTTPS with automatic certificates, and WebSockets
+# proxied with no extra settings. Replace the domain, then:
+#
+#   sudo cp deploy/Caddyfile.example /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# The domain's DNS A (and AAAA) record must point at this server, and ports
+# 80 and 443 must be open, before Caddy can get a certificate.
+# Using nginx instead? docs/DEPLOY.md, section 2.6, has the equivalent.
+
+relay.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8000
+}
