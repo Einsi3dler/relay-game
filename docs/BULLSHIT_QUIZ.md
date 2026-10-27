@@ -2,17 +2,18 @@
 
 Version: 1.0 draft  
 Date: 20 October 2026  
-Purpose: give a builder or handoff tool the complete agreed game concept, scoring, player actions, and outstanding rule decisions.
+Purpose: give a builder or handoff tool the complete agreed game concept, scoring, player actions, and how each rule question the handoff left open was settled.
 
 ## 0. Decisions settled by the owner (20 October 2026)
 
-These close the open decisions in section 11. Where this section and a later
-"Open decision" or "Proposed default" disagree, this section wins.
+These settle every question the original handoff left open (section 11).
+Where this section and anything later in the document disagree, this section
+wins.
 
 | Question | Decision |
 | --- | --- |
 | Wager-number reuse | **Single-use.** Each player starts with 1 through N - 1 and spends one on every wagering turn, win or lose. |
-| Tied top vote counts | **Nobody wins the crowd** (the proposed default in section 11). |
+| Tied top vote counts | **Nobody wins the crowd**, as the handoff proposed (section 11). |
 | Source of false options | **The author writes them** when submitting the question. The server tells each author how many options to write (2, 3 or 4), which fixes B for that question. |
 | Who runs the game | **A separate, non-playing host** behind a host key, like Guess Who. |
 | Who plays (revised 21 October 2026) | **Players join through the site.** They sign up or sign in to a Game Night account and join with the host's code. No roster file, no email addresses, no invite links; nothing mails anybody. |
@@ -21,11 +22,23 @@ These close the open decisions in section 11. Where this section and a later
 | The discussion clock (23 October 2026, supersedes "no timers" for this step) | **Guessers vote after the talking.** The discussion runs on a clock (`BS_TALK_SECONDS_PER_SPEAKER`, 60 s per speaker) and the ballot opens when it runs out, so the speaking perks reach everybody. |
 | Players who leave (supersedes "pause" in section 11) | **The game never waits for them.** Once a game has started, going offline relegates a player for the rest of that game: they keep their seat and score, are never picked to bluff again (even after returning), and are never waited on as a guesser. Their question is skipped while they are away and stays queued; if they return it can still be played, and if every remaining question belongs to somebody offline, those are dropped and the game ends. |
 
-Taken as the proposed defaults: bullshitters lock their wager before
-discussion, guessers commit after it; the vote distribution is shown before
-the truth; scores start at zero and may go negative; a missing submission
-pauses the round rather than being invented; joint winners on a final tie;
-no timers, the host paces every step.
+The handoff's proposed defaults were taken for everything else:
+
+- **Commitment timing.** Bullshitters lock their wager in the briefing,
+  before the discussion; guessers commit after it.
+- **The reveal.** The vote distribution is shown before the truth.
+- **Scores.** Everybody starts at zero, and totals may go negative.
+- **Missing votes are never invented.** The round waits for guessers who are
+  online until the host presses **Lock anyway**; a guesser who casts no vote
+  scores nothing and spends no wager. Players who have left are not waited
+  on at all ("Players who leave" in the table).
+- **A final tie** gives joint winners.
+- **Lobby and panel size.** At least three players (`BS_MIN_PLAYERS`). Each
+  author is asked for 2, 3 or 4 options, with equal chance, when they join;
+  the deal uses fewer if the room is too small or too few players are online.
+- **Question order** is shuffled when the host starts the game.
+- **Pacing.** The host presses every step except two: a draft pick running
+  out, and the discussion clock opening the ballot.
 
 One addition the handoff does not cover: during the briefing the truthful
 player confirms "ready" in the same beat as the bullshitters lock their
@@ -110,7 +123,7 @@ Signing back in (on any device) and opening `/bullshit` resumes the seat.
 
 ## 1. Read this first
 
-The core rules below reflect the creator's explanations and corrections. Details labelled **Proposed default** are suggestions for a first playable version, not previously agreed rules. Items labelled **Open decision** must remain explicit rather than being silently treated as settled.
+The core rules below reflect the creator's explanations and corrections. The original handoff marked some details as open decisions or proposed defaults. All of them are now settled: each is marked **Settled** where it comes up, and section 0 records the decisions.
 
 This document defines gameplay and the information the game needs to manage. Players communicate through an external group call. The choice of application framework, hosting, authentication, and call platform is outside this specification.
 
@@ -153,7 +166,7 @@ Each round contains exactly one correct option and one incorrect option per bull
 
 All options must be distinct. The answer key is fixed before discussion and cannot change in response to votes or wagers.
 
-**Open decision — creating the incorrect answers:** the creator has established that bullshitters are assigned wrong answers, but has not specified who writes those answers. A possible workflow is for the question author to submit three plausible decoys privately, from which the required number is selected. Host-written decoys are another option. Do not silently require bullshitters to invent their own option; being assigned an option to defend is part of the stated concept.
+**Settled: the author writes the incorrect answers** (section 0). When they submit their question, the server asks them for 2, 3 or 4 options in total: the real answer plus one decoy per bullshitter. Bullshitters never invent their own option; being assigned an option to defend is part of the concept.
 
 ## 5. Roles in each round
 
@@ -183,7 +196,7 @@ With 20 players and three bullshitters, there are 16 guessers. With 15 players a
 
 Only guessers contribute votes to the crowd counts. Every vote has equal weight.
 
-**Proposed default — small groups:** require at least three players and select B from 1 through min(3, N − 2), ensuring at least one guesser remains. The creator has not set a formal minimum lobby size or the probabilities for selecting each panel size.
+**Settled: small groups** (section 0). At least three players, and B is never more than min(3, N − 2), so at least one guesser remains. Each author is asked for 2, 3 or 4 options with equal chance, and the deal uses fewer bullshitters when the room cannot fill them all.
 
 ## 6. Wagers
 
@@ -199,9 +212,9 @@ A successful wager adds w points to the player's score. An unsuccessful wager de
 
 Guessers wager on choosing the correct answer. Bullshitters wager on their own answer attracting the largest crowd. These are different success conditions.
 
-**Open decision — whether a wager number can be reused:** losing an unsuccessful wager from the score is confirmed. The discussion does not unambiguously establish whether selecting a number also permanently removes that number from the player's available choices. These are separate mechanics. If numbers are single-use, each player starts with 1 through N − 1 and consumes one on every guessing or bluffing turn, regardless of success. If numbers are reusable, the full range remains available on later turns. Keep this policy separate from score calculation and explicitly settle it before play.
+**Settled: wagers are single-use cards** (section 0). Each player starts with one card per value from 1 through N − 1 and spends one on every guessing or bluffing turn, win or lose. Trades in the perk draft move cards between players, so a hand can hold two of one value and none of another. The scoring rule above is unchanged: an unsuccessful wager is still deducted.
 
-**Proposed default — score handling:** start everyone at zero, allow negative totals, and allow every legal wager regardless of the current score. This keeps the fixed schedule playable after losses. Do not introduce a score floor or eliminate players for negative scores without an explicit rule change.
+**Settled: score handling** (section 0). Everyone starts at zero, totals may go negative, and every card in a player's hand is a legal wager whatever their current score. This keeps the fixed schedule playable after losses. There is no score floor, and nobody is eliminated for a negative score.
 
 ## 7. Scoring
 
@@ -211,7 +224,7 @@ For each answer, count the guessers who selected it. These headcounts determine 
 
 For a round without a tie for first place, the speaker with more votes than every other speaker wins the crowd. They do not need more than half of all votes. Compare against **all** speakers, including the truthful player.
 
-Treatment of tied top vote counts is an open decision, described in Section 11.
+A tie for the top count means nobody wins the crowd, unless a Kingmaker perk picks one of the tied options. Section 11 gives the full rule.
 
 ### Guesser score
 
@@ -271,11 +284,11 @@ Scores are awarded or deducted independently. A bullshitter does not receive the
 8. **Reveal and score.** Show the correct answer, the truthful player, the bullshitters, each option's vote count, and each player's score change. Update the leaderboard once.
 9. **Advance or finish.** Continue to the next unused question, or show the final results after N completed rounds.
 
-**Proposed default — commitment timing:** lock bullshitters' wagers before open discussion, after they see their assigned answers. Allow guessers to decide their answer and wager after discussion. This was suggested during development but has not been explicitly confirmed by the creator.
+**Settled: commitment timing** (section 0). Bullshitters lock their wagers in the briefing, after they see their assigned answers and before the discussion opens; the truthful player confirms "ready" at the same moment. Guessers decide their answer and wager after the discussion.
 
-**Proposed default — reveal presentation:** first display the final distribution of votes, then reveal the truth and score changes. Both occur after commitments are locked. This adds suspense without changing the scoring rules.
+**Settled: reveal presentation** (section 0). The final distribution of votes is shown first, then the truth and the score changes. Both come after commitments are locked. This adds suspense without changing the scoring rules.
 
-No specific speech duration, countdown, or round timer has been agreed. A host-controlled discussion and submission window is a possible first version.
+**Settled: the discussion clock** (section 0). The discussion runs on a clock, 60 seconds per speaker (`BS_TALK_SECONDS_PER_SPEAKER`), and the ballot opens when it runs out or the host ends the talking. The host paces every other step of a round.
 
 ## 9. Visibility and player actions
 
@@ -320,44 +333,42 @@ B loses the wager but still finishes the round with a positive score because the
 
 With 21 total players, the truthful reward is **21** for winning the crowd and **10** otherwise. The fallback is rounded down from 10.5. The wager limit is **20**. These values do not change when the number of bullshitters changes.
 
-## 11. Outstanding decisions and proposed defaults
+## 11. Questions the handoff left open, and how they were settled
 
-### Wager-number reuse — open decision
+### Wager-number reuse
 
-Choose whether wager values are reusable or consumed after selection. Both variants still deduct an unsuccessful wager from the score. The fixed N − 1 wagering turns support a single-use set if that is the intended rule, but this handoff does not present it as confirmed.
+**Settled: single-use cards.** Each player holds one wager card per value from 1 through N − 1 and spends one on every wagering turn, so the N − 1 wagering turns of a full game use the hand up exactly. Section 6 has the detail.
 
-### Tied top vote counts — open decision
+### Tied top vote counts
 
-The creator has specified attracting the most people, but has not explicitly accepted a tie rule.
+**Settled: an outright lead is required.** If multiple options tie for the largest positive vote count, no speaker wins the crowd. The truthful player receives floor(N / 2). Every bullshitter loses their wager while retaining their own points per person fooled. Guesser scoring remains based on the correct answer, so guessers who chose it still gain their wagers even if its vote count is tied. Nobody wins the crowd when nobody votes. A Kingmaker perk can make one of the tied options the winner ([BULLSHIT_QUIZ_PERKS.md](BULLSHIT_QUIZ_PERKS.md)).
 
-**Proposed default:** require an outright lead. If multiple options tie for the largest positive vote count, no speaker wins the crowd. The truthful player receives floor(N / 2). Every bullshitter loses their wager while retaining their own points per person fooled. Guesser scoring remains based on the correct answer, so guessers who chose it still gain their wagers even if its vote count is tied.
+The definition of crowd victory stays separate from the score formulas (`crowd_winner` in `backend/bsquiz.py`), so a different tie policy would not change those formulas.
 
-This tie policy is a recommendation, not a confirmed rule. Keep the definition of crowd victory separate from the score formulas so another tie policy can be applied without changing those formulas.
+### Source of false options
 
-### Source of false options — open decision
+**Settled: the author writes them** with their question, as many as the server asks for (section 4). One speaker per option and one correct answer overall still hold. The deal never builds a round with a missing option: if the room cannot fill every decoy, it uses fewer bullshitters and leaves the spare decoys out.
 
-Choose who supplies the incorrect answer options. Preserve one speaker per option and one correct answer overall. If fewer than three usable decoys exist, do not silently create an invalid round with missing options.
+### Missing submissions and disconnected players
 
-### Missing submissions and disconnected players — open decision
+N stays fixed. A disconnect is not a reason to recalculate everyone's wager cap or the truthful reward during play.
 
-Keep N and the question schedule fixed. A disconnect is not a reason to recalculate everyone's wager cap or the truthful reward during play.
+**Settled: the game never waits for a player who has left** (section 0, "Players who leave", and section 0.1). A missing vote is never invented: a guesser who casts no vote scores nothing and spends no wager, and the host can lock a round without a guesser who is online but not answering. A question whose author is offline is skipped and stays queued. It is dropped only when every question left belongs to somebody offline.
 
-**Proposed default:** pause and allow reconnection or completion before scoring. Do not automatically invent a guess, spend a wager, or treat a missing vote as a cast vote. If skipping, forfeits, or replacement questions are needed, their consequences require a separate explicit policy.
+### Final leaderboard ties
 
-### Final leaderboard ties — open decision
-
-**Proposed default:** declare joint winners. An extra tiebreaker round would change the fixed N-round structure and should be added only as a deliberate rule change.
+**Settled: joint winners.** An extra tiebreaker round would change the fixed N-round structure and should be added only as a deliberate rule change.
 
 ### Other operational defaults
 
-Starting at zero with negative scores allowed, the exact timing of wager commitment, the question order, panel-size probabilities, minimum lobby size, and discussion timing have not been explicitly settled. Proposed choices elsewhere in this document should remain identifiable as defaults.
+**Settled** (section 0): scores start at zero and may go negative; bullshitters lock before the discussion and guessers after it; the question order is shuffled when the game starts; each author is asked for 2, 3 or 4 options with equal chance; the lobby needs at least three players; and the discussion runs on a clock.
 
 ## 12. Minimum information to retain
 
 The implementation can use its existing architecture. It needs enough information to reconstruct and explain the following:
 
-- **Game:** registered players, fixed N, ordered question schedule, active round, round phase, and the selected policies for outstanding decisions.
-- **Player:** stable identity, display name, total score, submitted question, and used wager values if the single-use policy is selected.
+- **Game:** registered players, fixed N, ordered question schedule, active round, round phase, and the policies settled in section 0.
+- **Player:** stable identity, display name, total score, submitted question, and the wager cards still in their hand.
 - **Question:** author, prompt, correct answer, incorrect options once supplied, and optional reveal explanation.
 - **Round:** question, truthful player, selected bullshitters, option-to-speaker assignments, and which option is correct.
 - **Commitments:** each guesser's chosen option and wager, each bullshitter's wager, and whether the submission is locked.
@@ -372,7 +383,7 @@ Record enough detail to show a bullshitter's result as separate components, such
 - Every round has one correct answer and one distinct incorrect option per selected bullshitter.
 - Repeated bluffing appearances are allowed; equal bluffing turns are not enforced.
 - Only guessers cast votes, and each casts at most one valid vote.
-- All wagers are whole numbers from 1 through N − 1, with any single-use restriction enforced only if that policy is selected.
+- All wagers are whole numbers from 1 through N − 1, each played from the player's hand of single-use wager cards.
 - Incorrect guessing deducts the wager from the score.
 - A bullshitter receives one point per voter plus or minus their own wager, using crowd victory as the wager's success condition.
 - Bullshitters compete against every option, including the truthful one, for crowd victory.
