@@ -242,6 +242,20 @@ PYCHECK
 fi
 info "mail configuration is consistent"
 
+# --- 4.6 the rest of the deployment check, reported but not enforced -------
+# Host keys left at the public default, databases inside the checkout, a
+# second worker: docs/DEPLOY.md. Printed so they are seen on every deploy,
+# not fatal, so a server that has been fine for months is not stopped
+# mid-deploy by a check it has never met. The mail check above stays fatal
+# because the app itself refuses to start on those.
+if [[ -f "$SRV_DIR/backend/deploycheck.py" ]]; then
+  step "Checking deployment readiness"
+  if ! ( cd "$SRV_DIR" && "$SRV_DIR/.venv/bin/python3" -m backend.deploycheck --unit "$SERVICE" ) \
+       | sed 's/^/  /'; then
+    warn "the deployment check found problems (above). Deploying anyway; see docs/DEPLOY.md"
+  fi
+fi
+
 # --- 5. restart and prove it came back --------------------------------------
 step "Restarting $SERVICE"
 systemctl restart "$SERVICE"

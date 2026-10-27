@@ -1,0 +1,54 @@
+# The Relay as a systemd service. docs/DEPLOY.md walks through installing it:
+#
+#   sudo cp deploy/relay-game.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now relay-game.service
+#
+# The paths and the user match what deploy.sh expects. Change them in both
+# places, or in neither.
+
+[Unit]
+Description=The Relay game server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=relay
+Group=relay
+WorkingDirectory=/srv/relay-game
+
+# Secrets and settings, root-readable only. Template: deploy/relay-game.env.example
+EnvironmentFile=/etc/relay-game.env
+
+# ONE worker, on purpose. Every match, room and draft lives in this process's
+# memory; a second worker would hold half of them and players would land in
+# the wrong one. No --reload either: that restarts on file changes, wiping
+# every game in progress. Bound to localhost; the reverse proxy faces the
+# internet and terminates TLS (deploy/Caddyfile.example).
+ExecStart=/srv/relay-game/.venv/bin/uvicorn backend.main:app \
+    --host 127.0.0.1 --port 8000 \
+    --proxy-headers --forwarded-allow-ips 127.0.0.1
+
+Restart=on-failure
+RestartSec=3
+# A restart drops every live game, so give sockets a moment to close cleanly.
+TimeoutStopSec=15
+
+# Hardening. The app writes nothing but its SQLite files, which live in
+# /var/lib/relay (RELAY_DB_PATH, RELAY_BULLSHIT_DB, RELAY_ROLLCALL_DB). If your
+# databases are still inside the checkout, move them (docs/DEPLOY.md,
+# section 3) or add /srv/relay-game/var to ReadWritePaths for now.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/relay
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

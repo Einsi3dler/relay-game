@@ -60,6 +60,7 @@ of them in the lobby. See [docs/DUEL_MODULE_SPEC.md](docs/DUEL_MODULE_SPEC.md).
 | [docs/GAME_MODULE_SPEC.md](docs/GAME_MODULE_SPEC.md) | **The contract every game must implement** (incl. action-game renderer interface). |
 | [docs/WEBSOCKET_PROTOCOL.md](docs/WEBSOCKET_PROTOCOL.md) | Every client↔server message and the state snapshot schema. |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Git workflow, branching, ownership, PR checklist. |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | **Putting it on a server**: first-time setup, routine deploys, game nights, backups, every setting. Check a server with `python -m backend.deploycheck`. |
 | [docs/TASK_LIST.md](docs/TASK_LIST.md) | The full, phased build plan with per-owner tasks and acceptance criteria. |
 | [CLAUDE.md](CLAUDE.md) | Rules for AI coding agents working in this repo. |
 

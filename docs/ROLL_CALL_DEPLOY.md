@@ -28,7 +28,8 @@ the roster or the database.
 ## 1. Before anything, set the host key
 
 ```bash
-# in the server checkout's .env.local, NOT in the repo
+# in /etc/relay-game.env, the service's environment file, NOT in the repo
+# (docs/DEPLOY.md, section 2.4; the server never reads .env.local)
 RELAY_QUIZ_HOST_KEY=<something long and not "dev">
 ```
 
