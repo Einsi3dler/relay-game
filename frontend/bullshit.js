@@ -5,14 +5,15 @@
  * (`/bullshit?code=K7QM` fills it in), and tap Join. From then on plain
  * `/bullshit` finds their seat from any device. Signed out, the page sends
  * them to sign in or make an account and brings them straight back here.
- * Before the game it asks for their one question; during it, the snapshot says what
+ * Before the game it asks for their three questions, one at a time, and shows
+ * any tidying the host does to them; during it, the snapshot says what
  * this player is this round (truthful, bullshitter or guesser) and this page
  * draws the matching screen. It decides nothing: every commitment goes to the
  * server, which refuses anything the rules do not allow.
  *
- * The write form is built once when the stage opens, not on every snapshot,
- * so a broadcast caused by somebody else joining never steals focus mid-word.
- * A draft is kept in localStorage per link so a reload never loses typing.
+ * The write form is built once per question, not on every snapshot, so a
+ * broadcast caused by somebody else joining never steals focus mid-word.
+ * Each question's draft is kept in localStorage so a reload never loses typing.
  *
  * No build step (see CLAUDE.md). Needs bullshit-common.js loaded first.
  */
@@ -33,11 +34,12 @@
   var codeFromLink = (params.get("code") || "").replace(/\s+/g, "").toUpperCase();
   var storeKey = "bullshit.draft";
 
-  var me = null;          // from /api/bullshit/me
+  var me = null;          // from /api/bullshit/me; me.questions is one entry per slot
   var live = null;        // latest snapshot
   var socket = null;
   var stage = null;
-  var editing = false;
+  var editSlot = null;    // a question they chose to change; null: the next one unwritten
+  var writeSlot = null;   // the question the write form is built for
 
   // Choices in progress this round, cleared when the round or phase moves.
   var roundKey = "";
@@ -68,16 +70,16 @@
     joinError: document.getElementById("join-error"),
     joinSub: document.getElementById("join-sub"),
     sticker: document.getElementById("count-sticker"),
+    writeTitle: document.getElementById("write-title"),
+    slots: document.getElementById("slots"),
     question: document.getElementById("q-text"),
     qCount: document.getElementById("q-count"),
     why: document.getElementById("q-why"),
     options: document.getElementById("options"),
     submit: document.getElementById("submit"),
     missing: document.getElementById("missing"),
-    previewQ: document.getElementById("preview-q"),
-    previewOpts: document.getElementById("preview-opts"),
+    previews: document.getElementById("previews"),
     lobbyMeter: document.getElementById("lobby-meter"),
-    edit: document.getElementById("edit"),
     game: document.getElementById("stage-game"),
     toast: document.getElementById("toast")
   };
@@ -137,34 +139,46 @@
 
   var draft = null;
 
-  function loadDraft() {
-    var count = me.option_count;
+  function slotKey(slot) {
+    return storeKey + "." + slot;
+  }
+
+  function firstUnwritten() {
+    for (var i = 0; i < me.questions.length; i++) {
+      if (!me.questions[i].written) return i;
+    }
+    return null;
+  }
+
+  function loadDraft(slot) {
+    var saved = me.questions[slot];
+    var count = saved.option_count;
     var options = [];
     for (var i = 0; i < count; i++) options.push("");
     var fresh = { question: "", options: options, real: null, why: "" };
 
-    if (me.question) {
+    if (saved.written) {
       // Their saved question: the real answer first, ticked. Only they see it.
       return {
-        question: me.question.prompt,
-        options: [me.question.answer].concat(me.question.decoys).slice(0, count),
+        question: saved.prompt,
+        options: [saved.answer].concat(saved.decoys).slice(0, count),
         real: 0,
-        why: me.question.explanation || ""
+        why: saved.explanation || ""
       };
     }
     try {
-      var saved = JSON.parse(localStorage.getItem(storeKey));
-      if (saved && Array.isArray(saved.options) && saved.options.length === count) return saved;
+      var kept = JSON.parse(localStorage.getItem(slotKey(slot)));
+      if (kept && Array.isArray(kept.options) && kept.options.length === count) return kept;
     } catch (e) { /* storage blocked: start fresh */ }
     return fresh;
   }
 
   function saveDraft() {
-    try { localStorage.setItem(storeKey, JSON.stringify(draft)); } catch (e) { /* fine */ }
+    try { localStorage.setItem(slotKey(writeSlot), JSON.stringify(draft)); } catch (e) { /* fine */ }
   }
 
-  function clearDraft() {
-    try { localStorage.removeItem(storeKey); } catch (e) { /* fine */ }
+  function clearDraft(slot) {
+    try { localStorage.removeItem(slotKey(slot)); } catch (e) { /* fine */ }
   }
 
   function whatsMissing() {
@@ -189,9 +203,11 @@
     area.style.height = area.scrollHeight + "px";
   }
 
-  function buildWrite() {
-    draft = loadDraft();
-    el.sticker.textContent = me.option_count + " options";
+  function buildWrite(slot) {
+    writeSlot = slot;
+    draft = loadDraft(slot);
+    el.writeTitle.textContent = "Question " + (slot + 1) + " of " + me.questions.length;
+    el.sticker.textContent = me.questions[slot].option_count + " options";
     el.question.maxLength = QUESTION_MAX;
     el.question.value = draft.question;
     el.why.value = draft.why || "";
@@ -234,7 +250,27 @@
     paintWrite();
   }
 
+  /* One button per question: which are written, which is open. Tapping one
+     switches to it; whatever was typed in the other stays in its draft. */
+  function paintSlots() {
+    el.slots.innerHTML = "";
+    me.questions.forEach(function (q, i) {
+      el.slots.appendChild(h("button", {
+        class: "bs-slot" + (q.written ? " is-done" : ""), type: "button",
+        "aria-current": i === writeSlot ? "true" : "false",
+        "aria-label": "Question " + (i + 1) + (q.written ? ", written" : ", not written yet"),
+        text: (q.written ? "✓ " : "") + (i + 1),
+        onclick: function () {
+          if (i === writeSlot) return;
+          editSlot = i;
+          render();
+        }
+      }));
+    });
+  }
+
   function paintWrite() {
+    paintSlots();
     el.qCount.textContent = el.question.value.length + " / " + QUESTION_MAX;
     Array.prototype.forEach.call(el.options.children, function (row, i) {
       var isReal = draft.real === i;
@@ -262,13 +298,16 @@
     el.submit.disabled = true;
     var answer = draft.options[draft.real];
     var decoys = draft.options.filter(function (_, i) { return i !== draft.real; });
+    var slot = writeSlot;
     api("POST", "/api/bullshit/question", {
-      prompt: draft.question, answer: answer,
+      slot: slot, prompt: draft.question, answer: answer,
       decoys: decoys, explanation: draft.why || ""
     }).then(function (data) {
       me = data;
-      editing = false;
-      clearDraft();
+      editSlot = null;
+      writeSlot = null;
+      clearDraft(slot);
+      if (firstUnwritten() !== null) toast("Saved. On to the next one.");
       render();
     }).catch(function (err) {
       toast(err.message);
@@ -276,26 +315,30 @@
     });
   });
 
-  el.edit.addEventListener("click", function () {
-    editing = true;
-    render();
-  });
-
   /* ---------------------------------------------------------------- done -- */
 
   function paintDone() {
-    var q = me.question;
-    el.previewQ.textContent = q.prompt;
-    el.previewOpts.innerHTML = "";
-    [q.answer].concat(q.decoys).forEach(function (text, i) {
-      el.previewOpts.appendChild(h("li", { class: i === 0 ? "is-real" : null },
-        h("b", { text: LETTERS[i] }),
-        h("span", { text: text }),
-        i === 0 ? h("span", { class: "bs-preview__real", text: "Real one" }) : null));
+    el.previews.innerHTML = "";
+    me.questions.forEach(function (q, slot) {
+      el.previews.appendChild(h("div", { class: "bs-card bs-card--preview" },
+        h("span", { class: "bs-label", text: "Question " + (slot + 1) }),
+        h("p", { class: "bs-preview__q", text: q.prompt }),
+        h("ol", { class: "bs-preview__opts" },
+          [q.answer].concat(q.decoys).map(function (text, i) {
+            return h("li", { class: i === 0 ? "is-real" : null },
+              h("b", { text: LETTERS[i] }),
+              h("span", { text: text }),
+              i === 0 ? h("span", { class: "bs-preview__real", text: "Real one" }) : null);
+          })),
+        q.edited ? h("p", { class: "bs-preview__note",
+                            text: "The host tidied this one. This is the version you'll defend." }) : null,
+        h("button", { class: "bs-btn bs-btn--inline bs-preview__change", type: "button",
+                      text: "Change it",
+                      onclick: function () { editSlot = slot; render(); } })));
     });
     el.lobbyMeter.innerHTML = "";
     if (live && live.phase === "lobby") {
-      el.lobbyMeter.appendChild(BS.meter("Questions in", live.submitted, live.registered));
+      el.lobbyMeter.appendChild(BS.meter("Players done writing", live.submitted, live.registered));
     }
   }
 
@@ -949,9 +992,12 @@
     if (!me) return;
     setChip();
     if (!live || live.phase === "lobby") {
-      if (editing || !me.question) {
-        if (stage !== "write") { show("write"); buildWrite(); }
+      var slot = editSlot !== null ? editSlot : firstUnwritten();
+      if (slot !== null) {
+        if (stage !== "write" || writeSlot !== slot) { show("write"); buildWrite(slot); }
+        else paintSlots();
       } else {
+        writeSlot = null;
         show("done");
         paintDone();
       }
@@ -1022,9 +1068,11 @@
       onState: function (state) {
         var phaseChanged = !live || live.phase !== state.phase || live.round !== state.round;
         if (live && live.phase === "lobby" && state.phase !== "lobby") {
-          editing = false;
+          editSlot = null;
           me.locked = true;
         }
+        // The host may have tidied one of their questions.
+        if (state.phase === "lobby" && state.mine) me.questions = state.mine;
         cue(live, state);
         live = state;
         render();

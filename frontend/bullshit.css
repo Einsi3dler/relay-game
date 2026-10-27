@@ -1052,3 +1052,124 @@
   .bs-draftturn, .bs-tradelist__item.is-incoming { animation: none; }
 }
 .bs-poolpanel .bs-pool { margin: 14px 0 0; }
+
+/* =====================================================================
+ * The question bank: three questions each, reviewed by the host.
+ * ===================================================================== */
+
+/* The player's three questions, one button each. */
+.bs-slots { display: flex; gap: 10px; margin: 0 0 18px; }
+
+.bs-slot {
+  flex: 1;
+  padding: 10px 8px;
+  border: var(--bs-line);
+  border-radius: 14px;
+  background: var(--bs-paper);
+  box-shadow: var(--bs-shadow-sm);
+  color: var(--bs-ink);
+  font-family: var(--bs-display);
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.bs-slot.is-done { background: var(--bs-green); }
+.bs-slot[aria-current="true"] { background: var(--bs-yellow); transform: rotate(-2deg) scale(1.04); }
+.bs-slot:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--bs-ink); }
+.bs-slot:focus-visible { outline: 4px solid var(--bs-yellow); outline-offset: 3px; }
+
+.bs-card--preview .bs-label { display: block; margin-bottom: 6px; }
+.bs-preview__note { margin: 12px 0 0; font-size: 0.95rem; }
+.bs-preview__change { margin-top: 14px; }
+
+/* The host's "Rounds tonight". */
+.bs-rounds { display: grid; gap: 8px; margin: 6px 0 20px; }
+.bs-rounds__row { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.bs-rounds__num {
+  min-width: 3ch;
+  font-family: var(--bs-display);
+  font-size: clamp(2.6rem, 12vw, 3.4rem);
+  line-height: 1;
+  text-align: center;
+}
+.bs-rounds__step { min-width: 52px; }
+
+/* The host's review of the bank. */
+.bs-review { margin-top: 18px; }
+.bs-review__count { font-weight: 900; }
+
+.bs-review__filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.bs-review__filter input { width: 22px; height: 22px; accent-color: var(--bs-ink); }
+
+.bs-review__list { display: grid; gap: 16px; }
+
+.bs-review__item {
+  padding: 16px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 16px;
+  background: #fff;
+  animation: bs-pop 0.3s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+
+.bs-review__item.is-todo { border-style: dashed; }
+
+.bs-review__q {
+  margin: 0 0 12px;
+  font-family: var(--bs-display);
+  font-size: 1.3rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.bs-review__why { margin: 10px 0 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+
+.bs-review__tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+.bs-tagbtn {
+  padding: 8px 14px;
+  border: 3px solid var(--bs-ink);
+  border-radius: 999px;
+  background: var(--bs-paper);
+  box-shadow: var(--bs-shadow-sm);
+  color: var(--bs-ink);
+  font-family: var(--bs-body);
+  font-size: 0.95rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.bs-tagbtn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--bs-ink); }
+.bs-tagbtn:focus-visible { outline: 3px solid var(--bs-yellow); outline-offset: 2px; }
+.bs-tagbtn[aria-pressed="true"] { transform: rotate(-2deg); }
+.bs-tagbtn--fascinating[aria-pressed="true"] { background: var(--bs-green); }
+.bs-tagbtn--mid[aria-pressed="true"] { background: var(--bs-cyan); }
+.bs-tagbtn--bland[aria-pressed="true"] { background: var(--bs-yellow); }
+.bs-tagbtn--out[aria-pressed="true"] { background: var(--bs-pink); }
+
+.bs-review__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.bs-review__edited { font-size: 0.85rem; font-weight: 900; opacity: 0.75; }
+
+.bs-review__form { display: grid; gap: 8px; }
+.bs-review__form .bs-label { margin: 6px 0 0; }
+.bs-review__form .bs-field { width: 100%; box-sizing: border-box; resize: vertical; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bs-slot, .bs-review__item { transition: none; animation: none; }
+  .bs-slot[aria-current="true"], .bs-tagbtn[aria-pressed="true"] { transform: none; }
+}

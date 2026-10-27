@@ -23,6 +23,12 @@
  * The round history panel sits outside the part of the page that redraws on
  * every update, so it does not snap shut whenever somebody joins.
  *
+ * The night before, the lobby is where the host prepares: how many rounds,
+ * and a review of every question in the bank (tag it, tidy it) without ever
+ * seeing who wrote it. The review shows every answer, so it is folded like
+ * the history, and it lives outside the redraw too, so an edit in progress
+ * survives somebody else joining. It disappears once the game starts.
+ *
  * No build step (see CLAUDE.md). Needs bullshit-common.js loaded first.
  */
 (function () {
@@ -36,6 +42,13 @@
   var live = null;
   var undoUntil = 0;          // client clock: when the Undo reset bar disappears
   var UNDO_MS = 10000;        // matches BS_UNDO_SECONDS; the server has the final say
+  var ROUNDS_MAX = 90;        // matches BS_ROUNDS_MAX; the server has the final say
+  var TAGS = [                // BS_TAGS, best first; "out" is never played
+    { id: "fascinating", label: "Fascinating" },
+    { id: "mid", label: "Mid ground" },
+    { id: "bland", label: "Bland" },
+    { id: "out", label: "Leave out" }
+  ];
 
   document.getElementById("mute-slot").replaceWith(BS.muteButton());
 
@@ -67,7 +80,7 @@
   function roster(s) {
     var inGame = s.phase !== "lobby" && s.phase !== "final";
     return h("ul", { class: "bs-roster" }, (s.players || []).map(function (p) {
-      var tag = s.phase === "lobby" ? (p.submitted ? "wrote it" : "writing")
+      var tag = s.phase === "lobby" ? (p.submitted ? "all written" : p.written + " of " + p.wanted)
         : p.speaker ? (p.committed ? "speaker, ready" : "speaker")
         : s.phase === "open" || s.phase === "votes" ? (p.committed ? "locked" : "thinking")
         : p.relegated ? "guessing only"
@@ -78,7 +91,7 @@
             class: "bs-roster__gone", type: "button", text: "Remove",
             "aria-label": "Remove " + p.name + " from the lobby",
             onclick: function () {
-              if (window.confirm("Remove " + p.name + " from the lobby? Their question goes too. " +
+              if (window.confirm("Remove " + p.name + " from the lobby? Their questions go too. " +
                                  "They can join again with the code.")) {
                 step("remove", { player: p.id });
               }
@@ -131,23 +144,63 @@
       h("span", { class: "bs-label", text: "Join code" }),
       h("p", { class: "bs-joincard__code", text: s.code || "...." }),
       h("p", { class: "bs-joincard__hint",
-               text: "Share this in the group chat. Players sign in to Game Night, enter the code, and write one question each." }),
+               text: "Share this in the group chat, a day early if you like: the code stays the same until you start a new game night. Players sign in to Game Night, enter the code, and write three questions each." }),
       h("div", { class: "bs-joincard__row" }, linkBox, copy));
   }
 
   /* -------------------------------------------------------------- phases -- */
 
+  /* How many rounds tonight. Buttons, not a text box: the lobby redraws on
+     every join, and a box would lose the cursor mid-number. */
+  function roundsCard(s) {
+    var n = s.rounds_target;
+    function stepBy(delta) {
+      var next = Math.max(1, Math.min(ROUNDS_MAX, n + delta));
+      return h("button", { class: "bs-btn bs-btn--inline bs-rounds__step", type: "button",
+                           text: (delta > 0 ? "+" : "−") + Math.abs(delta),
+                           "aria-label": (delta > 0 ? "Add " : "Take away ") + Math.abs(delta),
+                           disabled: next === n,
+                           onclick: function () { step("rounds", { rounds: next }); } });
+    }
+    return h("div", { class: "bs-card bs-rounds" },
+      h("span", { class: "bs-label", text: "Rounds tonight" }),
+      h("div", { class: "bs-rounds__row" },
+        stepBy(-5), stepBy(-1),
+        h("span", { class: "bs-rounds__num", text: String(n), "aria-live": "polite" }),
+        stepBy(1), stepBy(5)),
+      h("p", { class: "bs-joincard__hint",
+               text: "Set this before you share the link. The game fills the rounds with the best mix of questions it can, so some players' questions won't be played and some will be played more than once." }));
+  }
+
+  function bankCounts(s) {
+    var bank = s.review || [];
+    var count = function (test) { return bank.filter(test).length; };
+    return {
+      total: bank.length,
+      untagged: count(function (q) { return !q.tag; }),
+      playable: count(function (q) { return q.tag && q.tag !== "out"; })
+    };
+  }
+
   function lobby(s) {
-    var ready = s.registered >= 3 && s.submitted === s.registered;
+    var bank = bankCounts(s);
+    var written = s.registered >= 3 && s.submitted === s.registered;
+    var ready = written && bank.untagged === 0 && bank.playable > 0;
+    var waiting = s.registered - s.submitted;
     var hint = s.registered < 3 ? "You need at least 3 players."
-      : !ready ? "Waiting on " + (s.registered - s.submitted) + " more question" +
-                 (s.registered - s.submitted === 1 ? "." : "s.")
-      : "Everyone's question is in. " + s.registered + " players means " + s.registered +
-        " rounds. Starting opens the perk draft.";
+      : !written ? "Waiting on " + waiting + " more player" + (waiting === 1 ? "" : "s") +
+                   " to finish writing."
+      : bank.untagged ? bank.untagged + " question" + (bank.untagged === 1 ? "" : "s") +
+                        " still to review, below."
+      : !bank.playable ? "Every question is marked Leave out. Tag some to play them."
+      : "All reviewed. Tonight plays " + Math.min(s.rounds_target, bank.playable) + " of " +
+        bank.playable + " playable questions. Starting opens the perk draft.";
     return [
       BS.title("The lobby"),
+      roundsCard(s),
       joinCard(s),
-      BS.meter("Questions in", s.submitted, s.registered),
+      BS.meter("Players done writing", s.submitted, s.registered),
+      BS.meter("Questions reviewed", bank.total - bank.untagged, bank.total),
       roster(s),
       bigButton("Start the game", "start", ready),
       h("p", { class: "bs-missing", text: hint })
@@ -342,6 +395,123 @@
 
   var secrets = buildSecretsPanel();
 
+  /* ------------------------------------------------------------- review -- */
+
+  /* The question bank, for the host to tag and tidy before the night. Every
+     answer is in it, so it starts folded with a warning, and it carries no
+     names: the server never says who wrote what. */
+  var reviewEditing = null;   // id of the question with its edit form open; closing it repaints
+  var onlyToReview = false;
+
+  function buildReviewPanel() {
+    var count = h("span", { class: "bs-review__count" });
+    var filter = h("input", { type: "checkbox", id: "review-filter" });
+    filter.addEventListener("change", function () {
+      onlyToReview = filter.checked;
+      if (live) paintReview(live);
+    });
+    var list = h("div", { class: "bs-review__list" });
+    var panel = h("details", { class: "bs-card bs-invites bs-review" },
+      h("summary", { class: "bs-invites__head" },
+        h("span", { class: "bs-label", text: "Review the questions" }),
+        count,
+        h("span", { class: "bs-invites__warn",
+                    text: "Shows every answer. Don't open while screen-sharing." })),
+      h("p", { class: "bs-invites__hint",
+               text: "Nobody's name is on these. Tag every one: Fascinating ones get played most, Bland ones only to fill the rounds, and Leave out never. Tidy the wording or the options if they need it; the author sees your version." }),
+      h("label", { class: "bs-review__filter", for: "review-filter" }, filter,
+        h("span", { text: "Only show the ones still to review" })),
+      list);
+    panelsEl.insertBefore(panel, panelsEl.firstChild);
+    return { panel: panel, list: list, count: count };
+  }
+
+  var review = buildReviewPanel();
+
+  function tagButtons(q) {
+    return h("div", { class: "bs-review__tags", role: "group", "aria-label": "Tag" },
+      TAGS.map(function (tag) {
+        var on = q.tag === tag.id;
+        return h("button", {
+          class: "bs-tagbtn bs-tagbtn--" + tag.id, type: "button", text: tag.label,
+          "aria-pressed": on ? "true" : "false",
+          onclick: function () { step("tag", { question: q.id, tag: on ? null : tag.id }); }
+        });
+      }));
+  }
+
+  function reviewItem(q) {
+    return h("div", { class: "bs-review__item" + (q.tag ? "" : " is-todo") },
+      h("p", { class: "bs-review__q", text: q.prompt }),
+      h("ol", { class: "bs-preview__opts" },
+        [q.answer].concat(q.decoys).map(function (text, i) {
+          return h("li", { class: i === 0 ? "is-real" : null },
+            h("span", { text: text }),
+            i === 0 ? h("span", { class: "bs-preview__real", text: "Real one" }) : null);
+        })),
+      q.explanation ? h("p", { class: "bs-review__why", text: "Why: " + q.explanation }) : null,
+      tagButtons(q),
+      h("div", { class: "bs-review__foot" },
+        q.edited ? h("span", { class: "bs-review__edited", text: "You tidied this" }) : h("span"),
+        h("button", { class: "bs-btn bs-btn--inline", type: "button", text: "Edit",
+                      onclick: function () { reviewEditing = q.id; paintReview(live); } })));
+  }
+
+  function field(tag, value, label, max) {
+    var input = h(tag, { class: "bs-field", "aria-label": label, maxlength: String(max),
+                         rows: tag === "textarea" ? "2" : null });
+    input.value = value;
+    return input;
+  }
+
+  /* The edit form: the same fields the author filled in, the same number of
+     options. Saving sends it; the next snapshot shows the result. */
+  function reviewForm(q) {
+    var prompt = field("textarea", q.prompt, "Question", 140);
+    var answer = field("input", q.answer, "Real answer", 60);
+    var decoys = q.decoys.map(function (d, i) { return field("input", d, "Fake answer " + (i + 1), 60); });
+    var why = field("textarea", q.explanation, "Why it's true", 280);
+    function close() { reviewEditing = null; paintReview(live); }
+    return h("div", { class: "bs-review__item bs-review__form" },
+      h("label", { class: "bs-label", text: "Question" }), prompt,
+      h("label", { class: "bs-label", text: "Real answer" }), answer,
+      h("label", { class: "bs-label", text: "Fake answers" }), decoys,
+      h("label", { class: "bs-label", text: "Why it's true (optional)" }), why,
+      h("div", { class: "bs-review__foot" },
+        h("button", { class: "bs-btn bs-btn--inline", type: "button", text: "Cancel", onclick: close }),
+        h("button", { class: "bs-btn bs-btn--inline bs-btn--go", type: "button", text: "Save",
+                      onclick: function () {
+                        step("edit", { question: q.id, prompt: prompt.value, answer: answer.value,
+                                       decoys: decoys.map(function (d) { return d.value; }),
+                                       explanation: why.value });
+                        close();
+                      } })));
+  }
+
+  function paintReview(s) {
+    review.panel.hidden = s.phase !== "lobby";
+    if (s.phase !== "lobby") { reviewEditing = null; return; }
+    var bank = s.review || [];
+    if (reviewEditing && bank.some(function (q) { return q.id === reviewEditing; }) &&
+        review.list.querySelector(".bs-review__form")) {
+      // Somebody joined or wrote; don't rebuild the form under the cursor.
+      return;
+    }
+    var counts = bankCounts(s);
+    review.count.textContent = counts.untagged
+      ? counts.untagged + " of " + counts.total + " to review"
+      : counts.total ? "all " + counts.total + " reviewed" : "nothing written yet";
+    review.list.innerHTML = "";
+    var shown = bank.filter(function (q) { return !onlyToReview || !q.tag || q.id === reviewEditing; });
+    shown.forEach(function (q) {
+      review.list.appendChild(q.id === reviewEditing ? reviewForm(q) : reviewItem(q));
+    });
+    if (!shown.length) {
+      review.list.appendChild(h("p", { class: "bs-invites__hint",
+        text: bank.length ? "Nothing left to review." : "Questions appear here as players write them." }));
+    }
+  }
+
   function paintSecrets(s) {
     var list = s.host_secrets || [];
     secrets.panel.hidden = !list.length;
@@ -410,6 +580,7 @@
       if (moved) window.scrollTo(0, 0);
       paintHistory(state);
       paintSecrets(state);
+      paintReview(state);
     },
     onError: toast,
     onClosed: function (code) {
