@@ -59,10 +59,11 @@
     <!-- ------------------------------------------------------- write --- -->
     <section class="bs-stage" id="stage-write" hidden>
       <div class="bs-head">
-        <h1 class="bs-title">Write a question</h1>
+        <h1 class="bs-title" id="write-title">Write your questions</h1>
         <span class="bs-sticker" id="count-sticker">3 options</span>
       </div>
-      <p class="bs-sub">Pick something the others will not know. Then write the real answer and some convincing fakes.</p>
+      <p class="bs-sub">Write three, each with a real answer and some convincing fakes. The host reads them all without seeing who wrote which, and the best get played. Not every question makes it in.</p>
+      <div class="bs-slots" id="slots"></div>
 
       <div class="bs-card bs-card--question">
         <label class="bs-label" for="q-text">Your question</label>
@@ -92,17 +93,12 @@
       <div class="bs-burst" aria-hidden="true">
         <span>IN THE BANK!</span>
       </div>
-      <h1 class="bs-title bs-title--center">Nice one.</h1>
-      <p class="bs-sub bs-sub--center">You can still change it until the host starts the game.</p>
+      <h1 class="bs-title bs-title--center">All three are in.</h1>
+      <p class="bs-sub bs-sub--center">You can change any of them until the host starts the game. If the host tidies one up, you'll see it here.</p>
 
-      <div class="bs-card bs-card--preview">
-        <p class="bs-preview__q" id="preview-q"></p>
-        <ol class="bs-preview__opts" id="preview-opts"></ol>
-      </div>
+      <div id="previews"></div>
 
       <div id="lobby-meter"></div>
-
-      <button class="bs-btn bs-btn--ghost" id="edit" type="button">Change my question</button>
     </section>
 
     <!-- ----------------------------------------------- started late --- -->

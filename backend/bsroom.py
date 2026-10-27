@@ -8,8 +8,10 @@ may see.
 
 The phases:
 
-    lobby     players register and write their question; nothing is dealt
-    draft     the roster is frozen and everybody picks one unique perk, in a
+    lobby     players register and write their questions; the host reviews
+              and tags every one, blind to its author; nothing is dealt
+    draft     tonight's questions are chosen (bsquiz.plan_rounds), the
+              roster is frozen and everybody picks one unique perk, in a
               shuffled order they can trade places in (backend/bsdraft.py)
     briefing  a question is up and its panel dealt. Each speaker privately
               learns their role. Bullshitters lock a wager; the truthful
@@ -167,11 +169,12 @@ class BullshitRoom:
     seats: dict[str, Seat] = field(default_factory=dict)
     phase: str = "lobby"
     n: int = 0                                         # fixed at start
-    pending: list[str] = field(default_factory=list)   # authors still to play, in order
+    rounds: int = 0                                    # tonight's questions, fixed at start
+    pending: list[str] = field(default_factory=list)   # question ids still to play, in order
     played: list[str] = field(default_factory=list)
-    dropped: list[str] = field(default_factory=list)   # authors who never came back
-    current: str | None = None                         # author of the question up
-    questions: dict[str, bsquiz.Question] = field(default_factory=dict)
+    dropped: list[str] = field(default_factory=list)   # theirs never came back
+    current: str | None = None                         # id of the question up
+    questions: dict[str, bsquiz.Question] = field(default_factory=dict)  # tonight's, by id
     panel: bsquiz.Panel | None = None
     result: bsquiz.RoundResult | None = None
     history: list[dict[str, Any]] = field(default_factory=list)  # revealed rounds only
@@ -236,8 +239,8 @@ class BullshitRoom:
         return len(self.played) + (1 if self.phase in IN_ROUND else 0)
 
     def total_rounds(self) -> int:
-        """N, less any question dropped because its author never came back."""
-        return self.n - len(self.dropped)
+        """Tonight's questions, less any dropped because the author never came back."""
+        return self.rounds - len(self.dropped)
 
     def standings(self) -> list[Seat]:
         return sorted(self.seats.values(), key=lambda s: (-s.total, s.name.lower()))
@@ -288,6 +291,8 @@ class BullshitRoom:
                          "relegated": seat.relegated})
             if self.phase == "lobby":
                 card["submitted"] = seat.player.has_question
+                card["written"] = min(seat.player.written, seat.player.wanted)
+                card["wanted"] = seat.player.wanted
             else:
                 card["perk"] = seat.perk
                 card["perk_spent"] = self.perk_known_spent(seat)
@@ -762,7 +767,7 @@ def refresh(room: BullshitRoom, players: list[Player]) -> None:
 
 def on_connect(room: BullshitRoom, player_id: str) -> None:
     """Back online. Relegation stands: they guess for the rest of the game.
-    Their queued question, if any, becomes playable again."""
+    Their queued questions, if any, become playable again."""
     seat = room.seats.get(player_id)
     if seat is not None:
         seat.connected = True
@@ -799,21 +804,34 @@ def can_submit(room: BullshitRoom) -> None:
         raise Rejected("The game has started. Questions are locked.")
 
 
-def start(room: BullshitRoom, questions: dict[str, bsquiz.Question]) -> None:
-    """Freeze the roster, fix N and the question order, deal everybody their
-    wager cards, and open the perk draft. The first round is dealt when the
-    host starts the quiz after it (`begin_quiz`).
+def start(room: BullshitRoom, questions: dict[str, bsquiz.Question], rounds: int) -> None:
+    """Freeze the roster, fix N, choose tonight's questions and their order
+    (up to `rounds` of them, bsquiz.plan_rounds), deal everybody their wager
+    cards, and open the perk draft. The first round is dealt when the host
+    starts the quiz after it (`begin_quiz`).
 
-    Anybody seated but offline at this moment starts relegated, and their
-    question waits for them like any other absent author's.
+    Every seat must have written all their questions and the host must have
+    tagged every one. Anybody seated but offline at this moment starts
+    relegated, and their questions wait for them like any other absent
+    author's.
     """
     if room.phase != "lobby":
         raise Rejected("The game has already started.")
     if len(room.seats) < config.BS_MIN_PLAYERS:
         raise Rejected(f"Wait for at least {config.BS_MIN_PLAYERS} players to sign in.")
-    missing = [s.name for s in room.seats.values() if s.id not in questions]
+    bank = [q for q in questions.values() if q.author in room.seats]
+    missing = [s.name for s in room.seats.values()
+               if sum(1 for q in bank if q.author == s.id) < s.player.wanted]
     if missing:
-        raise Rejected("Still waiting on a question from " + ", ".join(sorted(missing)) + ".")
+        raise Rejected("Still waiting on questions from " + ", ".join(sorted(missing)) + ".")
+    untagged = sum(1 for q in bank if q.tag not in config.BS_TAGS)
+    if untagged:
+        raise Rejected(f"Review every question first: {untagged} still "
+                       f"need{'s' if untagged == 1 else ''} a tag.")
+    if rounds < 1:
+        raise Rejected("Set how many rounds tonight has.")
+    if not any(q.tag in config.BS_TAG_WEIGHTS for q in bank):
+        raise Rejected("Every question is marked Leave out. Tag at least one to play it.")
     if sum(1 for s in room.seats.values() if s.connected) < config.BS_MIN_PLAYERS:
         raise Rejected(f"At least {config.BS_MIN_PLAYERS} players need to be online to start.")
     if len(room.seats) > len(bsperks.PERKS):
@@ -821,15 +839,16 @@ def start(room: BullshitRoom, questions: dict[str, bsquiz.Question]) -> None:
                        f"at most {len(bsperks.PERKS)} players.")
 
     room.n = len(room.seats)
-    room.questions = {pid: questions[pid] for pid in room.seats}
-    room.pending = bsquiz.schedule(list(room.seats), room.rng)
+    plan = bsquiz.plan_rounds(bank, rounds, room.rng)
+    room.questions = {q.id: q for q in plan}
+    room.pending = [q.id for q in plan]
+    room.rounds = len(plan)
     room.played = []
     room.dropped = []
     room.history = []
     room.revealed = []
-    most = max(1 + min(len(q.decoys), bsquiz.max_bullshitters(room.n))
-               for q in room.questions.values())
-    room.hands = bsdraft.deal_hands(list(room.seats), room.n)
+    most = max(1 + min(len(q.decoys), bsquiz.max_bullshitters(room.n)) for q in plan)
+    room.hands = bsdraft.deal_hands(list(room.seats), bsquiz.wager_hand(room.n, room.rounds))
     room.draft = bsdraft.new_draft(list(room.seats), room.hands,
                                    bsperks.draft_pool(room.n, most), room.rng)
     for seat in room.seats.values():
@@ -890,10 +909,9 @@ def begin_quiz(room: BullshitRoom) -> None:
 
 # --- dealing --------------------------------------------------------------
 
-def _dealable_size(room: BullshitRoom, author: str) -> int:
-    q = room.questions[author]
-    candidates = [s for s in room.seats.values() if s.id != author and s.may_bluff]
-    online_others = sum(1 for s in room.seats.values() if s.id != author and s.connected)
+def _dealable_size(room: BullshitRoom, q: bsquiz.Question) -> int:
+    candidates = [s for s in room.seats.values() if s.id != q.author and s.may_bluff]
+    online_others = sum(1 for s in room.seats.values() if s.id != q.author and s.connected)
     return bsquiz.panel_size(len(q.decoys), len(candidates), online_others)
 
 
@@ -913,20 +931,22 @@ def _deal_next(room: BullshitRoom) -> None:
     room.ballot = False
     room.talk_ends = room.openings_end = 0.0
 
-    online_authors = [a for a in room.pending if room.seats[a].connected]
-    if not online_authors:
+    playable = [qid for qid in room.pending
+                if room.seats[room.questions[qid].author].connected]
+    if not playable:
         room.dropped.extend(room.pending)
         room.pending = []
         room.phase = "final"
         return
 
-    for author in online_authors:
-        b = _dealable_size(room, author)
+    for qid in playable:
+        q = room.questions[qid]
+        b = _dealable_size(room, q)
         if b >= 1:
-            candidates = [s.id for s in room.seats.values() if s.id != author and s.may_bluff]
-            room.panel = bsquiz.deal_panel(room.questions[author], candidates, b, room.rng)
-            room.pending.remove(author)
-            room.current = author
+            candidates = [s.id for s in room.seats.values() if s.id != q.author and s.may_bluff]
+            room.panel = bsquiz.deal_panel(q, candidates, b, room.rng)
+            room.pending.remove(qid)
+            room.current = qid
             room.phase = "briefing"
             return
     room.phase = "waiting"

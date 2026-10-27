@@ -660,10 +660,12 @@ they can't out a bullshitter; knowing that somebody *holds* Insurance Fraud
 says nothing about whether they are bluffing this round. Nothing counts
 perks in play.
 
-**Known limits.** Role luck still applies: everyone speaks truthfully once,
-but bluffing turns are random, so a speaker perk is only guaranteed one
-chance. The clock lengths and point values are first guesses for the
-playtest; they all live in `backend/config.py`.
+**Known limits.** Role luck applies. Since the question bank
+([BULLSHIT_QUIZ.md](BULLSHIT_QUIZ.md) §0, 27 October 2026) nobody is promised
+a truthful turn, and bluffing turns are random, so a speaker perk is not
+guaranteed a chance. With about three speakers a round it is rare to never
+speak, but a short night can do it. The clock lengths and point values are
+first guesses for the playtest; they all live in `backend/config.py`.
 
 ## 7. Where this draft changes or adds to the list
 

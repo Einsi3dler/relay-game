@@ -9,30 +9,35 @@ from __future__ import annotations
 
 import json
 import random
+from dataclasses import replace
 
 import pytest
 
-from backend import bsquiz, bsroom
+from backend import bsquiz, bsroom, config
 from backend.bsquiz import BULLSHITTER, GUESSER, TRUTHFUL
 from backend.bsroster import Player
 
 SECRET_EXPLANATION = "zebra-explanation-marker"
 
 
+WANTED = config.BS_QUESTIONS_PER_PLAYER
+
+
 def player(i: int) -> Player:
     return Player(id=f"p{i}", user_id=f"u{i}", display_name=f"Player {i}",
-                  option_count=4, has_question=True)
+                  option_counts=(4,) * WANTED, written=WANTED)
 
 
-def questions_for(players: list[Player]) -> dict[str, bsquiz.Question]:
-    return {
-        p.id: bsquiz.Question(
-            author=p.id, prompt=f"Question by {p.name}?",
-            answer=f"real-{p.id}",
-            decoys=tuple(f"fake-{p.id}-{k}" for k in range(3)),
-            explanation=f"{SECRET_EXPLANATION}-{p.id}")
-        for p in players
-    }
+def questions_for(players: list[Player], tag: str = "mid") -> dict[str, bsquiz.Question]:
+    """Every player's whole bank, tagged. The ids are just numbers: an id
+    that spelled its author would make the leak tests below pointless."""
+    bank = [bsquiz.Question(
+                author=p.id, prompt=f"Question {k} by {p.name}?",
+                answer=f"real-{p.id}-{k}",
+                decoys=tuple(f"fake-{p.id}-{k}-{j}" for j in range(3)),
+                explanation=f"{SECRET_EXPLANATION}-{p.id}-{k}", tag=tag)
+            for p in players for k in range(WANTED)]
+    return {f"q{i}": replace(q, id=f"q{i}") for i, q in enumerate(bank)}
 
 
 def make_room(n: int = 6, seed: int = 1):
@@ -55,7 +60,7 @@ def draft_everyone(room) -> None:
 def started(n: int = 6, seed: int = 1):
     """A game past its draft, at round one's briefing."""
     room, qs = make_room(n, seed)
-    bsroom.start(room, qs)
+    bsroom.start(room, qs, len(room.seats))
     draft_everyone(room)
     bsroom.begin_quiz(room)
     return room
@@ -96,25 +101,47 @@ def play_round(room, key: str | None = None) -> None:
 
 # --- the whole game -------------------------------------------------------
 
-def test_n_rounds_each_player_truthful_once():
+def test_the_game_plays_exactly_the_planned_questions():
     room = started(6)
-    authors = []
+    planned = [room.current] + list(room.pending)
+    played = []
     while room.phase != "final":
         assert room.phase == "briefing"
-        authors.append(room.panel.author)
+        played.append(room.current)
+        assert room.panel.author == room.questions[room.current].author
         play_round(room)
         bsroom.next_round(room)
-    assert sorted(authors) == sorted(room.seats)
-    assert len(authors) == room.n == 6
+    assert played == planned == room.played
+    assert len(played) == room.rounds == 6
 
 
-def test_every_wager_number_is_spent_exactly_once():
+def test_start_plays_the_rounds_the_host_asked_for():
+    room, qs = make_room(5)
+    bsroom.start(room, qs, 9)
+    assert room.rounds == 9 and len(room.pending) == 9
+    assert set(room.questions) == set(room.pending) <= set(qs)
+    assert all(len(room.hand(pid)) == 9 for pid in room.seats)
+    assert room.public("p0")["rounds"] == 9
+
+
+def test_start_plays_no_more_than_the_playable_questions():
+    room, qs = make_room(4)
+    qs = {qid: replace(q, tag="out") if i % 2 else q for i, (qid, q) in enumerate(qs.items())}
+    bsroom.start(room, qs, 50)
+    assert room.rounds == 6                            # 12 written, half left out
+    assert all(qs[qid].tag == "mid" for qid in room.pending)
+
+
+def test_a_card_is_spent_every_wagering_turn():
     room = started(5)
     while room.phase != "final":
         play_round(room)
         bsroom.next_round(room)
+    truthful = {pid: sum(1 for e in room.history if e["author"] == pid) for pid in room.seats}
     for seat in room.seats.values():
-        assert spent(room, seat.id) == list(range(1, room.n))
+        assert len(spent(room, seat.id)) == room.rounds - truthful[seat.id]
+        assert sorted(spent(room, seat.id) + room.left(seat.id)) == \
+            bsquiz.wager_hand(room.n, room.rounds)
 
 
 def test_totals_are_the_sum_of_round_lines():
@@ -358,14 +385,30 @@ def test_steps_out_of_order_are_refused():
 def test_start_needs_three_players():
     room, qs = make_room(2)
     with pytest.raises(bsroom.Rejected, match="at least 3"):
-        bsroom.start(room, qs)
+        bsroom.start(room, qs, len(room.seats))
 
 
 def test_start_waits_for_every_question():
     room, qs = make_room(4)
-    del qs["p2"]
+    del qs[next(qid for qid, q in qs.items() if q.author == "p2")]
     with pytest.raises(bsroom.Rejected, match="Player 2"):
-        bsroom.start(room, qs)
+        bsroom.start(room, qs, len(room.seats))
+
+
+def test_start_waits_for_the_review():
+    room, qs = make_room(4)
+    qs = {qid: replace(q, tag="") if i < 2 else q for i, (qid, q) in enumerate(qs.items())}
+    with pytest.raises(bsroom.Rejected, match="2 still need a tag"):
+        bsroom.start(room, qs, 4)
+    assert room.phase == "lobby"
+
+
+def test_start_needs_something_to_play():
+    room, qs = make_room(4)
+    with pytest.raises(bsroom.Rejected, match="Leave out"):
+        bsroom.start(room, {k: replace(q, tag="out") for k, q in qs.items()}, 4)
+    with pytest.raises(bsroom.Rejected, match="how many rounds"):
+        bsroom.start(room, qs, 0)
 
 
 def test_roster_and_submissions_freeze_at_start():
@@ -429,44 +472,57 @@ def test_relegation_is_permanent_and_never_bluffs_again():
     assert room.phase == "final"
 
 
+def offstage_author(room) -> tuple[str, str]:
+    """A queued question whose author is not speaking this round, and that
+    author: somebody who can leave without changing the current round."""
+    qid = next(qid for qid in room.pending
+               if room.questions[qid].author not in room.panel.speakers)
+    return qid, room.questions[qid].author
+
+
 def test_offline_authors_question_is_skipped_then_played_on_return():
     room = started(6, seed=3)
-    queued = room.pending[0]
-    bsroom.on_disconnect(room, queued)
+    queued, author = offstage_author(room)
+    bsroom.on_disconnect(room, author)
     play_round(room)
     bsroom.next_round(room)
-    assert room.current != queued and queued in room.pending
-    bsroom.on_connect(room, queued)
-    authors = [room.current]
+    assert room.panel.author != author and queued in room.pending
+    bsroom.on_connect(room, author)
     while room.phase != "final":
         play_round(room)
         bsroom.next_round(room)
-        if room.current:
-            authors.append(room.current)
     assert queued in room.played and room.dropped == []
 
 
 def test_questions_from_players_who_never_return_are_dropped():
-    room = started(6, seed=4)
-    gone = [room.pending[0], room.pending[1]]
+    room, qs = make_room(6, seed=4)
+    bsroom.start(room, qs, 12)
+    draft_everyone(room)
+    bsroom.begin_quiz(room)
+    gone = []
+    for qid in room.pending:
+        author = room.questions[qid].author
+        if author not in room.panel.speakers and author not in gone and len(gone) < 2:
+            gone.append(author)
+    theirs = [qid for qid in room.pending if room.questions[qid].author in gone]
     for g in gone:
         bsroom.on_disconnect(room, g)
     while room.phase != "final":
         play_round(room)
         bsroom.next_round(room)
-    assert sorted(room.dropped) == sorted(gone)
-    assert len(room.played) == 4
+    assert sorted(room.dropped) == sorted(theirs) and theirs
+    assert len(room.played) == room.rounds - len(theirs)
     view = room.public(None, is_host=True)
-    assert view["rounds"] == 4 and view["dropped"] == 2
+    assert view["rounds"] == len(room.played) and view["dropped"] == len(theirs)
 
 
 def test_author_leaving_the_briefing_defers_and_refunds():
     room = started(6, seed=5)
-    author = room.panel.author
+    author, deferred = room.panel.author, room.current
     liar = room.panel.bullshitters[0]
     bsroom.bluff(room, liar, 3)
     bsroom.on_disconnect(room, author)
-    assert room.pending[0] == author
+    assert room.pending[0] == deferred
     assert room.panel.author != author
     assert room.phase == "briefing"
     assert 3 not in spent(room, liar)
@@ -500,12 +556,12 @@ def test_bullshitter_leaving_with_nobody_to_take_over():
 
 def test_last_bullshitter_leaving_defers_the_question():
     room = started(3, seed=2)       # author, one liar, one guesser
-    author = room.panel.author
+    deferred = room.current
     liar = room.panel.bullshitters[0]
     bsroom.on_disconnect(room, liar)
     # Only two online now: nothing can be dealt, the host waits.
     assert room.phase == "waiting"
-    assert author in room.pending
+    assert deferred in room.pending
     bsroom.on_connect(room, liar)
     bsroom.next_round(room)
     assert room.phase == "briefing"
@@ -527,7 +583,7 @@ def test_speakers_leaving_after_the_discussion_opens_keep_the_round():
 def test_offline_at_start_means_relegated():
     room, qs = make_room(6)
     bsroom.on_disconnect(room, "p5")
-    bsroom.start(room, qs)
+    bsroom.start(room, qs, len(room.seats))
     assert room.seats["p5"].relegated
     draft_everyone(room)
     bsroom.begin_quiz(room)
@@ -539,14 +595,14 @@ def test_start_needs_three_online():
     bsroom.on_disconnect(room, "p0")
     bsroom.on_disconnect(room, "p1")
     with pytest.raises(bsroom.Rejected, match="online"):
-        bsroom.start(room, qs)
+        bsroom.start(room, qs, len(room.seats))
 
 
 def test_lobby_disconnects_do_not_relegate():
     room, qs = make_room(5)
     bsroom.on_disconnect(room, "p1")
     bsroom.on_connect(room, "p1")
-    bsroom.start(room, qs)
+    bsroom.start(room, qs, len(room.seats))
     assert not room.seats["p1"].relegated
 
 
